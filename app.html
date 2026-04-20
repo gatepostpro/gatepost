@@ -1616,6 +1616,12 @@ async function boot(){
   var params = new URLSearchParams(window.location.search);
   var showId = params.get('show');
 
+  // No show ID — send back to index to pick one
+  if(!showId){
+    window.location.href = 'index.html';
+    return;
+  }
+
   if(showId){
     try{
       // Load show from Supabase
