@@ -108,80 +108,101 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--bg);color:var(--tex
   <span style="font-size:.75rem;color:var(--muted)">Gatepost v0.2 &mdash; <a href="https://github.com/gatepostpro/gatepost" target="_blank" style="color:var(--accent);text-decoration:none">GitHub</a></span>
 </div>
 
-<script type="module">
-import { db, getShows, upsertShow, getDefaultAssociation } from './db.js';
+<script>
+var SUPABASE_URL  = 'https://tpurkcxtkvwpywxnuzwe.supabase.co';
+var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwdXJrY3h0a3Z3cHl3eG51endlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MDUwMzYsImV4cCI6MjA5MjI4MTAzNn0.j1fPBjBsbIoXXosM96YtywdGiVVLWnd-YrXZ1634alU';
 
-let ASSOC = null;
+var ASSOC = null;
 
-async function init() {
-  try {
-    ASSOC = await getDefaultAssociation();
+async function sbFetch(path, opts){
+  var res = await fetch(SUPABASE_URL + '/rest/v1/' + path, Object.assign({
+    headers:{
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + SUPABASE_ANON,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    }
+  }, opts||{}));
+  if(!res.ok){ var e=await res.text(); throw new Error(e); }
+  var text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function init(){
+  try{
+    var rows = await sbFetch('associations?abbreviation=eq.CoWN&select=*');
+    ASSOC = rows && rows[0];
+    if(!ASSOC) throw new Error('Association not found');
     document.getElementById('dot').className = 'status-dot';
-    document.getElementById('db-status').innerHTML = '<span class="status-dot" id="dot"></span>Connected';
+    document.getElementById('db-status').innerHTML = '<span class="status-dot"></span>Connected';
     document.getElementById('assoc-name').textContent = ASSOC.abbreviation;
     await loadShows();
-  } catch (err) {
+  } catch(err){
     document.getElementById('db-status').innerHTML = '<span class="status-dot red"></span>Connection failed';
-    document.getElementById('shows-list').innerHTML = '<div class="empty" style="color:var(--red)">Could not connect to database. Check your connection.</div>';
+    document.getElementById('shows-list').innerHTML = '<div class="empty" style="color:var(--red)">Could not connect to database: ' + err.message + '</div>';
     console.error(err);
   }
 }
 
-async function loadShows() {
-  const shows = await getShows(ASSOC.id);
-  const el = document.getElementById('shows-list');
-  if (!shows.length) {
+async function loadShows(){
+  var shows = await sbFetch('shows?association_id=eq.'+ASSOC.id+'&order=show_date.desc&select=*');
+  var el = document.getElementById('shows-list');
+  if(!shows || !shows.length){
     el.innerHTML = '<div class="empty">No shows yet. Create your first one below.</div>';
     return;
   }
   el.innerHTML = '<div class="show-grid">'
-    + shows.map(s => {
-        const d = s.show_date ? new Date(s.show_date).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric', timeZone:'UTC'}) : '';
-        return `<div class="show-row" onclick="openShow('${s.id}')">
-          <div>
-            <div class="sr-name">${s.name}</div>
-            <div class="sr-meta">${d}${s.location ? ' &middot; ' + s.location : ''}</div>
-          </div>
-          <span class="sr-status s-${s.status}">${s.status.replace('_',' ')}</span>
-        </div>`;
+    + shows.map(function(s){
+        var d = s.show_date ? new Date(s.show_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+        return '<div class="show-row" onclick="openShow(''+s.id+'')"><div>'
+          +'<div class="sr-name">'+s.name+'</div>'
+          +'<div class="sr-meta">'+d+(s.location?' &middot; '+s.location:'')+'</div>'
+          +'</div><span class="sr-status s-'+s.status+'">'+s.status.replace(/_/g,' ')+'</span></div>';
       }).join('')
     + '</div>';
 }
 
-window.openShow = function(id) {
-  window.location.href = `app.html?show=${id}`;
+window.openShow = function(id){
+  window.location.href = 'app.html?show=' + id;
 };
 
-window.toggleNewShow = function() {
-  const f = document.getElementById('new-show-form');
+window.toggleNewShow = function(){
+  var f = document.getElementById('new-show-form');
   f.style.display = f.style.display === 'none' ? 'block' : 'none';
 };
 
-window.createShow = async function() {
-  const name     = document.getElementById('ns-name').value.trim();
-  const date     = document.getElementById('ns-date').value;
-  const deadline = document.getElementById('ns-deadline').value;
-  const location = document.getElementById('ns-location').value.trim();
-  const status   = document.getElementById('ns-status').value;
-  const errEl    = document.getElementById('ns-err');
+window.createShow = async function(){
+  var name     = document.getElementById('ns-name').value.trim();
+  var date     = document.getElementById('ns-date').value;
+  var deadline = document.getElementById('ns-deadline').value;
+  var location = document.getElementById('ns-location').value.trim();
+  var status   = document.getElementById('ns-status').value;
+  var errEl    = document.getElementById('ns-err');
   errEl.textContent = '';
 
-  if (!name)  { errEl.textContent = 'Show name is required'; return; }
-  if (!date)  { errEl.textContent = 'Show date is required'; return; }
-  if (!ASSOC) { errEl.textContent = 'Not connected to database'; return; }
+  if(!name){ errEl.textContent='Show name is required'; return; }
+  if(!date){ errEl.textContent='Show date is required'; return; }
+  if(!ASSOC){ errEl.textContent='Not connected to database'; return; }
 
-  try {
-    const show = await upsertShow({
-      association_id: ASSOC.id,
-      name, location: location || null,
-      show_date:       date,
-      entry_deadline:  deadline || null,
-      status,
-      fee_config:      ASSOC.fee_defaults || {}
+  try{
+    var shows = await sbFetch('shows', {
+      method:'POST',
+      body: JSON.stringify({
+        association_id: ASSOC.id,
+        name: name,
+        location: location||null,
+        show_date: date,
+        entry_deadline: deadline||null,
+        status: status,
+        fee_config: ASSOC.fee_defaults||{}
+      })
     });
-    window.location.href = `app.html?show=${show.id}`;
-  } catch (err) {
+    var show = shows && shows[0];
+    if(!show) throw new Error('No show returned');
+    window.location.href = 'app.html?show=' + show.id;
+  } catch(err){
     errEl.textContent = 'Error: ' + err.message;
+    console.error(err);
   }
 };
 
