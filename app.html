@@ -777,6 +777,10 @@ function pgSettings(){
     +settingsCard('Show Information','',
       formRow([fg('Show Name','cfg-show-name','text','e.g. CoWN Summerfest 2025'),fg('Show Date','cfg-show-date','date'),fg('Location','cfg-show-location','text','Venue')])
       +formRow([fg('Secretary','cfg-secretary','text'),fg('Contact Email','cfg-email','email')])
+      +'<div class="form-row"><div class="form-group"><label>Show Status</label>'
+      +'<select id="cfg-show-status"><option value="setup">Setup</option><option value="entries_open">Entries Open</option><option value="entries_closed">Entries Closed</option><option value="running">Running Now</option><option value="complete">Complete</option></select></div>'
+      +'<div class="form-group"><label>Back to Show List</label>'
+      +'<button class="btn btn-dark btn-sm" onclick="window.location.href='index.html'" style="margin-top:2px">&#8592; All Shows</button></div></div>'
     )
     +settingsCard('Stalling Fees','Applied per-night per stall',
       formRow([pFg('Stall — 1 Night','fee-stall1',40),pFg('Stall — 2 Nights','fee-stall2',80),pFg('Stall — 3 Nights','fee-stall3',120),pFg('Stall — Circuit','fee-stall-circuit',150)])
@@ -1228,14 +1232,34 @@ function readFeesFromUI(){
 }
 
 function saveConfig(){
-  G.cfg.showName=v('cfg-show-name');
-  G.cfg.showDate=v('cfg-show-date');
-  G.cfg.location=v('cfg-show-location');
-  G.cfg.secretary=v('cfg-secretary');
-  G.cfg.email=v('cfg-email');
-  G.cfg.fees=readFeesFromUI();
+  G.cfg.showName  = v('cfg-show-name');
+  G.cfg.showDate  = v('cfg-show-date');
+  G.cfg.location  = v('cfg-show-location');
+  G.cfg.secretary = v('cfg-secretary');
+  G.cfg.email     = v('cfg-email');
+  G.cfg.fees      = readFeesFromUI();
   try{ localStorage.setItem('gatepost_cfg',JSON.stringify(G.cfg)); } catch(e){}
-  toast('Configuration saved');
+
+  // Write show info changes back to Supabase
+  if(G.showId){
+    var updates = {
+      name:       G.cfg.showName,
+      show_date:  G.cfg.showDate || null,
+      location:   G.cfg.location || null,
+      fee_config: G.cfg.fees,
+    };
+    sbFetch('shows?id=eq.'+G.showId, {method:'PATCH', body:JSON.stringify(updates)})
+      .then(function(){
+        // Update sidebar pill with new name/location
+        document.getElementById('show-pill').innerHTML =
+          '<div class="sp-name">'+esc(G.cfg.showName)+'</div>'
+          +'<div class="sp-meta">'+(G.cfg.showDate||'')+(G.cfg.location?' &middot; '+G.cfg.location:'')+'</div>';
+        toast('Show saved to database');
+      })
+      .catch(function(e){ toast('Saved locally (DB error: '+e.message+')', true); });
+  } else {
+    toast('Configuration saved');
+  }
 }
 
 function exportConfig(){
@@ -1250,12 +1274,13 @@ function exportConfig(){
 function v(id){ var el=document.getElementById(id); return el?el.value:''; }
 
 function applyConfigToUI(){
-  var setV=function(id,val){ var el=document.getElementById(id); if(el&&val!==undefined) el.value=val; };
-  setV('cfg-show-name',G.cfg.showName);
-  setV('cfg-show-date',G.cfg.showDate);
+  var setV=function(id,val){ var el=document.getElementById(id); if(el&&val!==undefined&&val!==null) el.value=val; };
+  setV('cfg-show-name',    G.cfg.showName);
+  setV('cfg-show-date',    G.cfg.showDate);
   setV('cfg-show-location',G.cfg.location);
-  setV('cfg-secretary',G.cfg.secretary);
-  setV('cfg-email',G.cfg.email);
+  setV('cfg-secretary',    G.cfg.secretary);
+  setV('cfg-email',        G.cfg.email);
+  setV('cfg-show-status',  G.cfg.showStatus);
   var f=G.cfg.fees||{};
   var fmap={stall1:'fee-stall1',stall2:'fee-stall2',stall3:'fee-stall3',stallCircuit:'fee-stall-circuit',
     shavings:'fee-shavings',rv1:'fee-rv1',rv2:'fee-rv2',rvCircuit:'fee-rv-circuit',
@@ -1599,6 +1624,16 @@ async function boot(){
         G.showId = showId;
         G.showName = show.name;
         G.showData = show;
+
+        // Pre-populate G.cfg with show data from Supabase
+        // so Settings tab fields are filled in when opened
+        G.cfg.showName  = show.name        || G.cfg.showName;
+        G.cfg.showDate  = show.show_date   || G.cfg.showDate;
+        G.cfg.location  = show.location    || G.cfg.location;
+        G.cfg.secretary = show.secretary   || G.cfg.secretary;
+        G.cfg.email     = show.contact_email || G.cfg.email;
+        G.cfg.showStatus = show.status     || '';
+        G.cfg.showId    = showId;
 
         // Update sidebar pill
         document.getElementById('show-pill').innerHTML =
