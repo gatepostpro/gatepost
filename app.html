@@ -393,6 +393,17 @@ function toast(msg,isErr){
 }
 
 function goToIndex(){ window.location.href="index.html"; }
+
+function wirePillClicks(containerId, fn){
+  var el = document.getElementById(containerId);
+  if(!el) return;
+  el.querySelectorAll('[data-pill],[data-org],[data-tf]').forEach(function(b){
+    b.addEventListener('click', function(){
+      fn(b.dataset.pill || b.dataset.org || b.dataset.tf);
+    });
+  });
+}
+
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 
 // ═══════════════════════ NAVIGATION ═══════════════════════
@@ -539,15 +550,6 @@ function pgEntries(){
     }).join('');
   }
   window.setEPill=function(p){ activePill=p; drawPills(); drawEntryTable(); };
-  function wirePillClicks(containerId, fn){
-    var el = document.getElementById(containerId);
-    if(!el) return;
-    el.querySelectorAll('[data-pill],[data-org],[data-tf]').forEach(function(b){
-      b.addEventListener('click', function(){
-        fn(b.dataset.pill || b.dataset.org || b.dataset.tf);
-      });
-    });
-  }
   drawPills(); wirePillClicks('ep', function(v){ activePill=v; drawPills(); drawEntryTable(); });
 
   function drawEntryTable(){
@@ -1445,7 +1447,6 @@ async function syncEntriesToSupabase(){
             first_name: firstName, last_name: lastName,
             email: en.email||null, phone: en.phone||null,
             address: en.address||null,
-            needs_membership: en.needsMembership||null,
           })
         });
         memberId = newMember[0].id;
