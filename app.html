@@ -1020,11 +1020,11 @@ function calcCfgTotal(c){
 
 function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-window.updCls=function(id,field,val){
+function updCls(id,field,val){
   var c=G.cfg.classes.find(function(x){ return x._id===id; });
   if(c) c[field]=val;
 };
-window.refreshCfgRow=function(id){
+function refreshCfgRow(id){
   var c=G.cfg.classes.find(function(x){ return x._id===id; });
   if(!c) return;
   var el=document.getElementById('ct-'+id);
@@ -1035,27 +1035,27 @@ window.refreshCfgRow=function(id){
     if(inputs[1]){ inputs[1].disabled=!c.isCow; inputs[1].style.opacity=c.isCow?'1':'0.35'; inputs[1].placeholder=c.isCow?'15':'n/a'; }
   }
 };
-window.delCls=function(id){
+function delCls(id){
   G.cfg.classes=G.cfg.classes.filter(function(c){ return c._id!==id; });
   renderCfgClassTable();
 };
-window.filterCfgClasses=function(q){
+function filterCfgClasses(q){
   document.querySelectorAll('#cfg-cls-tbody tr:not(.div-hdr)').forEach(function(r){
     r.style.display=(!q||r.textContent.toLowerCase().indexOf(q.toLowerCase())>-1)?'':'none';
   });
 };
-window.addCfgClass=function(){
+function addCfgClass(){
   CFG_ROW_ID++;
   G.cfg.classes.push({_id:'cr'+CFG_ROW_ID,num:'',name:'New Class',division:'',org:'CoWN',isCow:false,baseFee:null,cowFee:null,jackpot:null,addedMoney:null});
   renderCfgClassTable();
 };
-window.autofillClassFees=function(){
+function autofillClassFees(){
   var f=G.cfg.fees;
   G.cfg.classes.forEach(function(c){ c.baseFee=f.classBase; if(c.isCow) c.cowFee=f.cowSurcharge; c.jackpot=f.jackpot||null; });
   renderCfgClassTable();
   toast('Fees applied to all '+G.cfg.classes.length+' classes');
 };
-window.autoDetectCow=function(){
+function autoDetectCow(){
   var n=0;
   G.cfg.classes.forEach(function(c){
     if(COW_WORDS.some(function(k){ return (c.name||'').toLowerCase().indexOf(k)>-1; })){ c.isCow=true; n++; }
@@ -1249,7 +1249,7 @@ function mapSelect(roleId,label,detectedIdx,autoDetected){
     +'<option value="-1">— Not in this file —</option>'+opts+'</select></div>';
 }
 
-window.saveMapping=function(){
+function saveMapping(){
   G.cfg.colMap=Object.assign({},ACTIVE_MAP);
   toast('Column mapping saved — '+Object.keys(ACTIVE_MAP).length+' columns mapped');
 };
@@ -1584,7 +1584,7 @@ function wireClassPicker(){
   });
 }
 
-window.filterClassPicker=function(q){
+function filterClassPicker(q){
   var rowIdx = G._addClassRowIdx;
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
@@ -1599,7 +1599,7 @@ window.filterClassPicker=function(q){
   wireClassPicker();
 };
 
-window.addClassToEntry=function(rowIdx, classId){
+function addClassToEntry(rowIdx, classId){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   var cls=G.cfg.classes.find(function(c){ return c._id===classId; });
   if(!e||!cls) return;
@@ -1627,7 +1627,7 @@ window.addClassToEntry=function(rowIdx, classId){
   showEntryModal(rowIdx);
 };
 
-window.scratchClass=function(rowIdx, classIdx){
+function scratchClass(rowIdx, classIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
   var cls = e.classes[classIdx];
@@ -1668,7 +1668,7 @@ window.scratchClass=function(rowIdx, classIdx){
   if(G._rebuildEntryModal) G._rebuildEntryModal();
 };
 
-window.addRider=function(rowIdx){
+function addRider(rowIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
   var name = (document.getElementById('new-rider-name')||{value:''}).value.trim();
@@ -1680,14 +1680,14 @@ window.addRider=function(rowIdx){
   if(G._rebuildEntryModal) G._rebuildEntryModal();
 };
 
-window.removeRider=function(rowIdx, riderIdx){
+function removeRider(rowIdx, riderIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e||!e.riders) return;
   e.riders.splice(riderIdx,1);
   if(G._rebuildEntryModal) G._rebuildEntryModal();
 };
 
-window.showAddOrgFee=function(rowIdx){
+function showAddOrgFee(rowIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
   var orgs=['CoWN','AQHA','APHA','NHSRA','Other'];
@@ -1710,7 +1710,7 @@ window.showAddOrgFee=function(rowIdx){
   document.getElementById('modal-root').innerHTML=html;
 };
 
-window.saveOrgFee=function(rowIdx){
+function saveOrgFee(rowIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
   var org  = document.getElementById('of-org').value;
@@ -1723,28 +1723,28 @@ window.saveOrgFee=function(rowIdx){
   showEntryModal(rowIdx);
 };
 
-window.removeOrgFee=function(rowIdx, feeIdx){
+function removeOrgFee(rowIdx, feeIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e||!e.orgFees) return;
   e.orgFees.splice(feeIdx,1);
   if(G._rebuildEntryModal) G._rebuildEntryModal();
 };
 
-window.updateSplitPct=function(rowIdx, splitIdx, val){
+function updateSplitPct(rowIdx, splitIdx, val){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e||!e.stallSplit) return;
   e.stallSplit[splitIdx].pct = parseInt(val)||0;
   if(G._rebuildEntryModal) G._rebuildEntryModal();
 };
 
-window.removeSplit=function(rowIdx, splitIdx){
+function removeSplit(rowIdx, splitIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e||!e.stallSplit) return;
   e.stallSplit.splice(splitIdx,1);
   if(G._rebuildEntryModal) G._rebuildEntryModal();
 };
 
-window.addSplitPerson=function(rowIdx){
+function addSplitPerson(rowIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
   var name = (document.getElementById('split-name')||{value:''}).value.trim();
@@ -1763,7 +1763,7 @@ window.addSplitPerson=function(rowIdx){
 }
 
 
-window.showTabModalByIdx=function(refRowIdx){ var ref=G.entries.find(function(e){ return e.rowIndex===refRowIdx; }); if(ref) showTabModal(ref.name); };
+function showTabModalByIdx(refRowIdx){ var ref=G.entries.find(function(e){ return e.rowIndex===refRowIdx; }); if(ref) showTabModal(ref.name); };
 function showTabModal(name){
   var entries=G.entries.filter(function(e){ return e.name===name; });
   if(!entries.length) return;
@@ -1790,10 +1790,10 @@ function showTabModal(name){
   document.getElementById('modal-root').innerHTML=html;
 }
 
-window.markPaid=function(rowIdx,amount){
+function markPaid(rowIdx,amount){
   G.payments[rowIdx]=amount; closeModal(); pgTabs();
 };
-window.markPaidByRef=function(refRowIdx,amount){
+function markPaidByRef(refRowIdx,amount){
   var ref=G.entries.find(function(e){ return e.rowIndex===refRowIdx; });
   if(!ref) return;
   var entries=G.entries.filter(function(e){ return e.name===ref.name; });
@@ -1809,10 +1809,6 @@ function swTab(btn,panel){
   btn.classList.add('active');
   document.getElementById('tp-'+panel).classList.add('active');
 }
-window.swTab=swTab;
-window.showEntryModal=showEntryModal;
-window.showTabModal=showTabModal;
-window.closeModal=closeModal;
 
 
 // ═══════════════════════ SUPABASE SYNC ═══════════════════════
@@ -2165,14 +2161,7 @@ saveConfig = function(){
 
 // Patch markPaid to also write to Supabase
 var _origMarkPaid = window.markPaid;
-window.markPaid = function(rowIdx, amount){
-  _origMarkPaid(rowIdx, amount);
-  var entry = G.entries.find(function(e){ return e.rowIndex===rowIdx; });
-  if(entry && entry.dbId){
-    dbUpdatePayment(entry.dbId, amount)
-      .catch(function(e){ console.error('Payment sync failed:', e); });
-  }
-};
+window;
 
 boot();
 </script>
