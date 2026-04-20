@@ -504,10 +504,13 @@ function pgImport(){
         if(G.showId){
           document.getElementById('imp-status').innerHTML='<span style="color:var(--muted)">Saving to database...</span>';
           syncEntriesToSupabase().then(function(){
-            document.getElementById('imp-status').innerHTML='<span style="color:var(--green)">&#10003; '+G.entries.length+' entries saved to database.</span>';
+            var el=document.getElementById('imp-status');
+            if(el) el.innerHTML='<span style="color:var(--green)">&#10003; '+G.entries.length+' entries saved.</span>';
             setTimeout(function(){ showPage('entries'); },700);
           }).catch(function(err){
-            document.getElementById('imp-status').innerHTML='<span style="color:var(--accent)">&#10003; Loaded locally. DB sync failed: '+esc(err.message)+'</span>';
+            console.error('Sync error:', err);
+            var el=document.getElementById('imp-status');
+            if(el) el.innerHTML='<span style="color:var(--accent)">Loaded locally. Sync failed: '+esc(err.message)+'</span>';
             setTimeout(function(){ showPage('entries'); },1200);
           });
         } else {
@@ -1897,10 +1900,10 @@ async function syncEntriesToSupabase(){
         await sbFetch('entries?id=eq.'+dbEntryId,{method:'PATCH',body:JSON.stringify(entryPayload)});
       } else {
         var newEntry = await sbFetch('entries',{method:'POST',body:JSON.stringify(entryPayload)});
+        if(!newEntry || !newEntry[0]) throw new Error('Failed to create entry for '+en.name);
         dbEntryId = newEntry[0].id;
       }
-
-      // Store dbId on the in-memory entry for later payment sync
+      // Store dbId on in-memory entry
       G.entries[i].dbId = dbEntryId;
 
       // Upsert entry_classes
@@ -2077,10 +2080,12 @@ async function boot(){
     }
 
     // Step 3: Load entries with related data
-    // Use separate queries to avoid complex join failures
+    // Clear stale local state first
+    G.entries = [];
+    G.payments = {};
+    G.backNums = {};
     var dbEntries = await sbFetch('entries?show_id=eq.'+showId+'&select=*');
     if(dbEntries && dbEntries.length){
-      G.entries = [];
       for(var i=0; i<dbEntries.length; i++){
         var e = dbEntries[i];
 
