@@ -392,6 +392,7 @@ function toast(msg,isErr){
   setTimeout(function(){ el.classList.remove('show'); },2800);
 }
 
+function goToIndex(){ window.location.href="index.html"; }
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 
 // ═══════════════════════ NAVIGATION ═══════════════════════
@@ -534,11 +535,20 @@ function pgEntries(){
   var activePill='All';
   function drawPills(){
     document.getElementById('ep').innerHTML=pills.map(function(p){
-      return '<button class="pill'+(p===activePill?' active':'')+'" onclick="setEPill(\''+esc(p)+'\')">'+esc(p)+(divCounts[p]?' ('+divCounts[p]+')':'')+'</button>';
+      return '<button class="pill'+(p===activePill?' active':'')+'" data-pill="'+esc(p)+'">'+esc(p)+(divCounts[p]?' ('+divCounts[p]+')':'')+ '</button>';
     }).join('');
   }
   window.setEPill=function(p){ activePill=p; drawPills(); drawEntryTable(); };
-  drawPills();
+  function wirePillClicks(containerId, fn){
+    var el = document.getElementById(containerId);
+    if(!el) return;
+    el.querySelectorAll('[data-pill],[data-org],[data-tf]').forEach(function(b){
+      b.addEventListener('click', function(){
+        fn(b.dataset.pill || b.dataset.org || b.dataset.tf);
+      });
+    });
+  }
+  drawPills(); wirePillClicks('ep', function(v){ activePill=v; drawPills(); drawEntryTable(); });
 
   function drawEntryTable(){
     var q=(document.getElementById('eq')||{value:''}).value.trim().toLowerCase();
@@ -600,11 +610,11 @@ function pgClasses(){
 
   function drawOrgPills(){
     document.getElementById('org-pills').innerHTML=(['All'].concat(orgs)).map(function(o){
-      return '<button class="pill'+(o===activeOrg?' active':'')+'" onclick="setOrgPill(\''+esc(o)+'\')">'+esc(o)+'</button>';
+      return '<button class="pill'+(o===activeOrg?' active':'')+'" data-org="'+esc(o)+'">'+esc(o)+'</button>';
     }).join('');
   }
   window.setOrgPill=function(o){ activeOrg=o; drawOrgPills(); drawClassLists(); };
-  drawOrgPills();
+  drawOrgPills(); wirePillClicks('org-pills', function(v){ activeOrg=v; drawOrgPills(); drawClassLists(); });
 
   function drawClassLists(){
     var list=sorted.filter(function(c){ return activeOrg==='All'||(c.org||'CoWN')===activeOrg; });
@@ -650,11 +660,11 @@ function pgTabs(){
   var tf='All';
   function drawTPills(){
     document.getElementById('tpills').innerHTML=['All','Outstanding','Paid'].map(function(f){
-      return '<button class="pill'+(f===tf?' active':'')+'" onclick="setTF(\''+f+'\')">'+f+'</button>';
+      return '<button class="pill'+(f===tf?' active':'')+'" data-tf="'+f+'">'+f+'</button>';
     }).join('');
   }
   window.setTF=function(f){ tf=f; drawTPills(); drawTabTable(); };
-  drawTPills();
+  drawTPills(); wirePillClicks('tpills', function(v){ tf=v; drawTPills(); drawTabTable(); });
 
   function drawTabTable(){
     var q=(document.getElementById('tq')||{value:''}).value.trim().toLowerCase();
@@ -786,7 +796,7 @@ function pgSettings(){
       +'<div class="form-row"><div class="form-group"><label>Show Status</label>'
       +'<select id="cfg-show-status"><option value="setup">Setup</option><option value="entries_open">Entries Open</option><option value="entries_closed">Entries Closed</option><option value="running">Running Now</option><option value="complete">Complete</option></select></div>'
       +'<div class="form-group"><label>Back to Show List</label>'
-      +'<button class="btn btn-dark btn-sm" onclick="window.location.href='index.html'" style="margin-top:2px">&#8592; All Shows</button></div></div>'
+      +'<button class="btn btn-dark btn-sm" onclick="goToIndex()">&#8592; All Shows</button></div></div>'
     )
     +settingsCard('Stalling Fees','Applied per-night per stall',
       formRow([pFg('Stall — 1 Night','fee-stall1',40),pFg('Stall — 2 Nights','fee-stall2',80),pFg('Stall — 3 Nights','fee-stall3',120),pFg('Stall — Circuit','fee-stall-circuit',150)])
