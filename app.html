@@ -550,7 +550,11 @@ function pgEntries(){
     }).join('');
   }
   window.setEPill=function(p){ activePill=p; drawPills(); drawEntryTable(); };
-  drawPills(); wirePillClicks('ep', function(v){ activePill=v; drawPills(); drawEntryTable(); });
+  function drawAndWirePills(){
+    drawPills();
+    wirePillClicks('ep', function(v){ activePill=v; drawAndWirePills(); drawEntryTable(); });
+  }
+  drawAndWirePills();
 
   function drawEntryTable(){
     var q=(document.getElementById('eq')||{value:''}).value.trim().toLowerCase();
@@ -616,7 +620,11 @@ function pgClasses(){
     }).join('');
   }
   window.setOrgPill=function(o){ activeOrg=o; drawOrgPills(); drawClassLists(); };
-  drawOrgPills(); wirePillClicks('org-pills', function(v){ activeOrg=v; drawOrgPills(); drawClassLists(); });
+  function drawAndWireOrgPills(){
+    drawOrgPills();
+    wirePillClicks('org-pills', function(v){ activeOrg=v; drawAndWireOrgPills(); drawClassLists(); });
+  }
+  drawAndWireOrgPills();
 
   function drawClassLists(){
     var list=sorted.filter(function(c){ return activeOrg==='All'||(c.org||'CoWN')===activeOrg; });
@@ -666,7 +674,11 @@ function pgTabs(){
     }).join('');
   }
   window.setTF=function(f){ tf=f; drawTPills(); drawTabTable(); };
-  drawTPills(); wirePillClicks('tpills', function(v){ tf=v; drawTPills(); drawTabTable(); });
+  function drawAndWireTPills(){
+    drawTPills();
+    wirePillClicks('tpills', function(v){ tf=v; drawAndWireTPills(); drawTabTable(); });
+  }
+  drawAndWireTPills();
 
   function drawTabTable(){
     var q=(document.getElementById('tq')||{value:''}).value.trim().toLowerCase();
