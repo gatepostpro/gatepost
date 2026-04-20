@@ -457,7 +457,37 @@ function pgImport(){
           '<div class="sp-name">'+esc(G.showName)+'</div>'
           +'<div class="sp-meta">'+G.entries.length+' entries</div>';
         document.getElementById('imp-status').innerHTML='<span style="color:var(--green)">&#10003; '+G.entries.length+' entries loaded.</span>';
-        setTimeout(function(){ showPage('entries'); },700);
+
+        // Auto-extract class list into config if not already populated
+        if(!G.cfg.classes.length){
+          var classMap={};
+          G.entries.forEach(function(en){
+            en.classes.forEach(function(cls){
+              if(cls.num && !classMap[cls.num]){
+                var isCow=COW_WORDS.some(function(k){ return (cls.name||'').toLowerCase().indexOf(k)>-1; });
+                CFG_ROW_ID++;
+                classMap[cls.num]={_id:'cr'+CFG_ROW_ID,num:cls.num,name:cls.name,
+                  division:cls.division,org:cls.org||'CoWN',isCow:isCow,
+                  baseFee:null,cowFee:null,jackpot:null,addedMoney:null};
+              }
+            });
+          });
+          G.cfg.classes=Object.values(classMap).sort(function(a,b){ return (parseInt(a.num)||999)-(parseInt(b.num)||999); });
+        }
+
+        // Sync to Supabase if we have a show loaded
+        if(G.showId){
+          document.getElementById('imp-status').innerHTML='<span style="color:var(--muted)">Saving to database...</span>';
+          syncEntriesToSupabase().then(function(){
+            document.getElementById('imp-status').innerHTML='<span style="color:var(--green)">&#10003; '+G.entries.length+' entries saved to database.</span>';
+            setTimeout(function(){ showPage('entries'); },700);
+          }).catch(function(err){
+            document.getElementById('imp-status').innerHTML='<span style="color:var(--accent)">&#10003; Loaded locally. DB sync failed: '+esc(err.message)+'</span>';
+            setTimeout(function(){ showPage('entries'); },1200);
+          });
+        } else {
+          setTimeout(function(){ showPage('entries'); },700);
+        }
       } catch(err){
         document.getElementById('imp-status').innerHTML='<span style="color:var(--red)">Error: '+esc(err.message)+'</span>';
         console.error(err);
@@ -1339,13 +1369,348 @@ window.showEntryModal=showEntryModal;
 window.showTabModal=showTabModal;
 window.closeModal=closeModal;
 
-// ═══════════════════════ BOOT ═══════════════════════
-try{
-  var saved=localStorage.getItem('gatepost_cfg');
-  if(saved) G.cfg=JSON.parse(saved);
-} catch(e){}
 
-showPage('import');
+// ═══════════════════════ SUPABASE SYNC ═══════════════════════
+async function syncEntriesToSupabase(){
+  if(!G.showId) return;
+
+  // Get association id
+  var assocRows = await sbFetch('associations?abbreviation=eq.CoWN&select=id');
+  var assocId = assocRows && assocRows[0] ? assocRows[0].id : null;
+  if(!assocId) throw new Error('Association not found in database');
+
+  var synced=0, errors=[];
+
+  for(var i=0; i<G.entries.length; i++){
+    var en = G.entries[i];
+    try{
+      // Split name
+      var parts = en.name.trim().split(' ');
+      var firstName = parts[0];
+      var lastName  = parts.slice(1).join(' ') || '(unknown)';
+
+      // Find or create member
+      var memberId;
+      var existingMembers = await sbFetch('members?association_id=eq.'+assocId
+        +'&first_name=ilike.'+encodeURIComponent(firstName)
+        +'&last_name=ilike.'+encodeURIComponent(lastName)+'&select=id');
+      if(existingMembers && existingMembers.length){
+        memberId = existingMembers[0].id;
+      } else {
+        var newMember = await sbFetch('members', {
+          method:'POST',
+          body: JSON.stringify({
+            association_id: assocId,
+            first_name: firstName, last_name: lastName,
+            email: en.email||null, phone: en.phone||null,
+            address: en.address||null,
+            needs_membership: en.needsMembership||null,
+          })
+        });
+        memberId = newMember[0].id;
+        // Save CoWN # as registration
+        if(en.memberNum && en.memberNum !== '0'){
+          await sbFetch('member_registrations',{method:'POST',
+            body:JSON.stringify({member_id:memberId,org:'CoWN',registration_number:en.memberNum})});
+        }
+      }
+
+      // Find or create horse
+      var horseId;
+      var existingHorses = await sbFetch('horses?registered_name=ilike.'
+        +encodeURIComponent(en.horse)+'&select=id');
+      if(existingHorses && existingHorses.length){
+        horseId = existingHorses[0].id;
+      } else {
+        var newHorse = await sbFetch('horses',{method:'POST',
+          body:JSON.stringify({
+            registered_name: en.horse,
+            gender: en.horseGender||null,
+          })});
+        horseId = newHorse[0].id;
+        // Link owner
+        await sbFetch('horse_owners',{method:'POST',
+          body:JSON.stringify({horse_id:horseId,member_id:memberId,primary_owner:true})});
+      }
+
+      // Upsert entry
+      var entryPayload = {
+        show_id: G.showId, member_id: memberId, horse_id: horseId,
+        source: 'cognito_import', status: 'active',
+        stall_1night: en.stall1qty||0, stall_2night: en.stall2qty||0,
+        shavings: en.shavings||0, rv_1night: en.rv1qty||0,
+        rv_2night: en.rv2qty||0, rv_circuit: en.rvCircuit||0,
+        stall_note: en.stallNote||null,
+        needs_membership: en.needsMembership||null,
+        total_owed: tabTotal(en),
+        total_paid: G.payments[en.rowIndex]||0,
+        cognito_ref: String(en.entryNum||''),
+        imported_at: new Date().toISOString(),
+      };
+
+      // Check if entry already exists for this show+member+horse
+      var existingEntry = await sbFetch('entries?show_id=eq.'+G.showId
+        +'&member_id=eq.'+memberId+'&horse_id=eq.'+horseId+'&select=id');
+      var dbEntryId;
+      if(existingEntry && existingEntry.length){
+        dbEntryId = existingEntry[0].id;
+        await sbFetch('entries?id=eq.'+dbEntryId,{method:'PATCH',body:JSON.stringify(entryPayload)});
+      } else {
+        var newEntry = await sbFetch('entries',{method:'POST',body:JSON.stringify(entryPayload)});
+        dbEntryId = newEntry[0].id;
+      }
+
+      // Store dbId on the in-memory entry for later payment sync
+      G.entries[i].dbId = dbEntryId;
+
+      // Upsert entry_classes
+      for(var j=0; j<en.classes.length; j++){
+        var cls = en.classes[j];
+        // Find the show_class
+        var showClasses = await sbFetch('show_classes?show_id=eq.'+G.showId
+          +'&class_number=eq.'+encodeURIComponent(cls.num)+'&select=id,base_fee,cow_fee,is_cow');
+        if(showClasses && showClasses.length){
+          var sc = showClasses[0];
+          var fee = (parseFloat(sc.base_fee)||0) + (sc.is_cow ? (parseFloat(sc.cow_fee)||0) : 0);
+          // Check if entry_class exists
+          var existingEC = await sbFetch('entry_classes?entry_id=eq.'+dbEntryId
+            +'&show_class_id=eq.'+sc.id+'&select=id');
+          if(!existingEC || !existingEC.length){
+            await sbFetch('entry_classes',{method:'POST',
+              body:JSON.stringify({entry_id:dbEntryId,show_class_id:sc.id,
+                status:'entered',fee_charged:fee})});
+          }
+        }
+      }
+      synced++;
+    } catch(err){
+      errors.push(en.name+': '+err.message);
+      console.error('Sync error for', en.name, err);
+    }
+  }
+
+  if(errors.length) console.warn('Sync errors:', errors);
+  return {synced, errors};
+}
+
+// ═══════════════════════ SUPABASE ═══════════════════════
+// Inline Supabase client — no separate module needed for now
+var SUPABASE_URL  = 'https://tpurkcxtkvwpywxnuzwe.supabase.co';
+var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwdXJrY3h0a3Z3cHl3eG51endlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MDUwMzYsImV4cCI6MjA5MjI4MTAzNn0.j1fPBjBsbIoXXosM96YtywdGiVVLWnd-YrXZ1634alU';
+
+async function sbFetch(path, opts){
+  var res = await fetch(SUPABASE_URL + '/rest/v1/' + path, Object.assign({
+    headers: {
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + SUPABASE_ANON,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    }
+  }, opts || {}));
+  if(!res.ok){ var e=await res.text(); throw new Error(e); }
+  var text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function dbGetShow(id){
+  var rows = await sbFetch('shows?id=eq.'+id+'&select=*');
+  return rows && rows[0];
+}
+
+async function dbGetEntries(showId){
+  return await sbFetch('entries?show_id=eq.'+showId
+    +'&select=*,members(*),horses(*),entry_classes(*,show_classes(*)),payments(*)');
+}
+
+async function dbGetShowClasses(showId){
+  return await sbFetch('show_classes?show_id=eq.'+showId+'&order=class_number');
+}
+
+async function dbInsertShowClasses(classes){
+  return await sbFetch('show_classes', {
+    method:'POST',
+    headers:{'apikey':SUPABASE_ANON,'Authorization':'Bearer '+SUPABASE_ANON,
+      'Content-Type':'application/json','Prefer':'return=representation'},
+    body: JSON.stringify(classes)
+  });
+}
+
+async function dbUpsertEntry(entry){
+  return await sbFetch('entries', {
+    method:'POST',
+    headers:{'apikey':SUPABASE_ANON,'Authorization':'Bearer '+SUPABASE_ANON,
+      'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=representation'},
+    body: JSON.stringify(entry)
+  });
+}
+
+async function dbUpdatePayment(entryId, amount){
+  // Insert payment record
+  await sbFetch('payments', {
+    method:'POST',
+    body: JSON.stringify({entry_id:entryId, amount:amount, method:'manual', status:'completed'})
+  });
+  // Update total_paid on entry
+  await sbFetch('entries?id=eq.'+entryId, {
+    method:'PATCH',
+    body: JSON.stringify({total_paid: amount})
+  });
+}
+
+async function dbSaveShowClasses(showId, classes){
+  // Delete existing, reinsert
+  await sbFetch('show_classes?show_id=eq.'+showId, {method:'DELETE'});
+  if(!classes.length) return;
+  var rows = classes.map(function(c){
+    return {
+      show_id:      showId,
+      class_number: c.num || '',
+      class_name:   c.name || '',
+      division:     c.division || '',
+      org:          c.org || 'CoWN',
+      is_cow:       !!c.isCow,
+      is_jackpot:   !!(c.jackpot),
+      base_fee:     c.baseFee || null,
+      cow_fee:      c.cowFee || null,
+      jackpot_fee:  c.jackpot || 0,
+      added_money:  c.addedMoney || 0,
+    };
+  });
+  return await sbFetch('show_classes', {
+    method:'POST',
+    body: JSON.stringify(rows)
+  });
+}
+
+// ═══════════════════════ BOOT ═══════════════════════
+async function boot(){
+  // Load saved config
+  try{ var saved=localStorage.getItem('gatepost_cfg'); if(saved) G.cfg=JSON.parse(saved); } catch(e){}
+
+  // Get show ID from URL
+  var params = new URLSearchParams(window.location.search);
+  var showId = params.get('show');
+
+  if(showId){
+    try{
+      // Load show from Supabase
+      var show = await dbGetShow(showId);
+      if(show){
+        G.showId = showId;
+        G.showName = show.name;
+        G.showData = show;
+
+        // Update sidebar pill
+        document.getElementById('show-pill').innerHTML =
+          '<div class="sp-name">'+esc(show.name)+'</div>'
+          +'<div class="sp-meta">'+(show.show_date||'')+(show.location?' &middot; '+show.location:'')+'</div>';
+
+        // Load fee config from show if available
+        if(show.fee_config && Object.keys(show.fee_config).length){
+          G.cfg.fees = Object.assign(G.cfg.fees, show.fee_config);
+        }
+
+        // Load existing entries from Supabase
+        var dbEntries = await dbGetEntries(showId);
+        if(dbEntries && dbEntries.length){
+          // Convert DB entries to the format G.entries expects
+          G.entries = dbEntries.map(function(e, i){
+            var member = e.members || {};
+            var horse  = e.horses  || {};
+            var entryClasses = (e.entry_classes || []).map(function(ec){
+              var sc = ec.show_classes || {};
+              return {
+                num:      sc.class_number || '',
+                name:     sc.class_name   || '',
+                division: sc.division     || '',
+                org:      sc.org          || 'CoWN',
+              };
+            });
+            var paid = (e.payments||[]).reduce(function(s,p){ return s+(parseFloat(p.amount)||0); },0);
+            G.payments[i] = paid;
+            G.backNums[i] = e.back_number || '';
+            return {
+              rowIndex:        i,
+              dbId:            e.id,
+              name:            (member.first_name||'') + ' ' + (member.last_name||''),
+              horse:           horse.registered_name || horse.barn_name || '',
+              horseGender:     horse.gender || '',
+              email:           member.email || '',
+              phone:           member.phone || '',
+              memberNum:       '',
+              division:        e.entries_division || '',
+              assocRaw:        '',
+              classes:         entryClasses,
+              stall1qty:       e.stall_1night || 0,
+              stall2qty:       e.stall_2night || 0,
+              shavings:        e.shavings     || 0,
+              rv1qty:          e.rv_1night    || 0,
+              rv2qty:          e.rv_2night    || 0,
+              rvCircuit:       e.rv_circuit   || 0,
+              stallNote:       e.stall_note   || '',
+              needsMembership: e.needs_membership || '',
+              cognitoAmount:   parseFloat(e.total_owed)||0,
+              isPaid:          parseFloat(e.total_paid) >= parseFloat(e.total_owed),
+            };
+          });
+          toast('Loaded '+G.entries.length+' entries from database');
+        }
+
+        // Load show classes into config
+        var dbClasses = await dbGetShowClasses(showId);
+        if(dbClasses && dbClasses.length){
+          G.cfg.classes = dbClasses.map(function(c, i){
+            return {
+              _id:        'db'+i,
+              num:        c.class_number,
+              name:       c.class_name,
+              division:   c.division,
+              org:        c.org,
+              isCow:      c.is_cow,
+              baseFee:    c.base_fee,
+              cowFee:     c.cow_fee,
+              jackpot:    c.jackpot_fee,
+              addedMoney: c.added_money,
+            };
+          });
+        }
+
+        // Go to entries if we have them, otherwise import
+        showPage(G.entries.length ? 'entries' : 'import');
+        return;
+      }
+    } catch(err){
+      console.error('Failed to load show from DB:', err);
+      toast('Could not load show data — working offline', true);
+    }
+  }
+
+  showPage('import');
+}
+
+// Patch saveConfig to also save classes to Supabase
+var _origSaveConfig = saveConfig;
+saveConfig = function(){
+  _origSaveConfig();
+  if(G.showId && G.cfg.classes.length){
+    dbSaveShowClasses(G.showId, G.cfg.classes)
+      .then(function(){ toast('Classes saved to database'); })
+      .catch(function(e){ toast('Error saving classes: '+e.message, true); });
+  }
+};
+
+// Patch markPaid to also write to Supabase
+var _origMarkPaid = window.markPaid;
+window.markPaid = function(rowIdx, amount){
+  _origMarkPaid(rowIdx, amount);
+  var entry = G.entries.find(function(e){ return e.rowIndex===rowIdx; });
+  if(entry && entry.dbId){
+    dbUpdatePayment(entry.dbId, amount)
+      .catch(function(e){ console.error('Payment sync failed:', e); });
+  }
+};
+
+boot();
 </script>
 </body>
 </html>
