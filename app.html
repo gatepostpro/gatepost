@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gatepost — Show Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#0f1923;--card:#1a2733;--card2:#1e2f3d;--accent:#D4A04A;--accent2:#b8863a;
+  --green:#27ae60;--red:#e74c3c;--blue:#2980b9;--purple:#8e44ad;
+  --text:#e8dcc8;--muted:#8a9aad;--border:#2a3a4a;--border2:#354a5e
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Source Sans 3',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.shell{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:220px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.sidebar-logo{padding:1.25rem 1rem 1rem;border-bottom:1px solid var(--border)}
+.sidebar-logo h1{font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:var(--accent);letter-spacing:.05em}
+.sidebar-logo span{display:block;font-size:.7rem;color:var(--muted);letter-spacing:.1em;margin-top:2px}
+.show-pill{margin:.75rem;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.6rem .75rem;font-size:.78rem}
+.show-pill .sp-name{font-family:'Oswald',sans-serif;color:var(--accent);font-size:.9rem}
+.show-pill .sp-meta{color:var(--muted);margin-top:2px}
+.nav{flex:1;padding:.5rem 0;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:.6rem;padding:.55rem 1rem;cursor:pointer;color:var(--muted);font-size:.85rem;border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(212,160,74,.08)}
+.nav-item .ico{width:16px;text-align:center;font-size:13px;flex-shrink:0}
+.nav-section{padding:.75rem 1rem .25rem;font-size:.65rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.sidebar-footer{padding:.75rem;border-top:1px solid var(--border);font-size:.72rem;color:var(--muted)}
+.content{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:.6rem 1.25rem;display:flex;align-items:center;gap:1rem;flex-shrink:0}
+.topbar-title{font-family:'Oswald',sans-serif;font-size:1.1rem;color:var(--accent)}
+.topbar-right{margin-left:auto;display:flex;gap:.5rem;align-items:center}
+.page{padding:1.25rem;flex:1}
+/* cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.25rem;margin-bottom:1rem}
+.card-title{font-family:'Oswald',sans-serif;color:var(--accent);font-size:1.05rem;margin-bottom:.85rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.card-title small{font-size:.73rem;color:var(--muted);font-family:'Source Sans 3',sans-serif;font-weight:400}
+/* stats */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.75rem;margin-bottom:1rem}
+.stat{background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.75rem;text-align:center}
+.stat .n{font-family:'Oswald',sans-serif;font-size:1.9rem;font-weight:700}
+.stat .l{font-size:.72rem;color:var(--muted);margin-top:2px}
+.c-gold .n{color:var(--accent)}.c-green .n{color:var(--green)}.c-blue .n{color:var(--blue)}.c-red .n{color:var(--red)}.c-purple .n{color:var(--purple)}
+/* table */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.83rem}
+th{text-align:left;padding:.45rem .6rem;border-bottom:2px solid var(--accent);color:var(--accent);font-family:'Oswald',sans-serif;white-space:nowrap}
+td{padding:.45rem .6rem;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:hover td{background:rgba(255,255,255,.025)}
+.ctr{text-align:center}
+.bold{font-weight:600}
+.small{font-size:.75rem;color:var(--muted)}
+/* badges */
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:600;white-space:nowrap}
+.b-gold{background:rgba(212,160,74,.15);color:var(--accent)}
+.b-green{background:rgba(39,174,96,.15);color:#2ecc71}
+.b-red{background:rgba(231,76,60,.15);color:#e74c3c}
+.b-blue{background:rgba(41,128,185,.15);color:#5dade2}
+.b-purple{background:rgba(142,68,173,.15);color:#a569bd}
+.b-gray{background:rgba(138,154,173,.1);color:var(--muted)}
+.b-cow{background:rgba(184,134,58,.2);color:#d4943a;border:1px solid rgba(184,134,58,.3)}
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:.35rem;padding:.4rem .85rem;border:none;border-radius:6px;cursor:pointer;font-size:.8rem;font-weight:600;font-family:'Source Sans 3',sans-serif;transition:all .15s;white-space:nowrap}
+.btn-accent{background:var(--accent);color:#1a1a1a}.btn-accent:hover{background:var(--accent2)}
+.btn-dark{background:var(--card2);color:var(--text);border:1px solid var(--border2)}.btn-dark:hover{border-color:var(--accent);color:var(--accent)}
+.btn-green{background:var(--green);color:#fff}
+.btn-red{background:rgba(231,76,60,.12);color:var(--red);border:1px solid rgba(231,76,60,.25)}
+.btn-sm{padding:.25rem .55rem;font-size:.75rem}
+.btn:disabled{opacity:.4;cursor:default}
+.btn-row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem}
+/* search/filters */
+.search-wrap{position:relative;margin-bottom:.75rem}
+.search-ico{position:absolute;left:.7rem;top:50%;transform:translateY(-50%);color:var(--muted)}
+.search-box{width:100%;padding:.55rem .6rem .55rem 2.1rem;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:.85rem}
+.search-box:focus{outline:none;border-color:var(--accent)}
+.pills{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.75rem}
+.pill{background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:.2rem .65rem;font-size:.75rem;cursor:pointer;color:var(--muted);transition:all .15s}
+.pill:hover{color:var(--text)}.pill.active{border-color:var(--accent);color:var(--accent);background:rgba(212,160,74,.1)}
+/* drop zone */
+.drop-zone{border:2px dashed var(--border2);border-radius:10px;padding:2.5rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--card2)}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--accent);background:rgba(212,160,74,.04)}
+.drop-zone .dz-ico{font-size:2rem;margin-bottom:.6rem;color:var(--muted)}
+.drop-zone h3{font-family:'Oswald',sans-serif;color:var(--accent);font-size:1.1rem;margin-bottom:.3rem}
+.drop-zone p{color:var(--muted);font-size:.82rem}
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem}
+.modal{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:1.5rem;max-width:640px;width:100%;max-height:90vh;overflow-y:auto}
+.modal h2{font-family:'Oswald',sans-serif;color:var(--accent);font-size:1.3rem;margin-bottom:1rem}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem .75rem;font-size:.85rem;margin-bottom:1rem}
+.modal-grid .lbl{color:var(--muted);font-size:.73rem}
+.modal-grid .val{font-weight:600;margin-top:1px}
+/* tab row in modal */
+.tab-row{display:flex;gap:.2rem;border-bottom:1px solid var(--border);margin-bottom:1rem}
+.tab-btn{background:none;border:none;color:var(--muted);padding:.5rem .85rem;cursor:pointer;font-size:.82rem;font-family:'Oswald',sans-serif;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab-btn:hover{color:var(--text)}.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-panel{display:none}.tab-panel.active{display:block}
+/* payment */
+.tab-line{display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.85rem}
+.tab-line:last-child{border:none}
+.tab-total{display:flex;justify-content:space-between;padding:.75rem 0 .25rem;font-weight:600;font-size:1rem;border-top:2px solid var(--border2);margin-top:.5rem}
+.pay-status{display:flex;align-items:center;gap:.75rem;padding:.75rem;background:var(--card2);border-radius:8px;margin-top:.75rem}
+/* settings */
+.stab-row{display:flex;gap:.2rem;border-bottom:1px solid var(--border);margin-bottom:1.25rem}
+.stab{background:none;border:none;color:var(--muted);padding:.5rem .9rem;cursor:pointer;font-size:.82rem;font-family:'Oswald',sans-serif;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.stab:hover{color:var(--text)}.stab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.ssec{display:none}.ssec.active{display:block}
+.form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:.75rem;margin-bottom:.75rem}
+.form-group{display:flex;flex-direction:column;gap:.3rem}
+.form-group label{font-size:.74rem;color:var(--muted)}
+.form-group input,.form-group select{background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;font-family:'Source Sans 3',sans-serif;transition:border-color .15s}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:var(--accent)}
+.form-group select option{background:var(--card)}
+.pfx{position:relative}.pfx span{position:absolute;left:.55rem;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.82rem;pointer-events:none}.pfx input{padding-left:1.3rem;max-width:120px}
+.tip{font-size:.71rem;color:var(--muted);margin-top:.2rem}
+/* fee strip */
+.fee-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.5rem;margin:.75rem 0 .25rem}
+.fee-chip{background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:.5rem .75rem}
+.fee-chip .fc-l{font-size:.7rem;color:var(--muted)}
+.fee-chip .fc-v{font-family:'Oswald',sans-serif;color:var(--accent);font-size:1rem;margin-top:1px}
+/* class config table */
+.cfg-tbl{width:100%;border-collapse:collapse;font-size:.81rem}
+.cfg-tbl th{text-align:left;padding:.4rem .5rem;border-bottom:2px solid var(--accent);color:var(--accent);font-family:'Oswald',sans-serif;font-size:.78rem;white-space:nowrap}
+.cfg-tbl td{padding:.28rem .4rem;border-bottom:1px solid var(--border);vertical-align:middle}
+.cfg-tbl tr:hover td{background:rgba(255,255,255,.02)}
+.cfg-tbl input[type=text],.cfg-tbl input[type=number]{background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:.28rem .45rem;font-size:.8rem;width:100%;transition:border-color .15s}
+.cfg-tbl input:focus{outline:none;border-color:var(--accent)}
+.cfg-tbl input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+.cfg-tbl .div-hdr td{background:rgba(212,160,74,.07);font-family:'Oswald',sans-serif;color:var(--muted);font-size:.78rem;letter-spacing:.04em;padding:.32rem .5rem}
+/* mapper */
+.map-row{background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:.6rem .75rem;margin-bottom:.4rem}
+.map-row label{font-size:.74rem;color:var(--muted);display:block;margin-bottom:.3rem}
+.map-row select{background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:.3rem .5rem;font-size:.78rem;width:100%}
+/* toast */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--green);color:#fff;padding:.6rem 1.1rem;border-radius:8px;font-size:.85rem;font-weight:600;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+.empty-state{color:var(--muted);text-align:center;padding:2.5rem;font-size:.9rem}
+.hidden{display:none!important}
+/* assoc tag */
+.assoc-tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:.68rem;font-weight:600;margin:1px}
+.at-cown{background:rgba(212,160,74,.15);color:var(--accent)}
+.at-aqha{background:rgba(41,128,185,.15);color:#5dade2}
+.at-apha{background:rgba(142,68,173,.15);color:#a569bd}
+.at-other{background:rgba(138,154,173,.1);color:var(--muted)}
+@media print{
+  .sidebar,.topbar,.btn-row,.pills,.search-wrap,.no-print{display:none!important}
+  .content{overflow:visible}.page{padding:0}
+  body{background:#fff;color:#000}
+  .card{border:1px solid #ccc;break-inside:avoid;background:#fff}
+  th{background:#f0f0f0;color:#000}td{border-bottom:1px solid #ddd}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo"><h1>GATEPOST</h1><span>SHOW MANAGEMENT</span></div>
+    <div class="show-pill" id="show-pill">
+      <div class="sp-name">No show loaded</div>
+      <div class="sp-meta">Import a Cognito file to begin</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Show Day</div>
+      <div class="nav-item active" data-page="import"><span class="ico">&#8679;</span> Import Entries</div>
+      <div class="nav-item" data-page="entries"><span class="ico">&#9776;</span> All Entries</div>
+      <div class="nav-item" data-page="classes"><span class="ico">&#127891;</span> Class Lists</div>
+      <div class="nav-item" data-page="tabs"><span class="ico">&#36;</span> Tabs &amp; Payments</div>
+      <div class="nav-item" data-page="stalls"><span class="ico">&#127968;</span> Stalls &amp; RV</div>
+      <div class="nav-section">Results</div>
+      <div class="nav-item" data-page="results"><span class="ico">&#127942;</span> Enter Results</div>
+      <div class="nav-item" data-page="points"><span class="ico">&#9733;</span> Points</div>
+      <div class="nav-section">Configuration</div>
+      <div class="nav-item" data-page="settings"><span class="ico">&#9881;</span> Show Management</div>
+    </nav>
+    <div class="sidebar-footer">Gatepost v0.2 &mdash; CoWN Edition</div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <div class="topbar">
+      <span class="topbar-title" id="page-title">Import Entries</span>
+      <div class="topbar-right" id="topbar-right"></div>
+    </div>
+    <div class="page" id="page"></div>
+  </div>
+</div>
+<div id="modal-root"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════ GLOBAL STATE ═══════════════════════
+var G = {
+  entries: [],
+  showName: '',
+  payments: {},   // rowIndex -> amount paid
+  backNums: {},   // rowIndex -> back number
+  cfg: {
+    showName:'', showDate:'', location:'', secretary:'', email:'',
+    fees:{
+      stall1:40, stall2:80, stall3:120, stallCircuit:150,
+      shavings:12, rv1:40, rv2:80, rvCircuit:110,
+      office:0, membership1yr:60, membership3yr:150, membershipLife:200, dayLicense:25,
+      late:0, horseLicense:20,
+      classBase:30, cowSurcharge:15, jackpot:0, addedMoney:0
+    },
+    classes:[],      // [{_id,num,name,division,org,isCow,baseFee,cowFee,jackpot,addedMoney}]
+    colMap:{},       // colIndex -> role string
+    orgs:['CoWN']    // associations this show runs
+  }
+};
+
+// ═══════════════════════ COGNITO PARSER ═══════════════════════
+// Detect columns that hold class entry text (e.g. "91-Cow, 92-Reining")
+function isClassCol(h){ return /classes and class|class.*#|division.*class/i.test(String(h||'')); }
+function isCowCountCol(h){ return /cows?\s*$/i.test(String(h||'').trim()); }
+
+function extractDivName(h){
+  return String(h||'')
+    .replace(/COWN\s*/ig,'').replace(/CoWN\s*/ig,'')
+    .replace(/Classes and Class #s/ig,'').replace(/Classes and Class Numbers/ig,'')
+    .replace(/Collegiate\s*/ig,'Collegiate ')
+    .replace(/\s+/g,' ').replace(/\xa0/g,' ').trim();
+}
+
+function detectOrg(h){
+  var s = String(h||'').toLowerCase();
+  if(/aqha/.test(s)) return 'AQHA';
+  if(/apha/.test(s)) return 'APHA';
+  if(/nhsra/.test(s)) return 'NHSRA';
+  if(/cown|cow\s*n/i.test(s)) return 'CoWN';
+  return 'Other';
+}
+
+function assocTags(raw){
+  var s = String(raw||'');
+  var out = '';
+  if(/cown/i.test(s)) out += '<span class="assoc-tag at-cown">CoWN</span>';
+  if(/aqha/i.test(s)) out += '<span class="assoc-tag at-aqha">AQHA</span>';
+  if(/apha/i.test(s)) out += '<span class="assoc-tag at-apha">APHA</span>';
+  if(!out && s.trim()) out = '<span class="assoc-tag at-other">'+esc(s.substring(0,20))+'</span>';
+  return out || '<span class="badge b-gray">—</span>';
+}
+
+var COW_WORDS = ['cow','cut','boxing','working'];
+
+function parseCognito(wb){
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  var raw = XLSX.utils.sheet_to_json(ws,{header:1,defval:null,cellDates:true});
+  var headers = raw[0];
+  var rows = raw.slice(1).filter(function(r){ return r[4]; });
+
+  // Build column role map from headers
+  var classCols = []; // {colIdx, divName, org, isCowCount}
+  headers.forEach(function(h,i){
+    if(!h) return;
+    if(isClassCol(String(h))){ classCols.push({i:i, div:extractDivName(String(h)), org:detectOrg(String(h)), isCow:false}); }
+    else if(isCowCountCol(String(h))){ classCols.push({i:i, div:extractDivName(String(h)), org:detectOrg(String(h)), isCow:true}); }
+  });
+
+  return rows.map(function(r,idx){
+    var orderStr = String(r[3]||'');
+    var amtM = orderStr.match(/\$([\d,]+\.?\d*)/);
+    var amount = amtM ? parseFloat(amtM[1].replace(/,/g,'')) : 0;
+    var isPaid = orderStr.toLowerCase().indexOf('unpaid') === -1;
+
+    var classes = [];
+    classCols.forEach(function(cc){
+      if(cc.isCow) return; // skip count cols for class list
+      var val = r[cc.i];
+      if(!val || !String(val).trim()) return;
+      String(val).split(',').forEach(function(cls){
+        cls = cls.replace(/\xa0/g,' ').trim();
+        if(!cls) return;
+        var m = cls.match(/^(\d+)[\s\-–]+(.+)$/);
+        classes.push({
+          num: m ? m[1].trim() : '',
+          name: m ? m[2].trim() : cls,
+          division: cc.div,
+          org: cc.org,
+          raw: cls
+        });
+      });
+    });
+
+    // Parse associations shown
+    var assocRaw = String(r[13]||'');
+
+    // Stalling: col55=qty 1-night, col57=qty 2-night, col59=shavings bags
+    // RV: col62=qty 1-night, col64=qty 2-night, col66=circuit qty
+    var stall1qty = (typeof r[55]==='number' && r[55]>0) ? r[55] : 0;
+    var stall2qty = (typeof r[57]==='number' && r[57]>0) ? r[57] : 0;
+    var shavings  = (typeof r[59]==='number' && r[59]>0) ? r[59] : 0;
+    var rv1qty    = (typeof r[62]==='number' && r[62]>0) ? r[62] : 0;
+    var rv2qty    = (typeof r[64]==='number' && r[64]>0) ? r[64] : 0;
+    var rvCircuit = (typeof r[66]==='number' && r[66]>0) ? r[66] : 0;
+    var stallNote = r[53] ? String(r[53]) : '';
+
+    return {
+      rowIndex:idx, entryNum:r[0], submitted:r[2],
+      name:String(r[4]||'').trim(),
+      address:String(r[5]||'').trim(),
+      phone:String(r[6]||'').trim(),
+      email:String(r[7]||'').trim(),
+      dob:r[8],
+      horse:String(r[9]||'').trim(),
+      horseGender:String(r[10]||'').trim(),
+      horseOwner:String(r[11]||'').trim(),
+      horseDob:r[12],
+      assocRaw:assocRaw,
+      hasMembership:String(r[14]||'').trim(),
+      memberNum:String(r[15]||'').replace(/\xa0/g,'').trim(),
+      needsMembership:String(r[16]||'').trim(),
+      division:String(r[17]||'').trim(),
+      classes:classes,
+      stall1qty:stall1qty, stall2qty:stall2qty, shavings:shavings,
+      rv1qty:rv1qty, rv2qty:rv2qty, rvCircuit:rvCircuit, stallNote:stallNote,
+      cognitoAmount:amount, isPaid:isPaid, orderStr:orderStr
+    };
+  });
+}
+
+// ═══════════════════════ TAB CALCULATOR ═══════════════════════
+function buildTabLines(entry){
+  var f = G.cfg.fees;
+  var lines = [];
+
+  // Office fee
+  if(f.office > 0) lines.push({desc:'Office fee', amt:f.office, type:'office'});
+
+  // Membership
+  var m = (entry.needsMembership||'').toLowerCase();
+  if(m.indexOf('1 year') > -1 || m === '1yr') lines.push({desc:'Membership — 1 Year', amt:f.membership1yr, type:'membership'});
+  else if(m.indexOf('3 year') > -1 || m === '3yr') lines.push({desc:'Membership — 3 Year', amt:f.membership3yr, type:'membership'});
+  else if(m.indexOf('life') > -1) lines.push({desc:'Membership — Lifetime', amt:f.membershipLife, type:'membership'});
+  else if(m.indexOf('day') > -1) lines.push({desc:'Day License', amt:f.dayLicense, type:'membership'});
+
+  // Classes — look up per-class config fee if available
+  entry.classes.forEach(function(cls){
+    var cfgCls = G.cfg.classes.find(function(c){ return c.num === cls.num; });
+    var base = (cfgCls && cfgCls.baseFee !== null) ? cfgCls.baseFee : f.classBase;
+    var isCow = cfgCls ? cfgCls.isCow : COW_WORDS.some(function(k){ return (cls.name||'').toLowerCase().indexOf(k)>-1; });
+    var cowFee = isCow ? ((cfgCls && cfgCls.cowFee !== null) ? cfgCls.cowFee : f.cowSurcharge) : 0;
+    var jp = (cfgCls && cfgCls.jackpot) ? cfgCls.jackpot : 0;
+    var desc = 'Class '+(cls.num||'?')+' \u2014 '+cls.name;
+    if(cls.org && cls.org !== 'CoWN') desc += ' ['+cls.org+']';
+    lines.push({desc:desc, amt:base+cowFee+jp, type:'class', isCow:isCow});
+  });
+
+  // Stalling
+  if(entry.stall1qty > 0) lines.push({desc:'Stall \u2014 1 night \xd7 '+entry.stall1qty, amt:f.stall1*entry.stall1qty, type:'stall'});
+  if(entry.stall2qty > 0) lines.push({desc:'Stall \u2014 2 nights \xd7 '+entry.stall2qty, amt:f.stall2*entry.stall2qty, type:'stall'});
+  if(entry.shavings  > 0) lines.push({desc:'Shavings \u2014 '+entry.shavings+' bags', amt:f.shavings*entry.shavings, type:'stall'});
+  if(entry.rv1qty    > 0) lines.push({desc:'RV \u2014 1 night \xd7 '+entry.rv1qty, amt:f.rv1*entry.rv1qty, type:'rv'});
+  if(entry.rv2qty    > 0) lines.push({desc:'RV \u2014 2 nights \xd7 '+entry.rv2qty, amt:f.rv2*entry.rv2qty, type:'rv'});
+  if(entry.rvCircuit > 0) lines.push({desc:'RV \u2014 Circuit \xd7 '+entry.rvCircuit, amt:f.rvCircuit*entry.rvCircuit, type:'rv'});
+
+  return lines;
+}
+
+function tabTotal(entry){ return buildTabLines(entry).reduce(function(s,l){ return s+l.amt; },0); }
+function amtPaid(entry){ return G.payments[entry.rowIndex] || 0; }
+function tabBalance(entry){ return tabTotal(entry) - amtPaid(entry); }
+function isFullyPaid(entry){ return tabBalance(entry) <= 0; }
+
+// ═══════════════════════ HELPERS ═══════════════════════
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmt$(n){ return '$'+Number(n||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function fmtI(n){ return '$'+Math.round(n||0); }
+
+function divBadge(d){
+  var map={Open:'b-gold','Non-Pro':'b-blue',Limited:'b-green',Intermediate:'b-purple',
+    Novice:'b-gray','L1 Novice':'b-gray',Youth:'b-purple','Novice Youth':'b-purple',
+    'Open Jr Horse':'b-gold','NP Jr Horse':'b-blue','Novice Horse':'b-gray'};
+  return d ? '<span class="badge '+(map[d]||'b-gray')+'">'+esc(d)+'</span>' : '';
+}
+
+function paidBadge(entry){
+  return isFullyPaid(entry)
+    ? '<span class="badge b-green">Paid</span>'
+    : '<span class="badge b-red">'+fmtI(tabBalance(entry))+' due</span>';
+}
+
+function toast(msg,isErr){
+  var el=document.getElementById('toast');
+  el.textContent=msg;
+  el.style.background=isErr?'var(--red)':'var(--green)';
+  el.classList.add('show');
+  setTimeout(function(){ el.classList.remove('show'); },2800);
+}
+
+function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
+
+// ═══════════════════════ NAVIGATION ═══════════════════════
+var PAGE_TITLES = {
+  import:'Import Entries', entries:'All Entries', classes:'Class Lists',
+  tabs:'Tabs & Payments', stalls:'Stalls & RV', results:'Enter Results',
+  points:'Points', settings:'Show Management'
+};
+
+function showPage(p){
+  document.querySelectorAll('.nav-item').forEach(function(el){
+    el.classList.toggle('active', el.dataset.page===p);
+  });
+  document.getElementById('page-title').textContent = PAGE_TITLES[p]||p;
+  var tr = document.getElementById('topbar-right');
+  tr.innerHTML = '';
+  if(p !== 'import' && G.entries.length){
+    var b = mk('button','btn btn-dark btn-sm'); b.innerHTML='&#8679; New Import'; b.onclick=function(){ showPage('import'); }; tr.appendChild(b);
+  }
+  if(p === 'settings'){
+    var sb = mk('button','btn btn-green btn-sm'); sb.innerHTML='&#10003; Save Config'; sb.onclick=saveConfig; tr.appendChild(sb);
+    var eb = mk('button','btn btn-dark btn-sm'); eb.innerHTML='&#8681; Export'; eb.onclick=exportConfig; tr.appendChild(eb);
+  }
+  var renders = {import:pgImport, entries:pgEntries, classes:pgClasses, tabs:pgTabs, stalls:pgStalls, results:pgResults, points:pgPoints, settings:pgSettings};
+  if(renders[p]) renders[p]();
+}
+
+function mk(tag,cls){ var el=document.createElement(tag); if(cls) el.className=cls; return el; }
+
+document.querySelectorAll('.nav-item').forEach(function(el){
+  el.addEventListener('click',function(){ showPage(el.dataset.page); });
+});
+
+// ═══════════════════════ PAGE: IMPORT ═══════════════════════
+function pgImport(){
+  var pg = document.getElementById('page');
+  pg.innerHTML = '<div class="card">'
+    +'<div class="card-title">Import Cognito Export</div>'
+    +'<div class="drop-zone" id="dz"><div class="dz-ico">&#128190;</div>'
+    +'<h3>Drop Cognito Excel file here</h3>'
+    +'<p>Or click to browse &mdash; .xlsx files exported from Cognito Forms</p>'
+    +'<input type="file" id="fi" accept=".xlsx,.xls" style="display:none"></div>'
+    +'<div id="imp-status" style="margin-top:.75rem;font-size:.85rem"></div></div>'
+    +(G.entries.length ? '<div class="card"><div class="card-title">Currently Loaded</div>'
+    +'<p style="color:var(--muted);font-size:.85rem"><strong style="color:var(--accent)">'+esc(G.showName)+'</strong> &mdash; '
+    +G.entries.length+' entries loaded. '
+    +'<a href="#" onclick="showPage(\'entries\');return false" style="color:var(--accent)">View entries &rarr;</a></p></div>' : '');
+
+  var dz=document.getElementById('dz'), fi=document.getElementById('fi');
+  function load(file){
+    document.getElementById('imp-status').innerHTML='<span style="color:var(--muted)">Reading...</span>';
+    var reader=new FileReader();
+    reader.onload=function(e){
+      try{
+        var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
+        G.entries=parseCognito(wb);
+        G.showName=file.name.replace(/\.xlsx?$/i,'').replace(/[-_]/g,' ');
+        G.payments={}; G.backNums={};
+        G.entries.forEach(function(en){
+          G.payments[en.rowIndex]=en.isPaid?tabTotal(en):0;
+        });
+        document.getElementById('show-pill').innerHTML=
+          '<div class="sp-name">'+esc(G.showName)+'</div>'
+          +'<div class="sp-meta">'+G.entries.length+' entries</div>';
+        document.getElementById('imp-status').innerHTML='<span style="color:var(--green)">&#10003; '+G.entries.length+' entries loaded.</span>';
+        setTimeout(function(){ showPage('entries'); },700);
+      } catch(err){
+        document.getElementById('imp-status').innerHTML='<span style="color:var(--red)">Error: '+esc(err.message)+'</span>';
+        console.error(err);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+  dz.addEventListener('click',function(){ fi.click(); });
+  fi.addEventListener('change',function(e){ if(e.target.files[0]) load(e.target.files[0]); });
+  dz.addEventListener('dragover',function(e){ e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave',function(){ dz.classList.remove('drag'); });
+  dz.addEventListener('drop',function(e){ e.preventDefault(); dz.classList.remove('drag'); if(e.dataTransfer.files[0]) load(e.dataTransfer.files[0]); });
+}
+
+// ═══════════════════════ PAGE: ENTRIES ═══════════════════════
+function pgEntries(){
+  var pg=document.getElementById('page');
+  if(!G.entries.length){ pg.innerHTML='<div class="card"><p class="empty-state">No entries loaded. <a href="#" onclick="showPage(\'import\');return false" style="color:var(--accent)">Import a file</a></p></div>'; return; }
+
+  var totalFees=G.entries.reduce(function(s,e){ return s+tabTotal(e); },0);
+  var totalPaid=G.entries.reduce(function(s,e){ return s+amtPaid(e); },0);
+  var uniqueRiders=new Set(G.entries.map(function(e){ return e.name; })).size;
+  var divCounts={};
+  G.entries.forEach(function(e){ if(e.division) divCounts[e.division]=(divCounts[e.division]||0)+1; });
+
+  pg.innerHTML='<div class="stat-grid">'
+    +'<div class="stat c-gold"><div class="n">'+G.entries.length+'</div><div class="l">Entries</div></div>'
+    +'<div class="stat c-blue"><div class="n">'+uniqueRiders+'</div><div class="l">Riders</div></div>'
+    +'<div class="stat c-green"><div class="n">'+fmt$(totalFees)+'</div><div class="l">Total Fees</div></div>'
+    +'<div class="stat c-red"><div class="n">'+fmt$(totalFees-totalPaid)+'</div><div class="l">Outstanding</div></div>'
+    +'</div><div class="card">'
+    +'<div class="btn-row no-print"><button class="btn btn-accent btn-sm" onclick="window.print()">&#128424; Print</button></div>'
+    +'<div class="search-wrap"><span class="search-ico">&#128269;</span><input class="search-box" id="eq" placeholder="Search rider, horse, division, CoWN #..."></div>'
+    +'<div class="pills" id="ep"></div>'
+    +'<div class="tbl-wrap" id="et"></div></div>';
+
+  var pills=['All'].concat(Object.keys(divCounts).sort());
+  var activePill='All';
+  function drawPills(){
+    document.getElementById('ep').innerHTML=pills.map(function(p){
+      return '<button class="pill'+(p===activePill?' active':'')+'" onclick="setEPill(\''+esc(p)+'\')">'+esc(p)+(divCounts[p]?' ('+divCounts[p]+')':'')+'</button>';
+    }).join('');
+  }
+  window.setEPill=function(p){ activePill=p; drawPills(); drawEntryTable(); };
+  drawPills();
+
+  function drawEntryTable(){
+    var q=(document.getElementById('eq')||{value:''}).value.trim().toLowerCase();
+    var list=G.entries.filter(function(e){
+      var dOk=activePill==='All'||e.division===activePill;
+      var qOk=!q||(e.name||'').toLowerCase().indexOf(q)>-1||(e.horse||'').toLowerCase().indexOf(q)>-1
+        ||(e.division||'').toLowerCase().indexOf(q)>-1||(e.memberNum||'').toLowerCase().indexOf(q)>-1;
+      return dOk&&qOk;
+    });
+    var t='<table><thead><tr><th>Back#</th><th>Rider</th><th>Horse</th><th>Assoc</th><th>Division</th><th>Classes</th><th>Fees</th><th>Status</th><th></th></tr></thead><tbody>';
+    if(!list.length) t+='<tr><td colspan="9" class="empty-state">No entries match</td></tr>';
+    list.forEach(function(e){
+      t+='<tr>'
+        +'<td class="ctr bold" style="width:50px">'
+        +'<input type="number" value="'+(G.backNums[e.rowIndex]||'')+'" placeholder="—" onchange="G.backNums['+e.rowIndex+']=this.value" style="width:48px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--accent);padding:2px 4px;text-align:center;font-size:.82rem">'
+        +'</td>'
+        +'<td><div class="bold">'+esc(e.name)+'</div><div class="small">'+esc(e.memberNum||'No # on file')+'</div></td>'
+        +'<td><div>'+esc(e.horse)+'</div><div class="small">'+esc(e.horseGender)+'</div></td>'
+        +'<td>'+assocTags(e.assocRaw)+'</td>'
+        +'<td>'+divBadge(e.division)+'</td>'
+        +'<td class="small">'+e.classes.map(function(c){ return '<span class="badge b-gray" style="margin:1px">'+esc(c.num||c.name.substring(0,8))+'</span>'; }).join('')+'</td>'
+        +'<td class="bold">'+fmt$(tabTotal(e))+'</td>'
+        +'<td>'+paidBadge(e)+'</td>'
+        +'<td><button class="btn btn-dark btn-sm" onclick="showEntryModal('+e.rowIndex+')">View</button></td>'
+        +'</tr>';
+    });
+    t+='</tbody></table>';
+    document.getElementById('et').innerHTML=t;
+  }
+  drawEntryTable();
+  document.getElementById('eq').addEventListener('input',drawEntryTable);
+}
+
+// ═══════════════════════ PAGE: CLASS LISTS ═══════════════════════
+function pgClasses(){
+  var pg=document.getElementById('page');
+  if(!G.entries.length){ pg.innerHTML='<div class="card"><p class="empty-state">No entries loaded. <a href="#" onclick="showPage(\'import\');return false" style="color:var(--accent)">Import a file</a></p></div>'; return; }
+
+  var classMap={};
+  G.entries.forEach(function(e){
+    e.classes.forEach(function(cls){
+      var key=cls.num||cls.name;
+      if(!classMap[key]) classMap[key]={num:cls.num,name:cls.name,division:cls.division,org:cls.org,entries:[]};
+      classMap[key].entries.push(e);
+    });
+  });
+
+  var sorted=Object.values(classMap).sort(function(a,b){ return (parseInt(a.num)||999)-(parseInt(b.num)||999); });
+
+  // Org filter
+  var orgs=Array.from(new Set(sorted.map(function(c){ return c.org||'CoWN'; }))).sort();
+  var activeOrg='All';
+
+  pg.innerHTML='<div class="btn-row no-print">'
+    +'<button class="btn btn-accent btn-sm" onclick="window.print()">&#128424; Print All Class Lists</button>'
+    +'</div>'
+    +'<div class="pills no-print" id="org-pills"></div>'
+    +'<div id="cl-content"></div>';
+
+  function drawOrgPills(){
+    document.getElementById('org-pills').innerHTML=(['All'].concat(orgs)).map(function(o){
+      return '<button class="pill'+(o===activeOrg?' active':'')+'" onclick="setOrgPill(\''+esc(o)+'\')">'+esc(o)+'</button>';
+    }).join('');
+  }
+  window.setOrgPill=function(o){ activeOrg=o; drawOrgPills(); drawClassLists(); };
+  drawOrgPills();
+
+  function drawClassLists(){
+    var list=sorted.filter(function(c){ return activeOrg==='All'||(c.org||'CoWN')===activeOrg; });
+    var html=list.map(function(cls){
+      return '<div class="card" style="break-inside:avoid">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">'
+        +'<div><span style="font-family:Oswald;font-size:1.1rem;color:var(--accent)">Class '+esc(cls.num)+' &mdash; '+esc(cls.name)+'</span>'
+        +' '+divBadge(cls.division)
+        +(cls.org&&cls.org!=='CoWN'?'<span class="badge b-blue" style="margin-left:4px">'+esc(cls.org)+'</span>':'')
+        +'</div><span class="badge b-blue">'+cls.entries.length+' entries</span></div>'
+        +'<table><thead><tr><th style="width:70px">Back#</th><th>Rider</th><th>Horse</th><th>CoWN #</th></tr></thead><tbody>'
+        +cls.entries.map(function(e){
+          return '<tr><td class="bold ctr">'+(G.backNums[e.rowIndex]||'—')+'</td>'
+            +'<td>'+esc(e.name)+'</td><td>'+esc(e.horse)+'</td>'
+            +'<td class="small">'+esc(e.memberNum||'—')+'</td></tr>';
+        }).join('')
+        +'</tbody></table></div>';
+    }).join('');
+    document.getElementById('cl-content').innerHTML=html||'<p class="empty-state">No classes found.</p>';
+  }
+  drawClassLists();
+}
+
+// ═══════════════════════ PAGE: TABS ═══════════════════════
+function pgTabs(){
+  var pg=document.getElementById('page');
+  if(!G.entries.length){ pg.innerHTML='<div class="card"><p class="empty-state">No entries loaded.</p></div>'; return; }
+
+  var totalOwed=G.entries.reduce(function(s,e){ return s+tabTotal(e); },0);
+  var totalPaid=G.entries.reduce(function(s,e){ return s+amtPaid(e); },0);
+  var fullyPaid=G.entries.filter(isFullyPaid).length;
+
+  pg.innerHTML='<div class="stat-grid">'
+    +'<div class="stat c-green"><div class="n">'+fmt$(totalOwed)+'</div><div class="l">Total Owed</div></div>'
+    +'<div class="stat c-blue"><div class="n">'+fmt$(totalPaid)+'</div><div class="l">Collected</div></div>'
+    +'<div class="stat c-red"><div class="n">'+fmt$(totalOwed-totalPaid)+'</div><div class="l">Outstanding</div></div>'
+    +'<div class="stat c-gold"><div class="n">'+fullyPaid+'/'+G.entries.length+'</div><div class="l">Paid in Full</div></div>'
+    +'</div><div class="card">'
+    +'<div class="search-wrap"><span class="search-ico">&#128269;</span><input class="search-box" id="tq" placeholder="Search rider..."></div>'
+    +'<div class="pills" id="tpills"></div>'
+    +'<div class="tbl-wrap" id="ttbl"></div></div>';
+
+  var tf='All';
+  function drawTPills(){
+    document.getElementById('tpills').innerHTML=['All','Outstanding','Paid'].map(function(f){
+      return '<button class="pill'+(f===tf?' active':'')+'" onclick="setTF(\''+f+'\')">'+f+'</button>';
+    }).join('');
+  }
+  window.setTF=function(f){ tf=f; drawTPills(); drawTabTable(); };
+  drawTPills();
+
+  function drawTabTable(){
+    var q=(document.getElementById('tq')||{value:''}).value.trim().toLowerCase();
+    // Group by rider
+    // Build rider index — keyed by integer so no names ever touch onclick strings
+    var byRider={};
+    G.entries.forEach(function(e){
+      if(!byRider[e.name]) byRider[e.name]=[];
+      byRider[e.name].push(e);
+    });
+    // Store rider list in a stable array so we can reference by index
+    G._riderList=Object.keys(byRider).sort();
+    var names=G._riderList.filter(function(name){
+      var entries=byRider[name];
+      var owed=entries.reduce(function(s,e){ return s+tabTotal(e); },0);
+      var paid=entries.reduce(function(s,e){ return s+amtPaid(e); },0);
+      var bal=owed-paid; var isPaid=bal<=0;
+      var fOk=tf==='All'||(tf==='Paid'&&isPaid)||(tf==='Outstanding'&&!isPaid);
+      var qOk=!q||name.toLowerCase().indexOf(q)>-1;
+      return fOk&&qOk;
+    });
+    var t='<table><thead><tr><th>Rider</th><th>Horse(s)</th><th>Entries</th><th>Owed</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr></thead><tbody>';
+    if(!names.length) t+='<tr><td colspan="8" class="empty-state">No entries match</td></tr>';
+    names.forEach(function(name){
+      var entries=byRider[name];
+      var owed=entries.reduce(function(s,e){ return s+tabTotal(e); },0);
+      var paid=entries.reduce(function(s,e){ return s+amtPaid(e); },0);
+      var bal=owed-paid; var isPaid=bal<=0;
+      var horses=[...new Set(entries.map(function(e){ return e.horse; }))].join(', ');
+      // Use first rowIndex as a safe key — never inject the name string into onclick
+      var refIdx=entries[0].rowIndex;
+      t+='<tr>'
+        +'<td class="bold">'+esc(name)+'</td>'
+        +'<td class="small">'+esc(horses)+'</td>'
+        +'<td class="ctr">'+entries.length+'</td>'
+        +'<td>'+fmt$(owed)+'</td>'
+        +'<td style="color:var(--green)">'+fmt$(paid)+'</td>'
+        +'<td class="bold" style="color:'+(isPaid?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</td>'
+        +'<td>'+(isPaid?'<span class="badge b-green">Paid</span>':'<span class="badge b-red">Due</span>')+'</td>'
+        +'<td><button class="btn btn-accent btn-sm" onclick="showTabModalByIdx('+refIdx+')">'+esc(isPaid?'Receipt':'Pay')+'</button></td>'
+        +'</tr>';
+    });
+    t+='</tbody></table>';
+    document.getElementById('ttbl').innerHTML=t;
+  }
+  drawTabTable();
+  document.getElementById('tq').addEventListener('input',drawTabTable);
+}
+
+// ═══════════════════════ PAGE: STALLS ═══════════════════════
+function pgStalls(){
+  var pg=document.getElementById('page');
+  if(!G.entries.length){ pg.innerHTML='<div class="card"><p class="empty-state">No entries loaded.</p></div>'; return; }
+
+  var f=G.cfg.fees;
+  var stalled=G.entries.filter(function(e){ return e.stall1qty>0||e.stall2qty>0; });
+  var rvEntries=G.entries.filter(function(e){ return e.rv1qty>0||e.rv2qty>0||e.rvCircuit>0; });
+  var totalShavings=G.entries.reduce(function(s,e){ return s+e.shavings; },0);
+  var stallRev=G.entries.reduce(function(s,e){ return s+e.stall1qty*f.stall1+e.stall2qty*f.stall2+e.shavings*f.shavings; },0);
+  var rvRev=G.entries.reduce(function(s,e){ return s+e.rv1qty*f.rv1+e.rv2qty*f.rv2+e.rvCircuit*f.rvCircuit; },0);
+
+  pg.innerHTML='<div class="stat-grid">'
+    +'<div class="stat c-gold"><div class="n">'+stalled.length+'</div><div class="l">Stalled Riders</div></div>'
+    +'<div class="stat c-blue"><div class="n">'+totalShavings+'</div><div class="l">Bags Shavings</div></div>'
+    +'<div class="stat c-purple"><div class="n">'+rvEntries.length+'</div><div class="l">RV Spots</div></div>'
+    +'<div class="stat c-green"><div class="n">'+fmt$(stallRev+rvRev)+'</div><div class="l">Housing Revenue</div></div>'
+    +'</div>'
+    +'<div class="card"><div class="card-title">Stall List</div>'
+    +'<div class="tbl-wrap"><table><thead><tr><th>Rider</th><th>Horse</th><th>1-Night</th><th>2-Night</th><th>Shavings</th><th>Arrival</th><th>Notes</th><th>Fees</th></tr></thead><tbody>'
+    +(stalled.length ? stalled.map(function(e){
+      var fee=e.stall1qty*f.stall1+e.stall2qty*f.stall2+e.shavings*f.shavings;
+      return '<tr><td class="bold">'+esc(e.name)+'</td><td>'+esc(e.horse)+'</td>'
+        +'<td class="ctr">'+(e.stall1qty||'—')+'</td>'
+        +'<td class="ctr">'+(e.stall2qty||'—')+'</td>'
+        +'<td class="ctr">'+(e.shavings||'—')+'</td>'
+        +'<td class="small">—</td>'
+        +'<td class="small" style="max-width:180px;white-space:normal">'+esc((e.stallNote||'').substring(0,80)+(e.stallNote&&e.stallNote.length>80?'…':''))+'</td>'
+        +'<td>'+fmt$(fee)+'</td></tr>';
+    }).join('') : '<tr><td colspan="8" class="empty-state">No stalling requests</td></tr>')
+    +'</tbody></table></div></div>'
+    +'<div class="card"><div class="card-title">RV List</div>'
+    +'<div class="tbl-wrap"><table><thead><tr><th>Rider</th><th>1-Night</th><th>2-Night</th><th>Circuit</th><th>Fees</th></tr></thead><tbody>'
+    +(rvEntries.length ? rvEntries.map(function(e){
+      var fee=e.rv1qty*f.rv1+e.rv2qty*f.rv2+e.rvCircuit*f.rvCircuit;
+      return '<tr><td class="bold">'+esc(e.name)+'</td>'
+        +'<td class="ctr">'+(e.rv1qty||'—')+'</td>'
+        +'<td class="ctr">'+(e.rv2qty||'—')+'</td>'
+        +'<td class="ctr">'+(e.rvCircuit||'—')+'</td>'
+        +'<td>'+fmt$(fee)+'</td></tr>';
+    }).join('') : '<tr><td colspan="5" class="empty-state">No RV requests</td></tr>')
+    +'</tbody></table></div></div>';
+}
+
+// ═══════════════════════ STUB PAGES ═══════════════════════
+function pgResults(){
+  document.getElementById('page').innerHTML='<div class="card"><div class="card-title">Enter Results</div>'
+    +'<div style="border:1px dashed var(--border2);border-radius:8px;padding:2.5rem;text-align:center;color:var(--muted)">'
+    +'<div style="font-size:1.5rem;margin-bottom:.5rem">&#127942;</div>'
+    +'<div style="font-family:Oswald;color:var(--accent)">Coming in next build</div>'
+    +'<div style="font-size:.82rem;margin-top:.35rem">Class-by-class results entry with auto points calculation</div>'
+    +'</div></div>';
+}
+function pgPoints(){
+  document.getElementById('page').innerHTML='<div class="card"><div class="card-title">Points Standings</div>'
+    +'<div style="border:1px dashed var(--border2);border-radius:8px;padding:2.5rem;text-align:center;color:var(--muted)">'
+    +'<div style="font-size:1.5rem;margin-bottom:.5rem">&#9733;</div>'
+    +'<div style="font-family:Oswald;color:var(--accent)">Coming in next build</div>'
+    +'<div style="font-size:.82rem;margin-top:.35rem">Live standings &middot; year-end totals &middot; qualifier tracking &middot; all-around</div>'
+    +'</div></div>';
+}
+
+// ═══════════════════════ PAGE: SETTINGS ═══════════════════════
+var CFG_ROW_ID=0;
+
+function pgSettings(){
+  var pg=document.getElementById('page');
+  pg.innerHTML='<div class="stab-row">'
+    +'<button class="stab active" onclick="showStab(\'finances\',this)">&#36; Finances</button>'
+    +'<button class="stab" onclick="showStab(\'classes\',this)">&#127891; Classes</button>'
+    +'<button class="stab" onclick="showStab(\'orgs\',this)">&#127981; Organizations</button>'
+    +'<button class="stab" onclick="showStab(\'mapper\',this)">&#8644; Column Mapper</button>'
+    +'</div>'
+
+    // ── FINANCES ──
+    +'<div class="ssec active" id="ss-finances">'
+    +settingsCard('Show Information','',
+      formRow([fg('Show Name','cfg-show-name','text','e.g. CoWN Summerfest 2025'),fg('Show Date','cfg-show-date','date'),fg('Location','cfg-show-location','text','Venue')])
+      +formRow([fg('Secretary','cfg-secretary','text'),fg('Contact Email','cfg-email','email')])
+    )
+    +settingsCard('Stalling Fees','Applied per-night per stall',
+      formRow([pFg('Stall — 1 Night','fee-stall1',40),pFg('Stall — 2 Nights','fee-stall2',80),pFg('Stall — 3 Nights','fee-stall3',120),pFg('Stall — Circuit','fee-stall-circuit',150)])
+      +formRow([pFg('Shavings/bag','fee-shavings',12),pFg('RV — 1 Night','fee-rv1',40),pFg('RV — 2 Nights','fee-rv2',80),pFg('RV — Circuit','fee-rv-circuit',110)])
+    )
+    +settingsCard('Office &amp; Membership Fees','',
+      formRow([pFg('Office Fee (per entry)','fee-office',0,true),pFg('Membership — 1 Year','fee-membership-1yr',60),pFg('Membership — 3 Year','fee-membership-3yr',150),pFg('Membership — Lifetime','fee-membership-life',200)])
+      +formRow([pFg('Day License','fee-day-license',25),pFg('Late Entry Fee','fee-late',0),pFg('Horse License','fee-horse-license',20)])
+    )
+    +settingsCard('Default Class Fees','Per-class overrides can be set in the Classes tab',
+      formRow([pFg('Base Class Fee','fee-class-base',30,false,true),pFg('Cow Class Surcharge','fee-cow-surcharge',15,false,true),pFg('Jackpot Fee','fee-jackpot',0,false,true),pFg('Added Money (per class)','fee-added-money',0)])
+      +'<div class="fee-strip" id="fee-strip">'
+      +'<div class="fee-chip"><div class="fc-l">Standard class</div><div class="fc-v" id="fs-std">$30</div></div>'
+      +'<div class="fee-chip"><div class="fc-l">Cow/Cutting class</div><div class="fc-v" id="fs-cow">$45</div></div>'
+      +'<div class="fee-chip"><div class="fc-l">With jackpot</div><div class="fc-v" id="fs-jp">$30</div></div>'
+      +'</div>'
+    )
+    +'</div>'
+
+    // ── CLASSES ──
+    +'<div class="ssec" id="ss-classes">'
+    +'<div class="card"><div class="card-title">Load Classes from Cognito File <small>Drop your entry file to auto-populate</small></div>'
+    +'<div class="drop-zone" id="cls-dz"><div class="dz-ico">&#128190;</div><h3>Drop Cognito Export Here</h3><p>Classes extracted automatically from all division columns</p><input type="file" id="cls-fi" accept=".xlsx,.xls" style="display:none"></div>'
+    +'<div class="btn-row" style="margin-top:.75rem">'
+    +'<button class="btn btn-dark btn-sm" onclick="addCfgClass()">+ Add Manually</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="autofillClassFees()">&#9889; Auto-fill Fees</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="autoDetectCow()">&#128004; Detect Cow Classes</button>'
+    +'<span style="margin-left:auto;font-size:.78rem;color:var(--muted)" id="cls-count"></span>'
+    +'</div></div>'
+    +'<div class="card" style="padding:0;overflow:hidden">'
+    +'<div style="padding:.7rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
+    +'<span style="font-family:Oswald;color:var(--accent);font-size:.95rem">Class List</span>'
+    +'<input type="text" placeholder="Filter..." id="cls-q" oninput="filterCfgClasses(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:.28rem .55rem;font-size:.78rem;width:160px">'
+    +'</div>'
+    +'<div style="overflow-x:auto"><table class="cfg-tbl"><thead><tr>'
+    +'<th style="width:65px">Class #</th><th>Class Name</th><th style="width:120px">Division</th>'
+    +'<th style="width:75px">Org</th><th style="width:50px;text-align:center">Cow?</th>'
+    +'<th style="width:75px">Base Fee</th><th style="width:75px">Cow Fee</th>'
+    +'<th style="width:75px">Jackpot</th><th style="width:75px">Added $</th>'
+    +'<th style="width:55px;text-align:center">Total</th><th style="width:32px"></th>'
+    +'</tr></thead><tbody id="cfg-cls-tbody">'
+    +'<tr><td colspan="11" class="empty-state">No classes loaded yet.</td></tr>'
+    +'</tbody></table></div></div>'
+    +'</div>'
+
+    // ── ORGS ──
+    +'<div class="ssec" id="ss-orgs">'
+    +'<div class="card"><div class="card-title">Organizations at This Show <small>Each org can have its own fee rules and drug testing requirements</small></div>'
+    +'<p style="font-size:.84rem;color:var(--muted);margin-bottom:1rem">When multiple associations share a show, Gatepost tracks classes and fees separately by org. Drug testing fees, for example, only apply to AQHA entries.</p>'
+    +'<div id="org-list">'
+    +orgRow('CoWN','CoWN Stock Horse Association',false)
+    +orgRow('AQHA','American Quarter Horse Association',true)
+    +orgRow('APHA','American Paint Horse Association',false)
+    +orgRow('NHSRA','National High School Rodeo Association',false)
+    +'</div>'
+    +'<div class="btn-row" style="margin-top:.75rem">'
+    +'<button class="btn btn-dark btn-sm" onclick="addCustomOrg()">+ Add Custom Org</button>'
+    +'</div></div>'
+    +'<div class="card"><div class="card-title">Per-Org Fee Overrides <small>Leave blank to use defaults from Finances tab</small></div>'
+    +'<div id="org-fee-overrides">'
+    +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem 1rem;margin-bottom:.5rem">'
+    +'<div style="font-family:Oswald;color:var(--blue);font-size:.9rem;margin-bottom:.6rem">AQHA <small style="font-family:Source Sans 3;font-weight:400;font-size:.75rem;color:var(--muted)">Only applies to AQHA-tagged classes</small></div>'
+    +'<div class="form-row">'
+    +pFg('Drug Test Fee','fee-aqha-drug',0)
+    +pFg('AQHA Office Fee','fee-aqha-office',0)
+    +pFg('VRH Class Fee','fee-aqha-vrh',0)
+    +'</div></div>'
+    +'</div></div>'
+    +'</div>'
+
+    // ── MAPPER ──
+    +'<div class="ssec" id="ss-mapper">'
+    +'<div class="card"><div class="card-title">Column Mapper <small>Tell Gatepost what each Cognito column means — saved and reused every import</small></div>'
+    +'<p style="font-size:.83rem;color:var(--muted);margin-bottom:1rem">Drop any export from this association. Gatepost auto-detects most columns — review and fix anything it got wrong, then save. Works for any org&apos;s Cognito form.</p>'
+    +'<div class="drop-zone" id="map-dz"><div class="dz-ico">&#128190;</div><h3>Drop Cognito Export to Map Columns</h3><p>Reads your column headers and suggests mappings</p><input type="file" id="map-fi" accept=".xlsx,.xls" style="display:none"></div>'
+    +'</div>'
+    +'<div id="mapper-out" class="hidden">'
+    +'<div class="card"><div class="card-title">Core Fields <small style="color:var(--green)" id="map-auto-count"></small></div><div id="map-core"></div></div>'
+    +'<div class="card"><div class="card-title">Division / Class Columns</div><div id="map-divs"></div></div>'
+    +'<div class="card"><div class="card-title">Housing Columns</div><div id="map-housing"></div></div>'
+    +'<div class="card"><div class="card-title">Unmapped Columns <small>Assign or ignore</small></div><div id="map-unmapped"></div></div>'
+    +'<div class="btn-row"><button class="btn btn-green" onclick="saveMapping()">&#10003; Save Mapping</button>'
+    +'<button class="btn btn-dark" onclick="document.getElementById(\'mapper-out\').classList.add(\'hidden\')">Reset</button></div>'
+    +'</div>'
+    +'</div>';
+
+  // Wire up events
+  applyConfigToUI();
+  setupClassDrop();
+  setupMapDrop();
+  setupFeeListeners();
+  if(G.cfg.classes.length) renderCfgClassTable();
+}
+
+function showStab(id,btn){
+  document.querySelectorAll('.ssec').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelectorAll('.stab').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('ss-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── Settings helpers ──
+function settingsCard(title, sub, body){
+  return '<div class="card"><div class="card-title">'+title+(sub?' <small>'+sub+'</small>':'')+'</div>'+body+'</div>';
+}
+function formRow(items){ return '<div class="form-row">'+items.join('')+'</div>'; }
+function fg(label,id,type,placeholder){
+  return '<div class="form-group"><label>'+label+'</label>'
+    +'<input type="'+(type||'text')+'" id="'+id+'"'+(placeholder?' placeholder="'+placeholder+'"':'')+'></div>';
+}
+function pFg(label,id,def,hasTip,hasStrip){
+  return '<div class="form-group"><label>'+label+'</label>'
+    +'<div class="pfx"><span>$</span><input type="number" id="'+id+'" value="'+def+'" min="0" step="1"'
+    +(hasStrip?' oninput="updateFeeStrip()"':'')+'></div></div>';
+}
+function orgRow(id,name,hasDrug){
+  return '<div class="map-row" style="margin-bottom:.4rem;display:flex;align-items:center;gap:.75rem">'
+    +'<input type="checkbox" id="org-'+id+'" style="width:16px;height:16px;accent-color:var(--accent)">'
+    +'<label for="org-'+id+'" style="font-size:.85rem;color:var(--text);cursor:pointer"><strong>'+id+'</strong> &mdash; '+name+'</label>'
+    +(hasDrug?'<span class="badge b-blue" style="margin-left:auto">Drug testing available</span>':'')
+    +'</div>';
+}
+
+function setupFeeListeners(){
+  ['fee-class-base','fee-cow-surcharge','fee-jackpot'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.addEventListener('input',updateFeeStrip);
+  });
+  updateFeeStrip();
+}
+
+function updateFeeStrip(){
+  var base=parseFloat((document.getElementById('fee-class-base')||{}).value)||0;
+  var cow=parseFloat((document.getElementById('fee-cow-surcharge')||{}).value)||0;
+  var jp=parseFloat((document.getElementById('fee-jackpot')||{}).value)||0;
+  var s=document.getElementById('fs-std'); if(s) s.textContent='$'+base;
+  var c=document.getElementById('fs-cow'); if(c) c.textContent='$'+(base+cow);
+  var j=document.getElementById('fs-jp'); if(j) j.textContent='$'+(base+jp);
+}
+
+function addCustomOrg(){
+  var name=prompt('Enter organization abbreviation (e.g. NSBA):');
+  if(!name) return;
+  var ol=document.getElementById('org-list');
+  if(ol){ var d=document.createElement('div'); d.innerHTML=orgRow(name.toUpperCase(),name+' (custom)',false); ol.appendChild(d.firstChild); }
+}
+
+// ── Class config table ──
+function renderCfgClassTable(){
+  var tbody=document.getElementById('cfg-cls-tbody');
+  if(!tbody) return;
+  var lbl=document.getElementById('cls-count');
+  if(lbl) lbl.textContent=G.cfg.classes.length+' classes';
+  if(!G.cfg.classes.length){ tbody.innerHTML='<tr><td colspan="11" class="empty-state">No classes loaded.</td></tr>'; return; }
+
+  var byDiv={};
+  G.cfg.classes.forEach(function(c){
+    var k=(c.org||'CoWN')+': '+(c.division||'General');
+    if(!byDiv[k]) byDiv[k]=[];
+    byDiv[k].push(c);
+  });
+
+  var html='';
+  Object.keys(byDiv).sort().forEach(function(div){
+    html+='<tr class="div-hdr"><td colspan="11">'+esc(div)+'</td></tr>';
+    byDiv[div].forEach(function(c){
+      var total=calcCfgTotal(c);
+      html+='<tr data-cid="'+c._id+'">'
+        +'<td><input type="text" value="'+escH(c.num)+'" onchange="updCls(\''+c._id+'\',\'num\',this.value)" style="width:58px"></td>'
+        +'<td><input type="text" value="'+escH(c.name)+'" onchange="updCls(\''+c._id+'\',\'name\',this.value)"></td>'
+        +'<td><input type="text" value="'+escH(c.division||'')+'" onchange="updCls(\''+c._id+'\',\'division\',this.value)"></td>'
+        +'<td><select onchange="updCls(\''+c._id+'\',\'org\',this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px;font-size:.78rem;width:100%">'
+        +['CoWN','AQHA','APHA','NHSRA','Other'].map(function(o){ return '<option value="'+o+'"'+(c.org===o?' selected':'')+'>'+o+'</option>'; }).join('')
+        +'</select></td>'
+        +'<td style="text-align:center"><input type="checkbox"'+(c.isCow?' checked':'')+' onchange="updCls(\''+c._id+'\',\'isCow\',this.checked);refreshCfgRow(\''+c._id+'\')"></td>'
+        +'<td>'+feeInp(c._id,'baseFee',c.baseFee,'30')+'</td>'
+        +'<td>'+feeInp(c._id,'cowFee',c.cowFee,c.isCow?'15':'n/a',!c.isCow)+'</td>'
+        +'<td>'+feeInp(c._id,'jackpot',c.jackpot,'0')+'</td>'
+        +'<td>'+feeInp(c._id,'addedMoney',c.addedMoney,'0')+'</td>'
+        +'<td style="text-align:center;font-weight:600;color:var(--accent);font-size:.8rem" id="ct-'+c._id+'">'+fmtI(total)+'</td>'
+        +'<td><button class="btn btn-red btn-sm" onclick="delCls(\''+c._id+'\')">&#10005;</button></td>'
+        +'</tr>';
+    });
+  });
+  tbody.innerHTML=html;
+}
+
+function feeInp(id,field,val,ph,disabled){
+  return '<input type="number" value="'+(val!==null&&val!==undefined?val:'')+'" placeholder="'+ph+'" min="0" step="1"'
+    +(disabled?' disabled style="opacity:.35"':'')+' onchange="updCls(\''+id+'\',\''+field+'\',this.value===\'\'?null:parseFloat(this.value));refreshCfgRow(\''+id+'\')">';
+}
+
+function calcCfgTotal(c){
+  var f=G.cfg.fees;
+  var base=c.baseFee!==null&&c.baseFee!==undefined?c.baseFee:f.classBase;
+  var cow=c.isCow?(c.cowFee!==null&&c.cowFee!==undefined?c.cowFee:f.cowSurcharge):0;
+  var jp=c.jackpot||0;
+  return base+cow+jp;
+}
+
+function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+window.updCls=function(id,field,val){
+  var c=G.cfg.classes.find(function(x){ return x._id===id; });
+  if(c) c[field]=val;
+};
+window.refreshCfgRow=function(id){
+  var c=G.cfg.classes.find(function(x){ return x._id===id; });
+  if(!c) return;
+  var el=document.getElementById('ct-'+id);
+  if(el) el.textContent=fmtI(calcCfgTotal(c));
+  var row=document.querySelector('[data-cid="'+id+'"]');
+  if(row){
+    var inputs=row.querySelectorAll('input[type=number]');
+    if(inputs[1]){ inputs[1].disabled=!c.isCow; inputs[1].style.opacity=c.isCow?'1':'0.35'; inputs[1].placeholder=c.isCow?'15':'n/a'; }
+  }
+};
+window.delCls=function(id){
+  G.cfg.classes=G.cfg.classes.filter(function(c){ return c._id!==id; });
+  renderCfgClassTable();
+};
+window.filterCfgClasses=function(q){
+  document.querySelectorAll('#cfg-cls-tbody tr:not(.div-hdr)').forEach(function(r){
+    r.style.display=(!q||r.textContent.toLowerCase().indexOf(q.toLowerCase())>-1)?'':'none';
+  });
+};
+window.addCfgClass=function(){
+  CFG_ROW_ID++;
+  G.cfg.classes.push({_id:'cr'+CFG_ROW_ID,num:'',name:'New Class',division:'',org:'CoWN',isCow:false,baseFee:null,cowFee:null,jackpot:null,addedMoney:null});
+  renderCfgClassTable();
+};
+window.autofillClassFees=function(){
+  var f=G.cfg.fees;
+  G.cfg.classes.forEach(function(c){ c.baseFee=f.classBase; if(c.isCow) c.cowFee=f.cowSurcharge; c.jackpot=f.jackpot||null; });
+  renderCfgClassTable();
+  toast('Fees applied to all '+G.cfg.classes.length+' classes');
+};
+window.autoDetectCow=function(){
+  var n=0;
+  G.cfg.classes.forEach(function(c){
+    if(COW_WORDS.some(function(k){ return (c.name||'').toLowerCase().indexOf(k)>-1; })){ c.isCow=true; n++; }
+  });
+  renderCfgClassTable(); toast('Marked '+n+' cow classes');
+};
+
+function setupClassDrop(){
+  var dz=document.getElementById('cls-dz'), fi=document.getElementById('cls-fi');
+  if(!dz||!fi) return;
+  dz.addEventListener('click',function(){ fi.click(); });
+  fi.addEventListener('change',function(e){ if(e.target.files[0]) loadCfgClassFile(e.target.files[0]); });
+  dz.addEventListener('dragover',function(e){ e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave',function(){ dz.classList.remove('drag'); });
+  dz.addEventListener('drop',function(e){ e.preventDefault(); dz.classList.remove('drag'); if(e.dataTransfer.files[0]) loadCfgClassFile(e.dataTransfer.files[0]); });
+}
+
+function loadCfgClassFile(file){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+      var headers=raw[0], data=raw.slice(1).filter(function(r){ return r[4]; });
+      var classMap={};
+      headers.forEach(function(h,i){
+        if(!h||!isClassCol(String(h))) return;
+        var div=extractDivName(String(h)), org=detectOrg(String(h));
+        data.forEach(function(row){
+          var val=row[i];
+          if(!val||!String(val).trim()) return;
+          String(val).split(',').forEach(function(cls){
+            cls=cls.replace(/\xa0/g,' ').trim(); if(!cls) return;
+            var m=cls.match(/^(\d+)[\s\-–]+(.+)$/);
+            if(m){
+              var num=m[1].trim();
+              if(!classMap[num]){
+                CFG_ROW_ID++;
+                var isCow=COW_WORDS.some(function(k){ return m[2].toLowerCase().indexOf(k)>-1; });
+                classMap[num]={_id:'cr'+CFG_ROW_ID,num:num,name:m[2].trim(),division:div,org:org,isCow:isCow,baseFee:null,cowFee:null,jackpot:null,addedMoney:null};
+              }
+            }
+          });
+        });
+      });
+      var newCls=Object.values(classMap).sort(function(a,b){ return (parseInt(a.num)||999)-(parseInt(b.num)||999); });
+      var existing=G.cfg.classes.map(function(c){ return c.num; });
+      var added=0;
+      newCls.forEach(function(c){ if(existing.indexOf(c.num)===-1){ G.cfg.classes.push(c); added++; } });
+      renderCfgClassTable();
+      toast('Loaded '+newCls.length+' classes ('+added+' new) from '+file.name);
+    } catch(err){ toast('Error: '+err.message,true); console.error(err); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Column Mapper ──
+var CORE_ROLES=[
+  {id:'rider_name',label:'Rider Name',hints:[/^name$/i,/rider.?name/i,/competitor/i]},
+  {id:'horse_name',label:'Horse Name',hints:[/horse.*name/i,/^horse$/i]},
+  {id:'email',label:'Email',hints:[/email/i]},
+  {id:'phone',label:'Phone',hints:[/phone/i,/cell/i]},
+  {id:'address',label:'Address',hints:[/address/i]},
+  {id:'member_num',label:'Member / CoWN #',hints:[/member.*#/i,/cown.*#/i,/member.*num/i]},
+  {id:'order_total',label:'Order Total',hints:[/order summary/i,/total/i,/amount/i]},
+  {id:'horse_gender',label:'Horse Gender',hints:[/gender/i,/sex/i]},
+  {id:'horse_owner',label:'Horse Owner',hints:[/owner/i]},
+  {id:'division',label:'Division Selected',hints:[/which division/i,/division/i]},
+  {id:'membership_needed',label:'Membership Needed',hints:[/need.*membership/i,/do you need/i]},
+  {id:'association',label:'Associations',hints:[/association/i,/which assoc/i]},
+];
+var HOUSING_ROLES=[
+  {id:'stall_1night',label:'Stall — 1 Night qty',hints:[/stall for 1/i,/stall.*1.*night/i]},
+  {id:'stall_2night',label:'Stall — 2 Night qty',hints:[/stall for 2/i,/stall.*2.*night/i]},
+  {id:'shavings',label:'Shavings (bags)',hints:[/shavings/i,/bags of shav/i]},
+  {id:'rv_1night',label:'RV — 1 Night',hints:[/rv for 1/i,/rv.*1.*night/i]},
+  {id:'rv_2night',label:'RV — 2 Nights',hints:[/2.*night.*rv/i,/rv.*2.*night/i,/# of 2 night rv/i]},
+  {id:'rv_circuit',label:'RV — Circuit',hints:[/circuit.*rv/i,/rv.*circuit/i]},
+  {id:'stall_note',label:'Stall Note / Request',hints:[/stalling request/i,/stall.*note/i]},
+];
+var IGNORE_PAT=[/price.*\$/i,/\$.*\/.*night/i,/\$.*\/.*bag/i,/fees.*\$/i];
+var ACTIVE_MAP={};
+var MAP_HEADERS=[];
+
+function setupMapDrop(){
+  var dz=document.getElementById('map-dz'), fi=document.getElementById('map-fi');
+  if(!dz||!fi) return;
+  dz.addEventListener('click',function(){ fi.click(); });
+  fi.addEventListener('change',function(e){ if(e.target.files[0]) loadMapFile(e.target.files[0]); });
+  dz.addEventListener('dragover',function(e){ e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave',function(){ dz.classList.remove('drag'); });
+  dz.addEventListener('drop',function(e){ e.preventDefault(); dz.classList.remove('drag'); if(e.dataTransfer.files[0]) loadMapFile(e.dataTransfer.files[0]); });
+}
+
+function loadMapFile(file){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      MAP_HEADERS=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:null})[0];
+      buildMapperUI();
+    } catch(err){ toast('Error: '+err.message,true); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function autoDetectRole(h,roles){
+  var hs=String(h||'');
+  for(var i=0;i<roles.length;i++){
+    for(var j=0;j<roles[i].hints.length;j++){
+      if(roles[i].hints[j].test(hs)) return roles[i].id;
+    }
+  }
+  return null;
+}
+
+function buildMapperUI(){
+  ACTIVE_MAP={};
+  var mapped=new Set();
+  var coreHTML='<div class="form-row">', housingHTML='<div class="form-row">';
+  var autoCount=0;
+
+  CORE_ROLES.forEach(function(role){
+    var found=-1;
+    MAP_HEADERS.forEach(function(h,i){ if(found===-1&&autoDetectRole(h,[role])===role.id){ found=i; } });
+    if(found>-1){ ACTIVE_MAP[found]=role.id; mapped.add(found); autoCount++; }
+    coreHTML+=mapSelect(role.id,role.label,found,found>-1);
+  });
+  coreHTML+='</div>';
+
+  var divHTML='<div style="overflow-x:auto"><table class="cfg-tbl"><thead><tr>'
+    +'<th>Column Header</th><th>Role</th><th>Division Name</th><th>Org</th></tr></thead><tbody>';
+  MAP_HEADERS.forEach(function(h,i){
+    if(!h) return;
+    var hs=String(h).replace(/\xa0/g,' ');
+    if(isClassCol(hs)||isCowCountCol(hs)){
+      mapped.add(i);
+      var isCow=isCowCountCol(hs);
+      var div=extractDivName(hs), org=detectOrg(hs);
+      ACTIVE_MAP[i]=isCow?'cow_count:'+div:'div_classes:'+div;
+      divHTML+='<tr><td class="small" style="color:var(--muted)">'+escH(hs.substring(0,60))+'</td>'
+        +'<td>'+(isCow?'<span class="badge b-cow">Cow Count</span>':'<span class="badge b-blue">Class Entries</span>')+'</td>'
+        +'<td>'+(isCow?'<span class="badge b-gray">—</span>':'<input type="text" value="'+escH(div)+'" onchange="ACTIVE_MAP['+i+']=\'div_classes:\'+this.value" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 7px;font-size:.78rem;width:100%">')+'</td>'
+        +'<td><select onchange="ACTIVE_MAP['+i+']=ACTIVE_MAP['+i+'].split(\':\')[0]+\':\'+ACTIVE_MAP['+i+'].split(\':\')[1]+\':org:\'+this.value" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px;font-size:.78rem">'
+        +['CoWN','AQHA','APHA','NHSRA','Other'].map(function(o){ return '<option value="'+o+'"'+(o===org?' selected':'')+'>'+o+'</option>'; }).join('')
+        +'</select></td></tr>';
+    }
+  });
+  divHTML+='</tbody></table></div>';
+
+  HOUSING_ROLES.forEach(function(role){
+    var found=-1;
+    MAP_HEADERS.forEach(function(h,i){ if(found===-1&&autoDetectRole(h,[role])===role.id){ found=i; } });
+    if(found>-1){ ACTIVE_MAP[found]=role.id; mapped.add(found); autoCount++; }
+    housingHTML+=mapSelect(role.id,role.label,found,found>-1);
+  });
+  housingHTML+='</div>';
+
+  var unmapped=[];
+  MAP_HEADERS.forEach(function(h,i){
+    if(h&&!mapped.has(i)&&!IGNORE_PAT.some(function(p){ return p.test(String(h)); })) unmapped.push({i:i,h:String(h)});
+  });
+  var unmappedHTML='';
+  if(!unmapped.length){ unmappedHTML='<p style="color:var(--green);font-size:.84rem">&#10003; All columns accounted for.</p>'; }
+  else{
+    unmappedHTML='<div class="form-row">';
+    var otherOpts='<option value="">— Ignore —</option><option value="practice">Practice Session</option><option value="clinic">Clinic Choice</option><option value="jackpot">Jackpot</option><option value="notes">Notes</option>';
+    unmapped.forEach(function(col){
+      unmappedHTML+='<div class="form-group"><label>Col '+col.i+': '+escH(col.h.substring(0,40))+'</label>'
+        +'<select onchange="ACTIVE_MAP['+col.i+']=this.value" style="background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:.35rem .5rem;font-size:.78rem">'+otherOpts+'</select></div>';
+    });
+    unmappedHTML+='</div>';
+  }
+
+  var ac=document.getElementById('map-auto-count');
+  if(ac) ac.textContent=autoCount+' auto-detected';
+  document.getElementById('map-core').innerHTML=coreHTML;
+  document.getElementById('map-divs').innerHTML=divHTML;
+  document.getElementById('map-housing').innerHTML=housingHTML;
+  document.getElementById('map-unmapped').innerHTML=unmappedHTML;
+  document.getElementById('mapper-out').classList.remove('hidden');
+}
+
+function mapSelect(roleId,label,detectedIdx,autoDetected){
+  var opts=MAP_HEADERS.map(function(h,i){
+    return h?'<option value="'+i+'"'+(i===detectedIdx?' selected':'')+'>Col '+i+': '+escH(String(h).substring(0,45))+'</option>':'';
+  }).join('');
+  return '<div class="form-group"><label>'+label+(autoDetected?' <span style="color:var(--green);font-size:.68rem">&#10003; auto</span>':'<span style="color:var(--red);font-size:.68rem"> not found</span>')+'</label>'
+    +'<select onchange="ACTIVE_MAP[this.value]=\''+roleId+'\'" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.35rem .5rem;font-size:.78rem">'
+    +'<option value="-1">— Not in this file —</option>'+opts+'</select></div>';
+}
+
+window.saveMapping=function(){
+  G.cfg.colMap=Object.assign({},ACTIVE_MAP);
+  toast('Column mapping saved — '+Object.keys(ACTIVE_MAP).length+' columns mapped');
+};
+
+// ═══════════════════════ SAVE / EXPORT / IMPORT CONFIG ═══════════════════════
+function readFeesFromUI(){
+  var ids={stall1:'fee-stall1',stall2:'fee-stall2',stall3:'fee-stall3',stallCircuit:'fee-stall-circuit',
+    shavings:'fee-shavings',rv1:'fee-rv1',rv2:'fee-rv2',rvCircuit:'fee-rv-circuit',
+    office:'fee-office',membership1yr:'fee-membership-1yr',membership3yr:'fee-membership-3yr',
+    membershipLife:'fee-membership-life',dayLicense:'fee-day-license',
+    late:'fee-late',horseLicense:'fee-horse-license',
+    classBase:'fee-class-base',cowSurcharge:'fee-cow-surcharge',jackpot:'fee-jackpot',addedMoney:'fee-added-money',
+    aqhaDrug:'fee-aqha-drug',aqhaOffice:'fee-aqha-office',aqhaVrh:'fee-aqha-vrh'};
+  var f={};
+  Object.keys(ids).forEach(function(k){ var el=document.getElementById(ids[k]); f[k]=el?parseFloat(el.value)||0:G.cfg.fees[k]||0; });
+  return f;
+}
+
+function saveConfig(){
+  G.cfg.showName=v('cfg-show-name');
+  G.cfg.showDate=v('cfg-show-date');
+  G.cfg.location=v('cfg-show-location');
+  G.cfg.secretary=v('cfg-secretary');
+  G.cfg.email=v('cfg-email');
+  G.cfg.fees=readFeesFromUI();
+  try{ localStorage.setItem('gatepost_cfg',JSON.stringify(G.cfg)); } catch(e){}
+  toast('Configuration saved');
+}
+
+function exportConfig(){
+  G.cfg.fees=readFeesFromUI();
+  var blob=new Blob([JSON.stringify(G.cfg,null,2)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=(G.cfg.showName||'gatepost').replace(/\s+/g,'_')+'_config.json';
+  a.click();
+}
+
+function v(id){ var el=document.getElementById(id); return el?el.value:''; }
+
+function applyConfigToUI(){
+  var setV=function(id,val){ var el=document.getElementById(id); if(el&&val!==undefined) el.value=val; };
+  setV('cfg-show-name',G.cfg.showName);
+  setV('cfg-show-date',G.cfg.showDate);
+  setV('cfg-show-location',G.cfg.location);
+  setV('cfg-secretary',G.cfg.secretary);
+  setV('cfg-email',G.cfg.email);
+  var f=G.cfg.fees||{};
+  var fmap={stall1:'fee-stall1',stall2:'fee-stall2',stall3:'fee-stall3',stallCircuit:'fee-stall-circuit',
+    shavings:'fee-shavings',rv1:'fee-rv1',rv2:'fee-rv2',rvCircuit:'fee-rv-circuit',
+    office:'fee-office',membership1yr:'fee-membership-1yr',membership3yr:'fee-membership-3yr',
+    membershipLife:'fee-membership-life',dayLicense:'fee-day-license',
+    late:'fee-late',horseLicense:'fee-horse-license',
+    classBase:'fee-class-base',cowSurcharge:'fee-cow-surcharge',jackpot:'fee-jackpot',addedMoney:'fee-added-money'};
+  Object.keys(fmap).forEach(function(k){ setV(fmap[k],f[k]); });
+  updateFeeStrip();
+}
+
+// ═══════════════════════ MODALS ═══════════════════════
+function showEntryModal(rowIdx){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e) return;
+  var lines=buildTabLines(e), total=tabTotal(e), paid=amtPaid(e), bal=total-paid;
+  var html='<div class="modal-bg" id="em" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal"><h2>'+esc(e.name)+'</h2>'
+    +'<div class="tab-row"><button class="tab-btn active" onclick="swTab(this,\'det\')">Details</button><button class="tab-btn" onclick="swTab(this,\'tab\')">Tab</button></div>'
+    +'<div class="tab-panel active" id="tp-det">'
+    +'<div class="modal-grid">'
+    +'<div><div class="lbl">Horse</div><div class="val">'+esc(e.horse)+'</div></div>'
+    +'<div><div class="lbl">Division</div><div class="val">'+divBadge(e.division)+'</div></div>'
+    +'<div><div class="lbl">CoWN #</div><div class="val">'+esc(e.memberNum||'—')+'</div></div>'
+    +'<div><div class="lbl">Associations</div><div class="val">'+assocTags(e.assocRaw)+'</div></div>'
+    +'<div><div class="lbl">Email</div><div class="val small">'+esc(e.email)+'</div></div>'
+    +'<div><div class="lbl">Phone</div><div class="val">'+esc(e.phone)+'</div></div>'
+    +'<div><div class="lbl">Back #</div><div class="val"><input type="number" id="bn-'+rowIdx+'" value="'+(G.backNums[rowIdx]||'')+'" placeholder="—" onchange="G.backNums['+rowIdx+']=this.value" style="width:72px;background:var(--bg);border:1px solid var(--border);color:var(--accent);padding:3px 6px;border-radius:4px"></div></div>'
+    +'</div>'
+    +'<div class="small" style="color:var(--muted);margin-bottom:.3rem">Classes:</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:.75rem">'
+    +e.classes.map(function(c){ return '<span class="badge b-gray">'+esc(c.num)+' \u2014 '+esc(c.name)+(c.org&&c.org!=='CoWN'?' ['+c.org+']':'')+'</span>'; }).join('')
+    +'</div>'
+    +(e.stall1qty||e.stall2qty||e.shavings?'<div class="small" style="color:var(--muted);margin-bottom:.3rem">Stalling:</div>'
+    +'<div style="margin-bottom:.5rem">'
+    +(e.stall1qty?'<span class="badge b-gold">'+e.stall1qty+'\xd7 stall 1-night</span> ':'')
+    +(e.stall2qty?'<span class="badge b-gold">'+e.stall2qty+'\xd7 stall 2-night</span> ':'')
+    +(e.shavings?'<span class="badge b-gold">'+e.shavings+' shavings</span> ':'')
+    +(e.stallNote?'<div class="small" style="margin-top:.35rem;color:var(--muted)">Note: '+esc(e.stallNote.substring(0,100))+'</div>':'')
+    +'</div>':'')
+    +(e.rv1qty||e.rv2qty||e.rvCircuit?'<div style="margin-bottom:.5rem">'
+    +(e.rv1qty?'<span class="badge b-blue">'+e.rv1qty+'\xd7 RV 1-night</span> ':'')
+    +(e.rv2qty?'<span class="badge b-blue">'+e.rv2qty+'\xd7 RV 2-night</span> ':'')
+    +(e.rvCircuit?'<span class="badge b-blue">Circuit RV</span> ':'')
+    +'</div>':'')
+    +'</div>'
+    +'<div class="tab-panel" id="tp-tab">'
+    +lines.map(function(l){ return '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; }).join('')
+    +'<div class="tab-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
+    +'<div class="pay-status">'
+    +'<div style="flex:1"><div class="small">Paid</div><div class="bold" style="color:var(--green)">'+fmt$(paid)+'</div></div>'
+    +'<div style="flex:1"><div class="small">Balance</div><div class="bold" style="color:'+(bal<=0?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</div></div>'
+    +'<div>'+(bal>0?'<button class="btn btn-green btn-sm" onclick="markPaid('+rowIdx+','+total+')">Mark Paid</button>':'<span class="badge b-green">&#10003; Paid</span>')+'</div>'
+    +'</div></div>'
+    +'<div class="btn-row" style="margin-top:1rem;margin-bottom:0">'
+    +'<button class="btn btn-dark" onclick="closeModal()">Close</button>'
+    +'<button class="btn btn-accent btn-sm" onclick="closeModal();showPage(\'tabs\')">View All Tabs</button>'
+    +'</div></div></div>';
+  document.getElementById('modal-root').innerHTML=html;
+}
+
+
+window.showTabModalByIdx=function(refRowIdx){ var ref=G.entries.find(function(e){ return e.rowIndex===refRowIdx; }); if(ref) showTabModal(ref.name); };
+function showTabModal(name){
+  var entries=G.entries.filter(function(e){ return e.name===name; });
+  if(!entries.length) return;
+  var refIdx=entries[0].rowIndex; // safe integer for onclick strings
+  var allLines=[];
+  entries.forEach(function(e){ buildTabLines(e).forEach(function(l){ allLines.push(l); }); });
+  var total=allLines.reduce(function(s,l){ return s+l.amt; },0);
+  var paid=entries.reduce(function(s,e){ return s+amtPaid(e); },0);
+  var bal=total-paid;
+  var html='<div class="modal-bg" id="tm" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal"><h2>'+esc(name)+'</h2>'
+    +'<div class="small" style="color:var(--muted);margin-bottom:1rem">'+esc(entries[0].email)+' &middot; '+esc(entries[0].phone)+'</div>'
+    +allLines.map(function(l){ return '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; }).join('')
+    +'<div class="tab-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
+    +'<div class="pay-status">'
+    +'<div style="flex:1"><div class="small">Paid</div><div class="bold" style="color:var(--green)">'+fmt$(paid)+'</div></div>'
+    +'<div style="flex:1"><div class="small">Balance</div><div class="bold" style="color:'+(bal<=0?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</div></div>'
+    +'<div>'+(bal>0?'<button class="btn btn-green btn-sm" onclick="markPaidByRef('+refIdx+','+total+')">Mark Paid</button>':'<span class="badge b-green">&#10003; Paid in Full</span>')+'</div>'
+    +'</div>'
+    +'<div class="btn-row" style="margin-top:1rem;margin-bottom:0">'
+    +'<button class="btn btn-dark" onclick="closeModal()">Close</button>'
+    +'<button class="btn btn-accent btn-sm no-print" onclick="window.print()">&#128424; Print Receipt</button>'
+    +'</div></div></div>';
+  document.getElementById('modal-root').innerHTML=html;
+}
+
+window.markPaid=function(rowIdx,amount){
+  G.payments[rowIdx]=amount; closeModal(); pgTabs();
+};
+window.markPaidByRef=function(refRowIdx,amount){
+  var ref=G.entries.find(function(e){ return e.rowIndex===refRowIdx; });
+  if(!ref) return;
+  var entries=G.entries.filter(function(e){ return e.name===ref.name; });
+  // pay the full amount across all entries for this rider
+  entries.forEach(function(e){ G.payments[e.rowIndex]=amount; });
+  closeModal(); pgTabs();
+};
+
+function swTab(btn,panel){
+  var modal=btn.closest('.modal');
+  modal.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  modal.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('tp-'+panel).classList.add('active');
+}
+window.swTab=swTab;
+window.showEntryModal=showEntryModal;
+window.showTabModal=showTabModal;
+window.closeModal=closeModal;
+
+// ═══════════════════════ BOOT ═══════════════════════
+try{
+  var saved=localStorage.getItem('gatepost_cfg');
+  if(saved) G.cfg=JSON.parse(saved);
+} catch(e){}
+
+showPage('import');
+</script>
+</body>
+</html>

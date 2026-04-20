@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gatepost</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f1923;--card:#1a2733;--card2:#1e2f3d;--accent:#D4A04A;--accent2:#b8863a;
+  --green:#27ae60;--red:#e74c3c;--blue:#2980b9;--text:#e8dcc8;--muted:#8a9aad;
+  --border:#2a3a4a;--border2:#354a5e
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Source Sans 3',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}
+.hero{text-align:center;margin-bottom:2.5rem}
+.hero h1{font-family:'Oswald',sans-serif;font-size:3rem;font-weight:700;color:var(--accent);letter-spacing:.05em}
+.hero h1 span{display:block;font-size:1rem;font-weight:400;color:var(--muted);letter-spacing:.15em;margin-top:.4rem}
+.divider{width:60px;height:3px;background:var(--accent);margin:1.25rem auto;border-radius:2px}
+.hero p{color:var(--muted);font-size:.95rem;max-width:400px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.25rem;margin-bottom:.75rem;max-width:560px;width:100%}
+.card-title{font-family:'Oswald',sans-serif;color:var(--accent);font-size:1rem;margin-bottom:.85rem;display:flex;align-items:center;justify-content:space-between}
+.show-grid{display:grid;gap:.5rem}
+.show-row{background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .15s}
+.show-row:hover{border-color:var(--accent)}
+.show-row .sr-name{font-family:'Oswald',sans-serif;font-size:.95rem;color:var(--text)}
+.show-row .sr-meta{font-size:.75rem;color:var(--muted);margin-top:2px}
+.show-row .sr-status{font-size:.7rem;font-weight:600;padding:2px 8px;border-radius:10px}
+.s-setup{background:rgba(138,154,173,.1);color:var(--muted)}
+.s-entries_open{background:rgba(39,174,96,.15);color:#2ecc71}
+.s-entries_closed{background:rgba(212,160,74,.15);color:var(--accent)}
+.s-running{background:rgba(231,76,60,.2);color:#e74c3c}
+.s-complete{background:rgba(41,128,185,.15);color:#5dade2}
+.btn{display:inline-flex;align-items:center;gap:.35rem;padding:.45rem .9rem;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;font-family:'Source Sans 3',sans-serif;transition:all .15s}
+.btn-accent{background:var(--accent);color:#1a1a1a}.btn-accent:hover{background:var(--accent2)}
+.btn-dark{background:var(--card2);color:var(--text);border:1px solid var(--border2)}.btn-dark:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sm{padding:.28rem .6rem;font-size:.75rem}
+.form-group{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.65rem}
+.form-group label{font-size:.75rem;color:var(--muted)}
+.form-group input,.form-group select{background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.45rem .65rem;font-size:.85rem;font-family:'Source Sans 3',sans-serif}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:var(--accent)}
+.form-group select option{background:var(--card)}
+.btn-row{display:flex;gap:.5rem;margin-top:.75rem}
+.empty{color:var(--muted);font-size:.85rem;text-align:center;padding:1.5rem}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:.4rem}
+.status-dot.red{background:var(--red)}
+.status-dot.amber{background:var(--accent)}
+#new-show-form{display:none;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)}
+.err{color:var(--red);font-size:.8rem;margin-top:.35rem}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>GATEPOST<span>SHOW MANAGEMENT</span></h1>
+  <div class="divider"></div>
+  <p>Select a show to manage, or create a new one</p>
+</div>
+
+<div class="card">
+  <div class="card-title">
+    <span id="db-status"><span class="status-dot red" id="dot"></span>Connecting...</span>
+    <span style="font-size:.72rem;color:var(--muted)" id="assoc-name"></span>
+  </div>
+  <div id="shows-list"><div class="empty">Loading shows...</div></div>
+  <div style="margin-top:.75rem">
+    <button class="btn btn-accent btn-sm" onclick="toggleNewShow()">+ New Show</button>
+  </div>
+
+  <div id="new-show-form">
+    <div class="form-group">
+      <label>Show Name</label>
+      <input type="text" id="ns-name" placeholder="e.g. CoWN Summerfest 2026">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem">
+      <div class="form-group">
+        <label>Show Date</label>
+        <input type="date" id="ns-date">
+      </div>
+      <div class="form-group">
+        <label>Entry Deadline</label>
+        <input type="date" id="ns-deadline">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Location</label>
+      <input type="text" id="ns-location" placeholder="e.g. Estes Park Fairgrounds">
+    </div>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="ns-status">
+        <option value="setup">Setup (not open yet)</option>
+        <option value="entries_open">Entries Open</option>
+        <option value="entries_closed">Entries Closed</option>
+        <option value="running">Running Now</option>
+      </select>
+    </div>
+    <div id="ns-err" class="err"></div>
+    <div class="btn-row">
+      <button class="btn btn-accent btn-sm" onclick="createShow()">Create Show</button>
+      <button class="btn btn-dark btn-sm" onclick="toggleNewShow()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="text-align:center;padding:.85rem">
+  <span style="font-size:.75rem;color:var(--muted)">Gatepost v0.2 &mdash; <a href="https://github.com/gatepostpro/gatepost" target="_blank" style="color:var(--accent);text-decoration:none">GitHub</a></span>
+</div>
+
+<script type="module">
+import { db, getShows, upsertShow, getDefaultAssociation } from './db.js';
+
+let ASSOC = null;
+
+async function init() {
+  try {
+    ASSOC = await getDefaultAssociation();
+    document.getElementById('dot').className = 'status-dot';
+    document.getElementById('db-status').innerHTML = '<span class="status-dot" id="dot"></span>Connected';
+    document.getElementById('assoc-name').textContent = ASSOC.abbreviation;
+    await loadShows();
+  } catch (err) {
+    document.getElementById('db-status').innerHTML = '<span class="status-dot red"></span>Connection failed';
+    document.getElementById('shows-list').innerHTML = '<div class="empty" style="color:var(--red)">Could not connect to database. Check your connection.</div>';
+    console.error(err);
+  }
+}
+
+async function loadShows() {
+  const shows = await getShows(ASSOC.id);
+  const el = document.getElementById('shows-list');
+  if (!shows.length) {
+    el.innerHTML = '<div class="empty">No shows yet. Create your first one below.</div>';
+    return;
+  }
+  el.innerHTML = '<div class="show-grid">'
+    + shows.map(s => {
+        const d = s.show_date ? new Date(s.show_date).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric', timeZone:'UTC'}) : '';
+        return `<div class="show-row" onclick="openShow('${s.id}')">
+          <div>
+            <div class="sr-name">${s.name}</div>
+            <div class="sr-meta">${d}${s.location ? ' &middot; ' + s.location : ''}</div>
+          </div>
+          <span class="sr-status s-${s.status}">${s.status.replace('_',' ')}</span>
+        </div>`;
+      }).join('')
+    + '</div>';
+}
+
+window.openShow = function(id) {
+  window.location.href = `app.html?show=${id}`;
+};
+
+window.toggleNewShow = function() {
+  const f = document.getElementById('new-show-form');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+};
+
+window.createShow = async function() {
+  const name     = document.getElementById('ns-name').value.trim();
+  const date     = document.getElementById('ns-date').value;
+  const deadline = document.getElementById('ns-deadline').value;
+  const location = document.getElementById('ns-location').value.trim();
+  const status   = document.getElementById('ns-status').value;
+  const errEl    = document.getElementById('ns-err');
+  errEl.textContent = '';
+
+  if (!name)  { errEl.textContent = 'Show name is required'; return; }
+  if (!date)  { errEl.textContent = 'Show date is required'; return; }
+  if (!ASSOC) { errEl.textContent = 'Not connected to database'; return; }
+
+  try {
+    const show = await upsertShow({
+      association_id: ASSOC.id,
+      name, location: location || null,
+      show_date:       date,
+      entry_deadline:  deadline || null,
+      status,
+      fee_config:      ASSOC.fee_defaults || {}
+    });
+    window.location.href = `app.html?show=${show.id}`;
+  } catch (err) {
+    errEl.textContent = 'Error: ' + err.message;
+  }
+};
+
+init();
+</script>
+</body>
+</html>
