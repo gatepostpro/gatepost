@@ -408,6 +408,12 @@ function showPage(p){
   document.getElementById('page-title').textContent = PAGE_TITLES[p]||p;
   var tr = document.getElementById('topbar-right');
   tr.innerHTML = '';
+  // Always show back to shows button
+  var backBtn = mk('button','btn btn-dark btn-sm');
+  backBtn.innerHTML='&#8592; All Shows';
+  backBtn.onclick=function(){ window.location.href='index.html'; };
+  tr.appendChild(backBtn);
+
   if(p !== 'import' && G.entries.length){
     var b = mk('button','btn btn-dark btn-sm'); b.innerHTML='&#8679; New Import'; b.onclick=function(){ showPage('import'); }; tr.appendChild(b);
   }
@@ -1609,124 +1615,128 @@ async function dbSaveShowClasses(showId, classes){
 
 // ═══════════════════════ BOOT ═══════════════════════
 async function boot(){
-  // Load saved config
+  // Load saved local config
   try{ var saved=localStorage.getItem('gatepost_cfg'); if(saved) G.cfg=JSON.parse(saved); } catch(e){}
 
-  // Get show ID from URL
+  // Get show ID from URL — if missing, go back to index
   var params = new URLSearchParams(window.location.search);
   var showId = params.get('show');
-
-  // No show ID — send back to index to pick one
   if(!showId){
     window.location.href = 'index.html';
     return;
   }
 
-  if(showId){
-    try{
-      // Load show from Supabase
-      var show = await dbGetShow(showId);
-      if(show){
-        G.showId = showId;
-        G.showName = show.name;
-        G.showData = show;
+  // Show loading state in sidebar
+  document.getElementById('show-pill').innerHTML =
+    '<div class="sp-name" style="color:var(--muted)">Loading...</div>'
+    +'<div class="sp-meta">Connecting to database</div>';
 
-        // Pre-populate G.cfg with show data from Supabase
-        // so Settings tab fields are filled in when opened
-        G.cfg.showName  = show.name        || G.cfg.showName;
-        G.cfg.showDate  = show.show_date   || G.cfg.showDate;
-        G.cfg.location  = show.location    || G.cfg.location;
-        G.cfg.secretary = show.secretary   || G.cfg.secretary;
-        G.cfg.email     = show.contact_email || G.cfg.email;
-        G.cfg.showStatus = show.status     || '';
-        G.cfg.showId    = showId;
+  try{
+    // Step 1: Load show record
+    var showRows = await sbFetch('shows?id=eq.'+showId+'&select=*');
+    var show = showRows && showRows[0];
+    if(!show) throw new Error('Show not found: ' + showId);
 
-        // Update sidebar pill
-        document.getElementById('show-pill').innerHTML =
-          '<div class="sp-name">'+esc(show.name)+'</div>'
-          +'<div class="sp-meta">'+(show.show_date||'')+(show.location?' &middot; '+show.location:'')+'</div>';
+    G.showId   = showId;
+    G.showName = show.name;
+    G.showData = show;
 
-        // Load fee config from show if available
-        if(show.fee_config && Object.keys(show.fee_config).length){
-          G.cfg.fees = Object.assign(G.cfg.fees, show.fee_config);
-        }
-
-        // Load existing entries from Supabase
-        var dbEntries = await dbGetEntries(showId);
-        if(dbEntries && dbEntries.length){
-          // Convert DB entries to the format G.entries expects
-          G.entries = dbEntries.map(function(e, i){
-            var member = e.members || {};
-            var horse  = e.horses  || {};
-            var entryClasses = (e.entry_classes || []).map(function(ec){
-              var sc = ec.show_classes || {};
-              return {
-                num:      sc.class_number || '',
-                name:     sc.class_name   || '',
-                division: sc.division     || '',
-                org:      sc.org          || 'CoWN',
-              };
-            });
-            var paid = (e.payments||[]).reduce(function(s,p){ return s+(parseFloat(p.amount)||0); },0);
-            G.payments[i] = paid;
-            G.backNums[i] = e.back_number || '';
-            return {
-              rowIndex:        i,
-              dbId:            e.id,
-              name:            (member.first_name||'') + ' ' + (member.last_name||''),
-              horse:           horse.registered_name || horse.barn_name || '',
-              horseGender:     horse.gender || '',
-              email:           member.email || '',
-              phone:           member.phone || '',
-              memberNum:       '',
-              division:        e.entries_division || '',
-              assocRaw:        '',
-              classes:         entryClasses,
-              stall1qty:       e.stall_1night || 0,
-              stall2qty:       e.stall_2night || 0,
-              shavings:        e.shavings     || 0,
-              rv1qty:          e.rv_1night    || 0,
-              rv2qty:          e.rv_2night    || 0,
-              rvCircuit:       e.rv_circuit   || 0,
-              stallNote:       e.stall_note   || '',
-              needsMembership: e.needs_membership || '',
-              cognitoAmount:   parseFloat(e.total_owed)||0,
-              isPaid:          parseFloat(e.total_paid) >= parseFloat(e.total_owed),
-            };
-          });
-          toast('Loaded '+G.entries.length+' entries from database');
-        }
-
-        // Load show classes into config
-        var dbClasses = await dbGetShowClasses(showId);
-        if(dbClasses && dbClasses.length){
-          G.cfg.classes = dbClasses.map(function(c, i){
-            return {
-              _id:        'db'+i,
-              num:        c.class_number,
-              name:       c.class_name,
-              division:   c.division,
-              org:        c.org,
-              isCow:      c.is_cow,
-              baseFee:    c.base_fee,
-              cowFee:     c.cow_fee,
-              jackpot:    c.jackpot_fee,
-              addedMoney: c.added_money,
-            };
-          });
-        }
-
-        // Go to entries if we have them, otherwise import
-        showPage(G.entries.length ? 'entries' : 'import');
-        return;
-      }
-    } catch(err){
-      console.error('Failed to load show from DB:', err);
-      toast('Could not load show data — working offline', true);
+    // Populate G.cfg from show data
+    G.cfg.showName   = show.name         || G.cfg.showName;
+    G.cfg.showDate   = show.show_date    || G.cfg.showDate;
+    G.cfg.location   = show.location     || G.cfg.location;
+    G.cfg.showStatus = show.status       || '';
+    G.cfg.showId     = showId;
+    if(show.fee_config && Object.keys(show.fee_config).length){
+      G.cfg.fees = Object.assign({}, G.cfg.fees, show.fee_config);
     }
-  }
 
-  showPage('import');
+    // Update sidebar
+    document.getElementById('show-pill').innerHTML =
+      '<div class="sp-name">'+esc(show.name)+'</div>'
+      +'<div class="sp-meta">'+(show.show_date||'')+(show.location?' &middot; '+show.location:'')+'</div>';
+
+    // Step 2: Load show classes
+    var dbClasses = await sbFetch('show_classes?show_id=eq.'+showId+'&order=class_number&select=*');
+    if(dbClasses && dbClasses.length){
+      G.cfg.classes = dbClasses.map(function(c,i){
+        return { _id:'db'+i, num:c.class_number, name:c.class_name,
+          division:c.division, org:c.org, isCow:c.is_cow,
+          baseFee:c.base_fee, cowFee:c.cow_fee,
+          jackpot:c.jackpot_fee, addedMoney:c.added_money };
+      });
+    }
+
+    // Step 3: Load entries with related data
+    // Use separate queries to avoid complex join failures
+    var dbEntries = await sbFetch('entries?show_id=eq.'+showId+'&select=*');
+    if(dbEntries && dbEntries.length){
+      G.entries = [];
+      for(var i=0; i<dbEntries.length; i++){
+        var e = dbEntries[i];
+
+        // Load member
+        var memberRows = e.member_id
+          ? await sbFetch('members?id=eq.'+e.member_id+'&select=id,first_name,last_name,email,phone')
+          : [];
+        var member = memberRows && memberRows[0] ? memberRows[0] : {};
+
+        // Load horse
+        var horseRows = e.horse_id
+          ? await sbFetch('horses?id=eq.'+e.horse_id+'&select=id,registered_name,barn_name,gender')
+          : [];
+        var horse = horseRows && horseRows[0] ? horseRows[0] : {};
+
+        // Load entry classes
+        var ecRows = await sbFetch('entry_classes?entry_id=eq.'+e.id
+          +'&select=id,status,show_class_id,fee_charged,show_classes(class_number,class_name,division,org)');
+        var entryClasses = (ecRows||[]).filter(function(ec){ return ec.status !== 'scratched'; }).map(function(ec){
+          var sc = ec.show_classes || {};
+          return { num:sc.class_number||'', name:sc.class_name||'',
+            division:sc.division||'', org:sc.org||'CoWN', ecId:ec.id };
+        });
+
+        // Load payments
+        var payRows = await sbFetch('payments?entry_id=eq.'+e.id+'&select=amount');
+        var paid = (payRows||[]).reduce(function(s,p){ return s+(parseFloat(p.amount)||0); },0);
+
+        G.payments[i] = paid;
+        G.backNums[i] = e.back_number || '';
+
+        G.entries.push({
+          rowIndex: i, dbId: e.id,
+          name:     (member.first_name||'Unknown')+' '+(member.last_name||''),
+          horse:    horse.registered_name || horse.barn_name || 'Unknown Horse',
+          horseGender: horse.gender || '',
+          email:    member.email || '',
+          phone:    member.phone || '',
+          memberNum:'',
+          division: '',
+          assocRaw: '',
+          classes:  entryClasses,
+          stall1qty: e.stall_1night||0, stall2qty:e.stall_2night||0,
+          shavings:  e.shavings||0,
+          rv1qty:    e.rv_1night||0, rv2qty:e.rv_2night||0, rvCircuit:e.rv_circuit||0,
+          stallNote: e.stall_note||'',
+          needsMembership: e.needs_membership||'',
+          cognitoAmount: parseFloat(e.total_owed)||0,
+          isPaid: paid >= (parseFloat(e.total_owed)||0),
+        });
+      }
+      toast('Loaded '+G.entries.length+' entries');
+    }
+
+    // Go to entries view if we have entries, otherwise show import
+    showPage(G.entries.length ? 'entries' : 'import');
+
+  } catch(err){
+    console.error('Boot error:', err);
+    document.getElementById('show-pill').innerHTML =
+      '<div class="sp-name" style="color:var(--red)">Error loading show</div>'
+      +'<div class="sp-meta">'+esc(err.message)+'</div>';
+    // Still show the app — just without data
+    showPage('import');
+  }
 }
 
 // Patch saveConfig to also save classes to Supabase
