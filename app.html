@@ -1413,10 +1413,10 @@ function showEntryModal(rowIdx){
 
       // Tab row
       +'<div class="tab-row">'
-      +'<button class="tab-btn active" onclick="swTab(this,\"classes\")">Classes</button>'
-      +'<button class="tab-btn" onclick="swTab(this,\"riders\")">Riders</button>'
-      +'<button class="tab-btn" onclick="swTab(this,\"fees\")">Fees &amp; Tab</button>'
-      +'<button class="tab-btn" onclick="swTab(this,\"stall\")">Stall Split</button>'
+      +'<button class="tab-btn active" onclick="swTabClasses(this)">Classes</button>'
+      +'<button class="tab-btn" onclick="swTabRiders(this)">Riders</button>'
+      +'<button class="tab-btn" onclick="swTabFees(this)">Fees &amp; Tab</button>'
+      +'<button class="tab-btn" onclick="swTabStall(this)">Stall Split</button>'
       +'</div>'
 
       // ── CLASSES TAB ──
@@ -1821,6 +1821,12 @@ function markPaidByRef(refRowIdx,amount){
   closeModal(); pgTabs();
 };
 
+function swTabClasses(b){ swTab(b,'classes'); }
+function swTabRiders(b){ swTab(b,'riders'); }
+function swTabFees(b){ swTab(b,'fees'); }
+function swTabStall(b){ swTab(b,'stall'); }
+function swTabDet(b){ swTab(b,'det'); }
+function swTabTab(b){ swTab(b,'tab'); }
 function swTab(btn,panel){
   var modal=btn.closest('.modal');
   modal.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
