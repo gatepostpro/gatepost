@@ -2615,6 +2615,11 @@ saveConfig = function(){
   }
 };
 
+// Expose globals for console debugging
+window.G = G;
+window.buildTabLines = buildTabLines;
+window.tabTotal = tabTotal;
+
 boot();
 
 </script>
