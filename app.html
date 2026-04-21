@@ -436,6 +436,9 @@ function showPage(p){
   if(p !== 'import' && G.entries.length){
     var b = mk('button','btn btn-dark btn-sm'); b.innerHTML='&#8679; New Import'; b.onclick=function(){ showPage('import'); }; tr.appendChild(b);
   }
+  if(p === 'entries'){
+    var ab = mk('button','btn btn-accent btn-sm'); ab.innerHTML='+ Add Entry'; ab.onclick=showAddEntryModal; tr.appendChild(ab);
+  }
   if(p === 'settings'){
     var sb = mk('button','btn btn-green btn-sm'); sb.innerHTML='&#10003; Save Config'; sb.onclick=saveConfig; tr.appendChild(sb);
     var eb = mk('button','btn btn-dark btn-sm'); eb.innerHTML='&#8681; Export'; eb.onclick=exportConfig; tr.appendChild(eb);
@@ -1332,7 +1335,15 @@ function applyConfigToUI(){
 
 function showEntryModal(rowIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
-  if(!e) return;
+  if(!e){
+    // rowIndex not found - try finding by position
+    e = G.entries[rowIdx];
+    if(!e){
+      toast('Entry not found (idx:'+rowIdx+'). Try refreshing.', true);
+      console.error('showEntryModal: no entry with rowIndex='+rowIdx, 'entries:', G.entries.map(function(x){ return x.rowIndex; }));
+      return;
+    }
+  }
 
   var root=document.getElementById('modal-root');
 
@@ -1814,6 +1825,210 @@ function swTab(btn,panel){
 }
 
 
+
+// ═══════════════════════ MANUAL ENTRY ADD ═══════════════════════
+function showAddEntryModal(){
+  var root = document.getElementById('modal-root');
+
+  // Build class checkboxes from config
+  var classChecks = G.cfg.classes.map(function(c){
+    var fee = (c.baseFee||G.cfg.fees.classBase||0) + (c.isCow?(c.cowFee||G.cfg.fees.cowSurcharge||0):0);
+    return '<label style="display:flex;align-items:center;gap:.5rem;padding:.25rem 0;font-size:.82rem;cursor:pointer">'
+      +'<input type="checkbox" data-classid="'+esc(c._id)+'" style="accent-color:var(--accent)">'
+      +'<span><strong>'+esc(c.num)+'</strong> — '+esc(c.name)
+      +' <span class="small">'+esc(c.division)+'</span>'
+      +(c.isCow?'<span class="badge b-cow" style="margin-left:4px">Cow</span>':'')
+      +'<span style="color:var(--accent);margin-left:6px">'+fmtI(fee)+'</span></span>'
+      +'</label>';
+  }).join('');
+
+  var html = '<div class="modal-bg" id="add-entry-modal" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal" style="max-width:600px">'
+    +'<h2>Add Day-Of Entry</h2>'
+
+    // Rider info
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-bottom:.75rem">'
+    +'<div class="form-group"><label>Rider First Name *</label>'
+    +'<input type="text" id="ae-first" placeholder="First" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<div class="form-group"><label>Rider Last Name *</label>'
+    +'<input type="text" id="ae-last" placeholder="Last" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<div class="form-group"><label>Email</label>'
+    +'<input type="email" id="ae-email" placeholder="email@example.com" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<div class="form-group"><label>Phone</label>'
+    +'<input type="text" id="ae-phone" placeholder="(555) 555-5555" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<div class="form-group"><label>CoWN #</label>'
+    +'<input type="text" id="ae-cown" placeholder="Member number" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<div class="form-group"><label>Back #</label>'
+    +'<input type="number" id="ae-back" placeholder="Back number" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'</div>'
+
+    // Horse info
+    +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-bottom:.75rem">'
+    +'<div style="font-family:Oswald;color:var(--accent);font-size:.9rem;margin-bottom:.6rem">Horse</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem">'
+    +'<div class="form-group"><label>Horse Name *</label>'
+    +'<input type="text" id="ae-horse" placeholder="Registered or barn name" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<div class="form-group"><label>Gender</label>'
+    +'<select id="ae-gender" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%">'
+    +'<option value="">—</option><option>Gelding</option><option>Mare</option><option>Stallion</option>'
+    +'</select></div>'
+    +'</div></div>'
+
+    // Stalling
+    +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-bottom:.75rem">'
+    +'<div style="font-family:Oswald;color:var(--accent);font-size:.9rem;margin-bottom:.6rem">Stalling / Housing</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem">'
+    +'<div class="form-group"><label>Stall 1-night</label><input type="number" id="ae-stall1" value="0" min="0" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%"></div>'
+    +'<div class="form-group"><label>Stall 2-night</label><input type="number" id="ae-stall2" value="0" min="0" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%"></div>'
+    +'<div class="form-group"><label>Shavings</label><input type="number" id="ae-shavings" value="0" min="0" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%"></div>'
+    +'<div class="form-group"><label>RV nights</label><input type="number" id="ae-rv" value="0" min="0" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%"></div>'
+    +'</div></div>'
+
+    // Classes
+    +(G.cfg.classes.length
+      ? '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-bottom:.75rem">'
+        +'<div style="font-family:Oswald;color:var(--accent);font-size:.9rem;margin-bottom:.6rem">Classes</div>'
+        +'<div style="max-height:200px;overflow-y:auto">'+classChecks+'</div></div>'
+      : '<div class="tip" style="margin-bottom:.75rem">No classes configured — go to Show Management → Classes first.</div>')
+
+    +'<div id="ae-err" style="color:var(--red);font-size:.8rem;margin-bottom:.5rem"></div>'
+    +'<div class="btn-row">'
+    +'<button class="btn btn-accent" onclick="saveManualEntry()">Add to Show</button>'
+    +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
+    +'</div></div></div>';
+
+  root.innerHTML = html;
+}
+
+function saveManualEntry(){
+  var first  = (document.getElementById('ae-first')||{value:''}).value.trim();
+  var last   = (document.getElementById('ae-last')||{value:''}).value.trim();
+  var horse  = (document.getElementById('ae-horse')||{value:''}).value.trim();
+  var email  = (document.getElementById('ae-email')||{value:''}).value.trim();
+  var phone  = (document.getElementById('ae-phone')||{value:''}).value.trim();
+  var cown   = (document.getElementById('ae-cown')||{value:''}).value.trim();
+  var back   = (document.getElementById('ae-back')||{value:''}).value.trim();
+  var gender = (document.getElementById('ae-gender')||{value:''}).value;
+  var stall1 = parseInt((document.getElementById('ae-stall1')||{value:'0'}).value)||0;
+  var stall2 = parseInt((document.getElementById('ae-stall2')||{value:'0'}).value)||0;
+  var shavings=parseInt((document.getElementById('ae-shavings')||{value:'0'}).value)||0;
+  var rv     = parseInt((document.getElementById('ae-rv')||{value:'0'}).value)||0;
+  var errEl  = document.getElementById('ae-err');
+
+  if(!first||!last){ errEl.textContent='Rider first and last name required'; return; }
+  if(!horse){ errEl.textContent='Horse name required'; return; }
+
+  // Get selected classes
+  var selectedClasses = [];
+  document.querySelectorAll('#add-entry-modal input[type=checkbox]:checked').forEach(function(cb){
+    var cls = G.cfg.classes.find(function(c){ return c._id===cb.dataset.classid; });
+    if(cls) selectedClasses.push({
+      num:cls.num, name:cls.name, division:cls.division,
+      org:cls.org||'CoWN', isCow:cls.isCow,
+      status:'entered',
+      feeCharged:(cls.baseFee||G.cfg.fees.classBase||0)+(cls.isCow?(cls.cowFee||G.cfg.fees.cowSurcharge||0):0)
+    });
+  });
+
+  // Derive division from first class
+  var division = selectedClasses.length ? selectedClasses[0].division : '';
+
+  // Create in-memory entry
+  var rowIndex = G.entries.length;
+  var entry = {
+    rowIndex:rowIndex, dbId:null,
+    name:first+' '+last, horse:horse,
+    horseGender:gender, email:email, phone:phone,
+    memberNum:cown, division:division, assocRaw:'CoWN',
+    classes:selectedClasses,
+    stall1qty:stall1, stall2qty:stall2, shavings:shavings,
+    rv1qty:rv, rv2qty:0, rvCircuit:0, stallNote:'',
+    needsMembership:'', cognitoAmount:0, isPaid:false,
+    source:'manual'
+  };
+  G.entries.push(entry);
+  G.payments[rowIndex] = 0;
+  G.backNums[rowIndex] = back;
+
+  // Sync to Supabase if show is loaded
+  if(G.showId){
+    syncManualEntry(entry).then(function(){
+      toast('Entry added: '+first+' '+last+' on '+horse);
+    }).catch(function(err){
+      toast('Added locally. DB sync failed: '+err.message, true);
+    });
+  } else {
+    toast('Entry added: '+first+' '+last+' on '+horse);
+  }
+
+  closeModal();
+  showPage('entries');
+}
+
+async function syncManualEntry(entry){
+  // Get association
+  var assocRows = await sbFetch('associations?abbreviation=eq.CoWN&select=id');
+  var assocId = assocRows && assocRows[0] ? assocRows[0].id : null;
+  if(!assocId) throw new Error('Association not found');
+
+  var parts = entry.name.split(' ');
+  var firstName = parts[0], lastName = parts.slice(1).join(' ')||'(unknown)';
+
+  // Find or create member
+  var existing = await sbFetch('members?association_id=eq.'+assocId
+    +'&first_name=ilike.'+encodeURIComponent(firstName)
+    +'&last_name=ilike.'+encodeURIComponent(lastName)+'&select=id');
+  var memberId;
+  if(existing && existing.length){
+    memberId = existing[0].id;
+  } else {
+    var nm = await sbFetch('members',{method:'POST',
+      body:JSON.stringify({association_id:assocId,first_name:firstName,last_name:lastName,
+        email:entry.email||null,phone:entry.phone||null})});
+    memberId = nm[0].id;
+    if(entry.memberNum){
+      await sbFetch('member_registrations',{method:'POST',
+        body:JSON.stringify({member_id:memberId,org:'CoWN',registration_number:entry.memberNum})});
+    }
+  }
+
+  // Find or create horse
+  var existingH = await sbFetch('horses?registered_name=ilike.'+encodeURIComponent(entry.horse)+'&select=id');
+  var horseId;
+  if(existingH && existingH.length){
+    horseId = existingH[0].id;
+  } else {
+    var nh = await sbFetch('horses',{method:'POST',
+      body:JSON.stringify({registered_name:entry.horse,gender:entry.horseGender||null})});
+    horseId = nh[0].id;
+    await sbFetch('horse_owners',{method:'POST',
+      body:JSON.stringify({horse_id:horseId,member_id:memberId,primary_owner:true})});
+  }
+
+  // Create entry
+  var newEntry = await sbFetch('entries',{method:'POST',
+    body:JSON.stringify({
+      show_id:G.showId, member_id:memberId, horse_id:horseId,
+      source:'manual', status:'active',
+      stall_1night:entry.stall1qty, stall_2night:entry.stall2qty,
+      shavings:entry.shavings, rv_1night:entry.rv1qty,
+      total_owed:tabTotal(entry), total_paid:0,
+      imported_at:new Date().toISOString()
+    })});
+  entry.dbId = newEntry[0].id;
+
+  // Create entry_classes
+  for(var i=0;i<entry.classes.length;i++){
+    var cls = entry.classes[i];
+    var sc = await sbFetch('show_classes?show_id=eq.'+G.showId+'&class_number=eq.'+encodeURIComponent(cls.num)+'&select=id');
+    if(sc && sc.length){
+      await sbFetch('entry_classes',{method:'POST',
+        body:JSON.stringify({entry_id:entry.dbId,show_class_id:sc[0].id,
+          status:'entered',fee_charged:cls.feeCharged})});
+    }
+  }
+}
+
 // ═══════════════════════ SUPABASE SYNC ═══════════════════════
 async function syncEntriesToSupabase(){
   if(!G.showId) return;
@@ -2117,6 +2332,9 @@ async function boot(){
         G.payments[i] = paid;
         G.backNums[i] = e.back_number || '';
 
+        // Derive division from first class
+        var derivedDiv = entryClasses.length ? (entryClasses[0].division||'') : '';
+
         G.entries.push({
           rowIndex: i, dbId: e.id,
           name:     (member.first_name||'Unknown')+' '+(member.last_name||''),
@@ -2125,7 +2343,7 @@ async function boot(){
           email:    member.email || '',
           phone:    member.phone || '',
           memberNum:'',
-          division: '',
+          division: derivedDiv,
           assocRaw: '',
           classes:  entryClasses,
           stall1qty: e.stall_1night||0, stall2qty:e.stall_2night||0,
