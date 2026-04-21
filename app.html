@@ -325,6 +325,16 @@ function parseCognito(wb){
 }
 
 // ═══════════════════════ TAB CALCULATOR ═══════════════════════
+
+function saveEntriesToStorage(){
+  if(!G.showId) return;
+  try{
+    localStorage.setItem('gp_entries_'+G.showId, JSON.stringify(G.entries));
+    localStorage.setItem('gp_payments_'+G.showId, JSON.stringify(G.payments));
+    localStorage.setItem('gp_backnums_'+G.showId, JSON.stringify(G.backNums));
+  } catch(ex){ console.warn('localStorage save failed:', ex); }
+}
+
 function buildTabLines(entry){
   var f = G.cfg.fees;
   var lines = [];
@@ -1368,14 +1378,30 @@ function showEntryModal(rowIdx){
     var lines=buildTabLines(e2), total=tabTotal(e2), paid=amtPaid(e2), bal=total-paid;
 
     // Build class rows
+    var allRiders = e2.riders
+      ? e2.riders.map(function(r){ return r.name; })
+      : [e2.name];
+    var riderSelectOpts = allRiders.map(function(r){
+      return '<option value="'+esc(r)+'">'+esc(r)+'</option>';
+    }).join('');
+
     var classRows = e2.classes.map(function(cls,ci){
       var isScratch = cls.status==='scratched';
+      var riderSel = isScratch
+        ? esc(cls.rider||e2.name)
+        : '<select data-ci="'+ci+'" data-ridx="'+rowIdx+'" onchange="assignClassRider('+rowIdx+','+ci+',this.value)" '
+          +'style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 4px;font-size:.78rem">'
+          +allRiders.map(function(r){
+            return '<option value="'+esc(r)+'"'+(r===(cls.rider||e2.name)?' selected':'')+'>'+esc(r)+'</option>';
+          }).join('')
+          +'</select>';
       return '<tr style="'+(isScratch?'opacity:.45;text-decoration:line-through':'')+'">'
         +'<td><span class="badge b-gray">'+esc(cls.num)+'</span></td>'
-        +'<td>'+esc(cls.name)+'<span class="small" style="margin-left:6px;color:var(--muted)">'+esc(cls.division)+'</span>'
+        +'<td>'+esc(cls.name)
+        +'<span class="small" style="margin-left:6px;color:var(--muted)">'+esc(cls.division)+'</span>'
         +(cls.org&&cls.org!=='CoWN'?'<span class="badge b-blue" style="margin-left:4px;font-size:.65rem">'+esc(cls.org)+'</span>':'')
         +'</td>'
-        +'<td class="small">'+esc(cls.rider||e2.name)+'</td>'
+        +'<td>'+riderSel+'</td>'
         +'<td>'+(isScratch
           ? '<span class="badge b-red">Scratched</span>'
           : '<button class="btn btn-red btn-sm" onclick="scratchClass('+rowIdx+','+ci+')">Scratch</button>')
@@ -1449,7 +1475,10 @@ function showEntryModal(rowIdx){
       +'<div class="form-group"><label>Last Name</label>'
       +'<input type="text" id="new-rider-last" placeholder="Last" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem"></div>'
       +'<div class="form-group"><label>Division</label>'
-      +'<input type="text" id="new-rider-div" placeholder="e.g. Open" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem"></div>'
+      +'<input type="text" id="new-rider-div" placeholder="e.g. Open" list="div-datalist" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem"></div>'
+    +'<datalist id="div-datalist">'
+    +Array.from(new Set(G.cfg.classes.map(function(c){ return c.division||''; }).filter(Boolean))).sort().map(function(d){ return '<option value="'+esc(d)+'">'; }).join('')
+    +'</datalist>'
       +'</div>'
       +'<button class="btn btn-accent btn-sm" onclick="addRider('+rowIdx+')">Add Rider</button>'
       +'</div>'
@@ -1457,22 +1486,38 @@ function showEntryModal(rowIdx){
 
       // ── FEES & TAB ──
       +'<div class="tab-panel" id="tp-fees">'
-      // Per-org fees section
-      +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem">Association Fees</div>'
+      // Association fees header
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem">'
+      +'<div style="font-size:.78rem;color:var(--muted)">Association Fees</div>'
+      +'<button class="btn btn-dark btn-sm" onclick="showAddOrgFee('+rowIdx+')">+ Add Fee</button>'
+      +'</div>'
       +'<div id="org-fee-section">'+orgFeeHTML+'</div>'
-      +'<button class="btn btn-dark btn-sm" onclick="showAddOrgFee('+rowIdx+')" style="margin:.5rem 0 1rem">+ Add Fee</button>'
-      // Tab lines
-      +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem;margin-top:.25rem">Classes</div>'
-      +lines.filter(function(l){ return l.type==='class'; }).map(function(l){
-        return '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';
-      }).join('')
-      +(stallHTML)
-      +'<div class="tab-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
+      // All tab lines in order
+      +(function(){
+        var allLines = buildTabLines(e2);
+        if(!allLines.length) return '<div style="color:var(--muted);font-size:.82rem;padding:1rem 0;text-align:center">No fees yet</div>';
+        var sections = [
+          {label:'Fees', types:['office','membership']},
+          {label:'Classes', types:['class']},
+          {label:'Stalling & RV', types:['stall','rv']}
+        ];
+        var html2 = '';
+        sections.forEach(function(sec){
+          var secLines = allLines.filter(function(l){ return sec.types.indexOf(l.type)>-1; });
+          if(!secLines.length) return;
+          html2 += '<div style="font-size:.75rem;color:var(--muted);margin:.6rem 0 .25rem;text-transform:uppercase;letter-spacing:.05em">'+sec.label+'</div>';
+          secLines.forEach(function(l){
+            html2 += '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';
+          });
+        });
+        return html2;
+      })()
+      +'<div class="tab-total"><span>Total</span><span>'+fmt$(tabTotal(e2))+'</span></div>'
       +'<div class="pay-status">'
       +'<div style="flex:1"><div class="small">Paid</div><div class="bold" style="color:var(--green)">'+fmt$(paid)+'</div></div>'
       +'<div style="flex:1"><div class="small">Balance</div><div class="bold" style="color:'+(bal<=0?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</div></div>'
       +'<div>'+(bal>0
-        ?'<button class="btn btn-green btn-sm" onclick="markPaid('+rowIdx+','+total+')">Mark Paid</button>'
+        ?'<button class="btn btn-green btn-sm" onclick="markPaid('+rowIdx+','+tabTotal(e2)+')">Mark Paid</button>'
         :'<span class="badge b-green">&#10003; Paid</span>')
       +'</div></div>'
       +'</div>'
@@ -1729,6 +1774,32 @@ function addClassToEntry(rowIdx, classId){
   showEntryModal(rowIdx);
 };
 
+
+function assignClassRider(rowIdx, classIdx, riderName){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e||!e.classes[classIdx]) return;
+  e.classes[classIdx].rider = riderName;
+  saveEntriesToStorage();
+}
+
+
+function saveEntriesToCache(){
+  if(!G.showId) return;
+  try{
+    localStorage.setItem('gp_entries_'+G.showId, JSON.stringify(G.entries));
+    localStorage.setItem('gp_payments_'+G.showId, JSON.stringify(G.payments));
+    localStorage.setItem('gp_backnums_'+G.showId, JSON.stringify(G.backNums));
+  } catch(ex){ console.warn('Cache save failed:', ex); }
+}
+
+
+function assignRiderToClass(rowIdx, classIdx, riderName){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e||!e.classes[classIdx]) return;
+  e.classes[classIdx].rider = riderName;
+  saveEntriesToCache();
+}
+
 function scratchClass(rowIdx, classIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
@@ -1853,10 +1924,12 @@ function addSplitPerson(rowIdx){
   if(!e) return;
   var pct = parseInt((document.getElementById('split-pct')||{value:'50'}).value)||50;
   var name = '';
+  var otherRowIdx = null;
   // Try dropdown first
   var sel = document.getElementById('split-rider-sel');
   if(sel && sel.value !== ''){
-    var refEntry = G.entries.find(function(x){ return x.rowIndex===parseInt(sel.value); });
+    otherRowIdx = parseInt(sel.value);
+    var refEntry = G.entries.find(function(x){ return x.rowIndex===otherRowIdx; });
     if(refEntry) name = refEntry.name;
   }
   // Fall back to manual text
@@ -1864,9 +1937,33 @@ function addSplitPerson(rowIdx){
     name = (document.getElementById('split-name')||{value:''}).value.trim();
   }
   if(!name){ toast('Select a rider or enter a name', true); return; }
+
+  // Set up splits
   if(!e.stallSplit) e.stallSplit=[{name:e.name, pct:100-pct, rowIndex:rowIdx}];
   if(e.stallSplit.length===1) e.stallSplit[0].pct = 100-pct;
-  e.stallSplit.push({name:name, pct:pct});
+  e.stallSplit.push({name:name, pct:pct, rowIndex:otherRowIdx});
+
+  // Propagate stall share to the other rider's entry
+  if(otherRowIdx !== null){
+    var otherEntry = G.entries.find(function(x){ return x.rowIndex===otherRowIdx; });
+    if(otherEntry){
+      var f = G.cfg.fees;
+      var stallTotal = e.stall1qty*f.stall1 + e.stall2qty*f.stall2 + e.shavings*f.shavings
+        + e.rv1qty*f.rv1 + e.rv2qty*f.rv2 + e.rvCircuit*f.rvCircuit;
+      var shareAmt = stallTotal * pct / 100;
+      if(!otherEntry.orgFees) otherEntry.orgFees = [];
+      // Remove any existing stall share from this horse
+      otherEntry.orgFees = otherEntry.orgFees.filter(function(f){ return f.stallShareFrom !== rowIdx; });
+      // Add new share
+      otherEntry.orgFees.push({
+        org:'Stall Share', desc:'Stall share w/ '+esc(e.name)+' ('+pct+'%)',
+        amt:shareAmt, stallShareFrom:rowIdx
+      });
+      toast('Stall share of '+fmt$(shareAmt)+' added to '+name+"'s tab");
+    }
+  }
+
+  saveEntriesToStorage();
   if(G._rebuildEntryModal) G._rebuildEntryModal();
 };
 
@@ -1900,7 +1997,9 @@ function showTabModal(name){
 }
 
 function markPaid(rowIdx,amount){
-  G.payments[rowIdx]=amount; closeModal(); pgTabs();
+  G.payments[rowIdx]=amount;
+  saveEntriesToCache();
+  closeModal(); pgTabs();
 };
 function markPaidByRef(refRowIdx,amount){
   var ref=G.entries.find(function(e){ return e.rowIndex===refRowIdx; });
@@ -1950,9 +2049,15 @@ function showAddEntryModal(){
     // Rider info
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-bottom:.75rem">'
     +'<div class="form-group"><label>Rider First Name *</label>'
-    +'<input type="text" id="ae-first" placeholder="First" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<input type="text" id="ae-first" placeholder="First" list="rider-first-list" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<datalist id="rider-first-list">'
+    +Array.from(new Set(G.entries.map(function(e){ return e.name.split(' ')[0]; }))).sort().map(function(n){ return '<option value="'+esc(n)+'">'; }).join('')
+    +'</datalist>'
     +'<div class="form-group"><label>Rider Last Name *</label>'
-    +'<input type="text" id="ae-last" placeholder="Last" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<input type="text" id="ae-last" placeholder="Last" list="rider-last-list" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<datalist id="rider-last-list">'
+    +Array.from(new Set(G.entries.map(function(e){ return e.name.split(' ').slice(1).join(' '); }).filter(Boolean))).sort().map(function(n){ return '<option value="'+esc(n)+'">'; }).join('')
+    +'</datalist>'
     +'<div class="form-group"><label>Email</label>'
     +'<input type="email" id="ae-email" placeholder="email@example.com" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
     +'<div class="form-group"><label>Phone</label>'
