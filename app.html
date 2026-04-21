@@ -485,6 +485,12 @@ function pgImport(){
         document.getElementById('show-pill').innerHTML=
           '<div class="sp-name">'+esc(G.showName)+'</div>'
           +'<div class="sp-meta">'+G.entries.length+' entries</div>';
+        // Save to localStorage so refresh doesn't lose data
+        try{
+          localStorage.setItem('gp_entries_'+G.showId, JSON.stringify(G.entries));
+          localStorage.setItem('gp_payments_'+G.showId, JSON.stringify(G.payments));
+          localStorage.setItem('gp_backnums_'+G.showId, JSON.stringify(G.backNums));
+        } catch(ex){ console.warn('localStorage save failed:', ex); }
         document.getElementById('imp-status').innerHTML='<span style="color:var(--green)">&#10003; '+G.entries.length+' entries loaded.</span>';
 
         // Auto-extract class list into config if not already populated
@@ -1438,7 +1444,10 @@ function showEntryModal(rowIdx){
       +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Add a rider to this horse</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem">'
       +'<div class="form-group"><label>Rider Name</label>'
-      +'<input type="text" id="new-rider-name" placeholder="First Last" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem"></div>'
+      +'<div class="form-group"><label>First Name</label>'
+      +'<input type="text" id="new-rider-first" placeholder="First" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem"></div>'
+      +'<div class="form-group"><label>Last Name</label>'
+      +'<input type="text" id="new-rider-last" placeholder="Last" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem"></div>'
       +'<div class="form-group"><label>Division</label>'
       +'<input type="text" id="new-rider-div" placeholder="e.g. Open" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem"></div>'
       +'</div>'
@@ -1512,43 +1521,83 @@ function buildOrgFeeRows(e){
 // ── STALL SPLIT UI ──
 function buildStallSplitUI(e, rowIdx){
   var f=G.cfg.fees;
-  var stallTotal = e.stall1qty*f.stall1 + e.stall2qty*f.stall2 + e.shavings*f.shavings
-    + e.rv1qty*f.rv1 + e.rv2qty*f.rv2 + e.rvCircuit*f.rvCircuit;
 
-  if(!stallTotal){
+  // Build stall items with individual costs
+  var stallItems = [];
+  if(e.stall1qty>0) stallItems.push({key:'stall1',label:'Stall 1-night x'+e.stall1qty, total:e.stall1qty*f.stall1});
+  if(e.stall2qty>0) stallItems.push({key:'stall2',label:'Stall 2-nights x'+e.stall2qty, total:e.stall2qty*f.stall2});
+  if(e.shavings>0)  stallItems.push({key:'shavings',label:'Shavings x'+e.shavings, total:e.shavings*f.shavings});
+  if(e.rv1qty>0)    stallItems.push({key:'rv1',label:'RV 1-night x'+e.rv1qty, total:e.rv1qty*f.rv1});
+  if(e.rv2qty>0)    stallItems.push({key:'rv2',label:'RV 2-nights x'+e.rv2qty, total:e.rv2qty*f.rv2});
+  if(e.rvCircuit>0) stallItems.push({key:'rvc',label:'RV Circuit', total:e.rvCircuit*f.rvCircuit});
+
+  if(!stallItems.length){
     return '<div class="empty-state">No stalling or RV on this entry to split.</div>';
   }
 
+  var stallTotal = stallItems.reduce(function(s,x){ return s+x.total; },0);
   var splits = e.stallSplit || [];
-  // Default: just this entry at 100%
-  if(!splits.length) splits = [{name: e.name, pct: 100, rowIndex: rowIdx}];
+  if(!splits.length) splits = [{name:e.name, pct:100, rowIndex:rowIdx}];
+  e.stallSplit = splits;
+
+  // Build rider dropdown options from all entries
+  var riderOpts = '<option value="">— Select rider —</option>'
+    + G.entries.filter(function(en){ return en.rowIndex !== rowIdx; }).map(function(en){
+        return '<option value="'+en.rowIndex+'">'+esc(en.name)+' / '+esc(en.horse)+'</option>';
+      }).join('');
 
   var splitRows = splits.map(function(s,si){
-    return '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--border)">'
-      +'<div style="flex:1"><div class="bold" style="font-size:.85rem">'+esc(s.name)+'</div>'
-      +'<div class="small">'+fmt$(stallTotal * s.pct/100)+' ('+s.pct+'%)</div></div>'
-      +'<input type="number" value="'+s.pct+'" min="1" max="100" style="width:65px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:3px 6px;font-size:.82rem" '
+    var amt = stallTotal * s.pct/100;
+    return '<div style="display:flex;align-items:center;gap:.5rem;padding:.45rem 0;border-bottom:1px solid var(--border)">'
+      +'<div style="flex:1">'
+      +'<div class="bold" style="font-size:.84rem">'+esc(s.name)+'</div>'
+      +'<div class="small" style="color:var(--green)">'+fmt$(amt)+'</div>'
+      +'</div>'
+      +'<input type="number" value="'+s.pct+'" min="1" max="100" '
+      +'style="width:60px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:3px 6px;font-size:.82rem" '
       +'onchange="updateSplitPct('+rowIdx+','+si+',this.value)">'
-      +'<span style="font-size:.78rem;color:var(--muted)">%</span>'
+      +'<span style="font-size:.75rem;color:var(--muted)">%</span>'
       +(splits.length>1?'<button class="btn btn-red btn-sm" onclick="removeSplit('+rowIdx+','+si+')">&#10005;</button>':'')
       +'</div>';
   }).join('');
 
   var totalPct = splits.reduce(function(s,x){ return s+x.pct; },0);
+  var pctOk = totalPct === 100;
+
+  // Stall item checkboxes
+  var itemChecks = stallItems.map(function(item){
+    return '<label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;padding:.2rem 0;cursor:pointer">'
+      +'<input type="checkbox" checked data-stallkey="'+item.key+'" style="accent-color:var(--accent)">'
+      +'<span>'+esc(item.label)+'</span>'
+      +'<span style="color:var(--accent);margin-left:auto">'+fmt$(item.total)+'</span>'
+      +'</label>';
+  }).join('');
 
   return '<div style="margin-bottom:.75rem">'
-    +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem">Total stall/RV cost: <strong style="color:var(--accent)">'+fmt$(stallTotal)+'</strong></div>'
+    +'<div style="font-family:Oswald;color:var(--muted);font-size:.85rem;margin-bottom:.5rem">What to split</div>'
+    +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.7rem;margin-bottom:.75rem">'
+    +itemChecks
+    +'<div style="border-top:1px solid var(--border);margin-top:.4rem;padding-top:.4rem;display:flex;justify-content:space-between;font-size:.82rem">'
+    +'<span style="color:var(--muted)">Total to split</span><strong style="color:var(--accent)">'+fmt$(stallTotal)+'</strong>'
+    +'</div></div>'
+    +'<div style="font-family:Oswald;color:var(--muted);font-size:.85rem;margin-bottom:.5rem">Split between</div>'
     +splitRows
-    +'<div style="font-size:.75rem;margin-top:.4rem;color:'+(totalPct===100?'var(--green)':'var(--red)')+'">Total: '+totalPct+'% '+(totalPct===100?'&#10003;':'(must equal 100%)')+'</div>'
+    +'<div style="font-size:.75rem;margin-top:.35rem;color:'+(pctOk?'var(--green)':'var(--red)')+'">Total: '+totalPct+'% '+(pctOk?'&#10003; Balanced':'&#8734; Must equal 100%')+'</div>'
     +'</div>'
     +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.75rem">'
-    +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Add a person to split with</div>'
-    +'<div style="display:flex;gap:.5rem;align-items:flex-end">'
-    +'<div class="form-group" style="flex:1"><label>Name</label>'
-    +'<input type="text" id="split-name" placeholder="Rider name" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem;width:100%"></div>'
+    +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Add another rider to split with</div>'
+    +'<div style="display:grid;grid-template-columns:1fr auto auto;gap:.5rem;align-items:flex-end">'
+    +'<div class="form-group"><label>Select from entries</label>'
+    +'<select id="split-rider-sel" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.82rem;width:100%">'+riderOpts+'</select></div>'
     +'<div class="form-group"><label>%</label>'
-    +'<input type="number" id="split-pct" value="50" min="1" max="99" style="width:65px;background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem"></div>'
+    +'<input type="number" id="split-pct" value="50" min="1" max="99" style="width:65px;background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.82rem"></div>'
     +'<button class="btn btn-accent btn-sm" style="margin-bottom:1px" onclick="addSplitPerson('+rowIdx+')">Add</button>'
+    +'</div>'
+    +'<div style="font-size:.75rem;color:var(--muted);margin-top:.4rem">Or enter a name manually:</div>'
+    +'<div style="display:grid;grid-template-columns:1fr auto auto;gap:.5rem;align-items:flex-end;margin-top:.4rem">'
+    +'<div class="form-group"><label>Name</label>'
+    +'<input type="text" id="split-name" placeholder="e.g. Jane Smith" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.82rem;width:100%"></div>'
+    +'<div style="width:65px"></div><div style="width:60px"></div>'
     +'</div></div>';
 }
 
@@ -1580,19 +1629,49 @@ function showAddClassPicker(rowIdx){
 
 function renderClassPickerList(classes, rowIdx){
   if(!classes.length) return '<div class="empty-state">No more classes available</div>';
-  return classes.map(function(c){
-    var isCow = c.isCow;
-    var fee = (c.baseFee||G.cfg.fees.classBase||0) + (isCow?(c.cowFee||G.cfg.fees.cowSurcharge||0):0) + (c.jackpot||0);
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.45rem .5rem;border-bottom:1px solid var(--border);cursor:pointer" '
-      +'data-rowid="'+rowIdx+'" data-classid="'+esc(c._id)+'" class="show-row class-picker-item">'
-      +'<div>'
-      +'<span class="badge b-gray" style="margin-right:6px">'+esc(c.num)+'</span>'
-      +'<span style="font-size:.85rem">'+esc(c.name)+'</span>'
-      +' <span class="small">'+esc(c.division)+'</span>'
-      +(isCow?'<span class="badge b-cow" style="margin-left:4px">Cow</span>':'')
-      +'</div>'
-      +'<span style="font-size:.85rem;font-weight:600;color:var(--accent)">'+fmt$(fee)+'</span>'
-      +'</div>';
+
+  // Group by org then division
+  var grouped = {};
+  classes.forEach(function(c){
+    var org = c.org||'CoWN';
+    var div = c.division||'General';
+    var key = org+'||'+div;
+    if(!grouped[key]) grouped[key]={org:org, div:div, classes:[]};
+    grouped[key].classes.push(c);
+  });
+
+  // Sort groups: CoWN first, then alphabetical by org+division
+  var keys = Object.keys(grouped).sort(function(a,b){
+    var aOrg = grouped[a].org, bOrg = grouped[b].org;
+    if(aOrg==='CoWN' && bOrg!=='CoWN') return -1;
+    if(bOrg==='CoWN' && aOrg!=='CoWN') return 1;
+    return a.localeCompare(b);
+  });
+
+  return keys.map(function(key){
+    var group = grouped[key];
+    var orgBadge = group.org!=='CoWN'
+      ? '<span class="badge b-blue" style="margin-left:6px;font-size:.65rem">'+esc(group.org)+'</span>'
+      : '';
+    var header = '<div style="background:rgba(212,160,74,.08);padding:.3rem .5rem;font-family:Oswald;font-size:.8rem;color:var(--accent);letter-spacing:.04em;border-bottom:1px solid var(--border)">'
+      +esc(group.div)+orgBadge+'</div>';
+
+    var rows = group.classes.sort(function(a,b){ return (parseInt(a.num)||999)-(parseInt(b.num)||999); })
+      .map(function(c){
+        var isCow = c.isCow;
+        var fee = (c.baseFee||G.cfg.fees.classBase||0) + (isCow?(c.cowFee||G.cfg.fees.cowSurcharge||0):0) + (c.jackpot||0);
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.4rem .5rem;border-bottom:1px solid var(--border);cursor:pointer" '
+          +'data-rowid="'+rowIdx+'" data-classid="'+esc(c._id)+'" class="show-row class-picker-item">'
+          +'<div>'
+          +'<span class="badge b-gray" style="margin-right:5px">'+esc(c.num)+'</span>'
+          +'<span style="font-size:.84rem">'+esc(c.name)+'</span>'
+          +(isCow?'<span class="badge b-cow" style="margin-left:4px">Cow</span>':'')
+          +'</div>'
+          +'<span style="font-size:.84rem;font-weight:600;color:var(--accent)">'+fmt$(fee)+'</span>'
+          +'</div>';
+      }).join('');
+
+    return header + rows;
   }).join('');
 }
 
@@ -1694,9 +1773,11 @@ function scratchClass(rowIdx, classIdx){
 function addRider(rowIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
-  var name = (document.getElementById('new-rider-name')||{value:''}).value.trim();
-  var div  = (document.getElementById('new-rider-div')||{value:''}).value.trim();
-  if(!name){ toast('Enter a rider name', true); return; }
+  var first = (document.getElementById('new-rider-first')||{value:''}).value.trim();
+  var last  = (document.getElementById('new-rider-last')||{value:''}).value.trim();
+  var div   = (document.getElementById('new-rider-div')||{value:''}).value.trim();
+  if(!first||!last){ toast('Enter first and last name', true); return; }
+  var name = first+' '+last;
   if(!e.riders) e.riders = [{name:e.name, division:e.division, isPrimary:true}];
   e.riders.push({name:name, division:div, isPrimary:false});
   toast('Added rider: '+name);
@@ -1770,11 +1851,20 @@ function removeSplit(rowIdx, splitIdx){
 function addSplitPerson(rowIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
-  var name = (document.getElementById('split-name')||{value:''}).value.trim();
-  var pct  = parseInt((document.getElementById('split-pct')||{value:'50'}).value)||50;
-  if(!name){ toast('Enter a name', true); return; }
+  var pct = parseInt((document.getElementById('split-pct')||{value:'50'}).value)||50;
+  var name = '';
+  // Try dropdown first
+  var sel = document.getElementById('split-rider-sel');
+  if(sel && sel.value !== ''){
+    var refEntry = G.entries.find(function(x){ return x.rowIndex===parseInt(sel.value); });
+    if(refEntry) name = refEntry.name;
+  }
+  // Fall back to manual text
+  if(!name){
+    name = (document.getElementById('split-name')||{value:''}).value.trim();
+  }
+  if(!name){ toast('Select a rider or enter a name', true); return; }
   if(!e.stallSplit) e.stallSplit=[{name:e.name, pct:100-pct, rowIndex:rowIdx}];
-  // Adjust primary split
   if(e.stallSplit.length===1) e.stallSplit[0].pct = 100-pct;
   e.stallSplit.push({name:name, pct:pct});
   if(G._rebuildEntryModal) G._rebuildEntryModal();
@@ -2367,6 +2457,21 @@ async function boot(){
         });
       }
       toast('Loaded '+G.entries.length+' entries');
+    }
+
+    // Try loading from localStorage if DB returned nothing
+    if(!G.entries.length && G.showId){
+      try{
+        var cached = localStorage.getItem('gp_entries_'+G.showId);
+        if(cached){
+          G.entries = JSON.parse(cached);
+          var cachedPay = localStorage.getItem('gp_payments_'+G.showId);
+          var cachedBN  = localStorage.getItem('gp_backnums_'+G.showId);
+          if(cachedPay) G.payments = JSON.parse(cachedPay);
+          if(cachedBN)  G.backNums = JSON.parse(cachedBN);
+          toast('Loaded '+G.entries.length+' entries from cache');
+        }
+      } catch(ex){ console.warn('localStorage load failed:', ex); }
     }
 
     // Only show entries if we have valid ones with names
