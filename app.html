@@ -335,7 +335,7 @@ function parseSTHXRows(rawRows){
   var headerMap={};
   Object.keys(rawRows[0]).forEach(function(k){ headerMap[normalizeHeader(k)]=k; });
   return rawRows.map(function(row){
-    function col(n){ var k=headerMap[n]; return k!=null?(row[k]||''):''; }
+    function col(n){ var k=headerMap[n]; var v=k!=null?row[k]:''; return (v===null||v===undefined)?'':String(v); }
     return {
       showName:   (col('show')||'').trim(),
       discipline: (col('classage')||'').trim(),
@@ -363,11 +363,11 @@ function saveResultsToStorage(){
   } catch(ex){ console.warn('Results save failed:', ex); }
 }
 
-var _resDivFilter=null, _resDiscFilter=null, _resSearch='';
+var _resSelDiv='', _resSelClass='All Around', _resSearch='', _resSortCol='place', _resSortDir=1;
 
 function clearResults(){
   G.results=[]; G.resultsFile='';
-  _resDivFilter=null; _resDiscFilter=null; _resSearch='';
+  _resSelDiv=''; _resSelClass='All Around'; _resSearch=''; _resSortCol='place'; _resSortDir=1;
   saveResultsToStorage();
   pgResults();
 }
@@ -379,28 +379,39 @@ async function loadResultsFile(file){
     reader.onerror=function(){ reject(new Error('File read failed')); };
     if(ext==='txt'||ext==='csv'){
       reader.onload=function(e){
-        var lines=e.target.result.split(/\r?\n/).filter(function(l){ return l.trim(); });
-        if(!lines.length){ reject(new Error('Empty file')); return; }
-        var headers=lines[0].split('\t');
-        var rows=[];
-        for(var i=1;i<lines.length;i++){
-          var cells=lines[i].split('\t'), obj={};
-          headers.forEach(function(h,j){ obj[h]=cells[j]||''; });
-          rows.push(obj);
-        }
-        G.results=parseSTHXRows(rows); G.resultsFile=file.name;
-        _resDivFilter=null; _resDiscFilter=null; _resSearch='';
-        saveResultsToStorage(); resolve(G.results.length);
+        try{
+          var lines=e.target.result.split(/\r?\n/).filter(function(l){ return l.trim(); });
+          if(!lines.length){ reject(new Error('Empty file')); return; }
+          var headers=lines[0].split('\t');
+          var rows=[];
+          for(var i=1;i<lines.length;i++){
+            var cells=lines[i].split('\t'), obj={};
+            headers.forEach(function(h,j){ obj[h]=cells[j]||''; });
+            rows.push(obj);
+          }
+          G.results=parseSTHXRows(rows); G.resultsFile=file.name;
+          _resSelDiv=''; _resSelClass='All Around'; _resSearch=''; _resSortCol='place'; _resSortDir=1;
+          saveResultsToStorage(); resolve(G.results.length);
+        } catch(ex){ reject(ex); }
       };
       reader.readAsText(file);
     } else {
       reader.onload=function(e){
-        var wb=XLSX.read(e.target.result,{type:'array'});
-        var ws=wb.Sheets[wb.SheetNames[0]];
-        var rows=XLSX.utils.sheet_to_json(ws,{defval:''});
-        G.results=parseSTHXRows(rows); G.resultsFile=file.name;
-        _resDivFilter=null; _resDiscFilter=null; _resSearch='';
-        saveResultsToStorage(); resolve(G.results.length);
+        try{
+          var wb=XLSX.read(e.target.result,{type:'array'});
+          // Find the sheet that has ClassDivision header (works with multi-sheet year-end files)
+          var ws=null;
+          for(var si=0;si<wb.SheetNames.length;si++){
+            var cws=wb.Sheets[wb.SheetNames[si]];
+            var chdr=(XLSX.utils.sheet_to_json(cws,{header:1,defval:''})[0]||[]);
+            if(chdr.some(function(h){ return normalizeHeader(String(h))==='classdivision'; })){ ws=cws; break; }
+          }
+          if(!ws) ws=wb.Sheets[wb.SheetNames[0]];
+          var rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+          G.results=parseSTHXRows(rows); G.resultsFile=file.name;
+          _resSelDiv=''; _resSelClass='All Around'; _resSearch=''; _resSortCol='place'; _resSortDir=1;
+          saveResultsToStorage(); resolve(G.results.length);
+        } catch(ex){ reject(ex); }
       };
       reader.readAsArrayBuffer(file);
     }
@@ -918,6 +929,14 @@ function pgStalls(){
 }
 
 // ═══════════════════════ PAGE: RESULTS ═══════════════════════
+window.resSelDiv=function(d){ _resSelDiv=d; _resSelClass='All Around'; _resSortCol='place'; _resSortDir=1; pgResults(); };
+window.resSelClass=function(c){ _resSelClass=c; _resSortCol='place'; _resSortDir=1; pgResults(); };
+window.resSort=function(c){
+  if(_resSortCol===c){ _resSortDir*=-1; }
+  else{ _resSortCol=c; _resSortDir=(c==='score'||c==='pts'||c==='money')?-1:1; }
+  pgResults();
+};
+
 function pgResults(){
   var pg=document.getElementById('page');
 
@@ -940,188 +959,173 @@ function pgResults(){
     return;
   }
 
-  var divs=[],discs=[];
+  // Build division list
+  var divs=[], allDiscs=[];
   G.results.forEach(function(r){
     if(r.division&&divs.indexOf(r.division)<0) divs.push(r.division);
-    if(r.discipline&&discs.indexOf(r.discipline)<0) discs.push(r.discipline);
+    if(r.discipline&&allDiscs.indexOf(r.discipline)<0) allDiscs.push(r.discipline);
   });
-  divs.sort(); discs.sort();
+  divs.sort(); allDiscs.sort();
 
-  var activeDivs=_resDivFilter||divs.slice();
-  var activeDiscs=_resDiscFilter||discs.slice();
-  var srch=_resSearch||'';
+  // Default to first division
+  if(!_resSelDiv && divs.length) _resSelDiv=divs[0];
 
-  var shown=G.results.filter(function(r){
-    if(activeDivs.indexOf(r.division)<0) return false;
-    if(activeDiscs.indexOf(r.discipline)<0) return false;
-    if(srch){
-      var q=srch.toLowerCase();
-      if((r.rider||'').toLowerCase().indexOf(q)<0&&(r.horse||'').toLowerCase().indexOf(q)<0) return false;
-    }
-    return true;
-  });
-
-  var groups={};
-  shown.forEach(function(r){
-    var k=r.division+'|||'+r.discipline;
-    if(!groups[k]) groups[k]={division:r.division,discipline:r.discipline,rows:[]};
-    groups[k].rows.push(r);
-  });
-  var groupKeys=Object.keys(groups).sort();
-
+  // Stats strip
   var uniqueRiders={};
   G.results.forEach(function(r){ if(r.rider) uniqueRiders[r.rider]=1; });
 
   var html='<div class="stat-grid">'
     +'<div class="stat c-gold"><div class="n">'+G.results.length+'</div><div class="l">Result Rows</div></div>'
-    +'<div class="stat c-green"><div class="n">'+Object.keys(uniqueRiders).length+'</div><div class="l">Unique Riders</div></div>'
-    +'<div class="stat c-blue"><div class="n">'+Object.keys(groups).length+'</div><div class="l">Classes</div></div>'
-    +'<div class="stat c-purple"><div class="n">'+divs.length+'</div><div class="l">Divisions</div></div>'
+    +'<div class="stat c-green"><div class="n">'+Object.keys(uniqueRiders).length+'</div><div class="l">Riders</div></div>'
+    +'<div class="stat c-blue"><div class="n">'+divs.length+'</div><div class="l">Divisions</div></div>'
+    +'<div class="stat c-purple"><div class="n">'+allDiscs.length+'</div><div class="l">Classes</div></div>'
     +'</div>';
 
   html+='<div class="card">';
-  html+='<div class="card-title"><span>Results &mdash; '+esc(G.resultsFile)+'</span>'
-    +'<div style="display:flex;gap:.4rem">'
-    +'<button class="btn btn-dark btn-sm" onclick="window.print()">&#128424; Print</button>'
+  html+='<div class="card-title"><span>'+esc(G.resultsFile)+'</span>'
+    +'<div style="display:flex;gap:.4rem;align-items:center">'
+    +'<input type="text" placeholder="Search rider or horse..." value="'+esc(_resSearch)+'" '
+    +'oninput="_resSearch=this.value;pgResults()" '
+    +'style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);'
+    +'padding:.28rem .6rem;font-size:.78rem;width:190px">'
+    +'<button class="btn btn-dark btn-sm" onclick="window.print()">&#128424;</button>'
     +'<button class="btn btn-dark btn-sm" onclick="clearResults()">&#10005; Clear</button>'
     +'</div></div>';
 
-  html+='<div style="margin-bottom:.75rem"><div style="font-size:.72rem;color:var(--muted);margin-bottom:.35rem">Division</div>'
-    +'<div style="display:flex;flex-wrap:wrap;gap:.35rem">';
+  // ── Division pills ──
+  html+='<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.65rem">';
   divs.forEach(function(d){
-    var on=activeDivs.indexOf(d)>=0;
-    html+='<button class="btn btn-sm '+(on?'btn-accent':'btn-dark')+'" onclick="resToggleDiv(\''+d.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'
-      +esc(d)+'</button>';
+    var n=G.results.filter(function(r){ return r.division===d; });
+    var rSet={};
+    n.forEach(function(r){ if(r.rider) rSet[r.rider]=1; });
+    html+='<button class="btn btn-sm '+(d===_resSelDiv?'btn-accent':'btn-dark')+'" '
+      +'onclick="resSelDiv(\''+d.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'+esc(d)
+      +' <span style="opacity:.65;font-size:.7rem">('+Object.keys(rSet).length+')</span></button>';
   });
-  html+='</div></div>';
+  html+='</div>';
 
-  html+='<div style="margin-bottom:.75rem"><div style="font-size:.72rem;color:var(--muted);margin-bottom:.35rem">Discipline</div>'
-    +'<div style="display:flex;flex-wrap:wrap;gap:.35rem">';
-  discs.forEach(function(d){
-    var on=activeDiscs.indexOf(d)>=0;
-    html+='<button class="btn btn-sm '+(on?'btn-accent':'btn-dark')+'" onclick="resToggleDisc(\''+d.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'
-      +esc(d)+'</button>';
-  });
-  html+='</div></div>';
+  if(_resSelDiv){
+    var divRows=G.results.filter(function(r){ return r.division===_resSelDiv; });
 
-  html+='<div style="margin-bottom:.75rem">'
-    +'<input type="text" placeholder="Search rider or horse..." value="'+esc(srch)+'" '
-    +'oninput="_resSearch=this.value;pgResults()" '
-    +'style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);'
-    +'padding:.4rem .65rem;font-size:.83rem;width:100%;max-width:320px">'
-    +'</div>';
+    // Apply search
+    if(_resSearch){
+      var sq=_resSearch.toLowerCase();
+      divRows=divRows.filter(function(r){
+        return (r.rider||'').toLowerCase().indexOf(sq)>=0||(r.horse||'').toLowerCase().indexOf(sq)>=0;
+      });
+    }
 
-  if(!groupKeys.length){
-    html+='<div class="empty">No results match filters.</div>';
-  } else {
-    groupKeys.forEach(function(k){
-      var g=groups[k];
-      var rows=g.rows.slice().sort(function(a,b){ return (a.place||999)-(b.place||999); });
-      html+='<div style="margin-bottom:1.25rem">'
-        +'<div style="font-family:Oswald;font-size:.95rem;color:var(--accent);margin-bottom:.4rem;display:flex;align-items:center;gap:.5rem">'
-        +'<span>'+esc(g.discipline)+' &mdash; '+esc(g.division)+'</span>'
-        +'<span style="font-size:.72rem;color:var(--muted);font-family:\'Source Sans 3\',sans-serif">'
-        +'('+rows.length+' entries)</span></div>'
-        +'<div class="tbl-wrap"><table><thead><tr>'
-        +'<th style="width:40px">Pl</th><th>Rider</th><th>Horse</th>'
-        +'<th style="width:70px;text-align:right">Score</th>'
-        +'<th style="width:60px;text-align:right">Pts</th>'
-        +'<th style="width:70px;text-align:right">Money</th>'
+    // Classes in this division
+    var clsInDiv=[];
+    divRows.forEach(function(r){ if(r.discipline&&clsInDiv.indexOf(r.discipline)<0) clsInDiv.push(r.discipline); });
+    clsInDiv.sort();
+
+    // Ensure valid class selection
+    if(_resSelClass!=='All Around'&&clsInDiv.indexOf(_resSelClass)<0) _resSelClass='All Around';
+    if(!clsInDiv.length) _resSelClass='';
+
+    // ── Class pills ──
+    html+='<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.85rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)">';
+    clsInDiv.forEach(function(c){
+      html+='<button class="btn btn-sm '+(c===_resSelClass?'btn-accent':'btn-dark')+'" '
+        +'onclick="resSelClass(\''+c.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'+esc(c)+'</button>';
+    });
+    if(clsInDiv.length>1){
+      html+='<button class="btn btn-sm '+((_resSelClass==='All Around')?'btn-accent':'btn-dark')+'" '
+        +'onclick="resSelClass(\'All Around\')">&#9733; All Around</button>';
+    }
+    html+='</div>';
+
+    if(_resSelClass==='All Around'&&clsInDiv.length>1){
+      // ══ ALL AROUND TABLE ══
+      var aaMap={};
+      divRows.forEach(function(r){
+        if(!r.rider) return;
+        if(!aaMap[r.rider]) aaMap[r.rider]={rider:r.rider,horse:r.horse,total:0,wins:0,byDisc:{}};
+        aaMap[r.rider].total+=(r.pts||0);
+        if(r.place===1) aaMap[r.rider].wins++;
+        aaMap[r.rider].byDisc[r.discipline]=(aaMap[r.rider].byDisc[r.discipline]||0)+(r.pts||0);
+      });
+      var aaRows=Object.keys(aaMap).map(function(k){ return aaMap[k]; })
+        .sort(function(a,b){ return b.total-a.total; });
+
+      html+='<div class="tbl-wrap"><table><thead><tr>'
+        +'<th style="width:36px">Rank</th><th>Rider</th><th>Horse</th>';
+      clsInDiv.forEach(function(c){ html+='<th style="text-align:right;font-size:.8rem">'+esc(c)+'</th>'; });
+      html+='<th style="text-align:right;background:rgba(212,160,74,.1);color:var(--accent)">Total</th>'
+        +'<th style="width:50px;text-align:right">Wins</th>'
         +'</tr></thead><tbody>';
-      rows.forEach(function(r,idx){
-        var isTie=idx>0&&rows[idx-1].place===r.place;
-        var plColor=r.place===1?'var(--accent)':r.place===2?'#aaa':r.place===3?'#cd7f32':'var(--text)';
-        html+='<tr>'
-          +'<td><span style="font-weight:600;color:'+plColor+'">'+r.place+'</span>'
+
+      aaRows.forEach(function(r,i){
+        var isTie=i>0&&aaRows[i-1].total===r.total;
+        var plColor=i===0?'var(--accent)':i===1?'#aaa':i===2?'#cd7f32':'var(--muted)';
+        html+='<tr><td style="font-weight:600;color:'+plColor+'">'+(isTie?'T':i+1)+'</td>'
+          +'<td>'+esc(r.rider)+'</td>'
+          +'<td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>';
+        clsInDiv.forEach(function(c){
+          var pts=r.byDisc[c]||0;
+          html+='<td style="text-align:right">'+(pts?pts.toFixed(1):'&mdash;')+'</td>';
+        });
+        html+='<td style="text-align:right;font-weight:700;color:var(--accent);background:rgba(212,160,74,.06)">'+r.total.toFixed(1)+'</td>'
+          +'<td style="text-align:right;color:var(--green)">'+r.wins+'</td></tr>';
+      });
+      html+='</tbody></table></div>';
+
+    } else if(_resSelClass){
+      // ══ SINGLE CLASS TABLE ══
+      var clsRows=divRows.filter(function(r){ return r.discipline===_resSelClass; });
+
+      function sTh(c,lbl,align){
+        var active=_resSortCol===c;
+        var sty='cursor:pointer;user-select:none'+(align?';text-align:'+align:'')+(active?';color:var(--accent)':'');
+        return '<th style="'+sty+'" onclick="resSort(\''+c+'\')">'
+          +lbl+(active?(_resSortDir>0?' &#8679;':' &#8681;'):'')+'</th>';
+      }
+
+      clsRows.sort(function(a,b){
+        var dir=_resSortDir;
+        if(_resSortCol==='rider') return dir*(a.rider||'').localeCompare(b.rider||'');
+        if(_resSortCol==='horse') return dir*(a.horse||'').localeCompare(b.horse||'');
+        if(_resSortCol==='score') return dir*((a.score||0)-(b.score||0));
+        if(_resSortCol==='pts')   return dir*((a.pts||0)-(b.pts||0));
+        if(_resSortCol==='money') return dir*((a.money||0)-(b.money||0));
+        return dir*((a.place||999)-(b.place||999));
+      });
+
+      html+='<div class="tbl-wrap"><table><thead><tr>'
+        +sTh('place','Pl',null)+sTh('rider','Rider',null)+sTh('horse','Horse',null)
+        +sTh('score','Score','right')+sTh('pts','Pts','right')+sTh('money','Money','right')
+        +'</tr></thead><tbody>';
+      clsRows.forEach(function(r,idx){
+        var isUnplaced=!r.place;
+        var isTie=_resSortCol==='place'&&!isUnplaced&&idx>0&&clsRows[idx-1].place===r.place;
+        var plColor=r.place===1?'var(--accent)':r.place===2?'#aaa':r.place===3?'#cd7f32':'var(--muted)';
+        html+='<tr'+(isUnplaced?' style="opacity:.5"':'')+'>'
+          +'<td><span style="font-weight:600;color:'+plColor+'">'+(isUnplaced?'&mdash;':r.place)+'</span>'
           +(isTie?' <span style="font-size:.68rem;color:var(--muted)">T</span>':'')+'</td>'
           +'<td>'+esc(r.rider)+'</td>'
           +'<td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>'
           +'<td style="text-align:right">'+(!r.score?'&mdash;':r.score.toFixed(3))+'</td>'
-          +'<td style="text-align:right;color:var(--accent)">'+r.pts.toFixed(1)+'</td>'
+          +'<td style="text-align:right;color:var(--accent)">'+(!r.pts&&isUnplaced?'&mdash;':r.pts.toFixed(1))+'</td>'
           +'<td style="text-align:right;color:var(--green)">'+(r.money?'$'+r.money.toFixed(0):'&mdash;')+'</td>'
           +'</tr>';
       });
-      html+='</tbody></table></div></div>';
-    });
+      html+='</tbody></table></div>';
+
+    } else {
+      html+='<div class="empty">No results for this division.</div>';
+    }
   }
 
   html+='</div>';
   pg.innerHTML=html;
 }
 
-window.resToggleDiv=function(d){
-  var all=[]; G.results.forEach(function(r){ if(r.division&&all.indexOf(r.division)<0) all.push(r.division); });
-  if(!_resDivFilter) _resDivFilter=all.slice();
-  var idx=_resDivFilter.indexOf(d);
-  if(idx>=0) _resDivFilter.splice(idx,1); else _resDivFilter.push(d);
-  pgResults();
-};
-window.resToggleDisc=function(d){
-  var all=[]; G.results.forEach(function(r){ if(r.discipline&&all.indexOf(r.discipline)<0) all.push(r.discipline); });
-  if(!_resDiscFilter) _resDiscFilter=all.slice();
-  var idx=_resDiscFilter.indexOf(d);
-  if(idx>=0) _resDiscFilter.splice(idx,1); else _resDiscFilter.push(d);
-  pgResults();
-};
-
 // ═══════════════════════ PAGE: POINTS ═══════════════════════
 function pgPoints(){
-  var pg=document.getElementById('page');
-
-  if(!G.results||!G.results.length){
-    pg.innerHTML='<div class="card">'
-      +'<div class="card-title">Points Standings</div>'
-      +'<div style="border:1px dashed var(--border2);border-radius:8px;padding:2.5rem;text-align:center;color:var(--muted)">'
-      +'<div style="font-size:1.5rem;margin-bottom:.5rem">&#9733;</div>'
-      +'<div style="font-family:Oswald;color:var(--accent);margin-bottom:.4rem">No Results Loaded</div>'
-      +'<div style="font-size:.82rem">Import results on the '
-      +'<a href="javascript:showPage(\'results\')" style="color:var(--accent)">Results</a> page first</div>'
-      +'</div></div>';
-    return;
-  }
-
-  var divTotals={}, divOrder=[];
-  G.results.forEach(function(r){
-    if(!r.division||!r.rider) return;
-    if(!divTotals[r.division]){ divTotals[r.division]={}; divOrder.push(r.division); }
-    var d=divTotals[r.division];
-    if(!d[r.rider]) d[r.rider]={rider:r.rider,pts:0,wins:0,classes:0};
-    d[r.rider].pts   += r.pts||0;
-    d[r.rider].wins  += r.place===1?1:0;
-    d[r.rider].classes++;
-  });
-  divOrder.sort();
-
-  var html='<div class="card">'
-    +'<div class="card-title">Points Standings &mdash; '+esc(G.resultsFile)+'</div>';
-
-  divOrder.forEach(function(div){
-    var rMap=divTotals[div];
-    var rows=Object.keys(rMap).map(function(k){ return rMap[k]; })
-      .sort(function(a,b){ return b.pts-a.pts; });
-    html+='<div style="margin-bottom:1.5rem">'
-      +'<div style="font-family:Oswald;font-size:1rem;color:var(--accent);margin-bottom:.5rem">'+esc(div)+'</div>'
-      +'<div class="tbl-wrap"><table><thead><tr>'
-      +'<th style="width:36px">Rank</th><th>Rider</th>'
-      +'<th style="width:70px;text-align:right">Points</th>'
-      +'<th style="width:60px;text-align:right">Wins</th>'
-      +'<th style="width:60px;text-align:right">Classes</th>'
-      +'</tr></thead><tbody>';
-    rows.forEach(function(r,i){
-      var isTie=i>0&&rows[i-1].pts===r.pts;
-      html+='<tr>'
-        +'<td style="color:var(--muted)">'+(isTie?'T':i+1)+'</td>'
-        +'<td>'+esc(r.rider)+'</td>'
-        +'<td style="text-align:right;color:var(--accent);font-weight:600">'+r.pts.toFixed(1)+'</td>'
-        +'<td style="text-align:right">'+r.wins+'</td>'
-        +'<td style="text-align:right;color:var(--muted)">'+r.classes+'</td>'
-        +'</tr>';
-    });
-    html+='</tbody></table></div></div>';
-  });
-
-  html+='</div>';
-  pg.innerHTML=html;
+  // Points page = season-level standings (future). For now redirect to Results > All Around.
+  _resSelClass='All Around';
+  showPage('results');
 }
 
 // ═══════════════════════ PAGE: SETTINGS ═══════════════════════
