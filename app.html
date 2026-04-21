@@ -1493,46 +1493,90 @@ function showEntryModal(rowIdx){
       +'</div></div>';
 
     // Stall split tab content
-    var stallTotal = (entry.stall1qty||0)*G.cfg.fees.stall1 + (entry.stall2qty||0)*G.cfg.fees.stall2
-      + (entry.shavings||0)*G.cfg.fees.shavings + (entry.rv1qty||0)*G.cfg.fees.rv1
-      + (entry.rv2qty||0)*G.cfg.fees.rv2 + (entry.rvCircuit||0)*G.cfg.fees.rvCircuit;
+    // Build list of individual housing items that can be split
+    var f = G.cfg.fees;
+    var housingItems = [];
+    if(entry.stall1qty > 0) housingItems.push({key:'s1', label:'Stall 1-night', qty:entry.stall1qty, unitCost:f.stall1||40});
+    if(entry.stall2qty > 0) housingItems.push({key:'s2', label:'Stall 2-nights', qty:entry.stall2qty, unitCost:f.stall2||80});
+    if(entry.shavings  > 0) housingItems.push({key:'sh', label:'Shavings', qty:entry.shavings, unitCost:f.shavings||12});
+    if(entry.rv1qty    > 0) housingItems.push({key:'r1', label:'RV 1-night', qty:entry.rv1qty, unitCost:f.rv1||40});
+    if(entry.rv2qty    > 0) housingItems.push({key:'r2', label:'RV 2-nights', qty:entry.rv2qty, unitCost:f.rv2||80});
+    if(entry.rvCircuit > 0) housingItems.push({key:'rc', label:'RV Circuit', qty:entry.rvCircuit, unitCost:f.rvCircuit||110});
+    // Also check org fees for manually added stalls
+    (entry.orgFees||[]).forEach(function(of, oi){
+      if(of.desc && (of.desc.toLowerCase().indexOf('stall')>-1 || of.desc.toLowerCase().indexOf('rv')>-1)){
+        housingItems.push({key:'org'+oi, label:of.desc, qty:1, unitCost:of.amt});
+      }
+    });
 
     var stallSplitHTML = '';
-    if(!stallTotal){
-      stallSplitHTML = '<div class="empty-state">No stalling or RV on this entry.</div>';
+    if(!housingItems.length){
+      stallSplitHTML = '<div class="empty-state" style="padding:1.5rem;text-align:center">'
+        +'<div style="color:var(--muted);font-size:.85rem">No stalling or RV on this entry.</div>'
+        +'<div style="font-size:.78rem;color:var(--muted);margin-top:.5rem">Add stalls via the Fees &amp; Tab tab using "+ Add Fee"</div>'
+        +'</div>';
     } else {
-      var splits = entry.stallSplit || [{name:entry.name, pct:100}];
-      entry.stallSplit = splits;
+      // Initialize splits per housing item if not set
+      if(!entry.stallSplits) entry.stallSplits = {};
 
-      stallSplitHTML = '<div style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem">Total housing cost: <strong style="color:var(--accent)">'+fmt$(stallTotal)+'</strong></div>';
-
-      splits.forEach(function(s, si){
-        stallSplitHTML += '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--border)">'
-          +'<div style="flex:1"><div class="bold" style="font-size:.84rem">'+esc(s.name)+'</div>'
-          +'<div class="small" style="color:var(--green)">'+fmt$(stallTotal*s.pct/100)+'</div></div>'
-          +'<input type="number" value="'+s.pct+'" min="1" max="100" style="width:60px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:3px 6px;font-size:.82rem" onchange="updateSplitPct('+rowIdx+','+si+',this.value)"> %'
-          +(splits.length>1?'<button class="btn btn-red btn-sm" onclick="removeSplit('+rowIdx+','+si+')">&#10005;</button>':'')
-          +'</div>';
-      });
-
-      var totalPct = splits.reduce(function(s,x){ return s+x.pct; },0);
-      stallSplitHTML += '<div style="font-size:.75rem;margin:.4rem 0;color:'+(totalPct===100?'var(--green)':'var(--red)')+'">Total: '+totalPct+'% '+(totalPct===100?'&#10003;':'— must equal 100%')+'</div>';
-
-      // Rider dropdown
+      // Rider dropdown options
       var riderOpts = '<option value="">— Select from entries —</option>'
         + G.entries.filter(function(en){ return en.rowIndex!==rowIdx; }).map(function(en){
           return '<option value="'+en.rowIndex+'">'+esc(en.name)+' / '+esc(en.horse)+'</option>';
         }).join('');
 
-      stallSplitHTML += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.75rem;margin-top:.5rem">'
-        +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Add someone to split with</div>'
-        +'<div style="display:grid;grid-template-columns:1fr 80px auto;gap:.5rem;align-items:flex-end">'
-        +'<div class="form-group"><label>From entries</label><select id="split-rider-sel" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%">'+riderOpts+'</select></div>'
-        +'<div class="form-group"><label>%</label><input type="number" id="split-pct" value="50" min="1" max="99" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%"></div>'
-        +'<button class="btn btn-accent btn-sm" style="margin-bottom:1px" onclick="addSplitPerson('+rowIdx+')">Add</button>'
-        +'</div>'
-        +'<div style="font-size:.75rem;color:var(--muted);margin-top:.35rem">Or type a name: <input type="text" id="split-name" placeholder="Name" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 6px;font-size:.78rem;margin-left:4px;width:140px"></div>'
-        +'</div>';
+      // Build one split block per housing item
+      housingItems.forEach(function(item){
+        var itemTotal = item.qty * item.unitCost;
+
+        // Initialize this item's splits
+        if(!entry.stallSplits[item.key]){
+          entry.stallSplits[item.key] = [{name:entry.name, pct:100}];
+        }
+        var splits = entry.stallSplits[item.key];
+        var totalPct = splits.reduce(function(s,x){ return s+x.pct; },0);
+        var pctOk = totalPct === 100;
+
+        stallSplitHTML += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-bottom:.75rem">';
+        stallSplitHTML += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">'
+          +'<div><span style="font-family:Oswald;color:var(--accent);font-size:.9rem">'+esc(item.label)+'</span>'
+          +(item.qty>1?' <span class="badge b-gray">x'+item.qty+'</span>':'')+'</div>'
+          +'<span style="font-weight:600;color:var(--accent)">'+fmt$(itemTotal)+'</span>'
+          +'</div>';
+
+        // Split rows for this item
+        splits.forEach(function(s, si){
+          var amt = itemTotal * s.pct / 100;
+          stallSplitHTML += '<div style="display:flex;align-items:center;gap:.5rem;padding:.35rem 0;border-bottom:1px solid var(--border)">'
+            +'<div style="flex:1"><div class="bold" style="font-size:.83rem">'+esc(s.name)+'</div>'
+            +'<div class="small" style="color:var(--green)">'+fmt$(amt)+'</div></div>'
+            +'<input type="number" value="'+s.pct+'" min="1" max="100" '
+            +'data-itemkey="'+esc(item.key)+'" data-si="'+si+'" data-rowidx="'+rowIdx+'" '
+            +'class="split-pct-inp" '
+            +'style="width:55px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:3px 5px;font-size:.82rem;text-align:center">'
+            +'<span style="font-size:.75rem;color:var(--muted)">%</span>'
+            +(splits.length>1
+              ? '<button class="btn btn-red btn-sm split-remove-btn" data-itemkey="'+esc(item.key)+'" data-si="'+si+'" data-rowidx="'+rowIdx+'">&#10005;</button>'
+              : '')
+            +'</div>';
+        });
+
+        stallSplitHTML += '<div style="font-size:.73rem;margin:.3rem 0 .5rem;color:'+(pctOk?'var(--green)':'var(--red)')+'">'
+          +(pctOk?'&#10003; Balanced':'Total: '+totalPct+'% — must equal 100%')
+          +'</div>';
+
+        // Add person to this item's split
+        stallSplitHTML += '<div style="display:grid;grid-template-columns:1fr 60px auto;gap:.4rem;align-items:flex-end">'
+          +'<select class="split-add-sel" data-itemkey="'+esc(item.key)+'" data-rowidx="'+rowIdx+'" '
+          +'style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.3rem .5rem;font-size:.78rem">'
+          +riderOpts+'</select>'
+          +'<input type="number" class="split-add-pct" data-itemkey="'+esc(item.key)+'" value="50" min="1" max="99" '
+          +'style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.3rem .4rem;font-size:.78rem;text-align:center">'
+          +'<button class="btn btn-accent btn-sm split-add-btn" data-itemkey="'+esc(item.key)+'" data-rowidx="'+rowIdx+'">Add</button>'
+          +'</div>';
+
+        stallSplitHTML += '</div>';
+      });
     }
 
     // Build full modal
@@ -1544,7 +1588,6 @@ function showEntryModal(rowIdx){
       +'<button class="btn btn-dark btn-sm" onclick="closeModal()">Close</button>'
       +'</div>'
       // Tab buttons
-      +'<div class="tab-row">'
       +'<div class="tab-row">'
       +'<button class="tab-btn active gp-modal-tab" data-tab="classes">Classes</button>'
       +'<button class="tab-btn gp-modal-tab" data-tab="riders">Riders</button>'
@@ -1559,10 +1602,85 @@ function showEntryModal(rowIdx){
       +'</div></div>';
 
     root.innerHTML = html;
-    // Wire tab buttons via delegation - no inline onclick needed
+
+    // Wire tab buttons
     root.querySelectorAll('.gp-modal-tab').forEach(function(btn){
+      btn.addEventListener('click', function(){ switchModalTab(btn.dataset.tab); });
+    });
+
+    // Wire stall split percentage inputs
+    root.querySelectorAll('.split-pct-inp').forEach(function(inp){
+      inp.addEventListener('change', function(){
+        var e2 = G.entries.find(function(x){ return x.rowIndex===parseInt(inp.dataset.rowidx); });
+        if(!e2||!e2.stallSplits) return;
+        e2.stallSplits[inp.dataset.itemkey][parseInt(inp.dataset.si)].pct = parseInt(inp.value)||0;
+        saveEntriesToCache();
+        if(G._rebuildEntryModal) G._rebuildEntryModal();
+      });
+    });
+
+    // Wire stall split remove buttons
+    root.querySelectorAll('.split-remove-btn').forEach(function(btn){
       btn.addEventListener('click', function(){
-        switchModalTab(btn.dataset.tab);
+        var e2 = G.entries.find(function(x){ return x.rowIndex===parseInt(btn.dataset.rowidx); });
+        if(!e2||!e2.stallSplits) return;
+        e2.stallSplits[btn.dataset.itemkey].splice(parseInt(btn.dataset.si), 1);
+        saveEntriesToCache();
+        if(G._rebuildEntryModal) G._rebuildEntryModal();
+      });
+    });
+
+    // Wire stall split add buttons
+    root.querySelectorAll('.split-add-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var e2 = G.entries.find(function(x){ return x.rowIndex===parseInt(btn.dataset.rowidx); });
+        if(!e2) return;
+        if(!e2.stallSplits) e2.stallSplits = {};
+        var key = btn.dataset.itemkey;
+        if(!e2.stallSplits[key]) e2.stallSplits[key] = [{name:e2.name, pct:100}];
+
+        // Get selected rider
+        var sel = btn.closest('div').querySelector('.split-add-sel');
+        var pctInp = btn.closest('div').querySelector('.split-add-pct');
+        var pct = parseInt((pctInp&&pctInp.value)||50)||50;
+        var name = '';
+        if(sel && sel.value !== ''){
+          var ref = G.entries.find(function(x){ return x.rowIndex===parseInt(sel.value); });
+          if(ref) name = ref.name;
+        }
+        if(!name){ toast('Select a rider to split with', true); return; }
+
+        // Reduce primary pct to make room
+        var splits = e2.stallSplits[key];
+        if(splits.length === 1) splits[0].pct = 100 - pct;
+        splits.push({name:name, pct:pct});
+
+        // Apply charge to other rider's tab
+        var otherEntry = G.entries.find(function(x){ return x.name===name; });
+        if(otherEntry){
+          if(!otherEntry.orgFees) otherEntry.orgFees = [];
+          otherEntry.orgFees = otherEntry.orgFees.filter(function(of){ return of.splitFromKey !== (e2.rowIndex+'_'+key); });
+          var housingItem = null;
+          var f = G.cfg.fees;
+          var items = [];
+          if(e2.stall1qty>0) items.push({key:'s1',label:'Stall 1-night',qty:e2.stall1qty,unitCost:f.stall1||40});
+          if(e2.stall2qty>0) items.push({key:'s2',label:'Stall 2-nights',qty:e2.stall2qty,unitCost:f.stall2||80});
+          if(e2.shavings>0)  items.push({key:'sh',label:'Shavings',qty:e2.shavings,unitCost:f.shavings||12});
+          if(e2.rv1qty>0)    items.push({key:'r1',label:'RV 1-night',qty:e2.rv1qty,unitCost:f.rv1||40});
+          if(e2.rv2qty>0)    items.push({key:'r2',label:'RV 2-nights',qty:e2.rv2qty,unitCost:f.rv2||80});
+          if(e2.rvCircuit>0) items.push({key:'rc',label:'RV Circuit',qty:e2.rvCircuit,unitCost:f.rvCircuit||110});
+          housingItem = items.find(function(x){ return x.key===key; });
+          if(housingItem){
+            var shareAmt = housingItem.qty * housingItem.unitCost * pct / 100;
+            otherEntry.orgFees.push({
+              org:'Stall Split', desc:'Share of '+housingItem.label+' from '+e2.name+'/'+e2.horse,
+              amt:shareAmt, splitFromKey:e2.rowIndex+'_'+key
+            });
+          }
+        }
+
+        saveEntriesToCache();
+        if(G._rebuildEntryModal) G._rebuildEntryModal();
       });
     });
   }
@@ -1910,8 +2028,28 @@ function removeRider(rowIdx, riderIdx){
 function showAddOrgFee(rowIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
+  var f = G.cfg.fees;
   var orgs=['CoWN','AQHA','APHA','NHSRA','Other'];
-  var feeTypes=['Office Fee','Drug Test Fee','Administration Fee','Late Fee','Horse License','Day License','Membership'];
+  var feeTypes=[
+    'Office Fee',
+    'Drug Test Fee',
+    'Administration Fee', 
+    'Late Fee',
+    'Horse License',
+    'Day License',
+    'Membership — 1 Year',
+    'Membership — 3 Year',
+    'Membership — Lifetime',
+    '--- Housing ---',
+    'Stall — 1 Night ('+(f.stall1||40)+'/night)',
+    'Stall — 2 Nights ('+(f.stall2||80)+')',
+    'Stall — 3 Nights ('+(f.stall3||120)+')',
+    'Stall — Circuit ('+(f.stallCircuit||150)+')',
+    'Shavings — per bag ('+(f.shavings||12)+'/bag)',
+    'RV — 1 Night ('+(f.rv1||40)+'/night)',
+    'RV — 2 Nights ('+(f.rv2||80)+')',
+    'RV — Circuit ('+(f.rvCircuit||110)+')',
+  ];
   var html='<div class="modal-bg" id="orgfee-modal" onclick="if(event.target===this){closeModal();showEntryModal('+rowIdx+')}">'
     +'<div class="modal" style="max-width:400px"><h2>Add Fee</h2>'
     +'<div class="form-group" style="margin-bottom:.65rem"><label>Association</label>'
@@ -1930,15 +2068,48 @@ function showAddOrgFee(rowIdx){
   document.getElementById('modal-root').innerHTML=html;
 };
 
+
+function autoFillFeeAmt(feeType){
+  var f = G.cfg.fees;
+  var amt = 0;
+  if(feeType.indexOf('Stall — 1 Night') === 0) amt = f.stall1||40;
+  else if(feeType.indexOf('Stall — 2 Nights') === 0) amt = f.stall2||80;
+  else if(feeType.indexOf('Stall — 3 Nights') === 0) amt = f.stall3||120;
+  else if(feeType.indexOf('Stall — Circuit') === 0) amt = f.stallCircuit||150;
+  else if(feeType.indexOf('Shavings') === 0) amt = f.shavings||12;
+  else if(feeType.indexOf('RV — 1 Night') === 0) amt = f.rv1||40;
+  else if(feeType.indexOf('RV — 2 Nights') === 0) amt = f.rv2||80;
+  else if(feeType.indexOf('RV — Circuit') === 0) amt = f.rvCircuit||110;
+  else if(feeType.indexOf('Membership — 1 Year') === 0) amt = f.membership1yr||60;
+  else if(feeType.indexOf('Membership — 3 Year') === 0) amt = f.membership3yr||150;
+  else if(feeType.indexOf('Membership — Lifetime') === 0) amt = f.membershipLife||200;
+  else if(feeType.indexOf('Day License') === 0) amt = f.dayLicense||25;
+  else if(feeType.indexOf('Horse License') === 0) amt = f.horseLicense||20;
+  var amtEl = document.getElementById('of-amt');
+  if(amtEl && amt > 0) amtEl.value = amt;
+}
+
 function saveOrgFee(rowIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
   var org  = document.getElementById('of-org').value;
   var desc = document.getElementById('of-type').value;
   var amt  = parseFloat(document.getElementById('of-amt').value)||0;
+  if(desc.indexOf('---') === 0){ toast('Please select a fee type', true); return; }
   if(!e.orgFees) e.orgFees=[];
-  e.orgFees.push({org:org, desc:desc, amt:amt});
-  toast('Added '+org+' '+desc+': '+fmt$(amt));
+  // For stall/RV fees, also update the entry quantities for tab calculation
+  var f = G.cfg.fees;
+  if(desc.indexOf('Stall — 1 Night') === 0){ e.stall1qty = (e.stall1qty||0)+1; amt = f.stall1||40; }
+  else if(desc.indexOf('Stall — 2 Nights') === 0){ e.stall2qty = (e.stall2qty||0)+1; amt = f.stall2||80; }
+  else if(desc.indexOf('Stall — 3 Nights') === 0){ e.stall1qty = (e.stall1qty||0)+3; amt = f.stall3||120; }
+  else if(desc.indexOf('Stall — Circuit') === 0){ e.stall1qty = (e.stall1qty||0)+1; amt = f.stallCircuit||150; }
+  else if(desc.indexOf('Shavings') === 0){ e.shavings = (e.shavings||0)+1; amt = f.shavings||12; }
+  else if(desc.indexOf('RV — 1 Night') === 0){ e.rv1qty = (e.rv1qty||0)+1; amt = f.rv1||40; }
+  else if(desc.indexOf('RV — 2 Nights') === 0){ e.rv2qty = (e.rv2qty||0)+1; amt = f.rv2||80; }
+  else if(desc.indexOf('RV — Circuit') === 0){ e.rvCircuit = (e.rvCircuit||0)+1; amt = f.rvCircuit||110; }
+  e.orgFees.push({org:org, desc:desc.split('(')[0].trim(), amt:amt});
+  saveEntriesToCache();
+  toast('Added: '+desc.split('(')[0].trim()+' '+fmt$(amt));
   closeModal();
   showEntryModal(rowIdx);
 };
