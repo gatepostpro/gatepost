@@ -1495,7 +1495,10 @@ function showEntryModal(rowIdx){
       // All tab lines in order
       +(function(){
         var allLines = buildTabLines(e2);
-        if(!allLines.length) return '<div style="color:var(--muted);font-size:.82rem;padding:1rem 0;text-align:center">No fees yet</div>';
+        console.log('buildTabLines for', e2.name, ':', allLines.length, 'lines', allLines);
+        console.log('entry classes:', e2.classes);
+        console.log('stall1qty:', e2.stall1qty, 'stall2qty:', e2.stall2qty, 'shavings:', e2.shavings);
+        if(!allLines.length) return '<div style="color:var(--muted);font-size:.82rem;padding:1rem 0;text-align:center">No fees yet — check console</div>';
         var sections = [
           {label:'Fees', types:['office','membership']},
           {label:'Classes', types:['class']},
