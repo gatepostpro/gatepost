@@ -592,11 +592,16 @@ function pgEntries(){
         +'<td class="small">'+e.classes.map(function(c){ return '<span class="badge b-gray" style="margin:1px">'+esc(c.num||c.name.substring(0,8))+'</span>'; }).join('')+'</td>'
         +'<td class="bold">'+fmt$(tabTotal(e))+'</td>'
         +'<td>'+paidBadge(e)+'</td>'
-        +'<td><button class="btn btn-dark btn-sm" onclick="showEntryModal('+e.rowIndex+')">View</button></td>'
+        +'<td><button class="btn btn-dark btn-sm gp-view-btn" data-rowidx="'+e.rowIndex+'">View</button></td>'
         +'</tr>';
     });
     t+='</tbody></table>';
     document.getElementById('et').innerHTML=t;
+    document.getElementById('et').querySelectorAll('.gp-view-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        showEntryModal(parseInt(btn.dataset.rowidx));
+      });
+    });
   }
   drawEntryTable();
   document.getElementById('eq').addEventListener('input',drawEntryTable);
