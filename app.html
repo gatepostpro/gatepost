@@ -585,6 +585,7 @@ function pgEntries(){
     wirePillClicks('ep', function(v){ activePill=v; drawAndWirePills(); drawEntryTable(); });
   }
   drawAndWirePills();
+  // Note: drawAndWirePills calls drawEntryTable internally
 
   function drawEntryTable(){
     var q=(document.getElementById('eq')||{value:''}).value.trim().toLowerCase();
@@ -613,14 +614,16 @@ function pgEntries(){
     });
     t+='</tbody></table>';
     document.getElementById('et').innerHTML=t;
-    document.getElementById('et').querySelectorAll('.gp-view-btn').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        showEntryModal(parseInt(btn.dataset.rowidx));
-      });
-    });
   }
-  drawEntryTable();
-  document.getElementById('eq').addEventListener('input',drawEntryTable);
+  // Initial render via drawAndWirePills above
+  document.getElementById('eq').addEventListener('input', function(){
+    drawEntryTable();
+  });
+  // Single delegated listener on parent - never duplicated on redraw
+  document.getElementById('et').addEventListener('click', function(ev){
+    var btn = ev.target.closest('.gp-view-btn');
+    if(btn) showEntryModal(parseInt(btn.dataset.rowidx));
+  });
 }
 
 // ═══════════════════════ PAGE: CLASS LISTS ═══════════════════════
@@ -1495,9 +1498,6 @@ function showEntryModal(rowIdx){
       // All tab lines in order
       +(function(){
         var allLines = buildTabLines(e2);
-        console.log('buildTabLines for', e2.name, ':', allLines.length, 'lines', allLines);
-        console.log('entry classes:', e2.classes);
-        console.log('stall1qty:', e2.stall1qty, 'stall2qty:', e2.stall2qty, 'shavings:', e2.shavings);
         if(!allLines.length) return '<div style="color:var(--muted);font-size:.82rem;padding:1rem 0;text-align:center">No fees yet — check console</div>';
         var sections = [
           {label:'Fees', types:['office','membership']},
@@ -1513,7 +1513,6 @@ function showEntryModal(rowIdx){
             html2 += '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';
           });
         });
-        console.log('html2 result:', html2.substring(0,200));
         return html2;
       })()
       +'<div class="tab-total"><span>Total</span><span>'+fmt$(tabTotal(e2))+'</span></div>'
