@@ -1545,10 +1545,11 @@ function showEntryModal(rowIdx){
       +'</div>'
       // Tab buttons
       +'<div class="tab-row">'
-      +'<button class="tab-btn active" id="tbtn-classes" onclick="switchModalTab(\"classes\")">Classes</button>'
-      +'<button class="tab-btn" id="tbtn-riders" onclick="switchModalTab(\"riders\")">Riders</button>'
-      +'<button class="tab-btn" id="tbtn-fees" onclick="switchModalTab(\"fees\")">Fees &amp; Tab</button>'
-      +'<button class="tab-btn" id="tbtn-stall" onclick="switchModalTab(\"stall\")">Stall Split</button>'
+      +'<div class="tab-row">'
+      +'<button class="tab-btn active gp-modal-tab" data-tab="classes">Classes</button>'
+      +'<button class="tab-btn gp-modal-tab" data-tab="riders">Riders</button>'
+      +'<button class="tab-btn gp-modal-tab" data-tab="fees">Fees &amp; Tab</button>'
+      +'<button class="tab-btn gp-modal-tab" data-tab="stall">Stall Split</button>'
       +'</div>'
       // Tab panels
       +'<div id="mpanel-classes">'+classHTML+'</div>'
@@ -1558,6 +1559,12 @@ function showEntryModal(rowIdx){
       +'</div></div>';
 
     root.innerHTML = html;
+    // Wire tab buttons via delegation - no inline onclick needed
+    root.querySelectorAll('.gp-modal-tab').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        switchModalTab(btn.dataset.tab);
+      });
+    });
   }
 
   rebuild();
