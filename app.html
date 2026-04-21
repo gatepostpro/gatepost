@@ -1338,6 +1338,9 @@ function applyConfigToUI(){
     late:'fee-late',horseLicense:'fee-horse-license',
     classBase:'fee-class-base',cowSurcharge:'fee-cow-surcharge',jackpot:'fee-jackpot',addedMoney:'fee-added-money',
     aqhaDrug:'fee-aqha-drug',aqhaOffice:'fee-aqha-office',aqhaVrh:'fee-aqha-vrh'};
+  Object.keys(fmap).forEach(function(k){ setV(fmap[k], f[k]); });
+  if(G.cfg.classes && G.cfg.classes.length) renderCfgClassTable();
+}
 
 function showEntryModal(rowIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
@@ -1777,10 +1780,6 @@ function addSplitPerson(rowIdx){
   if(G._rebuildEntryModal) G._rebuildEntryModal();
 };
 
-    +'<button class="btn btn-accent btn-sm" onclick="closeModal();showPage(\'tabs\')">View All Tabs</button>'
-    +'</div></div></div>';
-  document.getElementById('modal-root').innerHTML=html;
-}
 
 
 function showTabModalByIdx(refRowIdx){ var ref=G.entries.find(function(e){ return e.rowIndex===refRowIdx; }); if(ref) showTabModal(ref.name); };
