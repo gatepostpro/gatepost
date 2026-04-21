@@ -331,6 +331,13 @@ function buildTabLines(entry){
   // Office fee
   if(f.office > 0) lines.push({desc:'Office fee', amt:f.office, type:'office'});
 
+  // Per-org fees (manually added)
+  if(entry.orgFees && entry.orgFees.length){
+    entry.orgFees.forEach(function(of){
+      lines.push({desc:of.org+' — '+of.desc, amt:of.amt, type:'office'});
+    });
+  }
+
   // Membership
   var m = (entry.needsMembership||'').toLowerCase();
   if(m.indexOf('1 year') > -1 || m === '1yr') lines.push({desc:'Membership — 1 Year', amt:f.membership1yr, type:'membership'});
@@ -392,6 +399,18 @@ function toast(msg,isErr){
   setTimeout(function(){ el.classList.remove('show'); },2800);
 }
 
+function goToIndex(){ window.location.href="index.html"; }
+
+function wirePillClicks(containerId, fn){
+  var el = document.getElementById(containerId);
+  if(!el) return;
+  el.querySelectorAll('[data-pill],[data-org],[data-tf]').forEach(function(b){
+    b.addEventListener('click', function(){
+      fn(b.dataset.pill || b.dataset.org || b.dataset.tf);
+    });
+  });
+}
+
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 
 // ═══════════════════════ NAVIGATION ═══════════════════════
@@ -408,8 +427,17 @@ function showPage(p){
   document.getElementById('page-title').textContent = PAGE_TITLES[p]||p;
   var tr = document.getElementById('topbar-right');
   tr.innerHTML = '';
+  // Always show back to shows button
+  var backBtn = mk('button','btn btn-dark btn-sm');
+  backBtn.innerHTML='&#8592; All Shows';
+  backBtn.onclick=function(){ window.location.href='index.html'; };
+  tr.appendChild(backBtn);
+
   if(p !== 'import' && G.entries.length){
     var b = mk('button','btn btn-dark btn-sm'); b.innerHTML='&#8679; New Import'; b.onclick=function(){ showPage('import'); }; tr.appendChild(b);
+  }
+  if(p === 'entries'){
+    var ab = mk('button','btn btn-accent btn-sm'); ab.innerHTML='+ Add Entry'; ab.onclick=showAddEntryModal; tr.appendChild(ab);
   }
   if(p === 'settings'){
     var sb = mk('button','btn btn-green btn-sm'); sb.innerHTML='&#10003; Save Config'; sb.onclick=saveConfig; tr.appendChild(sb);
@@ -457,7 +485,40 @@ function pgImport(){
           '<div class="sp-name">'+esc(G.showName)+'</div>'
           +'<div class="sp-meta">'+G.entries.length+' entries</div>';
         document.getElementById('imp-status').innerHTML='<span style="color:var(--green)">&#10003; '+G.entries.length+' entries loaded.</span>';
-        setTimeout(function(){ showPage('entries'); },700);
+
+        // Auto-extract class list into config if not already populated
+        if(!G.cfg.classes.length){
+          var classMap={};
+          G.entries.forEach(function(en){
+            en.classes.forEach(function(cls){
+              if(cls.num && !classMap[cls.num]){
+                var isCow=COW_WORDS.some(function(k){ return (cls.name||'').toLowerCase().indexOf(k)>-1; });
+                CFG_ROW_ID++;
+                classMap[cls.num]={_id:'cr'+CFG_ROW_ID,num:cls.num,name:cls.name,
+                  division:cls.division,org:cls.org||'CoWN',isCow:isCow,
+                  baseFee:null,cowFee:null,jackpot:null,addedMoney:null};
+              }
+            });
+          });
+          G.cfg.classes=Object.values(classMap).sort(function(a,b){ return (parseInt(a.num)||999)-(parseInt(b.num)||999); });
+        }
+
+        // Sync to Supabase if we have a show loaded
+        if(G.showId){
+          document.getElementById('imp-status').innerHTML='<span style="color:var(--muted)">Saving to database...</span>';
+          syncEntriesToSupabase().then(function(){
+            var el=document.getElementById('imp-status');
+            if(el) el.innerHTML='<span style="color:var(--green)">&#10003; '+G.entries.length+' entries saved.</span>';
+            setTimeout(function(){ showPage('entries'); },700);
+          }).catch(function(err){
+            console.error('Sync error:', err);
+            var el=document.getElementById('imp-status');
+            if(el) el.innerHTML='<span style="color:var(--accent)">Loaded locally. Sync failed: '+esc(err.message)+'</span>';
+            setTimeout(function(){ showPage('entries'); },1200);
+          });
+        } else {
+          setTimeout(function(){ showPage('entries'); },700);
+        }
       } catch(err){
         document.getElementById('imp-status').innerHTML='<span style="color:var(--red)">Error: '+esc(err.message)+'</span>';
         console.error(err);
@@ -498,11 +559,15 @@ function pgEntries(){
   var activePill='All';
   function drawPills(){
     document.getElementById('ep').innerHTML=pills.map(function(p){
-      return '<button class="pill'+(p===activePill?' active':'')+'" onclick="setEPill(\''+esc(p)+'\')">'+esc(p)+(divCounts[p]?' ('+divCounts[p]+')':'')+'</button>';
+      return '<button class="pill'+(p===activePill?' active':'')+'" data-pill="'+esc(p)+'">'+esc(p)+(divCounts[p]?' ('+divCounts[p]+')':'')+ '</button>';
     }).join('');
   }
   window.setEPill=function(p){ activePill=p; drawPills(); drawEntryTable(); };
-  drawPills();
+  function drawAndWirePills(){
+    drawPills();
+    wirePillClicks('ep', function(v){ activePill=v; drawAndWirePills(); drawEntryTable(); });
+  }
+  drawAndWirePills();
 
   function drawEntryTable(){
     var q=(document.getElementById('eq')||{value:''}).value.trim().toLowerCase();
@@ -564,11 +629,15 @@ function pgClasses(){
 
   function drawOrgPills(){
     document.getElementById('org-pills').innerHTML=(['All'].concat(orgs)).map(function(o){
-      return '<button class="pill'+(o===activeOrg?' active':'')+'" onclick="setOrgPill(\''+esc(o)+'\')">'+esc(o)+'</button>';
+      return '<button class="pill'+(o===activeOrg?' active':'')+'" data-org="'+esc(o)+'">'+esc(o)+'</button>';
     }).join('');
   }
   window.setOrgPill=function(o){ activeOrg=o; drawOrgPills(); drawClassLists(); };
-  drawOrgPills();
+  function drawAndWireOrgPills(){
+    drawOrgPills();
+    wirePillClicks('org-pills', function(v){ activeOrg=v; drawAndWireOrgPills(); drawClassLists(); });
+  }
+  drawAndWireOrgPills();
 
   function drawClassLists(){
     var list=sorted.filter(function(c){ return activeOrg==='All'||(c.org||'CoWN')===activeOrg; });
@@ -614,11 +683,15 @@ function pgTabs(){
   var tf='All';
   function drawTPills(){
     document.getElementById('tpills').innerHTML=['All','Outstanding','Paid'].map(function(f){
-      return '<button class="pill'+(f===tf?' active':'')+'" onclick="setTF(\''+f+'\')">'+f+'</button>';
+      return '<button class="pill'+(f===tf?' active':'')+'" data-tf="'+f+'">'+f+'</button>';
     }).join('');
   }
   window.setTF=function(f){ tf=f; drawTPills(); drawTabTable(); };
-  drawTPills();
+  function drawAndWireTPills(){
+    drawTPills();
+    wirePillClicks('tpills', function(v){ tf=v; drawAndWireTPills(); drawTabTable(); });
+  }
+  drawAndWireTPills();
 
   function drawTabTable(){
     var q=(document.getElementById('tq')||{value:''}).value.trim().toLowerCase();
@@ -747,6 +820,10 @@ function pgSettings(){
     +settingsCard('Show Information','',
       formRow([fg('Show Name','cfg-show-name','text','e.g. CoWN Summerfest 2025'),fg('Show Date','cfg-show-date','date'),fg('Location','cfg-show-location','text','Venue')])
       +formRow([fg('Secretary','cfg-secretary','text'),fg('Contact Email','cfg-email','email')])
+      +'<div class="form-row"><div class="form-group"><label>Show Status</label>'
+      +'<select id="cfg-show-status"><option value="setup">Setup</option><option value="entries_open">Entries Open</option><option value="entries_closed">Entries Closed</option><option value="running">Running Now</option><option value="complete">Complete</option></select></div>'
+      +'<div class="form-group"><label>Back to Show List</label>'
+      +'<button class="btn btn-dark btn-sm" onclick="goToIndex()">&#8592; All Shows</button></div></div>'
     )
     +settingsCard('Stalling Fees','Applied per-night per stall',
       formRow([pFg('Stall — 1 Night','fee-stall1',40),pFg('Stall — 2 Nights','fee-stall2',80),pFg('Stall — 3 Nights','fee-stall3',120),pFg('Stall — Circuit','fee-stall-circuit',150)])
@@ -949,11 +1026,11 @@ function calcCfgTotal(c){
 
 function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-window.updCls=function(id,field,val){
+function updCls(id,field,val){
   var c=G.cfg.classes.find(function(x){ return x._id===id; });
   if(c) c[field]=val;
 };
-window.refreshCfgRow=function(id){
+function refreshCfgRow(id){
   var c=G.cfg.classes.find(function(x){ return x._id===id; });
   if(!c) return;
   var el=document.getElementById('ct-'+id);
@@ -964,27 +1041,27 @@ window.refreshCfgRow=function(id){
     if(inputs[1]){ inputs[1].disabled=!c.isCow; inputs[1].style.opacity=c.isCow?'1':'0.35'; inputs[1].placeholder=c.isCow?'15':'n/a'; }
   }
 };
-window.delCls=function(id){
+function delCls(id){
   G.cfg.classes=G.cfg.classes.filter(function(c){ return c._id!==id; });
   renderCfgClassTable();
 };
-window.filterCfgClasses=function(q){
+function filterCfgClasses(q){
   document.querySelectorAll('#cfg-cls-tbody tr:not(.div-hdr)').forEach(function(r){
     r.style.display=(!q||r.textContent.toLowerCase().indexOf(q.toLowerCase())>-1)?'':'none';
   });
 };
-window.addCfgClass=function(){
+function addCfgClass(){
   CFG_ROW_ID++;
   G.cfg.classes.push({_id:'cr'+CFG_ROW_ID,num:'',name:'New Class',division:'',org:'CoWN',isCow:false,baseFee:null,cowFee:null,jackpot:null,addedMoney:null});
   renderCfgClassTable();
 };
-window.autofillClassFees=function(){
+function autofillClassFees(){
   var f=G.cfg.fees;
   G.cfg.classes.forEach(function(c){ c.baseFee=f.classBase; if(c.isCow) c.cowFee=f.cowSurcharge; c.jackpot=f.jackpot||null; });
   renderCfgClassTable();
   toast('Fees applied to all '+G.cfg.classes.length+' classes');
 };
-window.autoDetectCow=function(){
+function autoDetectCow(){
   var n=0;
   G.cfg.classes.forEach(function(c){
     if(COW_WORDS.some(function(k){ return (c.name||'').toLowerCase().indexOf(k)>-1; })){ c.isCow=true; n++; }
@@ -1178,7 +1255,7 @@ function mapSelect(roleId,label,detectedIdx,autoDetected){
     +'<option value="-1">— Not in this file —</option>'+opts+'</select></div>';
 }
 
-window.saveMapping=function(){
+function saveMapping(){
   G.cfg.colMap=Object.assign({},ACTIVE_MAP);
   toast('Column mapping saved — '+Object.keys(ACTIVE_MAP).length+' columns mapped');
 };
@@ -1198,14 +1275,34 @@ function readFeesFromUI(){
 }
 
 function saveConfig(){
-  G.cfg.showName=v('cfg-show-name');
-  G.cfg.showDate=v('cfg-show-date');
-  G.cfg.location=v('cfg-show-location');
-  G.cfg.secretary=v('cfg-secretary');
-  G.cfg.email=v('cfg-email');
-  G.cfg.fees=readFeesFromUI();
+  G.cfg.showName  = v('cfg-show-name');
+  G.cfg.showDate  = v('cfg-show-date');
+  G.cfg.location  = v('cfg-show-location');
+  G.cfg.secretary = v('cfg-secretary');
+  G.cfg.email     = v('cfg-email');
+  G.cfg.fees      = readFeesFromUI();
   try{ localStorage.setItem('gatepost_cfg',JSON.stringify(G.cfg)); } catch(e){}
-  toast('Configuration saved');
+
+  // Write show info changes back to Supabase
+  if(G.showId){
+    var updates = {
+      name:       G.cfg.showName,
+      show_date:  G.cfg.showDate || null,
+      location:   G.cfg.location || null,
+      fee_config: G.cfg.fees,
+    };
+    sbFetch('shows?id=eq.'+G.showId, {method:'PATCH', body:JSON.stringify(updates)})
+      .then(function(){
+        // Update sidebar pill with new name/location
+        document.getElementById('show-pill').innerHTML =
+          '<div class="sp-name">'+esc(G.cfg.showName)+'</div>'
+          +'<div class="sp-meta">'+(G.cfg.showDate||'')+(G.cfg.location?' &middot; '+G.cfg.location:'')+'</div>';
+        toast('Show saved to database');
+      })
+      .catch(function(e){ toast('Saved locally (DB error: '+e.message+')', true); });
+  } else {
+    toast('Configuration saved');
+  }
 }
 
 function exportConfig(){
@@ -1220,75 +1317,467 @@ function exportConfig(){
 function v(id){ var el=document.getElementById(id); return el?el.value:''; }
 
 function applyConfigToUI(){
-  var setV=function(id,val){ var el=document.getElementById(id); if(el&&val!==undefined) el.value=val; };
-  setV('cfg-show-name',G.cfg.showName);
-  setV('cfg-show-date',G.cfg.showDate);
+  var setV=function(id,val){ var el=document.getElementById(id); if(el&&val!==undefined&&val!==null) el.value=val; };
+  setV('cfg-show-name',    G.cfg.showName);
+  setV('cfg-show-date',    G.cfg.showDate);
   setV('cfg-show-location',G.cfg.location);
-  setV('cfg-secretary',G.cfg.secretary);
-  setV('cfg-email',G.cfg.email);
+  setV('cfg-secretary',    G.cfg.secretary);
+  setV('cfg-email',        G.cfg.email);
+  setV('cfg-show-status',  G.cfg.showStatus);
   var f=G.cfg.fees||{};
   var fmap={stall1:'fee-stall1',stall2:'fee-stall2',stall3:'fee-stall3',stallCircuit:'fee-stall-circuit',
     shavings:'fee-shavings',rv1:'fee-rv1',rv2:'fee-rv2',rvCircuit:'fee-rv-circuit',
     office:'fee-office',membership1yr:'fee-membership-1yr',membership3yr:'fee-membership-3yr',
     membershipLife:'fee-membership-life',dayLicense:'fee-day-license',
     late:'fee-late',horseLicense:'fee-horse-license',
-    classBase:'fee-class-base',cowSurcharge:'fee-cow-surcharge',jackpot:'fee-jackpot',addedMoney:'fee-added-money'};
-  Object.keys(fmap).forEach(function(k){ setV(fmap[k],f[k]); });
-  updateFeeStrip();
-}
+    classBase:'fee-class-base',cowSurcharge:'fee-cow-surcharge',jackpot:'fee-jackpot',addedMoney:'fee-added-money',
+    aqhaDrug:'fee-aqha-drug',aqhaOffice:'fee-aqha-office',aqhaVrh:'fee-aqha-vrh'};
 
-// ═══════════════════════ MODALS ═══════════════════════
 function showEntryModal(rowIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e){
+    // rowIndex not found - try finding by position
+    e = G.entries[rowIdx];
+    if(!e){
+      toast('Entry not found (idx:'+rowIdx+'). Try refreshing.', true);
+      console.error('showEntryModal: no entry with rowIndex='+rowIdx, 'entries:', G.entries.map(function(x){ return x.rowIndex; }));
+      return;
+    }
+  }
+
+  var root=document.getElementById('modal-root');
+
+  function rebuild(){
+    var e2=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+    if(!e2) return;
+    var lines=buildTabLines(e2), total=tabTotal(e2), paid=amtPaid(e2), bal=total-paid;
+
+    // Build class rows
+    var classRows = e2.classes.map(function(cls,ci){
+      var isScratch = cls.status==='scratched';
+      return '<tr style="'+(isScratch?'opacity:.45;text-decoration:line-through':'')+'">'
+        +'<td><span class="badge b-gray">'+esc(cls.num)+'</span></td>'
+        +'<td>'+esc(cls.name)+'<span class="small" style="margin-left:6px;color:var(--muted)">'+esc(cls.division)+'</span>'
+        +(cls.org&&cls.org!=='CoWN'?'<span class="badge b-blue" style="margin-left:4px;font-size:.65rem">'+esc(cls.org)+'</span>':'')
+        +'</td>'
+        +'<td class="small">'+esc(cls.rider||e2.name)+'</td>'
+        +'<td>'+(isScratch
+          ? '<span class="badge b-red">Scratched</span>'
+          : '<button class="btn btn-red btn-sm" onclick="scratchClass('+rowIdx+','+ci+')">Scratch</button>')
+        +'</td>'
+        +'</tr>';
+    }).join('');
+
+    // Build rider rows
+    var riders = e2.riders || [{name:e2.name, division:e2.division, isPrimary:true}];
+    var riderRows = riders.map(function(r,ri){
+      return '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--border)">'
+        +'<div style="flex:1"><div class="bold" style="font-size:.85rem">'+esc(r.name)+'</div>'
+        +'<div class="small">'+esc(r.division||'')+(r.isPrimary?' &middot; Primary':'')+'</div></div>'
+        +(r.isPrimary?'<span class="badge b-gold">Primary</span>':'<button class="btn btn-red btn-sm" onclick="removeRider('+rowIdx+','+ri+')">Remove</button>')
+        +'</div>';
+    }).join('');
+
+    // Build stall split rows
+    var stallLines = buildStallLines(e2);
+    var stallHTML = '';
+    if(stallLines.length){
+      stallHTML = '<div style="margin:.75rem 0 .5rem;font-size:.78rem;color:var(--muted)">Stall / Housing</div>'
+        + stallLines.map(function(l){
+          return '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';
+        }).join('');
+    }
+
+    // Build per-org fee rows
+    var orgFeeHTML = buildOrgFeeRows(e2);
+
+    var html='<div class="modal-bg" id="em" onclick="if(event.target===this)closeModal()">'
+      +'<div class="modal" style="max-width:680px">'
+
+      // Header
+      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem">'
+      +'<div><h2 style="margin-bottom:2px">'+esc(e2.horse||'Unknown Horse')+'</h2>'
+      +'<div class="small">'+esc(e2.name)+'</div></div>'
+      +'<div style="display:flex;gap:.35rem">'
+      +'<button class="btn btn-dark btn-sm" onclick="closeModal()">Close</button>'
+      +'</div></div>'
+
+      // Tab row
+      +'<div class="tab-row">'
+      +'<button class="tab-btn active" onclick="swTab(this,\"classes\")">Classes</button>'
+      +'<button class="tab-btn" onclick="swTab(this,\"riders\")">Riders</button>'
+      +'<button class="tab-btn" onclick="swTab(this,\"fees\")">Fees &amp; Tab</button>'
+      +'<button class="tab-btn" onclick="swTab(this,\"stall\")">Stall Split</button>'
+      +'</div>'
+
+      // ── CLASSES TAB ──
+      +'<div class="tab-panel active" id="tp-classes">'
+      +'<div class="btn-row" style="margin-bottom:.75rem">'
+      +'<button class="btn btn-accent btn-sm" onclick="showAddClassPicker('+rowIdx+')">+ Add Class</button>'
+      +'</div>'
+      +'<div class="tbl-wrap"><table><thead><tr>'
+      +'<th style="width:60px">#</th><th>Class</th><th>Rider</th><th style="width:90px"></th>'
+      +'</tr></thead><tbody>'
+      +(classRows||'<tr><td colspan="4" class="empty-state">No classes entered</td></tr>')
+      +'</tbody></table></div>'
+      +'</div>'
+
+      // ── RIDERS TAB ──
+      +'<div class="tab-panel" id="tp-riders">'
+      +'<div style="margin-bottom:.75rem">'+riderRows+'</div>'
+      +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-top:.5rem">'
+      +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Add a rider to this horse</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem">'
+      +'<div class="form-group"><label>Rider Name</label>'
+      +'<input type="text" id="new-rider-name" placeholder="First Last" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem"></div>'
+      +'<div class="form-group"><label>Division</label>'
+      +'<input type="text" id="new-rider-div" placeholder="e.g. Open" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem"></div>'
+      +'</div>'
+      +'<button class="btn btn-accent btn-sm" onclick="addRider('+rowIdx+')">Add Rider</button>'
+      +'</div>'
+      +'</div>'
+
+      // ── FEES & TAB ──
+      +'<div class="tab-panel" id="tp-fees">'
+      // Per-org fees section
+      +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem">Association Fees</div>'
+      +'<div id="org-fee-section">'+orgFeeHTML+'</div>'
+      +'<button class="btn btn-dark btn-sm" onclick="showAddOrgFee('+rowIdx+')" style="margin:.5rem 0 1rem">+ Add Fee</button>'
+      // Tab lines
+      +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem;margin-top:.25rem">Classes</div>'
+      +lines.filter(function(l){ return l.type==='class'; }).map(function(l){
+        return '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';
+      }).join('')
+      +(stallHTML)
+      +'<div class="tab-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
+      +'<div class="pay-status">'
+      +'<div style="flex:1"><div class="small">Paid</div><div class="bold" style="color:var(--green)">'+fmt$(paid)+'</div></div>'
+      +'<div style="flex:1"><div class="small">Balance</div><div class="bold" style="color:'+(bal<=0?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</div></div>'
+      +'<div>'+(bal>0
+        ?'<button class="btn btn-green btn-sm" onclick="markPaid('+rowIdx+','+total+')">Mark Paid</button>'
+        :'<span class="badge b-green">&#10003; Paid</span>')
+      +'</div></div>'
+      +'</div>'
+
+      // ── STALL SPLIT TAB ──
+      +'<div class="tab-panel" id="tp-stall">'
+      +buildStallSplitUI(e2, rowIdx)
+      +'</div>'
+
+      +'</div></div>';
+
+    root.innerHTML=html;
+    document.getElementById('em').addEventListener('click',function(ev){ if(ev.target===this) closeModal(); });
+  }
+
+  rebuild();
+  G._rebuildEntryModal = rebuild;
+}
+
+// ── BUILD STALL LINE ITEMS ──
+function buildStallLines(e){
+  var f=G.cfg.fees;
+  var lines=[];
+  if(e.stall1qty>0) lines.push({desc:'Stall 1-night ×'+e.stall1qty, amt:f.stall1*e.stall1qty, type:'stall'});
+  if(e.stall2qty>0) lines.push({desc:'Stall 2-nights ×'+e.stall2qty, amt:f.stall2*e.stall2qty, type:'stall'});
+  if(e.shavings>0)  lines.push({desc:'Shavings ×'+e.shavings+' bags', amt:f.shavings*e.shavings, type:'stall'});
+  if(e.rv1qty>0)    lines.push({desc:'RV 1-night ×'+e.rv1qty, amt:f.rv1*e.rv1qty, type:'rv'});
+  if(e.rv2qty>0)    lines.push({desc:'RV 2-nights ×'+e.rv2qty, amt:f.rv2*e.rv2qty, type:'rv'});
+  if(e.rvCircuit>0) lines.push({desc:'RV Circuit', amt:f.rvCircuit*e.rvCircuit, type:'rv'});
+  return lines;
+}
+
+// ── BUILD ORG FEE ROWS ──
+function buildOrgFeeRows(e){
+  var fees = e.orgFees || [];
+  if(!fees.length) return '<div class="small" style="color:var(--muted);padding:.35rem 0">No association fees added yet.</div>';
+  return fees.map(function(f,fi){
+    return '<div class="tab-line">'
+      +'<span><span class="badge b-blue" style="margin-right:6px">'+esc(f.org)+'</span>'+esc(f.desc)+'</span>'
+      +'<span style="display:flex;align-items:center;gap:.5rem">'+fmt$(f.amt)
+      +'<button class="btn btn-red btn-sm" onclick="removeOrgFee('+e.rowIndex+','+fi+')">&#10005;</button>'
+      +'</span></div>';
+  }).join('');
+}
+
+// ── STALL SPLIT UI ──
+function buildStallSplitUI(e, rowIdx){
+  var f=G.cfg.fees;
+  var stallTotal = e.stall1qty*f.stall1 + e.stall2qty*f.stall2 + e.shavings*f.shavings
+    + e.rv1qty*f.rv1 + e.rv2qty*f.rv2 + e.rvCircuit*f.rvCircuit;
+
+  if(!stallTotal){
+    return '<div class="empty-state">No stalling or RV on this entry to split.</div>';
+  }
+
+  var splits = e.stallSplit || [];
+  // Default: just this entry at 100%
+  if(!splits.length) splits = [{name: e.name, pct: 100, rowIndex: rowIdx}];
+
+  var splitRows = splits.map(function(s,si){
+    return '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--border)">'
+      +'<div style="flex:1"><div class="bold" style="font-size:.85rem">'+esc(s.name)+'</div>'
+      +'<div class="small">'+fmt$(stallTotal * s.pct/100)+' ('+s.pct+'%)</div></div>'
+      +'<input type="number" value="'+s.pct+'" min="1" max="100" style="width:65px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:3px 6px;font-size:.82rem" '
+      +'onchange="updateSplitPct('+rowIdx+','+si+',this.value)">'
+      +'<span style="font-size:.78rem;color:var(--muted)">%</span>'
+      +(splits.length>1?'<button class="btn btn-red btn-sm" onclick="removeSplit('+rowIdx+','+si+')">&#10005;</button>':'')
+      +'</div>';
+  }).join('');
+
+  var totalPct = splits.reduce(function(s,x){ return s+x.pct; },0);
+
+  return '<div style="margin-bottom:.75rem">'
+    +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem">Total stall/RV cost: <strong style="color:var(--accent)">'+fmt$(stallTotal)+'</strong></div>'
+    +splitRows
+    +'<div style="font-size:.75rem;margin-top:.4rem;color:'+(totalPct===100?'var(--green)':'var(--red)')+'">Total: '+totalPct+'% '+(totalPct===100?'&#10003;':'(must equal 100%)')+'</div>'
+    +'</div>'
+    +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.75rem">'
+    +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Add a person to split with</div>'
+    +'<div style="display:flex;gap:.5rem;align-items:flex-end">'
+    +'<div class="form-group" style="flex:1"><label>Name</label>'
+    +'<input type="text" id="split-name" placeholder="Rider name" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem;width:100%"></div>'
+    +'<div class="form-group"><label>%</label>'
+    +'<input type="number" id="split-pct" value="50" min="1" max="99" style="width:65px;background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem"></div>'
+    +'<button class="btn btn-accent btn-sm" style="margin-bottom:1px" onclick="addSplitPerson('+rowIdx+')">Add</button>'
+    +'</div></div>';
+}
+
+// ── ADD CLASS PICKER ──
+function showAddClassPicker(rowIdx){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
-  var lines=buildTabLines(e), total=tabTotal(e), paid=amtPaid(e), bal=total-paid;
-  var html='<div class="modal-bg" id="em" onclick="if(event.target===this)closeModal()">'
-    +'<div class="modal"><h2>'+esc(e.name)+'</h2>'
-    +'<div class="tab-row"><button class="tab-btn active" onclick="swTab(this,\'det\')">Details</button><button class="tab-btn" onclick="swTab(this,\'tab\')">Tab</button></div>'
-    +'<div class="tab-panel active" id="tp-det">'
-    +'<div class="modal-grid">'
-    +'<div><div class="lbl">Horse</div><div class="val">'+esc(e.horse)+'</div></div>'
-    +'<div><div class="lbl">Division</div><div class="val">'+divBadge(e.division)+'</div></div>'
-    +'<div><div class="lbl">CoWN #</div><div class="val">'+esc(e.memberNum||'—')+'</div></div>'
-    +'<div><div class="lbl">Associations</div><div class="val">'+assocTags(e.assocRaw)+'</div></div>'
-    +'<div><div class="lbl">Email</div><div class="val small">'+esc(e.email)+'</div></div>'
-    +'<div><div class="lbl">Phone</div><div class="val">'+esc(e.phone)+'</div></div>'
-    +'<div><div class="lbl">Back #</div><div class="val"><input type="number" id="bn-'+rowIdx+'" value="'+(G.backNums[rowIdx]||'')+'" placeholder="—" onchange="G.backNums['+rowIdx+']=this.value" style="width:72px;background:var(--bg);border:1px solid var(--border);color:var(--accent);padding:3px 6px;border-radius:4px"></div></div>'
+
+  // Get classes not already entered
+  var enteredNums = e.classes.filter(function(c){ return c.status!=='scratched'; }).map(function(c){ return c.num; });
+  var available = G.cfg.classes.filter(function(c){ return enteredNums.indexOf(c.num)===-1; });
+
+  var root=document.getElementById('modal-root');
+  var html='<div class="modal-bg" id="add-class-modal" onclick="if(event.target===this){closeModal();showEntryModal('+rowIdx+')}">'
+    +'<div class="modal" style="max-width:500px">'
+    +'<h2>Add Class</h2>'
+    +'<input type="text" id="class-picker-q" placeholder="Search classes..." oninput="filterClassPicker(this.value)" '
+    +'style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.45rem .65rem;font-size:.85rem;margin-bottom:.75rem">'
+    +'<div id="class-picker-list" style="max-height:320px;overflow-y:auto">'
+    +renderClassPickerList(available, rowIdx)
     +'</div>'
-    +'<div class="small" style="color:var(--muted);margin-bottom:.3rem">Classes:</div>'
-    +'<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:.75rem">'
-    +e.classes.map(function(c){ return '<span class="badge b-gray">'+esc(c.num)+' \u2014 '+esc(c.name)+(c.org&&c.org!=='CoWN'?' ['+c.org+']':'')+'</span>'; }).join('')
-    +'</div>'
-    +(e.stall1qty||e.stall2qty||e.shavings?'<div class="small" style="color:var(--muted);margin-bottom:.3rem">Stalling:</div>'
-    +'<div style="margin-bottom:.5rem">'
-    +(e.stall1qty?'<span class="badge b-gold">'+e.stall1qty+'\xd7 stall 1-night</span> ':'')
-    +(e.stall2qty?'<span class="badge b-gold">'+e.stall2qty+'\xd7 stall 2-night</span> ':'')
-    +(e.shavings?'<span class="badge b-gold">'+e.shavings+' shavings</span> ':'')
-    +(e.stallNote?'<div class="small" style="margin-top:.35rem;color:var(--muted)">Note: '+esc(e.stallNote.substring(0,100))+'</div>':'')
-    +'</div>':'')
-    +(e.rv1qty||e.rv2qty||e.rvCircuit?'<div style="margin-bottom:.5rem">'
-    +(e.rv1qty?'<span class="badge b-blue">'+e.rv1qty+'\xd7 RV 1-night</span> ':'')
-    +(e.rv2qty?'<span class="badge b-blue">'+e.rv2qty+'\xd7 RV 2-night</span> ':'')
-    +(e.rvCircuit?'<span class="badge b-blue">Circuit RV</span> ':'')
-    +'</div>':'')
-    +'</div>'
-    +'<div class="tab-panel" id="tp-tab">'
-    +lines.map(function(l){ return '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; }).join('')
-    +'<div class="tab-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
-    +'<div class="pay-status">'
-    +'<div style="flex:1"><div class="small">Paid</div><div class="bold" style="color:var(--green)">'+fmt$(paid)+'</div></div>'
-    +'<div style="flex:1"><div class="small">Balance</div><div class="bold" style="color:'+(bal<=0?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</div></div>'
-    +'<div>'+(bal>0?'<button class="btn btn-green btn-sm" onclick="markPaid('+rowIdx+','+total+')">Mark Paid</button>':'<span class="badge b-green">&#10003; Paid</span>')+'</div>'
-    +'</div></div>'
-    +'<div class="btn-row" style="margin-top:1rem;margin-bottom:0">'
-    +'<button class="btn btn-dark" onclick="closeModal()">Close</button>'
+    +'<div class="btn-row" style="margin-top:.75rem">'
+    +'<button class="btn btn-dark" onclick="closeModal();showEntryModal('+rowIdx+')">Cancel</button>'
+    +'</div></div></div>';
+  root.innerHTML=html;
+  G._addClassRowIdx = rowIdx;
+  wireClassPicker();
+}
+
+function renderClassPickerList(classes, rowIdx){
+  if(!classes.length) return '<div class="empty-state">No more classes available</div>';
+  return classes.map(function(c){
+    var isCow = c.isCow;
+    var fee = (c.baseFee||G.cfg.fees.classBase||0) + (isCow?(c.cowFee||G.cfg.fees.cowSurcharge||0):0) + (c.jackpot||0);
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.45rem .5rem;border-bottom:1px solid var(--border);cursor:pointer" '
+      +'data-rowid="'+rowIdx+'" data-classid="'+esc(c._id)+'" class="show-row class-picker-item">'
+      +'<div>'
+      +'<span class="badge b-gray" style="margin-right:6px">'+esc(c.num)+'</span>'
+      +'<span style="font-size:.85rem">'+esc(c.name)+'</span>'
+      +' <span class="small">'+esc(c.division)+'</span>'
+      +(isCow?'<span class="badge b-cow" style="margin-left:4px">Cow</span>':'')
+      +'</div>'
+      +'<span style="font-size:.85rem;font-weight:600;color:var(--accent)">'+fmt$(fee)+'</span>'
+      +'</div>';
+  }).join('');
+}
+
+
+function wireClassPicker(){
+  var list = document.getElementById('class-picker-list');
+  if(!list) return;
+  list.querySelectorAll('.class-picker-item').forEach(function(el){
+    el.addEventListener('click', function(){
+      addClassToEntry(parseInt(el.dataset.rowid), el.dataset.classid);
+    });
+  });
+}
+
+function filterClassPicker(q){
+  var rowIdx = G._addClassRowIdx;
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e) return;
+  var enteredNums = e.classes.filter(function(c){ return c.status!=='scratched'; }).map(function(c){ return c.num; });
+  var available = G.cfg.classes.filter(function(c){ return enteredNums.indexOf(c.num)===-1; });
+  if(q) available = available.filter(function(c){
+    return (c.name||'').toLowerCase().indexOf(q.toLowerCase())>-1
+        || (c.num||'').indexOf(q)>-1
+        || (c.division||'').toLowerCase().indexOf(q.toLowerCase())>-1;
+  });
+  document.getElementById('class-picker-list').innerHTML = renderClassPickerList(available, rowIdx);
+  wireClassPicker();
+};
+
+function addClassToEntry(rowIdx, classId){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  var cls=G.cfg.classes.find(function(c){ return c._id===classId; });
+  if(!e||!cls) return;
+
+  var isCow = cls.isCow;
+  var fee = (cls.baseFee||G.cfg.fees.classBase||0) + (isCow?(cls.cowFee||G.cfg.fees.cowSurcharge||0):0) + (cls.jackpot||0);
+
+  e.classes.push({
+    num:cls.num, name:cls.name, division:cls.division,
+    org:cls.org||'CoWN', isCow:isCow,
+    status:'entered', feeCharged:fee,
+    addedDayOf:true
+  });
+
+  // Sync to Supabase if we have DB IDs
+  if(e.dbId && cls.dbClassId){
+    sbFetch('entry_classes',{method:'POST',
+      body:JSON.stringify({entry_id:e.dbId,show_class_id:cls.dbClassId,
+        status:'entered',fee_charged:fee})
+    }).catch(function(err){ console.error('Failed to save added class:', err); });
+  }
+
+  toast('Added Class '+cls.num+' — '+cls.name);
+  closeModal();
+  showEntryModal(rowIdx);
+};
+
+function scratchClass(rowIdx, classIdx){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e) return;
+  var cls = e.classes[classIdx];
+  if(!cls) return;
+
+  var isCow = cls.isCow || COW_WORDS.some(function(k){ return (cls.name||'').toLowerCase().indexOf(k)>-1; });
+  var cowFee = isCow ? (G.cfg.fees.cowSurcharge||0) : 0;
+  var paid = amtPaid(e) > 0;
+
+  var msg = paid
+    ? 'Scratch '+cls.name+'? Since this entry is paid, '+
+      (isCow ? 'the cow fee ($'+cowFee+') will NOT be refunded.' : 'a refund will be applied.')
+    : 'Scratch '+cls.name+'? No charge since entry is unpaid.';
+
+  if(!confirm(msg)) return;
+
+  e.classes[classIdx].status = 'scratched';
+
+  // If paid and cow class — keep cow fee charged
+  // If paid and not cow — reduce total_owed
+  if(paid && !isCow){
+    var baseFee = cls.feeCharged || G.cfg.fees.classBase || 0;
+    G.payments[rowIdx] = Math.max(0, (G.payments[rowIdx]||0));
+    // Reduce what they owe by the class base fee
+    e.cognitoAmount = Math.max(0, (e.cognitoAmount||0) - baseFee);
+    toast('Scratched — refund of '+fmt$(baseFee)+' applied');
+  } else {
+    toast('Scratched — '+cls.name);
+  }
+
+  // Sync to Supabase
+  if(cls.ecId){
+    sbFetch('entry_classes?id=eq.'+cls.ecId,{method:'PATCH',
+      body:JSON.stringify({status:'scratched',scratch_reason:'voluntary',scratched_at:new Date().toISOString()})
+    }).catch(function(err){ console.error('Scratch sync failed:', err); });
+  }
+
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
+function addRider(rowIdx){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e) return;
+  var name = (document.getElementById('new-rider-name')||{value:''}).value.trim();
+  var div  = (document.getElementById('new-rider-div')||{value:''}).value.trim();
+  if(!name){ toast('Enter a rider name', true); return; }
+  if(!e.riders) e.riders = [{name:e.name, division:e.division, isPrimary:true}];
+  e.riders.push({name:name, division:div, isPrimary:false});
+  toast('Added rider: '+name);
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
+function removeRider(rowIdx, riderIdx){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e||!e.riders) return;
+  e.riders.splice(riderIdx,1);
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
+function showAddOrgFee(rowIdx){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e) return;
+  var orgs=['CoWN','AQHA','APHA','NHSRA','Other'];
+  var feeTypes=['Office Fee','Drug Test Fee','Administration Fee','Late Fee','Horse License','Day License','Membership'];
+  var html='<div class="modal-bg" id="orgfee-modal" onclick="if(event.target===this){closeModal();showEntryModal('+rowIdx+')}">'
+    +'<div class="modal" style="max-width:400px"><h2>Add Fee</h2>'
+    +'<div class="form-group" style="margin-bottom:.65rem"><label>Association</label>'
+    +'<select id="of-org" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%">'
+    +orgs.map(function(o){ return '<option>'+o+'</option>'; }).join('')+'</select></div>'
+    +'<div class="form-group" style="margin-bottom:.65rem"><label>Fee Type</label>'
+    +'<select id="of-type" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%">'
+    +feeTypes.map(function(f){ return '<option>'+f+'</option>'; }).join('')+'</select></div>'
+    +'<div class="form-group" style="margin-bottom:.75rem"><label>Amount</label>'
+    +'<div style="position:relative"><span style="position:absolute;left:.55rem;top:50%;transform:translateY(-50%);color:var(--muted)">$</span>'
+    +'<input type="number" id="of-amt" value="0" min="0" step="1" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem .42rem 1.3rem;font-size:.84rem;width:100%"></div></div>'
+    +'<div class="btn-row">'
+    +'<button class="btn btn-accent" onclick="saveOrgFee('+rowIdx+')">Add Fee</button>'
+    +'<button class="btn btn-dark" onclick="closeModal();showEntryModal('+rowIdx+')">Cancel</button>'
+    +'</div></div></div>';
+  document.getElementById('modal-root').innerHTML=html;
+};
+
+function saveOrgFee(rowIdx){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e) return;
+  var org  = document.getElementById('of-org').value;
+  var desc = document.getElementById('of-type').value;
+  var amt  = parseFloat(document.getElementById('of-amt').value)||0;
+  if(!e.orgFees) e.orgFees=[];
+  e.orgFees.push({org:org, desc:desc, amt:amt});
+  toast('Added '+org+' '+desc+': '+fmt$(amt));
+  closeModal();
+  showEntryModal(rowIdx);
+};
+
+function removeOrgFee(rowIdx, feeIdx){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e||!e.orgFees) return;
+  e.orgFees.splice(feeIdx,1);
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
+function updateSplitPct(rowIdx, splitIdx, val){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e||!e.stallSplit) return;
+  e.stallSplit[splitIdx].pct = parseInt(val)||0;
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
+function removeSplit(rowIdx, splitIdx){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e||!e.stallSplit) return;
+  e.stallSplit.splice(splitIdx,1);
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
+function addSplitPerson(rowIdx){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e) return;
+  var name = (document.getElementById('split-name')||{value:''}).value.trim();
+  var pct  = parseInt((document.getElementById('split-pct')||{value:'50'}).value)||50;
+  if(!name){ toast('Enter a name', true); return; }
+  if(!e.stallSplit) e.stallSplit=[{name:e.name, pct:100-pct, rowIndex:rowIdx}];
+  // Adjust primary split
+  if(e.stallSplit.length===1) e.stallSplit[0].pct = 100-pct;
+  e.stallSplit.push({name:name, pct:pct});
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
     +'<button class="btn btn-accent btn-sm" onclick="closeModal();showPage(\'tabs\')">View All Tabs</button>'
     +'</div></div></div>';
   document.getElementById('modal-root').innerHTML=html;
 }
 
 
-window.showTabModalByIdx=function(refRowIdx){ var ref=G.entries.find(function(e){ return e.rowIndex===refRowIdx; }); if(ref) showTabModal(ref.name); };
+function showTabModalByIdx(refRowIdx){ var ref=G.entries.find(function(e){ return e.rowIndex===refRowIdx; }); if(ref) showTabModal(ref.name); };
 function showTabModal(name){
   var entries=G.entries.filter(function(e){ return e.name===name; });
   if(!entries.length) return;
@@ -1315,10 +1804,10 @@ function showTabModal(name){
   document.getElementById('modal-root').innerHTML=html;
 }
 
-window.markPaid=function(rowIdx,amount){
+function markPaid(rowIdx,amount){
   G.payments[rowIdx]=amount; closeModal(); pgTabs();
 };
-window.markPaidByRef=function(refRowIdx,amount){
+function markPaidByRef(refRowIdx,amount){
   var ref=G.entries.find(function(e){ return e.rowIndex===refRowIdx; });
   if(!ref) return;
   var entries=G.entries.filter(function(e){ return e.name===ref.name; });
@@ -1334,18 +1823,570 @@ function swTab(btn,panel){
   btn.classList.add('active');
   document.getElementById('tp-'+panel).classList.add('active');
 }
-window.swTab=swTab;
-window.showEntryModal=showEntryModal;
-window.showTabModal=showTabModal;
-window.closeModal=closeModal;
+
+
+
+// ═══════════════════════ MANUAL ENTRY ADD ═══════════════════════
+function showAddEntryModal(){
+  var root = document.getElementById('modal-root');
+
+  // Build class checkboxes from config
+  var classChecks = G.cfg.classes.map(function(c){
+    var fee = (c.baseFee||G.cfg.fees.classBase||0) + (c.isCow?(c.cowFee||G.cfg.fees.cowSurcharge||0):0);
+    return '<label style="display:flex;align-items:center;gap:.5rem;padding:.25rem 0;font-size:.82rem;cursor:pointer">'
+      +'<input type="checkbox" data-classid="'+esc(c._id)+'" style="accent-color:var(--accent)">'
+      +'<span><strong>'+esc(c.num)+'</strong> — '+esc(c.name)
+      +' <span class="small">'+esc(c.division)+'</span>'
+      +(c.isCow?'<span class="badge b-cow" style="margin-left:4px">Cow</span>':'')
+      +'<span style="color:var(--accent);margin-left:6px">'+fmtI(fee)+'</span></span>'
+      +'</label>';
+  }).join('');
+
+  var html = '<div class="modal-bg" id="add-entry-modal" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal" style="max-width:600px">'
+    +'<h2>Add Day-Of Entry</h2>'
+
+    // Rider info
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-bottom:.75rem">'
+    +'<div class="form-group"><label>Rider First Name *</label>'
+    +'<input type="text" id="ae-first" placeholder="First" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<div class="form-group"><label>Rider Last Name *</label>'
+    +'<input type="text" id="ae-last" placeholder="Last" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<div class="form-group"><label>Email</label>'
+    +'<input type="email" id="ae-email" placeholder="email@example.com" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<div class="form-group"><label>Phone</label>'
+    +'<input type="text" id="ae-phone" placeholder="(555) 555-5555" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<div class="form-group"><label>CoWN #</label>'
+    +'<input type="text" id="ae-cown" placeholder="Member number" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<div class="form-group"><label>Back #</label>'
+    +'<input type="number" id="ae-back" placeholder="Back number" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'</div>'
+
+    // Horse info
+    +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-bottom:.75rem">'
+    +'<div style="font-family:Oswald;color:var(--accent);font-size:.9rem;margin-bottom:.6rem">Horse</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem">'
+    +'<div class="form-group"><label>Horse Name *</label>'
+    +'<input type="text" id="ae-horse" placeholder="Registered or barn name" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
+    +'<div class="form-group"><label>Gender</label>'
+    +'<select id="ae-gender" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%">'
+    +'<option value="">—</option><option>Gelding</option><option>Mare</option><option>Stallion</option>'
+    +'</select></div>'
+    +'</div></div>'
+
+    // Stalling
+    +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-bottom:.75rem">'
+    +'<div style="font-family:Oswald;color:var(--accent);font-size:.9rem;margin-bottom:.6rem">Stalling / Housing</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem">'
+    +'<div class="form-group"><label>Stall 1-night</label><input type="number" id="ae-stall1" value="0" min="0" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%"></div>'
+    +'<div class="form-group"><label>Stall 2-night</label><input type="number" id="ae-stall2" value="0" min="0" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%"></div>'
+    +'<div class="form-group"><label>Shavings</label><input type="number" id="ae-shavings" value="0" min="0" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%"></div>'
+    +'<div class="form-group"><label>RV nights</label><input type="number" id="ae-rv" value="0" min="0" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%"></div>'
+    +'</div></div>'
+
+    // Classes
+    +(G.cfg.classes.length
+      ? '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-bottom:.75rem">'
+        +'<div style="font-family:Oswald;color:var(--accent);font-size:.9rem;margin-bottom:.6rem">Classes</div>'
+        +'<div style="max-height:200px;overflow-y:auto">'+classChecks+'</div></div>'
+      : '<div class="tip" style="margin-bottom:.75rem">No classes configured — go to Show Management → Classes first.</div>')
+
+    +'<div id="ae-err" style="color:var(--red);font-size:.8rem;margin-bottom:.5rem"></div>'
+    +'<div class="btn-row">'
+    +'<button class="btn btn-accent" onclick="saveManualEntry()">Add to Show</button>'
+    +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
+    +'</div></div></div>';
+
+  root.innerHTML = html;
+}
+
+function saveManualEntry(){
+  var first  = (document.getElementById('ae-first')||{value:''}).value.trim();
+  var last   = (document.getElementById('ae-last')||{value:''}).value.trim();
+  var horse  = (document.getElementById('ae-horse')||{value:''}).value.trim();
+  var email  = (document.getElementById('ae-email')||{value:''}).value.trim();
+  var phone  = (document.getElementById('ae-phone')||{value:''}).value.trim();
+  var cown   = (document.getElementById('ae-cown')||{value:''}).value.trim();
+  var back   = (document.getElementById('ae-back')||{value:''}).value.trim();
+  var gender = (document.getElementById('ae-gender')||{value:''}).value;
+  var stall1 = parseInt((document.getElementById('ae-stall1')||{value:'0'}).value)||0;
+  var stall2 = parseInt((document.getElementById('ae-stall2')||{value:'0'}).value)||0;
+  var shavings=parseInt((document.getElementById('ae-shavings')||{value:'0'}).value)||0;
+  var rv     = parseInt((document.getElementById('ae-rv')||{value:'0'}).value)||0;
+  var errEl  = document.getElementById('ae-err');
+
+  if(!first||!last){ errEl.textContent='Rider first and last name required'; return; }
+  if(!horse){ errEl.textContent='Horse name required'; return; }
+
+  // Get selected classes
+  var selectedClasses = [];
+  document.querySelectorAll('#add-entry-modal input[type=checkbox]:checked').forEach(function(cb){
+    var cls = G.cfg.classes.find(function(c){ return c._id===cb.dataset.classid; });
+    if(cls) selectedClasses.push({
+      num:cls.num, name:cls.name, division:cls.division,
+      org:cls.org||'CoWN', isCow:cls.isCow,
+      status:'entered',
+      feeCharged:(cls.baseFee||G.cfg.fees.classBase||0)+(cls.isCow?(cls.cowFee||G.cfg.fees.cowSurcharge||0):0)
+    });
+  });
+
+  // Derive division from first class
+  var division = selectedClasses.length ? selectedClasses[0].division : '';
+
+  // Create in-memory entry
+  var rowIndex = G.entries.length;
+  var entry = {
+    rowIndex:rowIndex, dbId:null,
+    name:first+' '+last, horse:horse,
+    horseGender:gender, email:email, phone:phone,
+    memberNum:cown, division:division, assocRaw:'CoWN',
+    classes:selectedClasses,
+    stall1qty:stall1, stall2qty:stall2, shavings:shavings,
+    rv1qty:rv, rv2qty:0, rvCircuit:0, stallNote:'',
+    needsMembership:'', cognitoAmount:0, isPaid:false,
+    source:'manual'
+  };
+  G.entries.push(entry);
+  G.payments[rowIndex] = 0;
+  G.backNums[rowIndex] = back;
+
+  // Sync to Supabase if show is loaded
+  if(G.showId){
+    syncManualEntry(entry).then(function(){
+      toast('Entry added: '+first+' '+last+' on '+horse);
+    }).catch(function(err){
+      toast('Added locally. DB sync failed: '+err.message, true);
+    });
+  } else {
+    toast('Entry added: '+first+' '+last+' on '+horse);
+  }
+
+  closeModal();
+  showPage('entries');
+}
+
+async function syncManualEntry(entry){
+  // Get association
+  var assocRows = await sbFetch('associations?abbreviation=eq.CoWN&select=id');
+  var assocId = assocRows && assocRows[0] ? assocRows[0].id : null;
+  if(!assocId) throw new Error('Association not found');
+
+  var parts = entry.name.split(' ');
+  var firstName = parts[0], lastName = parts.slice(1).join(' ')||'(unknown)';
+
+  // Find or create member
+  var existing = await sbFetch('members?association_id=eq.'+assocId
+    +'&first_name=ilike.'+encodeURIComponent(firstName)
+    +'&last_name=ilike.'+encodeURIComponent(lastName)+'&select=id');
+  var memberId;
+  if(existing && existing.length){
+    memberId = existing[0].id;
+  } else {
+    var nm = await sbFetch('members',{method:'POST',
+      body:JSON.stringify({association_id:assocId,first_name:firstName,last_name:lastName,
+        email:entry.email||null,phone:entry.phone||null})});
+    memberId = nm[0].id;
+    if(entry.memberNum){
+      await sbFetch('member_registrations',{method:'POST',
+        body:JSON.stringify({member_id:memberId,org:'CoWN',registration_number:entry.memberNum})});
+    }
+  }
+
+  // Find or create horse
+  var existingH = await sbFetch('horses?registered_name=ilike.'+encodeURIComponent(entry.horse)+'&select=id');
+  var horseId;
+  if(existingH && existingH.length){
+    horseId = existingH[0].id;
+  } else {
+    var nh = await sbFetch('horses',{method:'POST',
+      body:JSON.stringify({registered_name:entry.horse,gender:entry.horseGender||null})});
+    horseId = nh[0].id;
+    await sbFetch('horse_owners',{method:'POST',
+      body:JSON.stringify({horse_id:horseId,member_id:memberId,primary_owner:true})});
+  }
+
+  // Create entry
+  var newEntry = await sbFetch('entries',{method:'POST',
+    body:JSON.stringify({
+      show_id:G.showId, member_id:memberId, horse_id:horseId,
+      source:'manual', status:'active',
+      stall_1night:entry.stall1qty, stall_2night:entry.stall2qty,
+      shavings:entry.shavings, rv_1night:entry.rv1qty,
+      total_owed:tabTotal(entry), total_paid:0,
+      imported_at:new Date().toISOString()
+    })});
+  entry.dbId = newEntry[0].id;
+
+  // Create entry_classes
+  for(var i=0;i<entry.classes.length;i++){
+    var cls = entry.classes[i];
+    var sc = await sbFetch('show_classes?show_id=eq.'+G.showId+'&class_number=eq.'+encodeURIComponent(cls.num)+'&select=id');
+    if(sc && sc.length){
+      await sbFetch('entry_classes',{method:'POST',
+        body:JSON.stringify({entry_id:entry.dbId,show_class_id:sc[0].id,
+          status:'entered',fee_charged:cls.feeCharged})});
+    }
+  }
+}
+
+// ═══════════════════════ SUPABASE SYNC ═══════════════════════
+async function syncEntriesToSupabase(){
+  if(!G.showId) return;
+
+  // Get association id
+  var assocRows = await sbFetch('associations?abbreviation=eq.CoWN&select=id');
+  var assocId = assocRows && assocRows[0] ? assocRows[0].id : null;
+  if(!assocId) throw new Error('Association not found in database');
+
+  var synced=0, errors=[];
+
+  for(var i=0; i<G.entries.length; i++){
+    var en = G.entries[i];
+    try{
+      // Split name
+      var parts = en.name.trim().split(' ');
+      var firstName = parts[0];
+      var lastName  = parts.slice(1).join(' ') || '(unknown)';
+
+      // Find or create member
+      var memberId;
+      var existingMembers = await sbFetch('members?association_id=eq.'+assocId
+        +'&first_name=ilike.'+encodeURIComponent(firstName)
+        +'&last_name=ilike.'+encodeURIComponent(lastName)+'&select=id');
+      if(existingMembers && existingMembers.length){
+        memberId = existingMembers[0].id;
+      } else {
+        var newMember = await sbFetch('members', {
+          method:'POST',
+          body: JSON.stringify({
+            association_id: assocId,
+            first_name: firstName, last_name: lastName,
+            email: en.email||null, phone: en.phone||null,
+            address: en.address||null,
+          })
+        });
+        memberId = newMember[0].id;
+        // Save CoWN # as registration
+        if(en.memberNum && en.memberNum !== '0'){
+          await sbFetch('member_registrations',{method:'POST',
+            body:JSON.stringify({member_id:memberId,org:'CoWN',registration_number:en.memberNum})});
+        }
+      }
+
+      // Find or create horse
+      var horseId;
+      var existingHorses = await sbFetch('horses?registered_name=ilike.'
+        +encodeURIComponent(en.horse)+'&select=id');
+      if(existingHorses && existingHorses.length){
+        horseId = existingHorses[0].id;
+      } else {
+        var newHorse = await sbFetch('horses',{method:'POST',
+          body:JSON.stringify({
+            registered_name: en.horse,
+            gender: en.horseGender||null,
+          })});
+        horseId = newHorse[0].id;
+        // Link owner
+        await sbFetch('horse_owners',{method:'POST',
+          body:JSON.stringify({horse_id:horseId,member_id:memberId,primary_owner:true})});
+      }
+
+      // Upsert entry
+      var entryPayload = {
+        show_id: G.showId, member_id: memberId, horse_id: horseId,
+        source: 'cognito_import', status: 'active',
+        stall_1night: en.stall1qty||0, stall_2night: en.stall2qty||0,
+        shavings: en.shavings||0, rv_1night: en.rv1qty||0,
+        rv_2night: en.rv2qty||0, rv_circuit: en.rvCircuit||0,
+        stall_note: en.stallNote||null,
+        needs_membership: en.needsMembership||null,
+        total_owed: tabTotal(en),
+        total_paid: G.payments[en.rowIndex]||0,
+        cognito_ref: String(en.entryNum||''),
+        imported_at: new Date().toISOString(),
+      };
+
+      // Check if entry already exists for this show+member+horse
+      var existingEntry = await sbFetch('entries?show_id=eq.'+G.showId
+        +'&member_id=eq.'+memberId+'&horse_id=eq.'+horseId+'&select=id');
+      var dbEntryId;
+      if(existingEntry && existingEntry.length){
+        dbEntryId = existingEntry[0].id;
+        await sbFetch('entries?id=eq.'+dbEntryId,{method:'PATCH',body:JSON.stringify(entryPayload)});
+      } else {
+        var newEntry = await sbFetch('entries',{method:'POST',body:JSON.stringify(entryPayload)});
+        if(!newEntry || !newEntry[0]) throw new Error('Failed to create entry for '+en.name);
+        dbEntryId = newEntry[0].id;
+      }
+      // Store dbId on in-memory entry
+      G.entries[i].dbId = dbEntryId;
+
+      // Upsert entry_classes
+      for(var j=0; j<en.classes.length; j++){
+        var cls = en.classes[j];
+        // Find the show_class
+        var showClasses = await sbFetch('show_classes?show_id=eq.'+G.showId
+          +'&class_number=eq.'+encodeURIComponent(cls.num)+'&select=id,base_fee,cow_fee,is_cow');
+        if(showClasses && showClasses.length){
+          var sc = showClasses[0];
+          var fee = (parseFloat(sc.base_fee)||0) + (sc.is_cow ? (parseFloat(sc.cow_fee)||0) : 0);
+          // Check if entry_class exists
+          var existingEC = await sbFetch('entry_classes?entry_id=eq.'+dbEntryId
+            +'&show_class_id=eq.'+sc.id+'&select=id');
+          if(!existingEC || !existingEC.length){
+            await sbFetch('entry_classes',{method:'POST',
+              body:JSON.stringify({entry_id:dbEntryId,show_class_id:sc.id,
+                status:'entered',fee_charged:fee})});
+          }
+        }
+      }
+      synced++;
+    } catch(err){
+      errors.push(en.name+': '+err.message);
+      console.error('Sync error for', en.name, err);
+    }
+  }
+
+  if(errors.length) console.warn('Sync errors:', errors);
+  return {synced, errors};
+}
+
+// ═══════════════════════ SUPABASE ═══════════════════════
+// Inline Supabase client — no separate module needed for now
+var SUPABASE_URL  = 'https://tpurkcxtkvwpywxnuzwe.supabase.co';
+var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwdXJrY3h0a3Z3cHl3eG51endlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MDUwMzYsImV4cCI6MjA5MjI4MTAzNn0.j1fPBjBsbIoXXosM96YtywdGiVVLWnd-YrXZ1634alU';
+
+async function sbFetch(path, opts){
+  var res = await fetch(SUPABASE_URL + '/rest/v1/' + path, Object.assign({
+    headers: {
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + SUPABASE_ANON,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    }
+  }, opts || {}));
+  if(!res.ok){ var e=await res.text(); throw new Error(e); }
+  var text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function dbGetShow(id){
+  var rows = await sbFetch('shows?id=eq.'+id+'&select=*');
+  return rows && rows[0];
+}
+
+async function dbGetEntries(showId){
+  return await sbFetch('entries?show_id=eq.'+showId
+    +'&select=*,members(*),horses(*),entry_classes(*,show_classes(*)),payments(*)');
+}
+
+async function dbGetShowClasses(showId){
+  return await sbFetch('show_classes?show_id=eq.'+showId+'&order=class_number');
+}
+
+async function dbInsertShowClasses(classes){
+  return await sbFetch('show_classes', {
+    method:'POST',
+    headers:{'apikey':SUPABASE_ANON,'Authorization':'Bearer '+SUPABASE_ANON,
+      'Content-Type':'application/json','Prefer':'return=representation'},
+    body: JSON.stringify(classes)
+  });
+}
+
+async function dbUpsertEntry(entry){
+  return await sbFetch('entries', {
+    method:'POST',
+    headers:{'apikey':SUPABASE_ANON,'Authorization':'Bearer '+SUPABASE_ANON,
+      'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=representation'},
+    body: JSON.stringify(entry)
+  });
+}
+
+async function dbUpdatePayment(entryId, amount){
+  // Insert payment record
+  await sbFetch('payments', {
+    method:'POST',
+    body: JSON.stringify({entry_id:entryId, amount:amount, method:'manual', status:'completed'})
+  });
+  // Update total_paid on entry
+  await sbFetch('entries?id=eq.'+entryId, {
+    method:'PATCH',
+    body: JSON.stringify({total_paid: amount})
+  });
+}
+
+async function dbSaveShowClasses(showId, classes){
+  // Delete existing, reinsert
+  await sbFetch('show_classes?show_id=eq.'+showId, {method:'DELETE'});
+  if(!classes.length) return;
+  var rows = classes.map(function(c){
+    return {
+      show_id:      showId,
+      class_number: c.num || '',
+      class_name:   c.name || '',
+      division:     c.division || '',
+      org:          c.org || 'CoWN',
+      is_cow:       !!c.isCow,
+      is_jackpot:   !!(c.jackpot),
+      base_fee:     c.baseFee || null,
+      cow_fee:      c.cowFee || null,
+      jackpot_fee:  c.jackpot || 0,
+      added_money:  c.addedMoney || 0,
+    };
+  });
+  return await sbFetch('show_classes', {
+    method:'POST',
+    body: JSON.stringify(rows)
+  });
+}
 
 // ═══════════════════════ BOOT ═══════════════════════
-try{
-  var saved=localStorage.getItem('gatepost_cfg');
-  if(saved) G.cfg=JSON.parse(saved);
-} catch(e){}
+async function boot(){
+  // Load saved local config
+  try{ var saved=localStorage.getItem('gatepost_cfg'); if(saved) G.cfg=JSON.parse(saved); } catch(e){}
 
-showPage('import');
+  // Get show ID from URL — if missing, go back to index
+  var params = new URLSearchParams(window.location.search);
+  var showId = params.get('show');
+  if(!showId){
+    window.location.href = 'index.html';
+    return;
+  }
+
+  // Show loading state in sidebar
+  document.getElementById('show-pill').innerHTML =
+    '<div class="sp-name" style="color:var(--muted)">Loading...</div>'
+    +'<div class="sp-meta">Connecting to database</div>';
+
+  try{
+    // Step 1: Load show record
+    var showRows = await sbFetch('shows?id=eq.'+showId+'&select=*');
+    var show = showRows && showRows[0];
+    if(!show) throw new Error('Show not found: ' + showId);
+
+    G.showId   = showId;
+    G.showName = show.name;
+    G.showData = show;
+
+    // Populate G.cfg from show data
+    G.cfg.showName   = show.name         || G.cfg.showName;
+    G.cfg.showDate   = show.show_date    || G.cfg.showDate;
+    G.cfg.location   = show.location     || G.cfg.location;
+    G.cfg.showStatus = show.status       || '';
+    G.cfg.showId     = showId;
+    if(show.fee_config && Object.keys(show.fee_config).length){
+      G.cfg.fees = Object.assign({}, G.cfg.fees, show.fee_config);
+    }
+
+    // Update sidebar
+    document.getElementById('show-pill').innerHTML =
+      '<div class="sp-name">'+esc(show.name)+'</div>'
+      +'<div class="sp-meta">'+(show.show_date||'')+(show.location?' &middot; '+show.location:'')+'</div>';
+
+    // Step 2: Load show classes
+    var dbClasses = await sbFetch('show_classes?show_id=eq.'+showId+'&order=class_number&select=*');
+    if(dbClasses && dbClasses.length){
+      G.cfg.classes = dbClasses.map(function(c,i){
+        return { _id:'db'+i, num:c.class_number, name:c.class_name,
+          division:c.division, org:c.org, isCow:c.is_cow,
+          baseFee:c.base_fee, cowFee:c.cow_fee,
+          jackpot:c.jackpot_fee, addedMoney:c.added_money };
+      });
+    }
+
+    // Step 3: Load entries with related data
+    // Clear stale local state first
+    G.entries = [];
+    G.payments = {};
+    G.backNums = {};
+    var dbEntries = await sbFetch('entries?show_id=eq.'+showId+'&select=*');
+    if(dbEntries && dbEntries.length){
+      for(var i=0; i<dbEntries.length; i++){
+        var e = dbEntries[i];
+
+        // Load member
+        var memberRows = e.member_id
+          ? await sbFetch('members?id=eq.'+e.member_id+'&select=id,first_name,last_name,email,phone')
+          : [];
+        var member = memberRows && memberRows[0] ? memberRows[0] : {};
+
+        // Load horse
+        var horseRows = e.horse_id
+          ? await sbFetch('horses?id=eq.'+e.horse_id+'&select=id,registered_name,barn_name,gender')
+          : [];
+        var horse = horseRows && horseRows[0] ? horseRows[0] : {};
+
+        // Load entry classes
+        var ecRows = await sbFetch('entry_classes?entry_id=eq.'+e.id
+          +'&select=id,status,show_class_id,fee_charged,show_classes(class_number,class_name,division,org)');
+        var entryClasses = (ecRows||[]).filter(function(ec){ return ec.status !== 'scratched'; }).map(function(ec){
+          var sc = ec.show_classes || {};
+          return { num:sc.class_number||'', name:sc.class_name||'',
+            division:sc.division||'', org:sc.org||'CoWN', ecId:ec.id };
+        });
+
+        // Load payments
+        var payRows = await sbFetch('payments?entry_id=eq.'+e.id+'&select=amount');
+        var paid = (payRows||[]).reduce(function(s,p){ return s+(parseFloat(p.amount)||0); },0);
+
+        G.payments[i] = paid;
+        G.backNums[i] = e.back_number || '';
+
+        // Derive division from first class
+        var derivedDiv = entryClasses.length ? (entryClasses[0].division||'') : '';
+
+        G.entries.push({
+          rowIndex: i, dbId: e.id,
+          name:     (member.first_name||'Unknown')+' '+(member.last_name||''),
+          horse:    horse.registered_name || horse.barn_name || 'Unknown Horse',
+          horseGender: horse.gender || '',
+          email:    member.email || '',
+          phone:    member.phone || '',
+          memberNum:'',
+          division: derivedDiv,
+          assocRaw: '',
+          classes:  entryClasses,
+          stall1qty: e.stall_1night||0, stall2qty:e.stall_2night||0,
+          shavings:  e.shavings||0,
+          rv1qty:    e.rv_1night||0, rv2qty:e.rv_2night||0, rvCircuit:e.rv_circuit||0,
+          stallNote: e.stall_note||'',
+          needsMembership: e.needs_membership||'',
+          cognitoAmount: parseFloat(e.total_owed)||0,
+          isPaid: paid >= (parseFloat(e.total_owed)||0),
+        });
+      }
+      toast('Loaded '+G.entries.length+' entries');
+    }
+
+    // Go to entries view if we have entries, otherwise show import
+    showPage(G.entries.length ? 'entries' : 'import');
+
+  } catch(err){
+    console.error('Boot error:', err);
+    document.getElementById('show-pill').innerHTML =
+      '<div class="sp-name" style="color:var(--red)">Error loading show</div>'
+      +'<div class="sp-meta">'+esc(err.message)+'</div>';
+    // Still show the app — just without data
+    showPage('import');
+  }
+}
+
+// Patch saveConfig to also save classes to Supabase
+var _origSaveConfig = saveConfig;
+saveConfig = function(){
+  _origSaveConfig();
+  if(G.showId && G.cfg.classes.length){
+    dbSaveShowClasses(G.showId, G.cfg.classes)
+      .then(function(){ toast('Classes saved to database'); })
+      .catch(function(e){ toast('Error saving classes: '+e.message, true); });
+  }
+};
+
+// Patch markPaid to also write to Supabase
+var _origMarkPaid = window.markPaid;
+window;
+
+boot();
 </script>
 </body>
 </html>
