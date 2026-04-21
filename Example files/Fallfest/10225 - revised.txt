@@ -1,0 +1,848 @@
+StartDate	EndDate	Show	ShowCity	ShowState	ClassAge	ClassDivision	Entries	AddedMoney	ClassPayout	Horse	Registration	Breed	Rider	Rider SHTX#	RiderCity	RiderState	Owner	OwnerCity	OwnerState	GoRound	Score	Place	SHTX Pts	Money
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Versatility Ranch Horse	29	0		BAD DESIRES RISING	AQHA	6102580	Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	296.0005455	1	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Versatility Ranch Horse	29	0		HIGH HEELS AND LACE	AQHA	6007224	Marc H Banister		Brighton	CO	Karen S Banister	BRIGHTON	CO	1	294.0005544	2	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Versatility Ranch Horse	29	0		WHEN SMOKE CLEARS	AQHA	5985901	Meghan Flavin		Peyton	CO	Dana Stephenson	FT COLLINS	CO	1	292.0005333	3	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ranch Trail	4	0		MERADA BLUE	AQHA	5758276	KATHY NELMS		STERLING	CO	KATHY NELMS	STERLING	CO	1	74.5	1	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ranch Trail	4	0		SWAGGERIN REY	AQHA	5955071	JOSEPHINE NICOLE GURLEY		GREELEY	CO	LAURIE LUKAS			1	74	2	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ranch Trail	4	0		BOXO OPUS POWERHOUSE	AQHA	6196222	JOSEPHINE NICOLE GURLEY		GREELEY	CO	Susan Nelson	NIWOT	CO	1	72	3	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Working Western Rail	5	0		SWAGGERIN REY	AQHA	5955071	JOSEPHINE NICOLE GURLEY		GREELEY	CO	LAURIE LUKAS			1	5	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Working Western Rail	5	0		EH BUSYCHEXNFORJEWEL	AQHA	5583670	Alisha Guard		Parker	CO	Christine Morrow			1	4	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Working Western Rail	5	0		HOUSTONS TOY	AQHA	5684935	Austin Reynolds		Greeley	CO	Austin Reynolds	Greeley	CO	1	3	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Working Western Rail	5	0		LITTLE MISS JOSEY	AQHA	5894071	SARAH SEELE		KEENESBURG	CO	SARAH SEELE	KEENESBURG	CO	1	2	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Working Western Rail	5	0		MERADA BLUE	AQHA	5758276	KATHY NELMS		STERLING	CO	KATHY NELMS	STERLING	CO	1	1	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ranch Riding	8	0		SWAGGERIN REY	AQHA	5955071	JOSEPHINE NICOLE GURLEY		GREELEY	CO	LAURIE LUKAS			1	78.5	1	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ranch Riding	8	0		BUCKLES N GIN CHIC	AQHA	5916451	Stacey Chope		Loveland	CO	Stacey Chope	Loveland	CO	1	76.5	2	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ranch Riding	8	0		MERADA BLUE	AQHA	5758276	KATHY NELMS		STERLING	CO	KATHY NELMS	STERLING	CO	1	72.5	3	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ranch Riding	8	0		BOXO OPUS POWERHOUSE	AQHA	6196222	JOSEPHINE NICOLE GURLEY		GREELEY	CO	Susan Nelson	NIWOT	CO	1	71.5	4	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ranch Riding	8	0		ONEBIGSHOTOFWHIZKEY	AQHA	5932362	Meghan Flavin		Peyton	CO	Adrain Puu			1	71.001	5	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ranch Riding	8	0		SNOWMANN	AQHA	6011428	Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	71	6	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ranch Riding	8	0		RH CASH FOR CATNIP	AQHA	5988172	Austin Reynolds		Greeley	CO	Lynn Zehrbach	Nunn	CO	1	66	7	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Riding	5	0		SWAGGERIN REY	AQHA	5955071	JOSEPHINE NICOLE GURLEY		GREELEY	CO	LAURIE LUKAS			1	75.5	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Riding	5	0		WHEN SMOKE CLEARS	AQHA	5985901	Meghan Flavin		Peyton	CO	Dana Stephenson	FT COLLINS	CO	1	73	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Riding	5	0		BOXO OPUS POWERHOUSE	AQHA	6196222	JOSEPHINE NICOLE GURLEY		GREELEY	CO	Susan Nelson	NIWOT	CO	1	72	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Riding	5	0		BAD DESIRES RISING	AQHA	6102580	Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	69	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Riding	5	0		HIGH HEELS AND LACE	AQHA	6007224	Marc H Banister		Brighton	CO	Karen S Banister	BRIGHTON	CO	1	68	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Trail	5	0		SWAGGERIN REY	AQHA	5955071	JOSEPHINE NICOLE GURLEY		GREELEY	CO	LAURIE LUKAS			1	72	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Trail	5	0		BOXO OPUS POWERHOUSE	AQHA	6196222	JOSEPHINE NICOLE GURLEY		GREELEY	CO	Susan Nelson	NIWOT	CO	1	69	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Trail	5	0		BAD DESIRES RISING	AQHA	6102580	Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	68	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Trail	5	0		HIGH HEELS AND LACE	AQHA	6007224	Marc H Banister		Brighton	CO	Karen S Banister	BRIGHTON	CO	1	64	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Trail	5	0		WHEN SMOKE CLEARS	AQHA	5985901	Meghan Flavin		Peyton	CO	Dana Stephenson	FT COLLINS	CO	1	59.5	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Cutting	5	0		BAD DESIRES RISING	AQHA	6102580	Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	71	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Cutting	5	0		HIGH HEELS AND LACE	AQHA	6007224	Marc H Banister		Brighton	CO	Karen S Banister	BRIGHTON	CO	1	67.5	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Cutting	5	0		METALLIC MERMAID	AQHA	6180411	Mark S Bernhardt		Wellington	CO	Allen Wood	Wellington	CO	1	70	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Cutting	5	0		WHEN SMOKE CLEARS	AQHA	5985901	Meghan Flavin		Peyton	CO	Dana Stephenson	FT COLLINS	CO	1	58	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Cutting	5	0		GINS METALLIC STAR	AQHA	6126668	Mark Bernhardt		Wellington	CO	Amy Harris	WELLINGTON	CO	1	57	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Cow Work	5	0		BEACH BOOY	AQHA	6135714	MCKENZIE MCBRIDE		FT LUPTON	CO	PAULA PLATT	FT LUPTON	CO	1	71	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Cow Work	5	0		HIGH HEELS AND LACE	AQHA	6007224	Marc H Banister		Brighton	CO	Karen S Banister	BRIGHTON	CO	1	68	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Cow Work	5	0		BAD DESIRES RISING	AQHA	6102580	Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	64	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Cow Work	5	0		WHEN SMOKE CLEARS	AQHA	5985901	Meghan Flavin		Peyton	CO	Dana Stephenson	FT COLLINS	CO	1	58.5	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Cow Work	5	0		JEWELS CUSTOM VOODOO	AQHA	5759627	Lauren Henderson		Platteville	CO	Lauren Henderson	Platteville	CO	1	65	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Reining	6	0		BAD DESIRES RISING	AQHA	6102580	Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	70	1	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Reining	6	0		SWAGGERIN REY	AQHA	5955071	JOSEPHINE NICOLE GURLEY		GREELEY	CO	LAURIE LUKAS			1	62	2	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Reining	6	0		BEACH BOOY	AQHA	6135714	MCKENZIE MCBRIDE		FT LUPTON	CO	PAULA PLATT	FT LUPTON	CO	1	60.5	3	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Reining	6	0		HIGH HEELS AND LACE	AQHA	6007224	Marc H Banister		Brighton	CO	Karen S Banister	BRIGHTON	CO	1	59	4	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Reining	6	0		WHEN SMOKE CLEARS	AQHA	5985901	Meghan Flavin		Peyton	CO	Dana Stephenson	FT COLLINS	CO	1	58	5	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Reining	6	0		JEWELS CUSTOM VOODOO	AQHA	5759627	Lauren Henderson		Platteville	CO	Lauren Henderson	Platteville	CO	1	69	6	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Conformation	3	0		WHEN SMOKE CLEARS	AQHA	5985901	Meghan Flavin		Peyton	CO	Dana Stephenson	FT COLLINS	CO	1	3	1	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Conformation	3	0		HIGH HEELS AND LACE	AQHA	6007224	Marc H Banister		Brighton	CO	Karen S Banister	BRIGHTON	CO	1	2	2	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Ranch Conformation	3	0		BAD DESIRES RISING	AQHA	6102580	Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	1	3	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Versatility Ranch Horse	24	0		SS GENUINE METAL	AQHA	5854036	Ryan Brown		Keensburg	CO	Jim And Brenda Brown	Keenesburg	CO	1	296.0005555	1	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Versatility Ranch Horse	24	0		CATS LITTLE PLAYMATE	AQHA	5934662	Jori Skaggs		Riverton	WY	Jori Skaggs	Riverton	WY	1	293.0005443	2	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Versatility Ranch Horse	24	0		ROYAL TIMES 2	AQHA	5959693	Kim Rounds		Eaton	CO	Kim Rounds	Eaton	CO	1	245.0004854	3	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Amt Versatility Ranch Horse	51	0		CHICA CIELO	AQHA	5944101	Leigh Papierski		Craig	CO	Leigh Papierski	Craig	CO	1	285.000554	1	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Amt Versatility Ranch Horse	51	0		PRECIOUS LIL STRESS	AQHA	5819133	Bonnie Carnesecca		LOVELAND	CO	Bonnie Carnesecca	LOVELAND	CO	1	281.0005215	2	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Amt Versatility Ranch Horse	51	0		XTRA STEP CHIC	AQHA	5611029	Haley Stephan		Thornton	CO	Haley/Yury/Emily Stephan			1	281.0005054	3	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Amt Versatility Ranch Horse	51	0		STEADY STEP	AQHA	5438629	Cheryl Swanson		Wellington	CO	Cheryl Swanson	Wellington	CO	1	276.0004903	4	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Amt Versatility Ranch Horse	51	0		HIGH BROW FALUTIN	AQHA	5591535	Conrad T Swanson		WELLINGTON	CO	Conrad T Swanson	WELLINGTON	CO	1	272.0005322	5	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Amt Versatility Ranch Horse	51	0		CHICS SHINERS KID	AQHA	5374453	TRACY S DILL		CEDAREDGE	CO	TRACY S DILL	CEDAREDGE	CO	1	269.0005128	6	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Amt Versatility Ranch Horse	51	0		OUTLAW INTHE BOONIES	AQHA	6200978	Kirsten Ane Wood		Weldona	CO	Kirsten Ane Wood	Weldona	CO	1	237.0004948	7	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Amt Versatility Ranch Horse	51	0		CODY JOE THUNDER	AQHA	5603173	Nancy Billings-Colton		Nederland	CO	EVE J. COLTON			1	231.0004249	8	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Amt Versatility Ranch Horse	51	0		SMART CIELLO	AQHA	5499680	Christina Haxton		Pine Junction	CO	Christina Haxton	Pine Junction	CO	1	181.0004346	9	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amateur Ranch Trail	6	0		MERADA BLUE	AQHA	5758276	KATHY NELMS		STERLING	CO	KATHY NELMS	STERLING	CO	1	74.5	1	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amateur Ranch Trail	6	0		SS ROLL OF THE DICE	AQHA	5624018	Marissa Ferreira		LONGMONT	CO	Marissa Ferreira	LONGMONT	CO	1	59.5	2	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amateur Ranch Trail	6	0		SS GENUINE METAL	AQHA	5854036	Ryan Brown		Keensburg	CO	Jim And Brenda Brown	Keenesburg	CO	1	59	3	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amateur Ranch Trail	6	0		DH SMOKIN CATMAN	AQHA	5784395	DAWN DENNISON		BUENA VISTA	CO	DAWN DENNISON	BUENA VISTA	CO	1	56	4	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amateur Ranch Trail	6	0		SHOOTER BUCKS MOCHA	AQHA	6126857	SARAH SEELE		KEENESBURG	CO	SARAH SEELE	KEENESBURG	CO	1	61.5	5	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amateur Ranch Trail	6	0		WALLA RISE AND SHINE	AQHA	6210793	Jodie Witt		MEAD	CO	Jodie Witt	MEAD	CO	1	55.5	6	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Rookie Amateur Versatility All Around	35	0		STYLISH N HIGH HEELS	AQHA	5529992	Davis Gidney		Broomfield	CO	Davis Gidney	Broomfield	CO	1	293.0005553	1	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Rookie Amateur Versatility All Around	35	0		PEPTOLENAS TOYGUN	AQHA	6140423	Piper Johner		Cheyenne	WY	Piper Johner	Cheyenne	WY	1	292.0005335	2	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Rookie Amateur Versatility All Around	35	0		BIDDING ON GOLD	AQHA	5924255	Emily Stephan		THORNTON	CO	Emily Stephan	THORNTON	CO	1	243.0005195	3	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Rookie Amateur Versatility All Around	35	0		JESSIE SMART	AQHA	6191885	KATHLEEN A WOOD		WELDONA	CO	KATHLEEN A WOOD	WELDONA	CO	1	242.0004954	4	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Working Western Rail	12	0		ROYAL TIMES 2	AQHA	5959693	Kim Rounds		Eaton	CO	Kim Rounds	Eaton	CO	1	9	1	12	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Working Western Rail	12	0		SHOOTER BUCKS MOCHA	AQHA	6126857	SARAH SEELE		KEENESBURG	CO	SARAH SEELE	KEENESBURG	CO	1	8	2	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Working Western Rail	12	0		SS ROLL OF THE DICE	AQHA	5624018	Marissa Ferreira		LONGMONT	CO	Marissa Ferreira	LONGMONT	CO	1	7	3	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Working Western Rail	12	0		BCR DIRT CHEAP	AQHA	5961581	Jeannie Webb		Del Norte	CO	Jeannie Webb	Del Norte	CO	1	6	4	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Working Western Rail	12	0		RAB DIAMONDSRFOREVER	AQHA	5935983	KAILYNN STOLL		Brighton	CO	KAILYNN STOLL	Brighton	CO	1	5	5	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Working Western Rail	12	0		CHICS SHINERS KID	AQHA	5374453	TRACY S DILL		CEDAREDGE	CO	TRACY S DILL	CEDAREDGE	CO	1	4	6	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Working Western Rail	12	0		INDIANLOVESAGUN	AQHA	5200424	SARAH PFANNEBECKER		LA SALLE 	CO	SARAH PFANNEBECKER	LA SALLE 	CO	1	3	7	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Working Western Rail	12	0		MERADA BLUE	AQHA	5758276	KATHY NELMS		STERLING	CO	KATHY NELMS	STERLING	CO	1	2	8	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Working Western Rail	12	0		WALLA RISE AND SHINE	AQHA	6210793	Jodie Witt		MEAD	CO	Jodie Witt	MEAD	CO	1	1	9	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Ranch Riding	12	0		ROYAL TIMES 2	AQHA	5959693	Kim Rounds		Eaton	CO	Kim Rounds	Eaton	CO	1	74.5	1	12	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Ranch Riding	12	0		BUCKLES N GIN CHIC	AQHA	5916451	Stacey Chope		Loveland	CO	Stacey Chope	Loveland	CO	1	74	2	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Ranch Riding	12	0		SS GENUINE METAL	AQHA	5854036	Ryan Brown		Keensburg	CO	Jim And Brenda Brown	Keenesburg	CO	1	74	3	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Ranch Riding	12	0		SS ROLL OF THE DICE	AQHA	5624018	Marissa Ferreira		LONGMONT	CO	Marissa Ferreira	LONGMONT	CO	1	71.5	4	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Ranch Riding	12	0		SHOOTER BUCKS MOCHA	AQHA	6126857	SARAH SEELE		KEENESBURG	CO	SARAH SEELE	KEENESBURG	CO	1	70	5	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Ranch Riding	12	0		MERADA BLUE	AQHA	5758276	KATHY NELMS		STERLING	CO	KATHY NELMS	STERLING	CO	1	69.5	6	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Ranch Riding	12	0		LITTLE MISS JOSEY	AQHA	5894071	SARAH SEELE		KEENESBURG	CO	SARAH SEELE	KEENESBURG	CO	1	69	7	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Ranch Riding	12	0		PUNCHY AND PINK	AQHA	6014017	CHERI VONFELDT		HUDSON	CO	CHERI VONFELDT	HUDSON	CO	1	68	8	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Ranch Riding	12	0		BCR DIRT CHEAP	AQHA	5961581	Jeannie Webb		Del Norte	CO	Jeannie Webb	Del Norte	CO	1	67.5	9	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Ranch Riding	12	0		WALLA RISE AND SHINE	AQHA	6210793	Jodie Witt		MEAD	CO	Jodie Witt	MEAD	CO	1	65.5	10	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Ranch Riding	12	0		RAB DIAMONDSRFOREVER	AQHA	5935983	KAILYNN STOLL		Brighton	CO	KAILYNN STOLL	Brighton	CO	1	68.5	11	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amt Ranch Riding	12	0		CODY JOE THUNDER	AQHA	5603173	Nancy Billings-Colton		Nederland	CO	EVE J. COLTON			1	65	12	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Riding	5	0		ROYAL TIMES 2	AQHA	5959693	Kim Rounds		Eaton	CO	Kim Rounds	Eaton	CO	1	76	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Riding	5	0		RAB DIAMONDSRFOREVER	AQHA	5935983	KAILYNN STOLL		Brighton	CO	KAILYNN STOLL	Brighton	CO	1	74	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Riding	5	0		CATS LITTLE PLAYMATE	AQHA	5934662	Jori Skaggs		Riverton	WY	Jori Skaggs	Riverton	WY	1	70.5	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Riding	5	0		SS GENUINE METAL	AQHA	5854036	Ryan Brown		Keensburg	CO	Jim And Brenda Brown	Keenesburg	CO	1	69	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Riding	5	0		DUNNITSLECTRICSPARKL	AQHA	5961523	Ralph Glenn		Windsor	CO	Lindsay Woods	Windsor	CO	1	61	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Riding	10	0		OUTLAW INTHE BOONIES	AQHA	6200978	Kirsten Ane Wood		Weldona	CO	Kirsten Ane Wood	Weldona	CO	1	73.5	1	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Riding	10	0		CODY JOE THUNDER	AQHA	5603173	Nancy Billings-Colton		Nederland	CO	EVE J. COLTON			1	72.5	2	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Riding	10	0		SMART CIELLO	AQHA	5499680	Christina Haxton		Pine Junction	CO	Christina Haxton	Pine Junction	CO	1	72	3	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Riding	10	0		CHICA CIELO	AQHA	5944101	Leigh Papierski		Craig	CO	Leigh Papierski	Craig	CO	1	71.51	4	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Riding	10	0		XTRA STEP CHIC	AQHA	5611029	Haley Stephan		Thornton	CO	Haley/Yury/Emily Stephan			1	71.5	5	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Riding	10	0		BCR DIRT CHEAP	AQHA	5961581	Jeannie Webb		Del Norte	CO	Jeannie Webb	Del Norte	CO	1	71	6	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Riding	10	0		STEADY STEP	AQHA	5438629	Cheryl Swanson		Wellington	CO	Cheryl Swanson	Wellington	CO	1	71	7	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Riding	10	0		CHICS SHINERS KID	AQHA	5374453	TRACY S DILL		CEDAREDGE	CO	TRACY S DILL	CEDAREDGE	CO	1	70.5	8	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Riding	10	0		PRECIOUS LIL STRESS	AQHA	5819133	Bonnie Carnesecca		LOVELAND	CO	Bonnie Carnesecca	LOVELAND	CO	1	69.5	9	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Riding	10	0		HIGH BROW FALUTIN	AQHA	5591535	Conrad T Swanson		WELLINGTON	CO	Conrad T Swanson	WELLINGTON	CO	1	69	10	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Riding	9	0		STYLISH N HIGH HEELS	AQHA	5529992	Davis Gidney		Broomfield	CO	Davis Gidney	Broomfield	CO	1	73.5	1	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Riding	9	0		PEPTOLENAS TOYGUN	AQHA	6140423	Piper Johner		Cheyenne	WY	Piper Johner	Cheyenne	WY	1	71.5	2	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Riding	9	0		DH SMOKIN CATMAN	AQHA	5784395	DAWN DENNISON		BUENA VISTA	CO	DAWN DENNISON	BUENA VISTA	CO	1	70.5	3	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Riding	9	0		SS ROLL OF THE DICE	AQHA	5624018	Marissa Ferreira		LONGMONT	CO	Marissa Ferreira	LONGMONT	CO	1	70	4	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Riding	9	0		LEGENDARYCUSTOMLADY	AQHA	5504291	Lindsay Woods		Windsor	CO	Ralph Glenn	Windsor	CO	1	69.5	5	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Riding	9	0		NO DOUBT ITS HANDLED	AQHA	5595705	KAMMI CARSON		FT COLLINS 	CO	LEISA M CARSON	Ft COLLINS	CO	1	68	6	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Riding	9	0		JESSIE SMART	AQHA	6191885	KATHLEEN A WOOD		WELDONA	CO	KATHLEEN A WOOD	WELDONA	CO	1	67.5	7	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Riding	9	0		BIDDING ON GOLD	AQHA	5924255	Emily Stephan		THORNTON	CO	Emily Stephan	THORNTON	CO	1	63	8	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Riding	9	0		CUTTALENA TYKE	AQHA	4494128	Jo Ann CONTER		Sterling	CO	Jo Ann CONTER	Sterling	CO	1	61.5	9	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Trail	4	0		CATS LITTLE PLAYMATE	AQHA	5934662	Jori Skaggs		Riverton	WY	Jori Skaggs	Riverton	WY	1	70	1	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Trail	4	0		RAB DIAMONDSRFOREVER	AQHA	5935983	KAILYNN STOLL		Brighton	CO	KAILYNN STOLL	Brighton	CO	1	63.5	2	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Trail	4	0		ROYAL TIMES 2	AQHA	5959693	Kim Rounds		Eaton	CO	Kim Rounds	Eaton	CO	1	67.5	3	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Trail	4	0		SS GENUINE METAL	AQHA	5854036	Ryan Brown		Keensburg	CO	Jim And Brenda Brown	Keenesburg	CO	1	65.5	4	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Trail	8	0		OUTLAW INTHE BOONIES	AQHA	6200978	Kirsten Ane Wood		Weldona	CO	Kirsten Ane Wood	Weldona	CO	1	74	1	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Trail	8	0		STEADY STEP	AQHA	5438629	Cheryl Swanson		Wellington	CO	Cheryl Swanson	Wellington	CO	1	71	2	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Trail	8	0		PRECIOUS LIL STRESS	AQHA	5819133	Bonnie Carnesecca		LOVELAND	CO	Bonnie Carnesecca	LOVELAND	CO	1	68.5	3	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Trail	8	0		CODY JOE THUNDER	AQHA	5603173	Nancy Billings-Colton		Nederland	CO	EVE J. COLTON			1	65.5	4	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Trail	8	0		CHICS SHINERS KID	AQHA	5374453	TRACY S DILL		CEDAREDGE	CO	TRACY S DILL	CEDAREDGE	CO	1	65	5	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Trail	8	0		HIGH BROW FALUTIN	AQHA	5591535	Conrad T Swanson		WELLINGTON	CO	Conrad T Swanson	WELLINGTON	CO	1	65	6	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Trail	8	0		CHICA CIELO	AQHA	5944101	Leigh Papierski		Craig	CO	Leigh Papierski	Craig	CO	1	63.5	7	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Trail	8	0		XTRA STEP CHIC	AQHA	5611029	Haley Stephan		Thornton	CO	Haley/Yury/Emily Stephan			1	64.5	8	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Trail	7	0		NO DOUBT ITS HANDLED	AQHA	5595705	KAMMI CARSON		FT COLLINS 	CO	LEISA M CARSON	Ft COLLINS	CO	1	67	1	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Trail	7	0		BIDDING ON GOLD	AQHA	5924255	Emily Stephan		THORNTON	CO	Emily Stephan	THORNTON	CO	1	65.5	2	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Trail	7	0		INDIANLOVESAGUN	AQHA	5200424	SARAH PFANNEBECKER		LA SALLE 	CO	SARAH PFANNEBECKER	LA SALLE 	CO	1	61	3	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Trail	7	0		SS ROLL OF THE DICE	AQHA	5624018	Marissa Ferreira		LONGMONT	CO	Marissa Ferreira	LONGMONT	CO	1	60	4	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Trail	7	0		JESSIE SMART	AQHA	6191885	KATHLEEN A WOOD		WELDONA	CO	KATHLEEN A WOOD	WELDONA	CO	1	59	5	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Trail	7	0		PEPTOLENAS TOYGUN	AQHA	6140423	Piper Johner		Cheyenne	WY	Piper Johner	Cheyenne	WY	1	72	6	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Trail	7	0		STYLISH N HIGH HEELS	AQHA	5529992	Davis Gidney		Broomfield	CO	Davis Gidney	Broomfield	CO	1	69.5	7	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Cutting	3	0		SS GENUINE METAL	AQHA	5854036	Ryan Brown		Keensburg	CO	Jim And Brenda Brown	Keenesburg	CO	1	70.5	1	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Cutting	3	0		CATS LITTLE PLAYMATE	AQHA	5934662	Jori Skaggs		Riverton	WY	Jori Skaggs	Riverton	WY	1	68	2	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Cutting	3	0		EVELENA	AQHA	5951097	Gina Harvey		Fort Collins	CO	Gina Harvey	Fort Collins	CO	1	64	3	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Cutting	6	0		XTRA STEP CHIC	AQHA	5611029	Haley Stephan		Thornton	CO	Haley/Yury/Emily Stephan			1	66	1	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Cutting	6	0		CHICA CIELO	AQHA	5944101	Leigh Papierski		Craig	CO	Leigh Papierski	Craig	CO	1	63	2	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Cutting	6	0		CHICS SHINERS KID	AQHA	5374453	TRACY S DILL		CEDAREDGE	CO	TRACY S DILL	CEDAREDGE	CO	1	61	3	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Cutting	6	0		HIGH BROW FALUTIN	AQHA	5591535	Conrad T Swanson		WELLINGTON	CO	Conrad T Swanson	WELLINGTON	CO	1	60.5	4	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Cutting	6	0		PRECIOUS LIL STRESS	AQHA	5819133	Bonnie Carnesecca		LOVELAND	CO	Bonnie Carnesecca	LOVELAND	CO	1	57	5	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Cutting	6	0		STEADY STEP	AQHA	5438629	Cheryl Swanson		Wellington	CO	Cheryl Swanson	Wellington	CO	1	55.5	6	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Cutting	3	0		STYLISH N HIGH HEELS	AQHA	5529992	Davis Gidney		Broomfield	CO	Davis Gidney	Broomfield	CO	1	61	1	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Cutting	3	0		BIDDING ON GOLD	AQHA	5924255	Emily Stephan		THORNTON	CO	Emily Stephan	THORNTON	CO	1	54	2	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Cutting	3	0		PEPTOLENAS TOYGUN	AQHA	6140423	Piper Johner		Cheyenne	WY	Piper Johner	Cheyenne	WY	1	52	3	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Working Ranch Horse	4	0		SS GENUINE METAL	AQHA	5854036	Ryan Brown		Keensburg	CO	Jim And Brenda Brown	Keenesburg	CO	1	73.5	1	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Working Ranch Horse	4	0		CATS LITTLE PLAYMATE	AQHA	5934662	Jori Skaggs		Riverton	WY	Jori Skaggs	Riverton	WY	1	70	2	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Working Ranch Horse	4	0		ROYAL TIMES 2	AQHA	5959693	Kim Rounds		Eaton	CO	Kim Rounds	Eaton	CO	1	68.5	3	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Working Ranch Horse	4	0		RTR JUSTICE IN JAZZ	AQHA	6083446	Daphne L Potter		Eaton	CO	Daphne L Potter	Eaton	CO	1	60	4	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Cow Work	5	0		STYLISH N HIGH HEELS	AQHA	5529992	Davis Gidney		Broomfield	CO	Davis Gidney	Broomfield	CO	1	67	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Cow Work	5	0		JESSIE SMART	AQHA	6191885	KATHLEEN A WOOD		WELDONA	CO	KATHLEEN A WOOD	WELDONA	CO	1	66	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Cow Work	5	0		CUTTALENA TYKE	AQHA	4494128	Jo Ann CONTER		Sterling	CO	Jo Ann CONTER	Sterling	CO	1	62	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Cow Work	5	0		PEPTOLENAS TOYGUN	AQHA	6140423	Piper Johner		Cheyenne	WY	Piper Johner	Cheyenne	WY	1	61.5	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Cow Work	5	0		BIDDING ON GOLD	AQHA	5924255	Emily Stephan		THORNTON	CO	Emily Stephan	THORNTON	CO	1	58	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Reining	5	0		RTR JUSTICE IN JAZZ	AQHA	6083446	Daphne L Potter		Eaton	CO	Daphne L Potter	Eaton	CO	1	71.5	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Reining	5	0		SS GENUINE METAL	AQHA	5854036	Ryan Brown		Keensburg	CO	Jim And Brenda Brown	Keenesburg	CO	1	71	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Reining	5	0		ROYAL TIMES 2	AQHA	5959693	Kim Rounds		Eaton	CO	Kim Rounds	Eaton	CO	1	70	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Reining	5	0		CATS LITTLE PLAYMATE	AQHA	5934662	Jori Skaggs		Riverton	WY	Jori Skaggs	Riverton	WY	1	66	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Reining	5	0		LEGENDARYCUSTOMLADY	AQHA	5504291	Ralph Glenn		Windsor	CO	Ralph Glenn	Windsor	CO	1	58	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Reining	9	0		PRECIOUS LIL STRESS	AQHA	5819133	Bonnie Carnesecca		LOVELAND	CO	Bonnie Carnesecca	LOVELAND	CO	1	71.5	1	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Reining	9	0		XTRA STEP CHIC	AQHA	5611029	Haley Stephan		Thornton	CO	Haley/Yury/Emily Stephan			1	71	2	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Reining	9	0		STEADY STEP	AQHA	5438629	Cheryl Swanson		Wellington	CO	Cheryl Swanson	Wellington	CO	1	70	3	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Reining	9	0		HIGH BROW FALUTIN	AQHA	5591535	Conrad T Swanson		WELLINGTON	CO	Conrad T Swanson	WELLINGTON	CO	1	70	4	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Reining	9	0		SMART CIELLO	AQHA	5499680	Christina Haxton		Pine Junction	CO	Christina Haxton	Pine Junction	CO	1	69	5	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Reining	9	0		CHICA CIELO	AQHA	5944101	Leigh Papierski		Craig	CO	Leigh Papierski	Craig	CO	1	69	6	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Reining	9	0		CODY JOE THUNDER	AQHA	5603173	Nancy Billings-Colton		Nederland	CO	EVE J. COLTON			1	68.5	7	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Reining	9	0		CHICS SHINERS KID	AQHA	5374453	TRACY S DILL		CEDAREDGE	CO	TRACY S DILL	CEDAREDGE	CO	1	68	8	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Reining	9	0		OUTLAW INTHE BOONIES	AQHA	6200978	Kirsten Ane Wood		Weldona	CO	Kirsten Ane Wood	Weldona	CO	1	68	9	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Reining	6	0		PEPTOLENAS TOYGUN	AQHA	6140423	Piper Johner		Cheyenne	WY	Piper Johner	Cheyenne	WY	1	66.5	1	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Reining	6	0		SS ROLL OF THE DICE	AQHA	5624018	Marissa Ferreira		LONGMONT	CO	Marissa Ferreira	LONGMONT	CO	1	66	2	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Reining	6	0		JESSIE SMART	AQHA	6191885	KATHLEEN A WOOD		WELDONA	CO	KATHLEEN A WOOD	WELDONA	CO	1	59.5	3	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Reining	6	0		STYLISH N HIGH HEELS	AQHA	5529992	Davis Gidney		Broomfield	CO	Davis Gidney	Broomfield	CO	1	57.5	4	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Reining	6	0		CUTTALENA TYKE	AQHA	4494128	Jo Ann CONTER		Sterling	CO	Jo Ann CONTER	Sterling	CO	1	55	5	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Cow Work	9	0		CHICA CIELO	AQHA	5944101	Leigh Papierski		Craig	CO	Leigh Papierski	Craig	CO	1	72.5	1	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Cow Work	9	0		OUTLAW INTHE BOONIES	AQHA	6200978	Kirsten Ane Wood		Weldona	CO	Kirsten Ane Wood	Weldona	CO	1	70.5	2	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Cow Work	9	0		HIGH BROW FALUTIN	AQHA	5591535	Conrad T Swanson		WELLINGTON	CO	Conrad T Swanson	WELLINGTON	CO	1	69.5	3	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Cow Work	9	0		PRECIOUS LIL STRESS	AQHA	5819133	Bonnie Carnesecca		LOVELAND	CO	Bonnie Carnesecca	LOVELAND	CO	1	68.5	4	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Cow Work	9	0		CHICS SHINERS KID	AQHA	5374453	TRACY S DILL		CEDAREDGE	CO	TRACY S DILL	CEDAREDGE	CO	1	68	5	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Cow Work	9	0		XTRA STEP CHIC	AQHA	5611029	Haley Stephan		Thornton	CO	Haley/Yury/Emily Stephan			1	66.5	6	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Cow Work	9	0		STEADY STEP	AQHA	5438629	Cheryl Swanson		Wellington	CO	Cheryl Swanson	Wellington	CO	1	65	7	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Cow Work	9	0		SMART CIELLO	AQHA	5499680	Christina Haxton		Pine Junction	CO	Christina Haxton	Pine Junction	CO	1	63.5	8	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Cow Work	9	0		CODY JOE THUNDER	AQHA	5603173	Nancy Billings-Colton		Nederland	CO	EVE J. COLTON			1	59	9	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Conformation	3	0		SS GENUINE METAL	AQHA	5854036	Ryan Brown		Keensburg	CO	Jim And Brenda Brown	Keenesburg	CO	1	3	1	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Conformation	3	0		ROYAL TIMES 2	AQHA	5959693	Kim Rounds		Eaton	CO	Kim Rounds	Eaton	CO	1	2	2	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Amt Ranch Conformation	3	0		CATS LITTLE PLAYMATE	AQHA	5934662	Jori Skaggs		Riverton	WY	Jori Skaggs	Riverton	WY	1	1	3	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Conformation	9	0		CHICA CIELO	AQHA	5944101	Leigh Papierski		Craig	CO	Leigh Papierski	Craig	CO	1	9	1	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Conformation	9	0		CODY JOE THUNDER	AQHA	5603173	Nancy Billings-Colton		Nederland	CO	EVE J. COLTON			1	8	2	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Conformation	9	0		XTRA STEP CHIC	AQHA	5611029	Haley Stephan		Thornton	CO	Haley/Yury/Emily Stephan			1	7	3	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Conformation	9	0		PRECIOUS LIL STRESS	AQHA	5819133	Bonnie Carnesecca		LOVELAND	CO	Bonnie Carnesecca	LOVELAND	CO	1	6	4	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Conformation	9	0		OUTLAW INTHE BOONIES	AQHA	6200978	Kirsten Ane Wood		Weldona	CO	Kirsten Ane Wood	Weldona	CO	1	5	5	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Conformation	9	0		STEADY STEP	AQHA	5438629	Cheryl Swanson		Wellington	CO	Cheryl Swanson	Wellington	CO	1	4	6	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Conformation	9	0		SMART CIELLO	AQHA	5499680	Christina Haxton		Pine Junction	CO	Christina Haxton	Pine Junction	CO	1	3	7	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Conformation	9	0		HIGH BROW FALUTIN	AQHA	5591535	Conrad T Swanson		WELLINGTON	CO	Conrad T Swanson	WELLINGTON	CO	1	2	8	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Amt Ranch Conformation	9	0		CHICS SHINERS KID	AQHA	5374453	TRACY S DILL		CEDAREDGE	CO	TRACY S DILL	CEDAREDGE	CO	1	1	9	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Conformation	5	0		BIDDING ON GOLD	AQHA	5924255	Emily Stephan		THORNTON	CO	Emily Stephan	THORNTON	CO	1	5	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Conformation	5	0		DUNNITSLECTRICSPARKL	AQHA	5961523	Lindsay Woods		Windsor	CO	Lindsay Woods	Windsor	CO	1	4	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Conformation	5	0		PEPTOLENAS TOYGUN	AQHA	6140423	Piper Johner		Cheyenne	WY	Piper Johner	Cheyenne	WY	1	3	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Conformation	5	0		STYLISH N HIGH HEELS	AQHA	5529992	Davis Gidney		Broomfield	CO	Davis Gidney	Broomfield	CO	1	2	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Amt Ranch Conformation	5	0		JESSIE SMART	AQHA	6191885	KATHLEEN A WOOD		WELDONA	CO	KATHLEEN A WOOD	WELDONA	CO	1	1	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Versatility Ranch Horse	6	0		MISS WINNIE WHIZ	AQHA	5672158	SAVANNAH DE KRUIF		Keenesburg	CO	Ryan And Tania De Kruif De Kruif			1	300.0005556	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Youth Versatility Ranch Horse	6	0		CONQUISTARITA	AQHA	5499029	Jeremiah De Kruif		KEENESBURG	CO	Ryan And Tania De Kruif De Kruif			1	300.0005556	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Rookie Youth Versatility All Around	30	0		LIL BIT A SPITFIRE	AQHA	5752687	GARRET JASEN KIRKLAND				Jason Kirkland	Florissant	CO	1	297.0005554	1	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Rookie Youth Versatility All Around	30	0		THEE GAMBLER	AQHA	6025473	THEA JANE KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	294.0005343	2	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Rookie Youth Versatility All Around	30	0		CONQUISTARITA	AQHA	5499029	DAKOTAH WYATT DE KRUIF		Keenesburg	CO	Ryan And Tania De Kruif De Kruif			1	291.0005435	3	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Youth Ranch Riding	1	0		MISS WINNIE WHIZ	AQHA	5672158	SAVANNAH DE KRUIF		Keenesburg	CO	Ryan And Tania De Kruif De Kruif			1	71.5	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Youth Ranch Riding	1	0		CONQUISTARITA	AQHA	5499029	Jeremiah De Kruif		KEENESBURG	CO	Ryan And Tania De Kruif De Kruif			1	74.5	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Riding	6	0		LIL BIT A SPITFIRE	AQHA	5752687	GARRET JASEN KIRKLAND				Jason Kirkland	Florissant	CO	1	74	1	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Riding	6	0		THEE GAMBLER	AQHA	6025473	THEA JANE KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	73	2	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Riding	6	0		CONQUISTARITA	AQHA	5499029	DAKOTAH WYATT DE KRUIF		Keenesburg	CO	Ryan And Tania De Kruif De Kruif			1	65.5	3	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Riding	6	0		PAINTED BY BOOMERJAC	AQHA	5024867	BROCK BLAIN		PUEBLO	CO	TYLER BLAIN	PUEBLO	CO	1	65	4	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Riding	6	0		GUNNA SHINE TONITE	AQHA	5604729	BRYAN BLAIN		PUEBLO	CO	TYLER BLAIN	PUEBLO	CO	1	66	5	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Riding	6	0		MISSY THE GUN GIRL	AQHA	5774752	Ailey Paxton		STERLING	CO	Adria Paxton	STERLING	CO	1	60.5	6	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Youth Ranch Trail	1	0		MISS WINNIE WHIZ	AQHA	5672158	SAVANNAH DE KRUIF		Keenesburg	CO	Ryan And Tania De Kruif De Kruif			1	74.5	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Youth Ranch Trail	1	0		CONQUISTARITA	AQHA	5499029	Jeremiah De Kruif		KEENESBURG	CO	Ryan And Tania De Kruif De Kruif			1	70	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Trail	6	0		THEE GAMBLER	AQHA	6025473	THEA JANE KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	76	1	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Trail	6	0		LIL BIT A SPITFIRE	AQHA	5752687	GARRET JASEN KIRKLAND				Jason Kirkland	Florissant	CO	1	75.5	2	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Trail	6	0		CONQUISTARITA	AQHA	5499029	DAKOTAH WYATT DE KRUIF		Keenesburg	CO	Ryan And Tania De Kruif De Kruif			1	66	3	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Trail	6	0		MISSY THE GUN GIRL	AQHA	5774752	Ailey Paxton		STERLING	CO	Adria Paxton	STERLING	CO	1	64.5	4	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Trail	6	0		PAINTED BY BOOMERJAC	AQHA	5024867	BROCK BLAIN		PUEBLO	CO	TYLER BLAIN	PUEBLO	CO	1	64	5	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Trail	6	0		GUNNA SHINE TONITE	AQHA	5604729	BRYAN BLAIN		PUEBLO	CO	TYLER BLAIN	PUEBLO	CO	1	47.5	6	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Youth Ranch Cutting	1	0		MISS WINNIE WHIZ	AQHA	5672158	SAVANNAH DE KRUIF		Keenesburg	CO	Ryan And Tania De Kruif De Kruif			1	70	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Youth Ranch Cutting	1	0		CONQUISTARITA	AQHA	5499029	Jeremiah De Kruif		KEENESBURG	CO	Ryan And Tania De Kruif De Kruif			1	64	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Cutting	3	0		LIL BIT A SPITFIRE	AQHA	5752687	GARRET JASEN KIRKLAND				Jason Kirkland	Florissant	CO	1	72.5	1	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Cutting	3	0		THEE GAMBLER	AQHA	6025473	THEA JANE KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	68.5	2	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Cutting	3	0		CONQUISTARITA	AQHA	5499029	DAKOTAH WYATT DE KRUIF		Keenesburg	CO	Ryan And Tania De Kruif De Kruif			1	58.5	3	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Youth Working Ranch Horse	1	0		MISS WINNIE WHIZ	AQHA	5672158	SAVANNAH DE KRUIF		Keenesburg	CO	Ryan And Tania De Kruif De Kruif			1	60	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Cow Work	5	0		LIL BIT A SPITFIRE	AQHA	5752687	GARRET JASEN KIRKLAND				Jason Kirkland	Florissant	CO	1	71.5	1	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Cow Work	5	0		CONQUISTARITA	AQHA	5499029	DAKOTAH WYATT DE KRUIF		Keenesburg	CO	Ryan And Tania De Kruif De Kruif			1	71	2	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Cow Work	5	0		GUNNA SHINE TONITE	AQHA	5604729	BRYAN BLAIN		PUEBLO	CO	TYLER BLAIN	PUEBLO	CO	1	70.5	3	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Cow Work	5	0		THEE GAMBLER	AQHA	6025473	THEA JANE KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	70	4	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Youth Ranch Reining	1	0		MISS WINNIE WHIZ	AQHA	5672158	SAVANNAH DE KRUIF		Keenesburg	CO	Ryan And Tania De Kruif De Kruif			1	69.5	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Youth Ranch Reining	1	0		CONQUISTARITA	AQHA	5499029	Jeremiah De Kruif		KEENESBURG	CO	Ryan And Tania De Kruif De Kruif			1	73.5	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Reining	6	0		CONQUISTARITA	AQHA	5499029	DAKOTAH WYATT DE KRUIF		Keenesburg	CO	Ryan And Tania De Kruif De Kruif			1	72.5	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Reining	6	0		LIL BIT A SPITFIRE	AQHA	5752687	GARRET JASEN KIRKLAND				Jason Kirkland	Florissant	CO	1	71	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Reining	6	0		GUNNA SHINE TONITE	AQHA	5604729	BRYAN BLAIN		PUEBLO	CO	TYLER BLAIN	PUEBLO	CO	1	69	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Reining	6	0		THEE GAMBLER	AQHA	6025473	THEA JANE KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	68.5	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Reining	6	0		PAINTED BY BOOMERJAC	AQHA	5024867	BROCK BLAIN		PUEBLO	CO	TYLER BLAIN	PUEBLO	CO	1	65.5	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Youth Ranch Cow Work	1	0		CONQUISTARITA	AQHA	5499029	Jeremiah De Kruif		KEENESBURG	CO	Ryan And Tania De Kruif De Kruif			1	70	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Youth Ranch Conformation	1	0		MISS WINNIE WHIZ	AQHA	5672158	SAVANNAH DE KRUIF		Keenesburg	CO	Ryan And Tania De Kruif De Kruif			1	1	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Limited Youth Ranch Conformation	1	0		CONQUISTARITA	AQHA	5499029	Jeremiah De Kruif		KEENESBURG	CO	Ryan And Tania De Kruif De Kruif			1	1	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Conformation	4	0		MISSY THE GUN GIRL	AQHA	5774752	Ailey Paxton		STERLING	CO	Adria Paxton	STERLING	CO	1	4	1	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Conformation	4	0		THEE GAMBLER	AQHA	6025473	THEA JANE KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	3	2	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Conformation	4	0		LIL BIT A SPITFIRE	AQHA	5752687	GARRET JASEN KIRKLAND				Jason Kirkland	Florissant	CO	1	2	3	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		VRH Rookie Youth Ranch Conformation	4	0		CONQUISTARITA	AQHA	5499029	DAKOTAH WYATT DE KRUIF		Keenesburg	CO	Ryan And Tania De Kruif De Kruif			1	1	4	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		RAB DIAMONDSRFOREVER			KAILYNN STOLL		Brighton	CO	KAILYNN STOLL	Brighton	CO	1	79	1	25	75.6
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		CODY JOE THUNDER			Nancy Billings-Colton		Nederland	CO	EVE J. COLTON			1	75.001	2	24	62.1
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		SHOOTER BUCKS MOCHA			SARAH SEELE		KEENESBURG	CO	SARAH SEELE	KEENESBURG	CO	1	75	3	23	43.2
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		MY KINDA CROWD			Sue Gentle		Cheyenne	WY	Sue Gentle	Cheyenne	WY	1	74	4	22	32.4
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		ROYAL TIMES 2			Kim Rounds		Eaton	CO	Kim Rounds	Eaton	CO	1	73.5	5	21	24.3
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		ONE WILD TIME			Casey Parker		Cheyenne	WY	Casey Parker	Cheyenne	WY	1	73	6	20	18.9
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		SMOKIN REY DAR			Diane Steele		Cheyenne	WY	Diane Steele	Cheyenne	WY	1	72	7	19	13.5
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		A SMOKIN SQUEEZE			Lisa Hurd		Cheyenne	WY	Lisa Hurd	Cheyenne	WY	1	71.5	8	18	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		SS ROLL OF THE DICE			Marissa Ferreira		LONGMONT	CO	Marissa Ferreira	LONGMONT	CO	1	70.502	9	17	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		POCO DUSTY HOMBRE			Megan Pipe		Loveland	CO	Megan Pipe	Loveland	CO	1	70.501	10	16	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		DH SMOKIN CATMAN			DAWN DENNISON		BUENA VISTA	CO	DAWN DENNISON	BUENA VISTA	CO	1	70.5	11	15	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		LITTLE MISS JOSEY			SARAH SEELE		KEENESBURG	CO	SARAH SEELE	KEENESBURG	CO	1	69.001	12	14	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		INDIANLOVESAGUN			SARAH PFANNEBECKER		LA SALLE 	CO	SARAH PFANNEBECKER	LA SALLE 	CO	1	69	13	13	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		PEPTOLENAS TOYGUN			Piper Johner		Cheyenne	WY	Piper Johner	Cheyenne	WY	1	65	14	12	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		GINS METALLIC STAR			Amy Harris		WELLINGTON	CO	Amy Harris	WELLINGTON	CO	1	64.503	15	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		PICTURE THIS			MARY ANN BRANDON		PAGOSA SPRINGS	CO	MARY ANN BRANDON	PAGOSA SPRINGS	CO	1	64.502	16	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		PUNCHY AND PINK			CHERI VONFELDT		HUDSON	CO	CHERI VONFELDT	HUDSON	CO	1	64.501	17	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		SHINY CATILAC			Abbie Ferris		Greeley	CO	Abbie Ferris	Greeley	CO	1	64.5	18	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		ZAN HICKORY NIC			Allen Wood		Wellington	CO	Allen Wood	Wellington	CO	1	57	19	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		TRU FLYING STARLIGHT			Doug Van Der Zwaag		Franktown	CO	Doug Van Der Zwaag	Franktown	CO	1	44.5	20	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		HOLLYWOOD MEADOWLARK			Lanae Elam		Loveland	CO	Lanae Elam	Loveland	CO	1	42	21	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		NO DOUBT ITS HANDLED			KAMMI CARSON		FT COLLINS 	CO	LEISA M CARSON	Ft COLLINS	CO	1	70	22	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		CHICS SHINERS KID			TRACY S DILL		CEDAREDGE	CO	TRACY S DILL	CEDAREDGE	CO	1	69.5	23	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		WHO WHIZ SHINING			Kimberly Sherrard		Elizabeth	CO	Kimberly Sherrard	Elizabeth	CO	1	66	24	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Amatuer Ranch Riding Jackpot 	25	0		PRESCRIPTION BLONDE			AMANDA VAN DER ZWAAG		FRANKTOWN	CO	AMANDA VAN DER ZWAAG	FRANKTOWN	CO	1	51.5	25	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Cutting Jackpot	11	500		DJK PRAIRIE STORM			Conner James		WHEATLAND	WY	Zane And/or Les Marty			1	74	1	11	420
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Cutting Jackpot	11	500		METALLICA STYLE			Nicole Westfall		WHEATLAND	WY	John Andrews	Berthoud	CO	1	73	2	10	315
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Cutting Jackpot	11	500		WR SURELY A CAT			Meghan Flavin		Peyton	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	72	3	9	210
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Cutting Jackpot	11	500		BCW HELLCAT			Conner James		WHEATLAND	WY	BaoXin Tilton			1	71.5	4	8	105
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Cutting Jackpot	11	500		ONE FRECKLED BOOM			Nicole Westfall		WHEATLAND	WY	Conrad T Swanson	WELLINGTON	CO	1	71	5	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Cutting Jackpot	11	500		GUNNA RISE WITHYA			Diana Duncan		Loveland	CO	Diana Duncan	Loveland	CO	1	70	6	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Cutting Jackpot	11	500		KISS A SMART CAT			Miriam Altman		Fort Collins	CO	Dana Stephenson	FT COLLINS	CO	1	60	7	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Cutting Jackpot	11	500		SNOWMANN			Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	59	8	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Cutting Jackpot	11	500		BIG IRON			Tyler Dreman		Pierce	CO	Tyler Dreman	Pierce	CO	1	56.5	9	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Cutting Jackpot	11	500		LIL LUNA LONG LEGS			JESSICA HENDRIX		WELLINGTON	CO	JESSICA HENDRIX	WELLINGTON	CO	1	48	10	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Cutting Jackpot	11	500		EH BUSYCHEXNFORJEWEL			Alisha Guard		Parker	CO	Christine Morrow			1	42.5	11	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		CUTTING JACKPOT AMATEUR	5	500		HIGH BROW FALUTIN			Conrad T Swanson		WELLINGTON	CO	Conrad T Swanson	WELLINGTON	CO	1	69	1	5	450
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		CUTTING JACKPOT AMATEUR	5	500		EVELENA			Gina Harvey		Fort Collins	CO	Gina Harvey	Fort Collins	CO	1	68.5	2	4	300
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		CUTTING JACKPOT AMATEUR	5	500		SS ONE EYED DESIRE			Karen Arp		Fort Collins	CO	Karen Arp	Fort Collins	CO	1	68	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		CUTTING JACKPOT AMATEUR	5	500		WHITTLE CATS SMART			Talli Engel		Rozet	WY	DIANA MATHESON			1	67.5	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		CUTTING JACKPOT AMATEUR	5	500		STEADY STEP			Cheryl Swanson		Wellington	CO	Cheryl Swanson	Wellington	CO	1	62	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		CUTTING JACKPOT YOUTH	1	500		SORRY NOT REALLY			Kaitlyn Grace Brown		Fort Collins	CO	Kaitlyn Grace Brown	Fort Collins	CO	1	68.5	1	1	550
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Ltd Non Pro All Around	8	0		SETEMUP BADGER			MORGAN NOLTA		FT COLLINS	CO	Lily Thomas	Longmont	CO	1	7	1	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Ltd Non Pro All Around	8	0		DRY LINE CAT			Adelita Wagner		Riverton	WY	LINDSEY ANSON			1	5	2	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Ltd Non Pro Pleasure	2	0		SETEMUP BADGER			MORGAN NOLTA		FT COLLINS	CO	Lily Thomas	Longmont	CO	1	70	1	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Ltd Non Pro Pleasure	2	0		DRY LINE CAT			Adelita Wagner		Riverton	WY	LINDSEY ANSON			1	63.5	2	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Ltd Non Pro Reining	2	0		DRY LINE CAT			Adelita Wagner		Riverton	WY	LINDSEY ANSON			1	66.5	1	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Ltd Non Pro Reining	2	0		SETEMUP BADGER			MORGAN NOLTA		FT COLLINS	CO	Lily Thomas	Longmont	CO	1	64	2	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Ltd Non Pro Trail	2	0		SETEMUP BADGER			MORGAN NOLTA		FT COLLINS	CO	Lily Thomas	Longmont	CO	1	60	1	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Ltd Non Pro Trail	2	0		DRY LINE CAT			Adelita Wagner		Riverton	WY	LINDSEY ANSON			1	44.5	2	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Ltd Non Pro Working Cow	2	0		SETEMUP BADGER			MORGAN NOLTA		FT COLLINS	CO	Lily Thomas	Longmont	CO	1	57	1	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Ltd Non Pro Working Cow	2	0		DRY LINE CAT			Adelita Wagner		Riverton	WY	LINDSEY ANSON			1	59	2	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Non Pro All Around	4	0		BILLIE IS SMOOTH			KAITLYN SNYDER				ANDREA SNYDER			1	4	1	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Non Pro Pleasure	1	0		BILLIE IS SMOOTH			KAITLYN SNYDER				ANDREA SNYDER			1	72	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Non Pro Reining	1	0		BILLIE IS SMOOTH			KAITLYN SNYDER				ANDREA SNYDER			1	66	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Non Pro Trail	1	0		BILLIE IS SMOOTH			KAITLYN SNYDER				ANDREA SNYDER			1	54	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Non Pro Working Cow	1	0		BILLIE IS SMOOTH			KAITLYN SNYDER				ANDREA SNYDER			1	65	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice All Around	36	0		PALE CHIC			LIZ FRENCH		LONGMONT	CO	Aubrey Sosa	Goldern	CO	1	33	1	33	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice All Around	36	0		ACRES IN HEAVEN			MOLLY KOSLOSKY		CHEYENNE	WY	ELISABETH GNITKA			1	27	2	27	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice All Around	36	0		FLINNS SMOKEN BANDIT			JOSLYNN SANDERS		PARSHALL	CO	Don Beard			1	19	3	19	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice All Around	36	0		WALKIN PEPTO POCO			HAILEY TURNER		CHEYENNE	WY	HAILEY TURNER	CHEYENNE	WY	1	18	4	18	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice All Around	36	0		RUCKKUS			LAIRD PIDDUCK		FT COLLINS	CO	LAIRD PIDDUCK	FT COLLINS	CO	1	15	5	15	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice All Around	36	0		IMASLICKBULLYBANJO			BRYNDALYNN ABBOTT				KELSEY ABBOTT			1	12	6	12	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice All Around	36	0		TT METALLIC DAULLY			GIANA BIAGIONI		Riverton	WY	TRIANGLE T PERFORMANCE HORSES LLC			1	12	6	12	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice All Around	36	0		FRENCHMANS TINSEL			Kodie Andersen		Riverton	WY	Kodie Andersen	Riverton	WY	1	10	8	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Pleasure	8	0		PALE CHIC			LIZ FRENCH		LONGMONT	CO	Aubrey Sosa	Goldern	CO	1	76	1	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Pleasure	8	0		FLINNS SMOKEN BANDIT			JOSLYNN SANDERS		PARSHALL	CO	Don Beard			1	73	2	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Pleasure	8	0		ACRES IN HEAVEN			MOLLY KOSLOSKY		CHEYENNE	WY	ELISABETH GNITKA			1	72.5	3	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Pleasure	8	0		IMASLICKBULLYBANJO			BRYNDALYNN ABBOTT				KELSEY ABBOTT			1	69	4	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Pleasure	8	0		WALKIN PEPTO POCO			HAILEY TURNER		CHEYENNE	WY	HAILEY TURNER	CHEYENNE	WY	1	67.5	5	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Pleasure	8	0		FRENCHMANS TINSEL			Kodie Andersen		Riverton	WY	Kodie Andersen	Riverton	WY	1	61	6	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Pleasure	8	0		RUCKKUS			LAIRD PIDDUCK		FT COLLINS	CO	LAIRD PIDDUCK	FT COLLINS	CO	1	60	7	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Pleasure	8	0		TT METALLIC DAULLY			GIANA BIAGIONI		Riverton	WY	TRIANGLE T PERFORMANCE HORSES LLC			1	54.5	8	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Reining	8	0		PALE CHIC			LIZ FRENCH		LONGMONT	CO	Aubrey Sosa	Goldern	CO	1	69.5	1	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Reining	8	0		ACRES IN HEAVEN			MOLLY KOSLOSKY		CHEYENNE	WY	ELISABETH GNITKA			1	69	2	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Reining	8	0		WALKIN PEPTO POCO			HAILEY TURNER		CHEYENNE	WY	HAILEY TURNER	CHEYENNE	WY	1	63	3	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Reining	8	0		FRENCHMANS TINSEL			Kodie Andersen		Riverton	WY	Kodie Andersen	Riverton	WY	1	62.5	4	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Reining	8	0		TT METALLIC DAULLY			GIANA BIAGIONI		Riverton	WY	TRIANGLE T PERFORMANCE HORSES LLC			1	59.5	5	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Reining	8	0		IMASLICKBULLYBANJO			BRYNDALYNN ABBOTT				KELSEY ABBOTT			1	59	6	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Reining	8	0		FLINNS SMOKEN BANDIT			JOSLYNN SANDERS		PARSHALL	CO	Don Beard			1	58	7	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Reining	8	0		RUCKKUS			LAIRD PIDDUCK		FT COLLINS	CO	LAIRD PIDDUCK	FT COLLINS	CO	1	59	8	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Trail	9	0		PALE CHIC			LIZ FRENCH		LONGMONT	CO	Aubrey Sosa	Goldern	CO	1	69.5	1	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Trail	9	0		ACRES IN HEAVEN			MOLLY KOSLOSKY		CHEYENNE	WY	ELISABETH GNITKA			1	68.5	2	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Trail	9	0		NO DOUBT ITS HANDLED			KAMMI CARSON		FT COLLINS 	CO	LEISA M CARSON	Ft COLLINS	CO	1	65.5	3	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Trail	9	0		FLINNS SMOKEN BANDIT			JOSLYNN SANDERS		PARSHALL	CO	Don Beard			1	57	4	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Trail	9	0		RUCKKUS			LAIRD PIDDUCK		FT COLLINS	CO	LAIRD PIDDUCK	FT COLLINS	CO	1	55	5	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Trail	9	0		TT METALLIC DAULLY			GIANA BIAGIONI		Riverton	WY	TRIANGLE T PERFORMANCE HORSES LLC			1	53.5	6	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Trail	9	0		WALKIN PEPTO POCO			HAILEY TURNER		CHEYENNE	WY	HAILEY TURNER	CHEYENNE	WY	1	62.5	7	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Trail	9	0		IMASLICKBULLYBANJO			BRYNDALYNN ABBOTT				KELSEY ABBOTT			1	60	8	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Trail	9	0		FRENCHMANS TINSEL			Kodie Andersen		Riverton	WY	Kodie Andersen	Riverton	WY	1	55	9	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Working Cow	8	0		PALE CHIC			LIZ FRENCH		LONGMONT	CO	Aubrey Sosa	Goldern	CO	1	72	1	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Working Cow	8	0		RUCKKUS			LAIRD PIDDUCK		FT COLLINS	CO	LAIRD PIDDUCK	FT COLLINS	CO	1	71.5	2	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Working Cow	8	0		ACRES IN HEAVEN			MOLLY KOSLOSKY		CHEYENNE	WY	ELISABETH GNITKA			1	69	3	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Working Cow	8	0		WALKIN PEPTO POCO			HAILEY TURNER		CHEYENNE	WY	HAILEY TURNER	CHEYENNE	WY	1	66.5	4	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Working Cow	8	0		FLINNS SMOKEN BANDIT			JOSLYNN SANDERS		PARSHALL	CO	Don Beard			1	64.5	5	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Working Cow	8	0		TT METALLIC DAULLY			GIANA BIAGIONI		Riverton	WY	TRIANGLE T PERFORMANCE HORSES LLC			1	60	6	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Working Cow	8	0		IMASLICKBULLYBANJO			BRYNDALYNN ABBOTT				KELSEY ABBOTT			1	62	7	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Collegiate Novice Working Cow	8	0		FRENCHMANS TINSEL			Kodie Andersen		Riverton	WY	Kodie Andersen	Riverton	WY	1	56	8	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		High School All Around 1	2	0		FREAZE TAGG			RYLEY ALAMEDA		SARATOGA	WY	RYLEY ALAMEDA	SARATOGA	WY	1	2	1	2	64
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		HIGH SCHOOL ALL AROUND 2	2	0		FREAZE TAGG			RYLEY ALAMEDA		SARATOGA	WY	RYLEY ALAMEDA	SARATOGA	WY	1	2	1	2	64
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		High School Reining	1	0		FREAZE TAGG			RYLEY ALAMEDA		SARATOGA	WY	RYLEY ALAMEDA	SARATOGA	WY	1	56	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		High School Reining 2	1	0		FREAZE TAGG			RYLEY ALAMEDA		SARATOGA	WY	RYLEY ALAMEDA	SARATOGA	WY	1	58	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Wyo HS Working Cow 	1	0		FREAZE TAGG			RYLEY ALAMEDA		SARATOGA	WY	RYLEY ALAMEDA	SARATOGA	WY	1	59.5	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Wyo HS Working Cow 2	1	0		FREAZE TAGG			RYLEY ALAMEDA		SARATOGA	WY	RYLEY ALAMEDA	SARATOGA	WY	1	64	1	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate All Around	29	0		WHITTLE CATS SMART			Talli Engel		Rozet	WY	DIANA MATHESON			1	21	1	21	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate All Around	29	0		COLONEL SMART CLASS			Erica Tonso		Cheyenne	WY	Erica Tonso	Cheyenne	WY	1	19.5	2	19.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate All Around	29	0		PICTURE THIS			MARY ANN BRANDON		PAGOSA SPRINGS	CO	MARY ANN BRANDON	PAGOSA SPRINGS	CO	1	17	3	17	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate All Around	29	0		WIMPY WALLA WANDA			Talli Engel		Rozet	WY	Talli Engel	Rozet	WY	1	15	4	15	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate All Around	29	0		REMINGTONITE			MARY ANN BRANDON		PAGOSA SPRINGS	CO	MARY ANN BRANDON	PAGOSA SPRINGS	CO	1	14	5	14	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate All Around	29	0		EINSTEINS STARLIGHT			Rebecca Thompson		Cheyenne	WY	Rebecca Thompson	Cheyenne	WY	1	10	6	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Pleasure	8	0		PICTURE THIS			MARY ANN BRANDON		PAGOSA SPRINGS	CO	MARY ANN BRANDON	PAGOSA SPRINGS	CO	1	76	1	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Pleasure	8	0		WHITTLE CATS SMART			Talli Engel		Rozet	WY	DIANA MATHESON			1	72.5	2	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Pleasure	8	0		WHO WHIZ SHINING			Kimberly Sherrard		Elizabeth	CO	Kimberly Sherrard	Elizabeth	CO	1	72	3	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Pleasure	8	0		COLONEL SMART CLASS			Erica Tonso		Cheyenne	WY	Erica Tonso	Cheyenne	WY	1	71.5	4	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Pleasure	8	0		SS ROLL OF THE DICE			Marissa Ferreira		LONGMONT	CO	Marissa Ferreira	LONGMONT	CO	1	69.5	5	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Pleasure	8	0		EINSTEINS STARLIGHT			Rebecca Thompson		Cheyenne	WY	Rebecca Thompson	Cheyenne	WY	1	67.5	6	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Pleasure	8	0		WIMPY WALLA WANDA			Talli Engel		Rozet	WY	Talli Engel	Rozet	WY	1	64	7	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Pleasure	8	0		REMINGTONITE			MARY ANN BRANDON		PAGOSA SPRINGS	CO	MARY ANN BRANDON	PAGOSA SPRINGS	CO	1	70.5	8	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Reining	7	0		WHITTLE CATS SMART			Talli Engel		Rozet	WY	DIANA MATHESON			1	72.5	1	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Reining	7	0		SS ROLL OF THE DICE			Marissa Ferreira		LONGMONT	CO	Marissa Ferreira	LONGMONT	CO	1	69	2	5.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Reining	7	0		COLONEL SMART CLASS			Erica Tonso		Cheyenne	WY	Erica Tonso	Cheyenne	WY	1	69	2	5.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Reining	7	0		WIMPY WALLA WANDA			Talli Engel		Rozet	WY	Talli Engel	Rozet	WY	1	68.5	4	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Reining	7	0		REMINGTONITE			MARY ANN BRANDON		PAGOSA SPRINGS	CO	MARY ANN BRANDON	PAGOSA SPRINGS	CO	1	65.5	5	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Reining	7	0		PICTURE THIS			MARY ANN BRANDON		PAGOSA SPRINGS	CO	MARY ANN BRANDON	PAGOSA SPRINGS	CO	1	61.5	6	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Reining	7	0		EINSTEINS STARLIGHT			Rebecca Thompson		Cheyenne	WY	Rebecca Thompson	Cheyenne	WY	1	66.5	7	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Trail	8	0		REMINGTONITE			MARY ANN BRANDON		PAGOSA SPRINGS	CO	MARY ANN BRANDON	PAGOSA SPRINGS	CO	1	70.5	1	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Trail	8	0		WHO WHIZ SHINING			Kimberly Sherrard		Elizabeth	CO	Kimberly Sherrard	Elizabeth	CO	1	68	2	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Trail	8	0		PICTURE THIS			MARY ANN BRANDON		PAGOSA SPRINGS	CO	MARY ANN BRANDON	PAGOSA SPRINGS	CO	1	65	3	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Trail	8	0		WIMPY WALLA WANDA			Talli Engel		Rozet	WY	Talli Engel	Rozet	WY	1	63.5	4	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Trail	8	0		COLONEL SMART CLASS			Erica Tonso		Cheyenne	WY	Erica Tonso	Cheyenne	WY	1	63	5	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Trail	8	0		EINSTEINS STARLIGHT			Rebecca Thompson		Cheyenne	WY	Rebecca Thompson	Cheyenne	WY	1	59.5	6	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Trail	8	0		SS ROLL OF THE DICE			Marissa Ferreira		LONGMONT	CO	Marissa Ferreira	LONGMONT	CO	1	64.5	7	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Trail	8	0		WHITTLE CATS SMART			Talli Engel		Rozet	WY	DIANA MATHESON			1	63	8	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Working Cow	6	0		WHITTLE CATS SMART			Talli Engel		Rozet	WY	DIANA MATHESON			1	74	1	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Working Cow	6	0		COLONEL SMART CLASS			Erica Tonso		Cheyenne	WY	Erica Tonso	Cheyenne	WY	1	72.5	2	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Working Cow	6	0		WIMPY WALLA WANDA			Talli Engel		Rozet	WY	Talli Engel	Rozet	WY	1	71	3	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Working Cow	6	0		EINSTEINS STARLIGHT			Rebecca Thompson		Cheyenne	WY	Rebecca Thompson	Cheyenne	WY	1	68.5	4	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Working Cow	6	0		REMINGTONITE			MARY ANN BRANDON		PAGOSA SPRINGS	CO	MARY ANN BRANDON	PAGOSA SPRINGS	CO	1	66.5	5	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Intermediate Working Cow	6	0		PICTURE THIS			MARY ANN BRANDON		PAGOSA SPRINGS	CO	MARY ANN BRANDON	PAGOSA SPRINGS	CO	1	62	6	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro JR. Horse All Around	16	0		THEE GAMBLER			Jason Kirkland		Florissant	CO	Jason Kirkland	Florissant	CO	1	14	1	14	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro JR. Horse All Around	16	0		HS 1822			JADIN VOGLER		CHEYENNE	WY	BRIAN VOGLER			1	8	2	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro JR. Horse All Around	16	0		GOLDEN TAYCON PROMISE			EVERETT MERRITT				Sharon A. Merritt			1	5	3	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non-Pro JR. Pleasure	5	0		PICTURE THIS			MARY ANN BRANDON		PAGOSA SPRINGS	CO	MARY ANN BRANDON	PAGOSA SPRINGS	CO	1	75.5	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non-Pro JR. Pleasure	5	0		THEE GAMBLER			Jason Kirkland		Florissant	CO	Jason Kirkland	Florissant	CO	1	74	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non-Pro JR. Pleasure	5	0		REYZINS STRAY CAT			Rita Lauby		FORT COLLINS	CO	RITA & ANTHONY LAUBY			1	73.5	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non-Pro JR. Pleasure	5	0		HS 1822			JADIN VOGLER		CHEYENNE	WY	BRIAN VOGLER			1	72.5	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non-Pro JR. Pleasure	5	0		GOLDEN TAYCON PROMISE			EVERETT MERRITT				Sharon A. Merritt			1	71.5	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non-Pro JR. Reining	3	0		THEE GAMBLER			Jason Kirkland		Florissant	CO	Jason Kirkland	Florissant	CO	1	74.5	1	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non-Pro JR. Reining	3	0		GOLDEN TAYCON PROMISE			EVERETT MERRITT				Sharon A. Merritt			1	63	2	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non-Pro JR. Reining	3	0		HS 1822			JADIN VOGLER		CHEYENNE	WY	BRIAN VOGLER			1	71	3	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non-Pro JR. Trail 	4	0		THEE GAMBLER			Jason Kirkland		Florissant	CO	Jason Kirkland	Florissant	CO	1	77.5	1	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non-Pro JR. Trail 	4	0		HS 1822			JADIN VOGLER		CHEYENNE	WY	BRIAN VOGLER			1	70.5	2	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non-Pro JR. Trail 	4	0		GOLDEN TAYCON PROMISE			EVERETT MERRITT				Sharon A. Merritt			1	50	3	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non-Pro JR. Trail 	4	0		PUNCHY AND PINK			CHERI VONFELDT		HUDSON	CO	CHERI VONFELDT	HUDSON	CO	1	61.5	4	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non-Pro JR. Working Cow	3	0		THEE GAMBLER			Jason Kirkland		Florissant	CO	Jason Kirkland	Florissant	CO	1	74	1	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non-Pro JR. Working Cow	3	0		HS 1822			JADIN VOGLER		CHEYENNE	WY	BRIAN VOGLER			1	66	2	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non-Pro JR. Working Cow	3	0		GOLDEN TAYCON PROMISE			EVERETT MERRITT		Brighton	CO	Sharon A. Merritt	Brighton	CO	1	0	0	0	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Jr Horse All Around	64	0		GUNNA RISE WITHYA			Diana Duncan		Loveland	CO	Diana Duncan	Loveland	CO	1	38.5	1	38.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Jr Horse All Around	64	0		GOLDEN TAYCON PROMISE			Marc H Banister		Brighton	CO	Sharon A. Merritt			1	27	2	27	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Jr Horse All Around	64	0		RED NEON LIGHTS			HAILEY JERGENSEN		RAMAH	CO	HAILEY COMBS	RAMAH	CO	1	22.5	3	22.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Jr Horse All Around	64	0		JEWELS FRENCH KISSIN			Austin Reynolds		Greeley	CO	Brandi Habighorst	GREELEY	CO	1	22	4	22	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Jr Horse All Around	64	0		HOT DANCING CAT			Katelyn Ellis		Briggsdale	CO	Katelyn Ellis	Briggsdale	CO	1	21	5	21	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Jr Horse All Around	64	0		BAD DESIRES RISING			Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	21	5	21	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Jr Horse All Around	64	0		PROMISE CALI GOLD			Marc H Banister		Brighton	CO	Sharon A. Merritt			1	9.5	7	9.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Jr Horse All Around	64	0		PLAYIN IN GRAY			"HALL,KELLY"		FORT COLLINS	CO	Marla Maxey	Fort Collins	CO	1	8.5	8	8.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Jr Horse All Around	64	0		STYLISH N GOLD			Marc H Banister		Brighton	CO	Greg Smith	Yuma	CO	1	8	9	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		BOXO OPUS POWERHOUSE			JOSEPHINE NICOLE GURLEY		GREELEY	CO	Susan Nelson	NIWOT	CO	1	77	1	17	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		GUNNA RISE WITHYA			Diana Duncan		Loveland	CO	Diana Duncan	Loveland	CO	1	76.5	2	16	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		JEWELS FRENCH KISSIN			Austin Reynolds		Greeley	CO	Brandi Habighorst	GREELEY	CO	1	74	3	15	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		GOLDEN TAYCON PROMISE			Marc H Banister		Brighton	CO	Sharon A. Merritt			1	73.5	4	14	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		HOT DANCING CAT			Katelyn Ellis		Briggsdale	CO	Katelyn Ellis	Briggsdale	CO	1	73	5	12.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		GOLD PROMISES			Elizabeth D Banister		Brighton	CO	CUSTOM MADE HORSES AND PONIES			1	73	5	12.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		BAD DESIRES RISING			Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	72.5	7	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		PLAYIN IN GRAY			"HALL,KELLY"		FORT COLLINS	CO	Marla Maxey	Fort Collins	CO	1	72	8	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		RED NEON LIGHTS			HAILEY JERGENSEN		RAMAH	CO	HAILEY COMBS	RAMAH	CO	1	70	9	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		PROMISE CALI GOLD			Marc H Banister		Brighton	CO	Sharon A. Merritt			1	67.5	10	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		TUFF ENUF TO SHINE			MIA PATCHETT		WELLINGTON	CO	Jim And Brenda Brown	Keenesburg	CO	1	67	11	6.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		STYLISH N GOLD			Marc H Banister		Brighton	CO	Greg Smith	Yuma	CO	1	67	11	6.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		BET YER BOOTS			Katelyn Ellis		Briggsdale	CO	Jeremy Spivey			1	66	13	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		LC POCOPEPPY HANCOCK			Jessica Pancost		EATON	CO	MORGAN WALD			1	64.5	14	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		FACE LIKA LOSA			Diana E Quintana				Ellen Fuller	Ault	CO	1	62.5	15	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		MALIBUS CHROMEDKID			Alisha Guard		Parker	CO	Alisha Guard	Parker	CO	1	52.5	16	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Pleasure	17	0		DUNIT HOT N SPICY			Justin Henderson		CHEYENNE	WY	Jaxine Barhite	Cheyenne	WY	1	54.5	17	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Reining	14	0		JEWELS FRENCH KISSIN			Austin Reynolds		Greeley	CO	Brandi Habighorst	GREELEY	CO	1	72.5	1	13.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Reining	14	0		GUNNA RISE WITHYA			Diana Duncan		Loveland	CO	Diana Duncan	Loveland	CO	1	72.5	1	13.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Reining	14	0		WR SURELY A CAT			Meghan Flavin		Peyton	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	71.5	3	12	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Reining	14	0		RED NEON LIGHTS			HAILEY JERGENSEN		RAMAH	CO	HAILEY COMBS	RAMAH	CO	1	71	4	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Reining	14	0		BAD DESIRES RISING			Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	70.5	5	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Reining	14	0		GOLDEN TAYCON PROMISE			Marc H Banister		Brighton	CO	Sharon A. Merritt			1	69	6	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Reining	14	0		HOT DANCING CAT			Katelyn Ellis		Briggsdale	CO	Katelyn Ellis	Briggsdale	CO	1	68	7	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Reining	14	0		PROMISE CALI GOLD			Marc H Banister		Brighton	CO	Sharon A. Merritt			1	67	8	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Reining	14	0		DARRENS DOLLY DEUCE			Diana Duncan		Loveland	CO	OLIVIA STREET	WINDSOR	CO	1	64.5	9	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Reining	14	0		MY KINDA CROWD			Kelly A Hall		Fort Collins	CO	Sue Gentle	Cheyenne	WY	1	63.5	10	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Reining	14	0		PLAYIN IN GRAY			"HALL,KELLY"		FORT COLLINS	CO	Marla Maxey	Fort Collins	CO	1	60	11	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Reining	14	0		STYLISH N GOLD			Marc H Banister		Brighton	CO	Greg Smith	Yuma	CO	1	57.5	12	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Reining	14	0		GOLD PROMISES			Elizabeth D Banister		Brighton	CO	CUSTOM MADE HORSES AND PONIES			1	56.5	13	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Reining	14	0		KISS A SMART CAT			Miriam Altman		Fort Collins	CO	Dana Stephenson	FT COLLINS	CO	1	65	15	0	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Trail	15	0		GUNNA RISE WITHYA			Diana Duncan		Loveland	CO	Diana Duncan	Loveland	CO	1	75	1	15	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Trail	15	0		BOXO OPUS POWERHOUSE			JOSEPHINE NICOLE GURLEY		GREELEY	CO	Susan Nelson	NIWOT	CO	1	71.5	2	14	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Trail	15	0		BAD DESIRES RISING			Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	70	3	13	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Trail	15	0		RED NEON LIGHTS			HAILEY JERGENSEN		RAMAH	CO	HAILEY COMBS	RAMAH	CO	1	67.5	4	12	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Trail	15	0		GOLDEN TAYCON PROMISE			Marc H Banister		Brighton	CO	Sharon A. Merritt			1	65.5	5	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Trail	15	0		HOT DANCING CAT			Katelyn Ellis		Briggsdale	CO	Katelyn Ellis	Briggsdale	CO	1	64.5	6	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Trail	15	0		PROMISE CALI GOLD			Marc H Banister		Brighton	CO	Sharon A. Merritt			1	63	7	8.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Trail	15	0		JEWELS FRENCH KISSIN			Austin Reynolds		Greeley	CO	Brandi Habighorst	GREELEY	CO	1	63	7	8.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Trail	15	0		PLAYIN IN GRAY			"HALL,KELLY"		FORT COLLINS	CO	Marla Maxey	Fort Collins	CO	1	58.5	9	6.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Trail	15	0		GOLD PROMISES			Elizabeth D Banister		Brighton	CO	CUSTOM MADE HORSES AND PONIES			1	58.5	9	6.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Trail	15	0		KISS A SMART CAT			Miriam Altman		Fort Collins	CO	Dana Stephenson	FT COLLINS	CO	1	51	11	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Trail	15	0		LC POCOPEPPY HANCOCK			Jessica Pancost		EATON	CO	MORGAN WALD			1	49.5	12	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Trail	15	0		DARRENS DOLLY DEUCE			Diana Duncan		Loveland	CO	OLIVIA STREET	WINDSOR	CO	1	64.5	13	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Trail	15	0		STYLISH N GOLD			Marc H Banister		Brighton	CO	Greg Smith	Yuma	CO	1	61.5	14	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Trail	15	0		TUFF ENUF TO SHINE			MIA PATCHETT		WELLINGTON	CO	Jim And Brenda Brown	Keenesburg	CO	1	35.5	15	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Working Cow	11	0		GUNNA RISE WITHYA			Diana Duncan		Loveland	CO	Diana Duncan	Loveland	CO	1	74	1	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Working Cow	11	0		GOLDEN TAYCON PROMISE			Marc H Banister		Brighton	CO	Sharon A. Merritt			1	69	2	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Working Cow	11	0		STYLISH N GOLD			Marc H Banister		Brighton	CO	Greg Smith	Yuma	CO	1	67	3	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Working Cow	11	0		HOT DANCING CAT			Katelyn Ellis		Briggsdale	CO	Katelyn Ellis	Briggsdale	CO	1	66.5	4	7.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Working Cow	11	0		RED NEON LIGHTS			HAILEY JERGENSEN		RAMAH	CO	HAILEY COMBS	RAMAH	CO	1	66.5	4	7.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Working Cow	11	0		PLAYIN IN GRAY			"HALL,KELLY"		FORT COLLINS	CO	Marla Maxey	Fort Collins	CO	1	66	6	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Working Cow	11	0		KISS A SMART CAT			Miriam Altman		Fort Collins	CO	Dana Stephenson	FT COLLINS	CO	1	56	7	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Working Cow	11	0		BAD DESIRES RISING			Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	65	8	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Working Cow	11	0		PROMISE CALI GOLD			Marc H Banister		Brighton	CO	Sharon A. Merritt			1	64	9	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Working Cow	11	0		JEWELS FRENCH KISSIN			Austin Reynolds		Greeley	CO	Brandi Habighorst	GREELEY	CO	1	61.5	10	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open JR. Horse Working Cow	11	0		DARRENS DOLLY DEUCE			Diana Duncan		Loveland	CO	OLIVIA STREET			1	0	0	0	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		L1 NOVICE ALL AROUND	36	0		LIL SKEETER BALOO			KENZIE HARRIS		FT COLLINS	CO	KENZIE HARRIS	FT COLLINS	CO	1	30	1	30	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		L1 NOVICE ALL AROUND	36	0		FEATHERS ALLEY CAT			Ellen Fuller		Ault	CO	Diana E Quintana			1	28.5	2	28.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		L1 NOVICE ALL AROUND	36	0		BIG IRON			Tyler Dreman		Pierce	CO	Tyler Dreman	Pierce	CO	1	22	3	22	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		L1 NOVICE ALL AROUND	36	0		RLJ LITTLE ANNIE JO			JENNIFER WASHBURN		Fort Collins	CO	JENNIFER WASHBURN	Fort Collins	CO	1	15	4	15	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		L1 NOVICE ALL AROUND	36	0		JEWELS FRENCH KISSIN			Brandi Habighorst		GREELEY	CO	Brandi Habighorst	GREELEY	CO	1	10	5	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		L1 NOVICE ALL AROUND	36	0		PADDYS MATE			Isabel Mouer		FT COLLINS	CO	Mike Doyle	Fort Collins	CO	1	7.5	6	7.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 RANCH PLEASURE	10	0		FEATHERS ALLEY CAT			Ellen Fuller		Ault	CO	Diana E Quintana			1	74.5	1	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 RANCH PLEASURE	10	0		BIG IRON			Tyler Dreman		Pierce	CO	Tyler Dreman	Pierce	CO	1	74	2	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 RANCH PLEASURE	10	0		LIL SKEETER BALOO			KENZIE HARRIS		FT COLLINS	CO	KENZIE HARRIS	FT COLLINS	CO	1	72	3	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 RANCH PLEASURE	10	0		JEWELS FRENCH KISSIN			Brandi Habighorst		GREELEY	CO	Brandi Habighorst	GREELEY	CO	1	71.5	4	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 RANCH PLEASURE	10	0		NO SCRATCH CAT			KRISTINE NELSON		LOVELAND	CO	KRISTINE NELSON	LOVELAND	CO	1	71	5	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 RANCH PLEASURE	10	0		PADDYS MATE			Isabel Mouer		FT COLLINS	CO	Mike Doyle	Fort Collins	CO	1	68.5	6	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 RANCH PLEASURE	10	0		TRU FLYING STARLIGHT			Doug Van Der Zwaag		Franktown	CO	Doug Van Der Zwaag	Franktown	CO	1	67.5	7	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 RANCH PLEASURE	10	0		RLJ LITTLE ANNIE JO			JENNIFER WASHBURN		Fort Collins	CO	JENNIFER WASHBURN	Fort Collins	CO	1	65	8	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 RANCH PLEASURE	10	0		PRESCRIPTION BLONDE			AMANDA VAN DER ZWAAG		FRANKTOWN	CO	AMANDA VAN DER ZWAAG	FRANKTOWN	CO	1	53.5	9	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 RANCH PLEASURE	10	0		PUNCHY AND PINK			CHERI VONFELDT		HUDSON	CO	CHERI VONFELDT	HUDSON	CO	1	57	10	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE REINING	7	0		LIL SKEETER BALOO			KENZIE HARRIS		FT COLLINS	CO	KENZIE HARRIS	FT COLLINS	CO	1	64.5	1	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE REINING	7	0		CD SMOKIN SPIRIT			ELLIE MASHBURN		LAMAR	CO	ELLIE MASHBURN	LAMAR	CO	1	64	2	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE REINING	7	0		RLJ LITTLE ANNIE JO			JENNIFER WASHBURN		Fort Collins	CO	JENNIFER WASHBURN	Fort Collins	CO	1	59.5	3	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE REINING	7	0		BIG IRON			Tyler Dreman		Pierce	CO	Tyler Dreman	Pierce	CO	1	58	4	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE REINING	7	0		PADDYS MATE			Isabel Mouer		FT COLLINS	CO	Mike Doyle	Fort Collins	CO	1	57.5	5	2.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE REINING	7	0		FEATHERS ALLEY CAT			Ellen Fuller		Ault	CO	Diana E Quintana			1	57.5	5	2.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE REINING	7	0		JEWELS FRENCH KISSIN			Brandi Habighorst		GREELEY	CO	Brandi Habighorst	GREELEY	CO	1	52.5	7	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE TRAIL	12	0		FEATHERS ALLEY CAT			Ellen Fuller		Ault	CO	Diana E Quintana			1	71.5	1	12	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE TRAIL	12	0		NO DOUBT ITS HANDLED			KAMMI CARSON		FT COLLINS 	CO	LEISA M CARSON	Ft COLLINS	CO	1	71	2	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE TRAIL	12	0		LIL SKEETER BALOO			KENZIE HARRIS		FT COLLINS	CO	KENZIE HARRIS	FT COLLINS	CO	1	59.5	3	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE TRAIL	12	0		PUNCHY AND PINK			CHERI VONFELDT		HUDSON	CO	CHERI VONFELDT	HUDSON	CO	1	58.5	4	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE TRAIL	12	0		NO SCRATCH CAT			KRISTINE NELSON		LOVELAND	CO	KRISTINE NELSON	LOVELAND	CO	1	54.5	5	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE TRAIL	12	0		BIG IRON			Tyler Dreman		Pierce	CO	Tyler Dreman	Pierce	CO	1	53.5	6	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE TRAIL	12	0		RLJ LITTLE ANNIE JO			JENNIFER WASHBURN		Fort Collins	CO	JENNIFER WASHBURN	Fort Collins	CO	1	32.5	7	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE TRAIL	12	0		CD SMOKIN SPIRIT			ELLIE MASHBURN		LAMAR	CO	ELLIE MASHBURN	LAMAR	CO	1	64.5	8	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE TRAIL	12	0		PRESCRIPTION BLONDE			AMANDA VAN DER ZWAAG		FRANKTOWN	CO	AMANDA VAN DER ZWAAG	FRANKTOWN	CO	1	63	9	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE TRAIL	12	0		TRU FLYING STARLIGHT			Doug Van Der Zwaag		Franktown	CO	Doug Van Der Zwaag	Franktown	CO	1	45.5	10	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE TRAIL	12	0		JEWELS FRENCH KISSIN			Brandi Habighorst		GREELEY	CO	Brandi Habighorst	GREELEY	CO	1	51.5	11	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 NOVICE TRAIL	12	0		PADDYS MATE			Isabel Mouer		FT COLLINS	CO	Mike Doyle	Fort Collins	CO	1	37	12	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 WORKING COW	7	0		LIL SKEETER BALOO			KENZIE HARRIS		FT COLLINS	CO	KENZIE HARRIS	FT COLLINS	CO	1	70	1	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 WORKING COW	7	0		FEATHERS ALLEY CAT			Ellen Fuller		Ault	CO	Diana E Quintana			1	68.5	2	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 WORKING COW	7	0		CD SMOKIN SPIRIT			ELLIE MASHBURN		LAMAR	CO	ELLIE MASHBURN	LAMAR	CO	1	66.5	3	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 WORKING COW	7	0		BIG IRON			Tyler Dreman		Pierce	CO	Tyler Dreman	Pierce	CO	1	66	4	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 WORKING COW	7	0		RLJ LITTLE ANNIE JO			JENNIFER WASHBURN		Fort Collins	CO	JENNIFER WASHBURN	Fort Collins	CO	1	63	5	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 WORKING COW	7	0		JEWELS FRENCH KISSIN			Brandi Habighorst		GREELEY	CO	Brandi Habighorst	GREELEY	CO	1	60	6	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		LEVEL 1 WORKING COW	7	0		PADDYS MATE			Isabel Mouer				Mike Doyle			1	0	0	0	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro All Around	57	0		DOCS SAILIN SUNRISE			GRACIE ANN KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	31	1	31	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro All Around	57	0		CHICA CIELO			Leigh Papierski		Craig	CO	Leigh Papierski	Craig	CO	1	25.5	2	25.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro All Around	57	0		ONE WILD TIME			Casey Parker		Cheyenne	WY	Casey Parker	Cheyenne	WY	1	23.5	3	23.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro All Around	57	0		SS ONE EYED DESIRE			Karen Arp		Fort Collins	CO	Karen Arp	Fort Collins	CO	1	23	4	23	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro All Around	57	0		TOPSAIL REINEE DUNIT			Jason Kirkland		Florissant	CO	Jason Kirkland	Florissant	CO	1	18	5	18	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro All Around	57	0		CHICS SHINERS KID			TRACY S DILL		CEDAREDGE	CO	TRACY S DILL	CEDAREDGE	CO	1	16.5	6	16.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro All Around	57	0		ESPECIAL BLUE LILY			Stacy M Stern		Fort Collins	CO	Stacy M Stern	Fort Collins	CO	1	14	7	14	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro All Around	57	0		MS HAIDA QUIXOTE			Jaxine Barhite		Cheyenne	WY	Jaxine Barhite	Cheyenne	WY	1	11	8	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro All Around	57	0		A SMOKIN SQUEEZE			Lisa Hurd		Cheyenne	WY	Lisa Hurd	Cheyenne	WY	1	8	9	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro All Around	57	0		QUATRO REY			Bill Gentle		Cheyenne	WY	Bill Gentle	Cheyenne	WY	1	7	10	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro All Around	57	0		MY KINDA CROWD			Sue Gentle		Cheyenne	WY	Sue Gentle	Cheyenne	WY	1	6	11	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro All Around	57	0		SHINY CATILAC			Abbie Ferris		Greeley	CO	Abbie Ferris	Greeley	CO	1	2	12	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Pleasure	13	0		SS ONE EYED DESIRE			Karen Arp		Fort Collins	CO	Karen Arp	Fort Collins	CO	1	75.5	1	13	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Pleasure	13	0		ESPECIAL BLUE LILY			Stacy M Stern		Fort Collins	CO	Stacy M Stern	Fort Collins	CO	1	73	2	12	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Pleasure	13	0		A SMOKIN SQUEEZE			Lisa Hurd		Cheyenne	WY	Lisa Hurd	Cheyenne	WY	1	72.5	3	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Pleasure	13	0		QUATRO REY			Bill Gentle		Cheyenne	WY	Bill Gentle	Cheyenne	WY	1	72	4	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Pleasure	13	0		DOCS SAILIN SUNRISE			GRACIE ANN KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	71.5	5	8.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Pleasure	13	0		CHICA CIELO			Leigh Papierski		Craig	CO	Leigh Papierski	Craig	CO	1	71.5	5	8.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Pleasure	13	0		MS HAIDA QUIXOTE			Jaxine Barhite		Cheyenne	WY	Jaxine Barhite	Cheyenne	WY	1	71	7	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Pleasure	13	0		TOPSAIL REINEE DUNIT			Jason Kirkland		Florissant	CO	Jason Kirkland	Florissant	CO	1	69.5	8	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Pleasure	13	0		CODY JOE THUNDER			Nancy Billings-Colton		Nederland	CO	EVE J. COLTON			1	69	9	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Pleasure	13	0		ONE WILD TIME			Casey Parker		Cheyenne	WY	Casey Parker	Cheyenne	WY	1	66	10	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Pleasure	13	0		MY KINDA CROWD			Sue Gentle		Cheyenne	WY	Sue Gentle	Cheyenne	WY	1	54	11	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Pleasure	13	0		CHICS SHINERS KID			TRACY S DILL		CEDAREDGE	CO	TRACY S DILL	CEDAREDGE	CO	1	70	12	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Pleasure	13	0		SHINY CATILAC			Abbie Ferris		Greeley	CO	Abbie Ferris	Greeley	CO	1	70.5	13	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		LIL BIT A SPITFIRE			GARRET JASEN KIRKLAND				Jason Kirkland	Florissant	CO	1	72	1	16	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		SS ONE EYED DESIRE			Karen Arp		Fort Collins	CO	Karen Arp	Fort Collins	CO	1	71.5	2	15	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		CHICA CIELO			Leigh Papierski		Craig	CO	Leigh Papierski	Craig	CO	1	70.5	3	14	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		ONE WILD TIME			Casey Parker		Cheyenne	WY	Casey Parker	Cheyenne	WY	1	70	4	13	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		TOPSAIL REINEE DUNIT			Jason Kirkland		Florissant	CO	Jason Kirkland	Florissant	CO	1	69.5	5	11.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		DOCS SAILIN SUNRISE			GRACIE ANN KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	69.5	5	11.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		PLAYIN TANGO			Marla Maxey		Fort Collins	CO	Marla Maxey	Fort Collins	CO	1	68.5	7	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		CODY JOE THUNDER			Nancy Billings-Colton		Nederland	CO	EVE J. COLTON			1	67.5	8	8.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		CHICS SHINERS KID			TRACY S DILL		CEDAREDGE	CO	TRACY S DILL	CEDAREDGE	CO	1	67.5	8	8.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		ESPECIAL BLUE LILY			Stacy M Stern		Fort Collins	CO	Stacy M Stern	Fort Collins	CO	1	65.5	10	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		QUATRO REY			Bill Gentle		Cheyenne	WY	Bill Gentle	Cheyenne	WY	1	62	11	5.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		MS HAIDA QUIXOTE			Jaxine Barhite		Cheyenne	WY	Jaxine Barhite	Cheyenne	WY	1	62	11	5.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		MY KINDA CROWD			Sue Gentle		Cheyenne	WY	Sue Gentle	Cheyenne	WY	1	60.5	13	3.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		A SMOKIN SQUEEZE			Lisa Hurd		Cheyenne	WY	Lisa Hurd	Cheyenne	WY	1	60.5	13	3.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		SMOOTH OUTTA COLOR			HEATHER PIASECK		THORNTON	CO	HEATHER PIASECK	THORNTON	CO	1	65.5	15	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Reining	16	0		SHINY CATILAC			Abbie Ferris		Greeley	CO	Abbie Ferris	Greeley	CO	1	60	16	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Trail	14	0		DOCS SAILIN SUNRISE			GRACIE ANN KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	73.5	1	14	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Trail	14	0		CHICS SHINERS KID			TRACY S DILL		CEDAREDGE	CO	TRACY S DILL	CEDAREDGE	CO	1	72	2	13	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Trail	14	0		CHICA CIELO			Leigh Papierski		Craig	CO	Leigh Papierski	Craig	CO	1	70	3	12	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Trail	14	0		ONE WILD TIME			Casey Parker		Cheyenne	WY	Casey Parker	Cheyenne	WY	1	69.5	4	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Trail	14	0		CODY JOE THUNDER			Nancy Billings-Colton		Nederland	CO	EVE J. COLTON			1	67.5	5	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Trail	14	0		MS HAIDA QUIXOTE			Jaxine Barhite		Cheyenne	WY	Jaxine Barhite	Cheyenne	WY	1	67	6	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Trail	14	0		ESPECIAL BLUE LILY			Stacy M Stern		Fort Collins	CO	Stacy M Stern	Fort Collins	CO	1	65.5	7	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Trail	14	0		SS ONE EYED DESIRE			Karen Arp		Fort Collins	CO	Karen Arp	Fort Collins	CO	1	64	8	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Trail	14	0		SHINY CATILAC			Abbie Ferris		Greeley	CO	Abbie Ferris	Greeley	CO	1	61.5	9	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Trail	14	0		TOPSAIL REINEE DUNIT			Jason Kirkland		Florissant	CO	Jason Kirkland	Florissant	CO	1	58	10	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Trail	14	0		SMOOTH OUTTA COLOR			HEATHER PIASECK		THORNTON	CO	HEATHER PIASECK	THORNTON	CO	1	56	11	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Trail	14	0		A SMOKIN SQUEEZE			Lisa Hurd		Cheyenne	WY	Lisa Hurd	Cheyenne	WY	1	68	12	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Trail	14	0		MY KINDA CROWD			Sue Gentle		Cheyenne	WY	Sue Gentle	Cheyenne	WY	1	67	13	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Trail	14	0		QUATRO REY			Bill Gentle		Cheyenne	WY	Bill Gentle	Cheyenne	WY	1	61	14	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Working Cow	14	0		DOCS SAILIN SUNRISE			GRACIE ANN KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	72	1	14	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Working Cow	14	0		TOPSAIL REINEE DUNIT			Jason Kirkland		Florissant	CO	Jason Kirkland	Florissant	CO	1	71.5	2	12.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Working Cow	14	0		ONE WILD TIME			Casey Parker		Cheyenne	WY	Casey Parker	Cheyenne	WY	1	71.5	2	12.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Working Cow	14	0		PLAYIN TANGO			Marla Maxey		Fort Collins	CO	Marla Maxey	Fort Collins	CO	1	70	4	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Working Cow	14	0		MY KINDA CROWD			Sue Gentle		Cheyenne	WY	Sue Gentle	Cheyenne	WY	1	68	5	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Working Cow	14	0		CHICS SHINERS KID			TRACY S DILL		CEDAREDGE	CO	TRACY S DILL	CEDAREDGE	CO	1	66.5	6	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Working Cow	14	0		CHICA CIELO			Leigh Papierski		Craig	CO	Leigh Papierski	Craig	CO	1	66	7	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Working Cow	14	0		SMOOTH OUTTA COLOR			HEATHER PIASECK		THORNTON	CO	HEATHER PIASECK	THORNTON	CO	1	63	8	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Working Cow	14	0		MS HAIDA QUIXOTE			Jaxine Barhite		Cheyenne	WY	Jaxine Barhite	Cheyenne	WY	1	62.5	9	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Working Cow	14	0		SS ONE EYED DESIRE			Karen Arp		Fort Collins	CO	Karen Arp	Fort Collins	CO	1	62	10	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Working Cow	14	0		QUATRO REY			Bill Gentle		Cheyenne	WY	Bill Gentle	Cheyenne	WY	1	61.5	11	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Working Cow	14	0		SHINY CATILAC			Abbie Ferris		Greeley	CO	Abbie Ferris	Greeley	CO	1	61	12	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Working Cow	14	0		ESPECIAL BLUE LILY			Stacy M Stern		Fort Collins	CO	Stacy M Stern	Fort Collins	CO	1	63.5	13	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Ltd Non Pro Working Cow	14	0		A SMOKIN SQUEEZE			Lisa Hurd		Cheyenne	WY	Lisa Hurd	Cheyenne	WY	1	63	14	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro All Around	21	0		THEE GAMBLER			Jason Kirkland		Florissant	CO	Jason Kirkland	Florissant	CO	1	16	1	16	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro All Around	21	0		REY STYLISH PEPTOS			Jessica Skomp		LAMAR	NE	Jessica Skomp	LAMAR	NE	1	16	2	16	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro All Around	21	0		YZ CAT			John Andrews		Berthoud	CO	John Andrews	Berthoud	CO	1	11	3	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing All Aroun	23	0		SHEWTIN STAR			Karen Taylor		FORT COLLINS 	CO	Karen Taylor	FORT COLLINS 	CO	1	18	1	18	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing All Aroun	23	0		SJR DIAMOND BENZ	CoWN	1001	Carissa Green		Loveland	CO	Carissa Green	Loveland	CO	1	17	2	17	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing All Aroun	23	0		BAR CAT			Troy Griffith		Cheyenne	WY	Troy Griffith	Cheyenne	WY	1	15	3	15	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing All Aroun	23	0		AZULS MISSING LYNX JR			SHANNON A SMITH		LOVELAND	CO	SHANNON A SMITH	LOVELAND	CO	1	11	4	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing All Aroun	23	0		WHO WHIZ SHINING			Kimberly Sherrard		Elizabeth	CO	Kimberly Sherrard	Elizabeth	CO	1	6	5	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Pleasure	5	0		BAR CAT			Troy Griffith		Cheyenne	WY	Troy Griffith	Cheyenne	WY	1	75	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Pleasure	5	0		SHEWTIN STAR			Karen Taylor		FORT COLLINS 	CO	Karen Taylor	FORT COLLINS 	CO	1	74.5	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Pleasure	5	0		AZULS MISSING LYNX JR			SHANNON A SMITH		LOVELAND	CO	SHANNON A SMITH	LOVELAND	CO	1	72.5	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Pleasure	5	0		SJR DIAMOND BENZ	CoWN	1001	Carissa Green		Loveland	CO	Carissa Green	Loveland	CO	1	72	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Pleasure	5	0		WHO WHIZ SHINING			Kimberly Sherrard		Elizabeth	CO	Kimberly Sherrard	Elizabeth	CO	1	70	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Reining	6	0		SJR DIAMOND BENZ	CoWN	1001	Carissa Green		Loveland	CO	Carissa Green	Loveland	CO	1	70	1	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Reining	6	0		SHEWTIN STAR			Karen Taylor		FORT COLLINS 	CO	Karen Taylor	FORT COLLINS 	CO	1	69.5	2	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Reining	6	0		BAR CAT			Troy Griffith		Cheyenne	WY	Troy Griffith	Cheyenne	WY	1	66.5	3	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Reining	6	0		AZULS MISSING LYNX JR			SHANNON A SMITH		LOVELAND	CO	SHANNON A SMITH	LOVELAND	CO	1	65	4	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Reining	6	0		WHO WHIZ SHINING			Kimberly Sherrard		Elizabeth	CO	Kimberly Sherrard	Elizabeth	CO	1	49.5	5	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Reining	6	0		DUNIT HOT N SPICY			HAILEY JERGENSEN				Jaxine Barhite	Cheyenne	wy	1	0	0	0	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Trail	5	0		BAR CAT			Troy Griffith		Cheyenne	WY	Troy Griffith	Cheyenne	WY	1	72	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Trail	5	0		SHEWTIN STAR			Karen Taylor		FORT COLLINS 	CO	Karen Taylor	FORT COLLINS 	CO	1	68.5	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Trail	5	0		SJR DIAMOND BENZ	CoWN	1001	Carissa Green		Loveland	CO	Carissa Green	Loveland	CO	1	63	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Trail	5	0		AZULS MISSING LYNX JR			SHANNON A SMITH		LOVELAND	CO	SHANNON A SMITH	LOVELAND	CO	1	59	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Trail	5	0		WHO WHIZ SHINING			Kimberly Sherrard		Elizabeth	CO	Kimberly Sherrard	Elizabeth	CO	1	57.5	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Working Cow	6	0		SJR DIAMOND BENZ	CoWN	1001	Carissa Green		Loveland	CO	Carissa Green	Loveland	CO	1	71	1	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Working Cow	6	0		SHEWTIN STAR			Karen Taylor		FORT COLLINS 	CO	Karen Taylor	FORT COLLINS 	CO	1	70	2	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Working Cow	6	0		LEGENDARYCUSTOMLADY			Ralph Glenn		Windsor	CO	Ralph Glenn	Windsor	CO	1	69.5	3	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Working Cow	6	0		AZULS MISSING LYNX JR			SHANNON A SMITH		LOVELAND	CO	SHANNON A SMITH	LOVELAND	CO	1	68	4	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Working Cow	6	0		WHO WHIZ SHINING			Kimberly Sherrard		Elizabeth	CO	Kimberly Sherrard	Elizabeth	CO	1	65.5	5	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Boxing Working Cow	6	0		BAR CAT			Troy Griffith		Cheyenne	WY	Troy Griffith	Cheyenne	WY	1	63	6	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Reining	7	0		HICKORYS STYLISH CEE			Payton Porterfield		Brighton	CO	Payton Porterfield	Brighton	CO	1	73	1	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Reining	7	0		YZ CAT			John Andrews		Berthoud	CO	John Andrews	Berthoud	CO	1	71.5	2	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Reining	7	0		THEE GAMBLER			Jason Kirkland		Florissant	CO	Jason Kirkland	Florissant	CO	1	71	3	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Reining	7	0		DOCS SAILIN SUNRISE			GRACIE ANN KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	70.5	4	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Reining	7	0		REY STYLISH PEPTOS			Jessica Skomp		LAMAR	NE	Jessica Skomp	LAMAR	NE	1	69.5	5	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Reining	7	0		A SMOKIN SQUEEZE			Lisa Hurd		Cheyenne	WY	Lisa Hurd	Cheyenne	WY	1	67.5	6	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Reining	7	0		ONE WILD TIME			Casey Parker		Cheyenne	WY	Casey Parker	Cheyenne	WY	1	0	0	0	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Ranch Pleasure	3	0		THEE GAMBLER			Jason Kirkland		Florissant	CO	Jason Kirkland	Florissant	CO	1	71.5	1	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Ranch Pleasure	3	0		REY STYLISH PEPTOS			Jessica Skomp		LAMAR	NE	Jessica Skomp	LAMAR	NE	1	70.5	2	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Ranch Pleasure	3	0		YZ CAT			John Andrews		Berthoud	CO	John Andrews	Berthoud	CO	1	69	3	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Trail	6	0		REY STYLISH PEPTOS			Jessica Skomp		LAMAR	NE	Jessica Skomp	LAMAR	NE	1	72	1	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Trail	6	0		THEE GAMBLER			Jason Kirkland		Florissant	CO	Jason Kirkland	Florissant	CO	1	68.5	2	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Trail	6	0		ALL LEE			PAULA PLATT		FT LUPTON	CO	PAULA PLATT	FT LUPTON	CO	1	58.5	3	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Trail	6	0		JEWELS CUSTOM VOODOO			Lauren Henderson		Platteville	CO	Lauren Henderson	Platteville	CO	1	68	4	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Trail	6	0		YZ CAT			John Andrews		Berthoud	CO	John Andrews	Berthoud	CO	1	61	5	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Trail	6	0		A SMOKIN SQUEEZE			Lisa Hurd		Cheyenne	WY	Lisa Hurd	Cheyenne	WY	1	60.5	6	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Working Cow	5	0		REY STYLISH PEPTOS			Jessica Skomp		LAMAR	NE	Jessica Skomp	LAMAR	NE	1	72	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Working Cow	5	0		HICKORYS STYLISH CEE			Payton Porterfield		Brighton	CO	Payton Porterfield	Brighton	CO	1	71	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Working Cow	5	0		THEE GAMBLER			Jason Kirkland		Florissant	CO	Jason Kirkland	Florissant	CO	1	64	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Working Cow	5	0		YZ CAT			John Andrews		Berthoud	CO	John Andrews	Berthoud	CO	1	59	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Non Pro Working Cow	5	0		A SMOKIN SQUEEZE			Lisa Hurd		Cheyenne	WY	Lisa Hurd	Cheyenne	WY	1	0	0	0	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open All Around	48	500		DJ BLU LIL BOON			Diana Duncan		Loveland	CO	Diana Duncan	Loveland	CO	1	34	1	34	588
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open All Around	48	500		SMOKIN REY DAR			Diane Steele		Cheyenne	WY	Diane Steele	Cheyenne	WY	1	25.5	2	25.5	196
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open All Around	48	500		BLUEGENEBABYQUEEN			Miriam Altman		Fort Collins	CO	Dana Stephenson	FT COLLINS	CO	1	25.5	2	25.5	196
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open All Around	48	500		HOUSTONS TOY			Austin Reynolds		Greeley	CO	Austin Reynolds	Greeley	CO	1	25	4	25	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open All Around	48	500		RESPOND LIKE REMEDY			"HALL,KELLY"		FORT COLLINS	CO	Grant Hall	Fort Collins	CO	1	22	5	22	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open All Around	48	500		SNOWMANN			Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	12.5	6	12.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open All Around	48	500		EH BUSYCHEXNFORJEWEL			Alisha Guard		Parker	CO	Christine Morrow			1	10	7	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open All Around	48	500		STARLIGHTS LEO BARS			Alisha Guard		Parker	CO	Alisha Guard	Parker	CO	1	7	8	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open All Around	48	500		GUS			Jessica Pancost		EATON	CO	Jessica Pancost	EATON	CO	1	3	9	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Reining	12	0		SMOKIN REY DAR			Diane Steele		Cheyenne	WY	Diane Steele	Cheyenne	WY	1	73.5	1	12	48
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Reining	12	0		DJ BLU LIL BOON			Diana Duncan		Loveland	CO	Diana Duncan	Loveland	CO	1	72	2	11	36
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Reining	12	0		BLUEGENEBABYQUEEN			Miriam Altman		Fort Collins	CO	Dana Stephenson	FT COLLINS	CO	1	69.5	3	10	24
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Reining	12	0		TWICE FRECKLES			Miriam Altman		Fort Collins	CO	Dana Stephenson	FT COLLINS	CO	1	69	4	9	12
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Reining	12	0		EH BUSYCHEXNFORJEWEL			Alisha Guard		Parker	CO	Christine Morrow			1	65.5	5	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Reining	12	0		JEWELS FRENCH KISSIN			Austin Reynolds		Greeley	CO	Brandi Habighorst	GREELEY	CO	1	62.5	6	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Reining	12	0		HOUSTONS TOY			Austin Reynolds		Greeley	CO	Austin Reynolds	Greeley	CO	1	61.5	7	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Reining	12	0		WR SURELY A CAT			Meghan Flavin		Peyton	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	70.5	8	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Reining	12	0		STARLIGHTS LEO BARS			Alisha Guard		Parker	CO	Alisha Guard	Parker	CO	1	62.5	9	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Reining	12	0		GUS			Jessica Pancost		EATON	CO	Jessica Pancost	EATON	CO	1	49.5	10	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Reining	12	0		SNOWMANN			Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	64	11	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Reining	12	0		RESPOND LIKE REMEDY			"HALL,KELLY"		FORT COLLINS	CO	Grant Hall	Fort Collins	CO	1	58.5	12	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Ranch Pleasure	12	0		HOUSTONS TOY			Austin Reynolds		Greeley	CO	Austin Reynolds	Greeley	CO	1	79	1	12	48
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Ranch Pleasure	12	0		DJ BLU LIL BOON			Diana Duncan		Loveland	CO	Diana Duncan	Loveland	CO	1	76.5	2	11	36
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Ranch Pleasure	12	0		RH CASH FOR CATNIP			Austin Reynolds		Greeley	CO	Lynn Zehrbach	Nunn	CO	1	76	3	10	24
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Ranch Pleasure	12	0		RESPOND LIKE REMEDY			"HALL,KELLY"		FORT COLLINS	CO	Grant Hall	Fort Collins	CO	1	75	4	9	12
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Ranch Pleasure	12	0		CROSSV CATS DOMINO			Kerry Cogburn		Wellington	CO	Anna J Schnorr			1	74	5	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Ranch Pleasure	12	0		SMOKIN REY DAR			Diane Steele		Cheyenne	WY	Diane Steele	Cheyenne	WY	1	73	6	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Ranch Pleasure	12	0		TWICE FRECKLES			Meghan Flavin		Peyton	CO	Dana Stephenson	FT COLLINS	CO	1	71.5	7	5.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Ranch Pleasure	12	0		BLUEGENEBABYQUEEN			Miriam Altman		Fort Collins	CO	Dana Stephenson	FT COLLINS	CO	1	71.5	7	5.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Ranch Pleasure	12	0		EH BUSYCHEXNFORJEWEL			Alisha Guard		Parker	CO	Christine Morrow			1	70.5	9	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Ranch Pleasure	12	0		SNOWMANN			Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	70	10	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Ranch Pleasure	12	0		GUS			Jessica Pancost		EATON	CO	Jessica Pancost	EATON	CO	1	67	11	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Ranch Pleasure	12	0		STARLIGHTS LEO BARS			Alisha Guard		Parker	CO	Alisha Guard	Parker	CO	1	63.5	12	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN RANCH RIDING JACKPOT	10	0		SWAGGERIN REY			JOSEPHINE NICOLE GURLEY		GREELEY	CO	LAURIE LUKAS			1	78	1	10	44
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN RANCH RIDING JACKPOT	10	0		GUNNA RISE WITHYA			Diana Duncan		Loveland	CO	Diana Duncan	Loveland	CO	1	77.5	2	9	33
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN RANCH RIDING JACKPOT	10	0		HOUSTONS TOY			Austin Reynolds		Greeley	CO	Austin Reynolds	Greeley	CO	1	75.01	3	8	22
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN RANCH RIDING JACKPOT	10	0		DJ BLU LIL BOON			Diana Duncan		Loveland	CO	Diana Duncan	Loveland	CO	1	75	4	7	11
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN RANCH RIDING JACKPOT	10	0		BOXO OPUS POWERHOUSE			JOSEPHINE NICOLE GURLEY		GREELEY	CO	Susan Nelson	NIWOT	CO	1	71	5	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN RANCH RIDING JACKPOT	10	0		SMOKIN REY DAR			Diane Steele		Cheyenne	WY	Diane Steele	Cheyenne	WY	1	68.5	6	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN RANCH RIDING JACKPOT	10	0		EH BUSYCHEXNFORJEWEL			Alisha Guard		Parker	CO	Christine Morrow			1	66.5	7	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN RANCH RIDING JACKPOT	10	0		TRU FLYING STARLIGHT			Phillip Franken		Elizabeth	CO	Doug Van Der Zwaag	Franktown	CO	1	53	8	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN RANCH RIDING JACKPOT	10	0		PRESCRIPTION BLONDE			Phillip Franken		Elizabeth	CO	AMANDA VAN DER ZWAAG	FRANKTOWN	CO	1	57.5	9	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN RANCH RIDING JACKPOT	10	0		ONEBIGSHOTOFWHIZKEY			Meghan Flavin				ADRIAN PUU			1	0	0	0	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING PLEASURE	5	0		CROSSV CATS DOMINO			Kerry Cogburn		Wellington	CO	Anna J Schnorr			1	73	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING PLEASURE	5	0		GF GOLD			Elizabeth D Banister		Brighton	CO	CUSTOM MADE HORSES AND PONIES			1	72.5	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING PLEASURE	5	0		TUFF ENUF TO SHINE			MIA PATCHETT		WELLINGTON	CO	Jim And Brenda Brown	Keenesburg	CO	1	61	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING PLEASURE	5	0		FINALLY VESTED			Elizabeth D Banister		Brighton	CO	ROSS SIBLEY	Thornton	CO	1	64	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING PLEASURE	5	0		GOT THE BOYS TALKIN			KAMMI CARSON		FT COLLINS 	CO	Adria Paxton	STERLING	CO	1	47.5	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING REINING	11	0		RTR JUSTICE IN JAZZ			Daphne L Potter		Eaton	CO	Daphne L Potter	Eaton	CO	1	70.5	1	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING REINING	11	0		SMART CIELLO			Christina Haxton		Pine Junction	CO	Christina Haxton	Pine Junction	CO	1	69.5	2	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING REINING	11	0		PRESCRIPTION BLONDE			Phillip Franken		Elizabeth	CO	AMANDA VAN DER ZWAAG	FRANKTOWN	CO	1	56.5	3	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING REINING	11	0		GOLD PROMISES			Elizabeth D Banister		Brighton	CO	CUSTOM MADE HORSES AND PONIES			1	49	4	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING REINING	11	0		EDNA NITRO			Diana Duncan		Loveland	CO	SOFIA VESECKY DUNWORTH	WINDSOR	CO	1	66.5	5	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING REINING	11	0		SNOWMANN			Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	65.5	6	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING REINING	11	0		STYLISH N GOLD			Marc H Banister		Brighton	CO	Greg Smith	Yuma	CO	1	64.5	7	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING REINING	11	0		GF GOLD			Elizabeth D Banister		Brighton	CO	CUSTOM MADE HORSES AND PONIES			1	42	8	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING REINING	11	0		TRU FLYING STARLIGHT			Phillip Franken		Elizabeth	CO	Doug Van Der Zwaag	Franktown	CO	1	40.5	9	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING REINING	11	0		HIGH HEELS AND LACE			Marc H Banister		Brighton	CO	Karen S Banister	Brighton	CO	1	0	0	0	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING REINING	11	0		BIDDING ON GOLD			EMILY STEPHAN		Thornton	CO	EMILY STEPHAN	Thornton	CO	1	0	0	0	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING TRAIL	5	0		CROSSV CATS DOMINO			Kerry Cogburn		Wellington	CO	Anna J Schnorr			1	69	1	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING TRAIL	5	0		ACE			Diana Duncan		Loveland	CO	KAYLEE HINTZMAN	LOVELAND	CO	1	66	2	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING TRAIL	5	0		PRESCRIPTION BLONDE			Phillip Franken		Elizabeth	CO	AMANDA VAN DER ZWAAG	FRANKTOWN	CO	1	65.5	3	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING TRAIL	5	0		TRU FLYING STARLIGHT			Phillip Franken		Elizabeth	CO	Doug Van Der Zwaag	Franktown	CO	1	56.5	4	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING TRAIL	5	0		GF GOLD			Elizabeth D Banister		Brighton	CO	CUSTOM MADE HORSES AND PONIES			1	54.5	5	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING COW WORK	4	0		EDNA NITRO			Diana Duncan		Loveland	CO	SOFIA VESECKY DUNWORTH	WINDSOR	CO	1	57	1	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING COW WORK	4	0		SNOWMANN			Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	55	2	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING COW WORK	4	0		RTR JUSTICE IN JAZZ			Daphne L Potter		Eaton	CO	Daphne L Potter	Eaton	CO	1	53	3	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		OPEN SCHOOLING COW WORK	4	0		HICKORYS STYLISH CEE			Payton Porterfield		Brighton	CO	Payton Porterfield	Brighton	CO	1	40	4	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Trail	12	0		DJ BLU LIL BOON			Diana Duncan		Loveland	CO	Diana Duncan	Loveland	CO	1	74	1	12	48
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Trail	12	0		HOUSTONS TOY			Austin Reynolds		Greeley	CO	Austin Reynolds	Greeley	CO	1	71.5	2	11	36
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Trail	12	0		RESPOND LIKE REMEDY			"HALL,KELLY"		FORT COLLINS	CO	Grant Hall	Fort Collins	CO	1	70.5	3	10	24
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Trail	12	0		SMOKIN REY DAR			Diane Steele		Cheyenne	WY	Diane Steele	Cheyenne	WY	1	69.5	4	9	12
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Trail	12	0		RH CASH FOR CATNIP			Austin Reynolds		Greeley	CO	Lynn Zehrbach	Nunn	CO	1	66	5	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Trail	12	0		STARLIGHTS LEO BARS			Alisha Guard		Parker	CO	Alisha Guard	Parker	CO	1	64.5	6	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Trail	12	0		BLUEGENEBABYQUEEN			Miriam Altman		Fort Collins	CO	Dana Stephenson	FT COLLINS	CO	1	63	7	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Trail	12	0		SNOWMANN			Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	62	8	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Trail	12	0		GUS			Jessica Pancost		EATON	CO	Jessica Pancost	EATON	CO	1	57.5	9	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Trail	12	0		EH BUSYCHEXNFORJEWEL			Alisha Guard		Parker	CO	Christine Morrow			1	56	10	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Trail	12	0		CROSSV CATS DOMINO			Kerry Cogburn		Wellington	CO	Anna J Schnorr			1	61	11	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Trail	12	0		TWICE FRECKLES			Miriam Altman		Fort Collins	CO	Dana Stephenson	FT COLLINS	CO	1	60	12	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Working Cow	12	0		BLUEGENEBABYQUEEN			Miriam Altman		Fort Collins	CO	Dana Stephenson	FT COLLINS	CO	1	71	1	12	48
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Working Cow	12	0		HICKORYS STYLISH CEE			Payton Porterfield		Brighton	CO	Payton Porterfield	Brighton	CO	1	70.5	2	10.5	30
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Working Cow	12	0		SNOWMANN			Miriam Altman		Fort Collins	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	70.5	2	10.5	30
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Working Cow	12	0		RESPOND LIKE REMEDY			"HALL,KELLY"		FORT COLLINS	CO	Grant Hall	Fort Collins	CO	1	70	4	9	12
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Working Cow	12	0		DJ BLU LIL BOON			Diana Duncan		Loveland	CO	Diana Duncan	Loveland	CO	1	69.5	5	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Working Cow	12	0		TWICE FRECKLES			Miriam Altman		Fort Collins	CO	Dana Stephenson	FT COLLINS	CO	1	69	6	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Working Cow	12	0		WR SURELY A CAT			Meghan Flavin		Peyton	CO	Owl Canyon Performance Horses	FORT COLLINS	CO	1	68	7	5.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Working Cow	12	0		SMOKIN REY DAR			Diane Steele		Cheyenne	WY	Diane Steele	Cheyenne	WY	1	68	7	5.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Working Cow	12	0		HOUSTONS TOY			Austin Reynolds		Greeley	CO	Austin Reynolds	Greeley	CO	1	67	9	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Working Cow	12	0		EH BUSYCHEXNFORJEWEL			Alisha Guard		Parker	CO	Christine Morrow			1	61	10	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Working Cow	12	0		STARLIGHTS LEO BARS			Alisha Guard		Parker	CO	Alisha Guard	Parker	CO	1	60.5	11	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Open Working Cow	12	0		GUS			Jessica Pancost		EATON	CO	Jessica Pancost	EATON	CO	1	56	12	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice All Around	49	0		HOLLYWOOD MEADOWLARK			Lanae Elam		Loveland	CO	Lanae Elam	Loveland	CO	1	38	1	38	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice All Around	49	0		XT SMART WIMP			Katie Cassiday		Hudson	CO	Laura Cassiday	Hudson	CO	1	33.5	2	33.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice All Around	49	0		DH SMOKIN CATMAN			DAWN DENNISON		BUENA VISTA	CO	DAWN DENNISON	BUENA VISTA	CO	1	25	3	25	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice All Around	49	0		CHQH MISS KITTY OAK			JODY LITCHFORD		LOVELAND	CO	JODY LITCHFORD	LOVELAND	CO	1	19.5	4	19.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice All Around	49	0		SHEBE A SMOKIN			HELEN SUMNER		CHEYENNE	WY	HELEN SUMNER	CHEYENNE	WY	1	18.5	5	18.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice All Around	49	0		HANCOCKS SWEET BOY			Tammy Maas		Cheyenne	WY	Tammy Maas	Cheyenne	WY	1	15	6	15	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice All Around	49	0		CEE HEART FAST ANNIE			LESLI FOX		CHEYENNE	WY	LESLI FOX	CHEYENNE	WY	1	13	7	13	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice All Around	49	0		SHINY SPANGELS			CHRISTINE WILSON		CHEYENNE	WY	CHRISTINE WILSON	CHEYENNE	WY	1	11	8	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice All Around	49	0		BOONE LIGHT FORTY			LaNita Lovercheck		Cheyenne	WY	LaNita Lovercheck	Cheyenne	WY	1	9	9	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice All Around	49	0		LIGHT DUN RIGHT			CHAD WASHBURN		FORT COLLINS	CO	JENNIFER WASHBURN	Fort Collins	CO	1	5.5	10	5.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Pleasure	10	0		DH SMOKIN CATMAN			DAWN DENNISON		BUENA VISTA	CO	DAWN DENNISON	BUENA VISTA	CO	1	74.5	1	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Pleasure	10	0		HOLLYWOOD MEADOWLARK			Lanae Elam		Loveland	CO	Lanae Elam	Loveland	CO	1	73.5	2	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Pleasure	10	0		XT SMART WIMP			Katie Cassiday		Hudson	CO	Laura Cassiday	Hudson	CO	1	73	3	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Pleasure	10	0		SHEBE A SMOKIN			HELEN SUMNER		CHEYENNE	WY	HELEN SUMNER	CHEYENNE	WY	1	72.5	4	6.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Pleasure	10	0		CHQH MISS KITTY OAK			JODY LITCHFORD		LOVELAND	CO	JODY LITCHFORD	LOVELAND	CO	1	72.5	4	6.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Pleasure	10	0		BOONE LIGHT FORTY			LaNita Lovercheck		Cheyenne	WY	LaNita Lovercheck	Cheyenne	WY	1	70	6	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Pleasure	10	0		CEE HEART FAST ANNIE			LESLI FOX		CHEYENNE	WY	LESLI FOX	CHEYENNE	WY	1	68.5	7	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Pleasure	10	0		HANCOCKS SWEET BOY			Tammy Maas		Cheyenne	WY	Tammy Maas	Cheyenne	WY	1	66	8	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Pleasure	10	0		LIGHT DUN RIGHT			CHAD WASHBURN		FORT COLLINS	CO	JENNIFER WASHBURN	Fort Collins	CO	1	68	9	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Pleasure	10	0		SHINY SPANGELS			CHRISTINE WILSON		CHEYENNE	WY	CHRISTINE WILSON	CHEYENNE	WY	1	65.5	10	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Reining	13	0		HOLLYWOOD MEADOWLARK			Lanae Elam		Loveland	CO	Lanae Elam	Loveland	CO	1	72	1	13	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Reining	13	0		XT SMART WIMP			Katie Cassiday		Hudson	CO	Laura Cassiday	Hudson	CO	1	69	2	12	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Reining	13	0		CHQH MISS KITTY OAK			JODY LITCHFORD		LOVELAND	CO	JODY LITCHFORD	LOVELAND	CO	1	65	3	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Reining	13	0		DH SMOKIN CATMAN			DAWN DENNISON		BUENA VISTA	CO	DAWN DENNISON	BUENA VISTA	CO	1	64.5	4	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Reining	13	0		SHEBE A SMOKIN			HELEN SUMNER		CHEYENNE	WY	HELEN SUMNER	CHEYENNE	WY	1	62	5	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Reining	13	0		POCO DUSTY HOMBRE			Megan Pipe		Loveland	CO	Megan Pipe	Loveland	CO	1	60.5	6	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Reining	13	0		HANCOCKS SWEET BOY			Tammy Maas		Cheyenne	WY	Tammy Maas	Cheyenne	WY	1	59	7	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Reining	13	0		LUNA			JOE MCCLELLAN		LONGMONT	CO	JOE MCCLELLAN	LONGMONT	CO	1	58.5	8	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Reining	13	0		SHEZ DOUBLE LUCKY			ROSS SIBLEY		Thornton	CO	ANN HOGAN	THORNTON	CO	1	45.5	9	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Reining	13	0		LIGHT DUN RIGHT			CHAD WASHBURN		FORT COLLINS	CO	JENNIFER WASHBURN	Fort Collins	CO	1	66	10	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Reining	13	0		SHINY SPANGELS			CHRISTINE WILSON		CHEYENNE	WY	CHRISTINE WILSON	CHEYENNE	WY	1	64.5	11	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Reining	13	0		CEE HEART FAST ANNIE			LESLI FOX		CHEYENNE	WY	LESLI FOX	CHEYENNE	WY	1	55.5	12	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Reining	13	0		BOONE LIGHT FORTY			LaNita Lovercheck		Cheyenne	WY	LaNita Lovercheck	Cheyenne	WY	1	51	13	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Trail	13	0		HOLLYWOOD MEADOWLARK			Lanae Elam		Loveland	CO	Lanae Elam	Loveland	CO	1	70	1	12.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Trail	13	0		SHEZ DOUBLE LUCKY			ROSS SIBLEY		Thornton	CO	ANN HOGAN	THORNTON	CO	1	70	1	12.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Trail	13	0		DH SMOKIN CATMAN			DAWN DENNISON		BUENA VISTA	CO	DAWN DENNISON	BUENA VISTA	CO	1	65	3	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Trail	13	0		XT SMART WIMP			Katie Cassiday		Hudson	CO	Laura Cassiday	Hudson	CO	1	62	4	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Trail	13	0		CHQH MISS KITTY OAK			JODY LITCHFORD		LOVELAND	CO	JODY LITCHFORD	LOVELAND	CO	1	61	5	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Trail	13	0		POCO DUSTY HOMBRE			Megan Pipe		Loveland	CO	Megan Pipe	Loveland	CO	1	61	5	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Trail	13	0		CEE HEART FAST ANNIE			LESLI FOX		CHEYENNE	WY	LESLI FOX	CHEYENNE	WY	1	61	5	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Trail	13	0		BOONE LIGHT FORTY			LaNita Lovercheck		Cheyenne	WY	LaNita Lovercheck	Cheyenne	WY	1	57	8	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Trail	13	0		SHINY SPANGELS			CHRISTINE WILSON		CHEYENNE	WY	CHRISTINE WILSON	CHEYENNE	WY	1	49	9	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Trail	13	0		HANCOCKS SWEET BOY			Tammy Maas		Cheyenne	WY	Tammy Maas	Cheyenne	WY	1	46	10	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Trail	13	0		LUNA			JOE MCCLELLAN		LONGMONT	CO	JOE MCCLELLAN	LONGMONT	CO	1	38.5	11	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Trail	13	0		SHEBE A SMOKIN			HELEN SUMNER		CHEYENNE	WY	HELEN SUMNER	CHEYENNE	WY	1	61	12	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Trail	13	0		LIGHT DUN RIGHT			CHAD WASHBURN		FORT COLLINS	CO	JENNIFER WASHBURN	Fort Collins	CO	1	56.5	13	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Working Cow	13	0		XT SMART WIMP			Katie Cassiday		Hudson	CO	Laura Cassiday	Hudson	CO	1	70	1	12.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Working Cow	13	0		HOLLYWOOD MEADOWLARK			Lanae Elam		Loveland	CO	Lanae Elam	Loveland	CO	1	70	1	12.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Working Cow	13	0		SHINY SPANGELS			CHRISTINE WILSON		CHEYENNE	WY	CHRISTINE WILSON	CHEYENNE	WY	1	69.5	3	11	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Working Cow	13	0		HANCOCKS SWEET BOY			Tammy Maas		Cheyenne	WY	Tammy Maas	Cheyenne	WY	1	68	4	10	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Working Cow	13	0		SHEBE A SMOKIN			HELEN SUMNER		CHEYENNE	WY	HELEN SUMNER	CHEYENNE	WY	1	67.5	5	9	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Working Cow	13	0		POCO DUSTY HOMBRE			Megan Pipe		Loveland	CO	Megan Pipe	Loveland	CO	1	66	6	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Working Cow	13	0		CEE HEART FAST ANNIE			LESLI FOX		CHEYENNE	WY	LESLI FOX	CHEYENNE	WY	1	65.5	7	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Working Cow	13	0		LIGHT DUN RIGHT			CHAD WASHBURN		FORT COLLINS	CO	JENNIFER WASHBURN	Fort Collins	CO	1	64	8	5.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Working Cow	13	0		SHEZ DOUBLE LUCKY			ROSS SIBLEY		Thornton	CO	ANN HOGAN	THORNTON	CO	1	64	8	5.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Working Cow	13	0		BOONE LIGHT FORTY			LaNita Lovercheck		Cheyenne	WY	LaNita Lovercheck	Cheyenne	WY	1	63	10	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Working Cow	13	0		LUNA			JOE MCCLELLAN		LONGMONT	CO	JOE MCCLELLAN	LONGMONT	CO	1	60	11	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Working Cow	13	0		CHQH MISS KITTY OAK			JODY LITCHFORD		LOVELAND	CO	JODY LITCHFORD	LOVELAND	CO	1	59	12	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Novice Working Cow	13	0		DH SMOKIN CATMAN			DAWN DENNISON		BUENA VISTA	CO	DAWN DENNISON	BUENA VISTA	CO	1	58	13	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth All Around	25	0		THEE GAMBLER			THEA JANE KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	19.5	1	19.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth All Around	25	0		BETITWASTHEMOONSHINE			SOPHIA HANEY		Loveland	CO	SOPHIA HANEY	Loveland	CO	1	19	2	19	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth All Around	25	0		DOCS SAILIN SUNRISE			GRACIE ANN KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	15.5	3	15.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth All Around	25	0		LOLA			Kyah Lynn De Kruif		Keenesburg	CO	Cody Crow	Johnstown	CO	1	15	4	15	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth All Around	25	0		LIL BIT A SPITFIRE			GARRET JASEN KIRKLAND				Jason Kirkland	Florissant	CO	1	13.5	5	13.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth All Around	25	0		ROLEX BAR NONE	CoWN	12	Haley Smith		Yuma	CO	Greg Smith	Yuma	CO	1	7.5	6	7.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice All Around	29	0		SORRY NOT REALLY			Kaitlyn Grace Brown		Fort Collins	CO	Kaitlyn Grace Brown	Fort Collins	CO	1	21	1	21	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice All Around	29	0		EDNA NITRO			SOFIA VESECKY DUNWORTH		WINDSOR	CO	SOFIA VESECKY DUNWORTH	WINDSOR	CO	1	19	2	19	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice All Around	29	0		DARRENS DOLLY DEUCE			OLIVIA STREET		WINDSOR	CO	OLIVIA STREET	WINDSOR	CO	1	13.5	3	13.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice All Around	29	0		ACE			KAYLEE HINTZMAN		LOVELAND	CO	KAYLEE HINTZMAN	LOVELAND	CO	1	13.5	3	13.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Pleasure	8	0		SORRY NOT REALLY			Kaitlyn Grace Brown		Fort Collins	CO	Kaitlyn Grace Brown	Fort Collins	CO	1	75.5	1	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Pleasure	8	0		VON SUGAR DOLL			Stella Rajewski		LONGMONT	CO	Stella Rajewski	LONGMONT	CO	1	74.5	2	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Pleasure	8	0		EDNA NITRO			SOFIA VESECKY DUNWORTH		WINDSOR	CO	SOFIA VESECKY DUNWORTH	WINDSOR	CO	1	72	3	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Pleasure	8	0		DARRENS DOLLY DEUCE			OLIVIA STREET		WINDSOR	CO	OLIVIA STREET	WINDSOR	CO	1	63	4	4.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Pleasure	8	0		ACE			KAYLEE HINTZMAN		LOVELAND	CO	KAYLEE HINTZMAN	LOVELAND	CO	1	63	4	4.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Pleasure	8	0		MISSY THE GUN GIRL			Ailey Paxton		STERLING	CO	Adria Paxton	STERLING	CO	1	62	6	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Pleasure	8	0		FINALLY VESTED			SYDNEY HYDE		THORNTON	CO	ROSS SIBLEY	Thornton	CO	1	61.5	7	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Reining	6	0		VON SUGAR DOLL			Stella Rajewski		LONGMONT	CO	Stella Rajewski	LONGMONT	CO	1	70	1	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Reining	6	0		SORRY NOT REALLY			Kaitlyn Grace Brown		Fort Collins	CO	Kaitlyn Grace Brown	Fort Collins	CO	1	68.5	2	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Reining	6	0		DARRENS DOLLY DEUCE			OLIVIA STREET		WINDSOR	CO	OLIVIA STREET	WINDSOR	CO	1	67	3	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Reining	6	0		ACE			KAYLEE HINTZMAN		LOVELAND	CO	KAYLEE HINTZMAN	LOVELAND	CO	1	65.5	4	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Reining	6	0		EDNA NITRO			SOFIA VESECKY DUNWORTH		WINDSOR	CO	SOFIA VESECKY DUNWORTH	WINDSOR	CO	1	61.5	5	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Reining	6	0		FINALLY VESTED			SYDNEY HYDE		THORNTON	CO	ROSS SIBLEY	Thornton	CO	1	54	6	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Trail	8	0		EDNA NITRO			SOFIA VESECKY DUNWORTH		WINDSOR	CO	SOFIA VESECKY DUNWORTH	WINDSOR	CO	1	73.5	1	8	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Trail	8	0		VON SUGAR DOLL			Stella Rajewski		LONGMONT	CO	Stella Rajewski	LONGMONT	CO	1	69	2	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Trail	8	0		HICKORY CHICAROO			Sage Green		LOVELAND	CO	SOPHIA HANEY	Loveland	CO	1	62	3	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Trail	8	0		ACE			KAYLEE HINTZMAN		LOVELAND	CO	KAYLEE HINTZMAN	LOVELAND	CO	1	60.5	4	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Trail	8	0		SORRY NOT REALLY			Kaitlyn Grace Brown		Fort Collins	CO	Kaitlyn Grace Brown	Fort Collins	CO	1	49.5	5	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Trail	8	0		DARRENS DOLLY DEUCE			OLIVIA STREET		WINDSOR	CO	OLIVIA STREET	WINDSOR	CO	1	57.5	6	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Trail	8	0		FINALLY VESTED			SYDNEY HYDE		THORNTON	CO	ROSS SIBLEY	Thornton	CO	1	44.5	7	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Trail	8	0		MISSY THE GUN GIRL			Ailey Paxton		STERLING	CO	Adria Paxton	STERLING	CO	1	63	8	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Working Cow Horse	4	0		SORRY NOT REALLY			Kaitlyn Grace Brown		Fort Collins	CO	Kaitlyn Grace Brown	Fort Collins	CO	1	72	1	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Working Cow Horse	4	0		EDNA NITRO			SOFIA VESECKY DUNWORTH		WINDSOR	CO	SOFIA VESECKY DUNWORTH	WINDSOR	CO	1	69	2	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Working Cow Horse	4	0		DARRENS DOLLY DEUCE			OLIVIA STREET		WINDSOR	CO	OLIVIA STREET	WINDSOR	CO	1	68	3	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Novice Working Cow Horse	4	0		ACE			KAYLEE HINTZMAN		LOVELAND	CO	KAYLEE HINTZMAN	LOVELAND	CO	1	67.5	4	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Pleasure	6	0		THEE GAMBLER			THEA JANE KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	75	1	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Pleasure	6	0		LOLA			Kyah Lynn De Kruif		Keenesburg	CO	Cody Crow	Johnstown	CO	1	73.5	2	4.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Pleasure	6	0		DOCS SAILIN SUNRISE			GRACIE ANN KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	73.5	2	4.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Pleasure	6	0		LIL BIT A SPITFIRE			GARRET JASEN KIRKLAND				Jason Kirkland	Florissant	CO	1	72	4	2.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Pleasure	6	0		ROLEX BAR NONE	CoWN	12	Haley Smith		Yuma	CO	Greg Smith	Yuma	CO	1	72	4	2.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Pleasure	6	0		BETITWASTHEMOONSHINE			SOPHIA HANEY		Loveland	CO	SOPHIA HANEY	Loveland	CO	1	70.5	6	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Reining	6	0		BETITWASTHEMOONSHINE			SOPHIA HANEY		Loveland	CO	SOPHIA HANEY	Loveland	CO	1	74.5	1	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Reining	6	0		THEE GAMBLER			THEA JANE KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	71	2	4.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Reining	6	0		LOLA			Kyah Lynn De Kruif		Keenesburg	CO	Cody Crow	Johnstown	CO	1	71	2	4.5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Reining	6	0		LIL BIT A SPITFIRE			GARRET JASEN KIRKLAND				Jason Kirkland	Florissant	CO	1	70	4	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Reining	6	0		DOCS SAILIN SUNRISE			GRACIE ANN KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	68.5	5	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Reining	6	0		ROLEX BAR NONE	CoWN	12	Haley Smith		Yuma	CO	Greg Smith	Yuma	CO	1	65.5	6	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		YOUTH RANCH RIDING JACKPOT	7	0		BETITWASTHEMOONSHINE			SOPHIA HANEY		Loveland	CO	SOPHIA HANEY	Loveland	CO	1	78	1	7	42
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		YOUTH RANCH RIDING JACKPOT	7	0		CONQUISTARITA			SAVANNAH DE KRUIF		Keenesburg	CO	Ryan And Tania De Kruif De Kruif			1	74	2	6	28
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		YOUTH RANCH RIDING JACKPOT	7	0		VON SUGAR DOLL			Stella Rajewski		LONGMONT	CO	Stella Rajewski	LONGMONT	CO	1	72	3	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		YOUTH RANCH RIDING JACKPOT	7	0		SORRY NOT REALLY			Kaitlyn Grace Brown		Fort Collins	CO	Kaitlyn Grace Brown	Fort Collins	CO	1	66.5	4	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		YOUTH RANCH RIDING JACKPOT	7	0		LOLA			Kyah Lynn De Kruif		Keenesburg	CO	Cody Crow	Johnstown	CO	1	66	5	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		YOUTH RANCH RIDING JACKPOT	7	0		EDNA NITRO			SOFIA VESECKY DUNWORTH		WINDSOR	CO	SOFIA VESECKY DUNWORTH	WINDSOR	CO	1	53	6	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		YOUTH RANCH RIDING JACKPOT	7	0		DARRENS DOLLY DEUCE			OLIVIA STREET		WINDSOR	CO	OLIVIA STREET	WINDSOR	CO	1	52.5	7	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Trail	7	0		BETITWASTHEMOONSHINE			SOPHIA HANEY		Loveland	CO	SOPHIA HANEY	Loveland	CO	1	74.5	1	7	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Trail	7	0		DOCS SAILIN SUNRISE			GRACIE ANN KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	72.5	2	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Trail	7	0		THEE GAMBLER			THEA JANE KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	70	3	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Trail	7	0		LOLA			Kyah Lynn De Kruif		Keenesburg	CO	Cody Crow	Johnstown	CO	1	68.5	4	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Trail	7	0		ROLEX BAR NONE	CoWN	12	Haley Smith		Yuma	CO	Greg Smith	Yuma	CO	1	61	5	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Trail	7	0		LIL BIT A SPITFIRE			GARRET JASEN KIRKLAND				Jason Kirkland	Florissant	CO	1	75	6	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Trail	7	0		PAULI 			AVERY CAHILL		NIWOT	CO	CATHERINE CORONA			1	50.5	7	1	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Working Cow	6	0		LIL BIT A SPITFIRE			GARRET JASEN KIRKLAND				Jason Kirkland	Florissant	CO	1	73.5	1	6	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Working Cow	6	0		BETITWASTHEMOONSHINE			SOPHIA HANEY		Loveland	CO	SOPHIA HANEY	Loveland	CO	1	72.5	2	5	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Working Cow	6	0		THEE GAMBLER			THEA JANE KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	69.5	3	4	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Working Cow	6	0		DOCS SAILIN SUNRISE			GRACIE ANN KIRKLAND		Florissant	CO	Jason Kirkland	Florissant	CO	1	66.5	4	3	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Working Cow	6	0		LOLA			Kyah Lynn De Kruif		Keenesburg	CO	Cody Crow	Johnstown	CO	1	65	5	2	0
+10/5/2025	10/5/2025	CoWN Fallfest	Loveland	CO		Youth Working Cow	6	0		ROLEX BAR NONE	CoWN	12	Haley Smith		Yuma	CO	Greg Smith	Yuma	CO	1	63	6	1	0

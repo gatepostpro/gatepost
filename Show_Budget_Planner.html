@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoWN Show Budget Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#F7F4EF; --surface:#FFFFFF; --surface2:#F0ECE4; --border:#DDD8CE;
+    --text:#1C1A17; --text-muted:#7A7469; --text-light:#A89F94;
+    --accent:#2D5A3D; --accent-light:#E8F0EB; --accent-mid:#4A8C61;
+    --danger:#8B2E2E; --danger-light:#F5EAEA;
+    --amber:#7A5C1E; --amber-light:#F5EDD8; --rule:#E5E0D6;
+    --blue:#1E3A5A; --blue-light:#E8EFF5;
+  }
+  body { font-family:'Figtree',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; font-size:15px; line-height:1.5; }
+  header { background:var(--accent); color:white; padding:1.5rem 2.5rem; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:space-between; }
+  header::after { content:''; position:absolute; right:-60px; top:-60px; width:280px; height:280px; border-radius:50%; border:40px solid rgba(255,255,255,0.06); }
+  header h1 { font-family:'DM Serif Display',serif; font-size:1.75rem; font-weight:400; }
+  header p { font-size:12px; opacity:0.7; margin-top:3px; }
+
+  /* Tab nav */
+  .tab-bar { display:flex; background:var(--surface); border-bottom:1px solid var(--border); padding:0 1.5rem; }
+  .tab-btn { padding:0.75rem 1.25rem; font-size:13px; font-weight:600; color:var(--text-muted); border:none; background:none; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:all .15s; }
+  .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .tab-btn:hover:not(.active) { color:var(--text); }
+
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* Budget layout */
+  .layout { display:grid; grid-template-columns:370px 1fr; gap:0; min-height:calc(100vh - 110px); }
+  .sidebar { background:var(--surface); border-right:1px solid var(--border); padding:1.5rem; overflow-y:auto; max-height:calc(100vh - 110px); position:sticky; top:0; }
+  .main { padding:1.5rem 2rem; overflow-y:auto; }
+
+  .section-label { font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--text-light); margin-bottom:.75rem; margin-top:1.5rem; padding-bottom:.5rem; border-bottom:1px solid var(--rule); }
+  .section-label:first-child { margin-top:0; }
+  .field { margin-bottom:.875rem; }
+  .field label { display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--text-muted); margin-bottom:5px; }
+  .field label span { font-family:'DM Mono',monospace; font-size:12px; color:var(--text); font-weight:500; }
+  input[type="range"] { width:100%; -webkit-appearance:none; height:4px; border-radius:2px; background:var(--rule); outline:none; cursor:pointer; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.2); }
+  input[type="number"],input[type="text"] { width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:6px; font-family:'DM Mono',monospace; font-size:13px; background:var(--surface); color:var(--text); outline:none; }
+  input[type="number"]:focus,input[type="text"]:focus { border-color:var(--accent-mid); box-shadow:0 0 0 3px rgba(74,140,97,.12); }
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .sponsor-row { display:grid; grid-template-columns:1fr auto auto; gap:6px; align-items:center; margin-bottom:6px; }
+  .remove-btn { width:28px; height:28px; border:1px solid var(--border); border-radius:5px; background:none; cursor:pointer; color:var(--text-muted); font-size:16px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .remove-btn:hover { background:var(--danger-light); border-color:var(--danger); color:var(--danger); }
+  .add-btn { width:100%; padding:7px; border:1px dashed var(--border); border-radius:6px; background:none; cursor:pointer; font-size:13px; color:var(--text-muted); font-family:'Figtree',sans-serif; margin-top:4px; }
+  .add-btn:hover { border-color:var(--accent-mid); color:var(--accent); background:var(--accent-light); }
+
+  /* Upload */
+  .upload-zone { border:2px dashed var(--border); border-radius:10px; padding:1.25rem; text-align:center; cursor:pointer; transition:all .2s; background:var(--surface2); margin-bottom:.875rem; }
+  .upload-zone:hover,.upload-zone.over { border-color:var(--accent-mid); background:var(--accent-light); }
+  .upload-zone p { font-size:12px; color:var(--text-muted); margin-top:4px; }
+  .upload-zone strong { font-size:13px; color:var(--accent); }
+  .upload-badge { display:inline-flex; align-items:center; gap:8px; background:var(--accent-light); border:1px solid rgba(45,90,61,.2); border-radius:8px; padding:8px 12px; font-size:12px; color:var(--accent); margin-bottom:.875rem; width:100%; }
+  .upload-badge .file-name { font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .clear-btn { font-size:11px; color:var(--text-muted); cursor:pointer; text-decoration:none; border:none; background:none; padding:0; font-family:'Figtree',sans-serif; }
+  .clear-btn:hover { color:var(--danger); }
+  .from-upload { font-size:11px; color:var(--accent-mid); font-style:italic; margin-top:2px; }
+  .locked { opacity:.55; pointer-events:none; }
+
+  /* Summary metrics */
+  .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:1.75rem; }
+  .metric { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem 1.125rem; }
+  .metric-label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px; }
+  .metric-value { font-family:'DM Serif Display',serif; font-size:1.75rem; font-weight:400; letter-spacing:-.02em; }
+  .metric-value.positive { color:var(--accent); }
+  .metric-value.negative { color:var(--danger); }
+  .metric-sub { font-size:11px; color:var(--text-light); margin-top:3px; }
+  .metric-sub.up { color:var(--accent-mid); }
+  .metric-sub.down { color:var(--danger); }
+
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1.25rem 1.5rem; margin-bottom:1rem; }
+  .card-title { font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--text-light); margin-bottom:1rem; }
+  .breakdown-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px; }
+  .breakdown-label { width:140px; color:var(--text-muted); flex-shrink:0; font-size:12px; }
+  .breakdown-bar-wrap { flex:1; height:8px; background:var(--surface2); border-radius:4px; overflow:hidden; }
+  .breakdown-bar { height:100%; border-radius:4px; transition:width .3s ease; }
+  .breakdown-value { width:75px; text-align:right; font-family:'DM Mono',monospace; font-size:12px; }
+  .breakdown-pct { width:38px; text-align:right; font-family:'DM Mono',monospace; font-size:11px; color:var(--text-light); }
+  .scenario-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .scenario-card { border:1px solid var(--border); border-radius:8px; padding:1rem; text-align:center; }
+  .scenario-card.current { border-color:var(--accent); background:var(--accent-light); }
+  .scenario-name { font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-light); margin-bottom:6px; }
+  .scenario-net { font-family:'DM Serif Display',serif; font-size:1.4rem; }
+  .scenario-net.pos { color:var(--accent); }
+  .scenario-net.neg { color:var(--danger); }
+  .scenario-detail { font-size:11px; color:var(--text-light); margin-top:4px; }
+  .breakeven-bar-wrap { height:24px; background:var(--danger-light); border-radius:6px; overflow:hidden; margin:10px 0 6px; }
+  .breakeven-bar { height:100%; background:linear-gradient(90deg,var(--accent-light),var(--accent)); border-radius:6px; transition:width .3s; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; }
+  .breakeven-label { font-size:11px; font-family:'DM Mono',monospace; color:white; }
+  .breakeven-info { display:flex; justify-content:space-between; font-size:11px; color:var(--text-light); font-family:'DM Mono',monospace; }
+  .alert { padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:1rem; line-height:1.5; }
+  .alert-green { background:var(--accent-light); color:var(--accent); border:1px solid rgba(45,90,61,.2); }
+  .alert-red { background:var(--danger-light); color:var(--danger); border:1px solid rgba(139,46,46,.2); }
+  .alert-amber { background:var(--amber-light); color:var(--amber); border:1px solid rgba(122,92,30,.2); }
+  .note { font-size:11px; color:var(--text-light); margin-top:4px; font-style:italic; }
+
+  /* Password screen */
+  .pw-screen { position:fixed; inset:0; background:var(--accent); display:flex; align-items:center; justify-content:center; z-index:1000; }
+  .pw-box { background:white; border-radius:16px; padding:2.5rem 2rem; width:320px; text-align:center; }
+  .pw-box h2 { font-family:'DM Serif Display',serif; font-size:1.5rem; font-weight:400; color:var(--accent); margin-bottom:.4rem; }
+  .pw-box p { font-size:13px; color:var(--text-muted); margin-bottom:1.5rem; }
+  .pw-input { width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:15px; font-family:'DM Mono',monospace; text-align:center; letter-spacing:.1em; outline:none; margin-bottom:.75rem; }
+  .pw-input:focus { border-color:var(--accent-mid); box-shadow:0 0 0 3px rgba(74,140,97,.15); }
+  .pw-btn { width:100%; padding:10px; background:var(--accent); color:white; border:none; border-radius:8px; font-size:14px; font-weight:600; font-family:'Figtree',sans-serif; cursor:pointer; }
+  .pw-btn:hover { background:var(--accent-mid); }
+  .pw-error { font-size:12px; color:var(--danger); margin-top:.5rem; display:none; }
+
+  /* Cow panel */
+  .cow-panel { padding:1.5rem 2rem; }
+  .cow-total-hero { background:var(--accent); color:white; border-radius:14px; padding:1.5rem 2rem; margin-bottom:1.5rem; display:flex; align-items:center; gap:1.5rem; }
+  .cow-total-hero .num { font-family:'DM Serif Display',serif; font-size:3.5rem; font-weight:400; line-height:1; }
+  .cow-total-hero .label { font-size:14px; opacity:.8; margin-top:4px; }
+  .cow-total-hero .breakdown-hint { font-size:12px; opacity:.6; margin-top:2px; }
+
+  .cow-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+  .cow-section { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1.25rem 1.5rem; }
+  .cow-section-title { font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--text-light); margin-bottom:1rem; padding-bottom:.5rem; border-bottom:1px solid var(--rule); display:flex; justify-content:space-between; }
+  .cow-section-title span { font-family:'DM Mono',monospace; color:var(--accent); font-size:12px; letter-spacing:0; }
+  .cow-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--rule); font-size:13px; }
+  .cow-row:last-child { border-bottom:none; }
+  .cow-div { color:var(--text-muted); }
+  .cow-count { font-family:'DM Mono',monospace; font-weight:500; }
+  .cow-count.cow { color:var(--accent); }
+  .cow-count.cutting { color:var(--blue); }
+  .cow-note { font-size:11px; color:var(--text-light); margin-left:6px; }
+
+  .empty-state { text-align:center; padding:3rem 2rem; color:var(--text-muted); }
+  .empty-state .icon { font-size:2.5rem; margin-bottom:1rem; opacity:.4; }
+  .empty-state p { font-size:13px; }
+
+  /* Entry summary table */
+  .entry-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .entry-table th { text-align:left; padding:8px 12px; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-light); border-bottom:1px solid var(--border); }
+  .entry-table td { padding:8px 12px; border-bottom:1px solid var(--rule); color:var(--text-muted); }
+  .entry-table td:first-child { color:var(--text); font-weight:500; }
+  .entry-table td.mono { font-family:'DM Mono',monospace; font-size:12px; }
+  .entry-table tr:last-child td { border-bottom:none; }
+
+  @media(max-width:900px) {
+    .layout { grid-template-columns:1fr; }
+    .sidebar { max-height:none; position:static; }
+    .summary-grid { grid-template-columns:repeat(2,1fr); }
+    .scenario-grid { grid-template-columns:1fr; }
+    .cow-grid { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Password screen -->
+<div class="pw-screen" id="pw-screen" style="display:none">
+  <div class="pw-box">
+    <h2>CoWN Budget Planner</h2>
+    <p>Enter the password to continue</p>
+    <input class="pw-input" type="password" id="pw-input" placeholder="Password" onkeydown="if(event.key==='Enter')checkPw()">
+    <button class="pw-btn" onclick="checkPw()">Unlock</button>
+    <div class="pw-error" id="pw-error">Incorrect password. Try again.</div>
+  </div>
+</div>
+
+<header>
+  <div>
+    <h1>CoWN Show Budget Planner</h1>
+    <p id="header-file">No entries loaded — upload a spreadsheet to auto-fill</p>
+  </div>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('budget',this)">Budget</button>
+  <button class="tab-btn" onclick="switchTab('cows',this)">Cattle Needs</button>
+  <button class="tab-btn" onclick="switchTab('entries',this)">Entry Summary</button>
+</div>
+
+<!-- ===== BUDGET TAB ===== -->
+<div id="tab-budget" class="tab-panel active">
+<div class="layout">
+  <div class="sidebar">
+
+    <div class="section-label">Show basics</div>
+    <div class="field">
+      <label>Number of classes <span id="lbl-classes">950</span></label>
+      <input type="range" id="classes" min="200" max="1500" step="10" value="950" oninput="update()">
+      <div id="note-classes" class="from-upload" style="display:none">Auto-counted from entries</div>
+    </div>
+    <div class="field">
+      <label>Number of entries <span id="lbl-entries">170</span></label>
+      <input type="range" id="entries" min="50" max="300" step="5" value="170" oninput="update()">
+      <div id="note-entries" class="from-upload" style="display:none">Auto-counted from entries</div>
+    </div>
+    <div class="field">
+      <label>Show days <span id="lbl-days">3</span></label>
+      <input type="range" id="days" min="1" max="5" step="1" value="3" oninput="update()">
+    </div>
+
+    <div class="section-label">Income — fees</div>
+    <div class="field">
+      <label>Class fee <span id="lbl-classfee">$35</span></label>
+      <input type="range" id="classfee" min="20" max="75" step="1" value="35" oninput="update()">
+    </div>
+    <div class="field">
+      <label>Cattle fee (per cow, per class) <span id="lbl-cattlefee">$85</span></label>
+      <input type="range" id="cattlefee" min="50" max="150" step="5" value="85" oninput="update()">
+    </div>
+    <div style="background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:.875rem;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-light);margin-bottom:10px;">
+        Cattle class entries <span id="lbl-cattle-total" style="float:right;color:var(--accent)"></span>
+      </div>
+      <div id="note-cattle" class="from-upload" style="display:none;margin-bottom:8px;">Auto-counted — see Cattle Needs tab for breakdown</div>
+      <div class="field" style="margin-bottom:.75rem;">
+        <label>Cow class entries <span id="lbl-ncow">40</span></label>
+        <input type="range" id="ncow" min="0" max="200" step="1" value="40" oninput="update()">
+        <div class="note">1 cow per entry × $<span id="lbl-cow-calc">85</span>/class</div>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Cutting entries <span id="lbl-ncutting">20</span></label>
+        <input type="range" id="ncutting" min="0" max="200" step="1" value="20" oninput="update()">
+        <div class="note">2 cows per entry × $<span id="lbl-cutting-calc">85</span>/class</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Office fee (per entry) <span id="lbl-officefee">$30</span></label>
+      <input type="range" id="officefee" min="15" max="60" step="1" value="30" oninput="update()">
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>Stall — per night <span id="lbl-stallnight">$45</span></label>
+        <input type="range" id="stallnight" min="20" max="100" step="5" value="45" oninput="update()">
+      </div>
+      <div class="field">
+        <label>RV — per night <span id="lbl-rvnight">$35</span></label>
+        <input type="range" id="rvnight" min="10" max="80" step="5" value="35" oninput="update()">
+      </div>
+    </div>
+    <div style="background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:.875rem;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-light);margin-bottom:10px;">
+        Stall / haul-in mix <span id="lbl-mix-total" style="float:right;color:var(--accent)"></span>
+      </div>
+      <div id="note-stalls" class="from-upload" style="display:none;margin-bottom:8px;">Stall nights auto-counted from entries</div>
+      <div class="field" style="margin-bottom:.75rem;">
+        <label>Night stall slots <span id="lbl-nstallnights">60</span></label>
+        <input type="range" id="nstallnights" min="0" max="100" step="1" value="60" oninput="update()">
+      </div>
+      <div class="field" style="margin-bottom:.75rem;">
+        <label>RV night slots <span id="lbl-nrvnights">20</span></label>
+        <input type="range" id="nrvnights" min="0" max="60" step="1" value="20" oninput="update()">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Haul-in entries <span id="lbl-nhaulin">50</span></label>
+        <input type="range" id="nhaulin" min="0" max="200" step="1" value="50" oninput="update()">
+        <div id="note-haulin" class="from-upload" style="display:none;">Auto-counted (entries with no stall request)</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Haul-in fee <span id="lbl-haulin">$0</span></label>
+      <input type="range" id="haulin" min="0" max="50" step="5" value="0" oninput="update()">
+    </div>
+
+    <div class="section-label">Sponsors &amp; other income</div>
+    <div id="sponsor-list"></div>
+    <button class="add-btn" onclick="addSponsor()">+ Add sponsor / other income</button>
+
+    <div class="section-label">Costs</div>
+    <div class="field"><label>Arena rental <span id="lbl-arena">$22,000</span></label><input type="range" id="arena" min="5000" max="60000" step="500" value="22000" oninput="update()"></div>
+    <div class="field"><label>Cattle / hay <span id="lbl-cattle">$6,000</span></label><input type="range" id="cattle" min="0" max="15000" step="250" value="6000" oninput="update()"></div>
+    <div class="field"><label>Secretary <span id="lbl-secretary">$3,800</span></label><input type="range" id="secretary" min="0" max="8000" step="100" value="3800" oninput="update()"></div>
+    <div class="field"><label>Judge(s) <span id="lbl-judges">$4,000</span></label><input type="range" id="judges" min="1000" max="10000" step="250" value="4000" oninput="update()"></div>
+    <div class="field"><label>Scribe(s) <span id="lbl-scribes">$1,200</span></label><input type="range" id="scribes" min="0" max="3000" step="100" value="1200" oninput="update()"></div>
+    <div class="field"><label>Announcer <span id="lbl-announcer">$900</span></label><input type="range" id="announcer" min="0" max="2500" step="100" value="900" oninput="update()"></div>
+    <div class="field"><label>Show manager <span id="lbl-manager">$2,500</span></label><input type="range" id="manager" min="0" max="5000" step="100" value="2500" oninput="update()"></div>
+    <div class="field"><label>Show awards / ribbons <span id="lbl-awards">$2,500</span></label><input type="range" id="awards" min="500" max="8000" step="100" value="2500" oninput="update()"></div>
+    <div class="field"><label>Jackpot payouts <span id="lbl-jackpot">$3,200</span></label><input type="range" id="jackpot" min="0" max="8000" step="100" value="3200" oninput="update()"></div>
+    <div class="field"><label>Hotels / travel <span id="lbl-hotels">$1,500</span></label><input type="range" id="hotels" min="0" max="5000" step="100" value="1500" oninput="update()"></div>
+    <div class="field"><label>Other / misc <span id="lbl-misc">$500</span></label><input type="range" id="misc" min="0" max="5000" step="100" value="500" oninput="update()"></div>
+  </div>
+
+  <div class="main">
+    <div id="alert-box"></div>
+    <div class="summary-grid">
+      <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-value positive" id="out-revenue">$0</div><div class="metric-sub" id="out-rev-per-entry"></div></div>
+      <div class="metric"><div class="metric-label">Total expenses</div><div class="metric-value" id="out-expenses">$0</div><div class="metric-sub" id="out-exp-per-entry"></div></div>
+      <div class="metric"><div class="metric-label">Net income</div><div class="metric-value" id="out-net">$0</div><div class="metric-sub" id="out-margin"></div></div>
+      <div class="metric"><div class="metric-label">Breakeven entries</div><div class="metric-value" id="out-breakeven">—</div><div class="metric-sub" id="out-breakeven-sub"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Breakeven progress</div>
+      <div class="breakeven-bar-wrap"><div class="breakeven-bar" id="be-bar"><span class="breakeven-label" id="be-bar-label"></span></div></div>
+      <div class="breakeven-info"><span>0 entries</span><span id="be-mid"></span><span id="be-max"></span></div>
+    </div>
+    <div class="card"><div class="card-title">Revenue breakdown</div><div id="rev-breakdown"></div></div>
+    <div class="card"><div class="card-title">Expense breakdown</div><div id="exp-breakdown"></div></div>
+    <div class="card"><div class="card-title">Quick scenarios</div><div class="scenario-grid" id="scenarios"></div></div>
+  </div>
+</div>
+</div>
+
+<!-- ===== CATTLE TAB ===== -->
+<div id="tab-cows" class="tab-panel">
+  <div class="cow-panel">
+    <div id="cow-empty" class="empty-state">
+      <div class="icon">🐄</div>
+      <p>Upload your entries spreadsheet to see cattle needs by division.</p>
+    </div>
+    <div id="cow-content" style="display:none">
+      <div class="cow-total-hero">
+        <div class="num" id="cow-hero-num">0</div>
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:1.1rem;">Total Cattle Needed</div>
+          <div class="label" id="cow-hero-breakdown"></div>
+          <div class="breakdown-hint" id="cow-hero-file"></div>
+        </div>
+      </div>
+      <div class="cow-grid">
+        <div class="cow-section">
+          <div class="cow-section-title">Cow Work by Division <span id="cow-work-total"></span></div>
+          <div id="cow-work-rows"></div>
+        </div>
+        <div class="cow-section">
+          <div class="cow-section-title">Cutting Jackpot by Division <span id="cow-cutting-total"></span></div>
+          <div id="cow-cutting-rows"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ENTRIES TAB ===== -->
+<div id="tab-entries" class="tab-panel">
+  <div style="padding:1.5rem 2rem;">
+    <!-- Live feed status -->
+    <div id="fetch-status" style="display:none" class="upload-badge">
+      <span>⏳</span><span>Loading entries from Google Sheets...</span>
+    </div>
+    <div id="fetch-error" style="display:none;background:var(--amber-light);border:1px solid rgba(122,92,30,.2);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--amber);margin-bottom:1rem;">
+      Could not load from Google Sheets — upload the file manually below, or check the URL in the HTML.
+    </div>
+    <div id="upload-badge" style="display:none;max-width:500px;" class="upload-badge">
+      <span>📄</span>
+      <span class="file-name" id="upload-filename"></span>
+      <button class="clear-btn" onclick="clearUpload()">✕ clear</button>
+    </div>
+    <!-- Manual upload fallback -->
+    <div id="upload-zone-wrap">
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="handleDrop(event)" style="max-width:500px;margin-bottom:1.5rem;">
+        <strong id="upload-zone-label">Upload entries spreadsheet</strong>
+        <p id="upload-zone-sub">Click or drag your .xlsx file here — populates Budget, Cattle Needs, and this tab</p>
+      </div>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none" onchange="handleFile(this.files[0])">
+    <div id="entries-empty" class="empty-state">
+      <div class="icon">📋</div>
+      <p>Upload your entries spreadsheet to see the entry summary.</p>
+    </div>
+    <div id="entries-content" style="display:none">
+      <div class="summary-grid" style="margin-bottom:1.5rem;" id="entry-metrics"></div>
+      <div class="card">
+        <div class="card-title">All Entries</div>
+        <div style="overflow-x:auto"><table class="entry-table" id="entry-table"></table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let sponsors = [];
+let uploadedData = null;
+const PASSWORD = 'cown2026';
+
+// ============================================================
+// PASTE YOUR GOOGLE SHEETS PUBLISHED CSV URL HERE:
+const SHEETS_CSV_URL = 'YOUR_GOOGLE_SHEETS_CSV_URL_HERE';
+// To get this URL:
+// 1. Open your Google Sheet
+// 2. File → Share → Publish to web
+// 3. Choose the sheet tab, select CSV format, click Publish
+// 4. Copy the URL and paste it above
+// ============================================================
+
+function checkPw() {
+  const val = document.getElementById('pw-input').value;
+  if (val === PASSWORD) {
+    document.getElementById('pw-screen').style.display = 'none';
+    sessionStorage.setItem('cown_auth', '1');
+  } else {
+    document.getElementById('pw-error').style.display = 'block';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
+
+function switchTab(id, btn) {
+  if (id === 'budget' && sessionStorage.getItem('cown_auth') !== '1') {
+    document.getElementById('pw-screen').style.display = 'flex';
+    return;
+  }
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function handleDrop(ev) {
+  ev.preventDefault();
+  document.getElementById('upload-zone').classList.remove('over');
+  const file = ev.dataTransfer.files[0];
+  if (file) handleFile(file);
+}
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type:'array', cellDates:true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      parseEntries(data, file.name);
+    } catch(err) { alert('Could not read file: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseEntries(rows, fileName) {
+  if (!rows.length) return;
+  const headers = Object.keys(rows[0]);
+
+  // CoWN class columns mapped to division name
+  const cownCols = {
+    'Non-Pro': headers.find(h => h.includes('Non-Pro Classes') && !h.includes('Jr')),
+    'Limited': headers.find(h => h.includes('Limited Classes')),
+    'Intermediate': headers.find(h => h.includes('Intermediate Classes')),
+    'Novice': headers.find(h => /Novice Classes/.test(h) && !h.includes('Youth') && !h.includes('L1')),
+    'L1 Novice': headers.find(h => h.includes('L1 Novice')),
+    'Youth': headers.find(h => /Youth Classes/.test(h) && !h.includes('Novice') && !h.includes('Jr') && !h.includes('Rookie') && !h.includes('Limited') && !h.includes('AQHA')),
+    'Novice Youth': headers.find(h => h.includes('Novice Youth Classes')),
+    'Open Jr Horse': headers.find(h => h.includes('Open Jr Horse')),
+    'Non-Pro Jr Horse': headers.find(h => h.includes('Non-Pro Jr Horse')),
+  };
+  const jackpotCol = headers.find(h => h.includes('Ranch Riding Jackpot') || h.includes('Cutting Jackpot'));
+  const stallingCol = headers.find(h => h.includes('Stalling Request'));
+  const stall1NightCol = headers.find(h => h.includes('Stall for 1 night'));
+  const rv1NightCol = headers.find(h => h.includes('RV for 1 night'));
+  const rv2NightCol = headers.find(h => h.includes('# of 2 night'));
+  const orderCol = headers.find(h => h.includes('Order Summary'));
+  const riderCol = headers.find(h => h.includes('Rider Name'));
+  const horseCol = headers.find(h => h.includes('Horse Registered'));
+  const divisionCol = headers.find(h => h.includes('CoWN Division'));
+
+  let totalEntries = 0, totalClasses = 0, totalRevenue = 0;
+  let totalStallNights = 0, totalRvNights = 0, totalHaulIn = 0;
+  const cowByDiv = {}, cuttingByDiv = {};
+  const entryRows = [];
+
+  rows.forEach(row => {
+    if (!row[headers[0]]) return;
+    totalEntries++;
+
+    // Revenue
+    const order = String(row[orderCol] || '');
+    const m = order.match(/\$([\d,]+\.?\d*)/);
+    if (m) totalRevenue += parseFloat(m[1].replace(/,/g,''));
+
+    // Stalls
+    const sn = parseFloat(row[stall1NightCol]) || 0;
+    totalStallNights += sn;
+
+    // RV
+    const rv1 = parseFloat(row[rv1NightCol]) || 0;
+    const rv2 = parseFloat(row[rv2NightCol]) || 0;
+    totalRvNights += rv1 + rv2 * 2;
+
+    // Haul-in
+    const hasStall = stallingCol && String(row[stallingCol] || '').trim();
+    if (!hasStall) totalHaulIn++;
+
+    // Classes + cows per division
+    Object.entries(cownCols).forEach(([div, col]) => {
+      if (!col) return;
+      const val = String(row[col] || '').trim();
+      if (!val) return;
+      const classes = val.split(',').filter(c => c.trim()).length;
+      totalClasses += classes;
+      const cows = (val.toLowerCase().match(/\bcow\b/g) || []).length;
+      const cuts = (val.toLowerCase().match(/\bcutting\b/g) || []).length;
+      if (cows) cowByDiv[div] = (cowByDiv[div] || 0) + cows;
+      if (cuts) cuttingByDiv[div] = (cuttingByDiv[div] || 0) + cuts;
+    });
+
+    // Jackpot cutting
+    if (jackpotCol) {
+      const jp = String(row[jackpotCol] || '').trim();
+      if (jp) {
+        jp.split(',').forEach(p => {
+          const dm = p.match(/-\s*(.+)/);
+          if (dm) {
+            const d = dm[1].trim();
+            cuttingByDiv['Jackpot — ' + d] = (cuttingByDiv['Jackpot — ' + d] || 0) + 1;
+          }
+        });
+      }
+    }
+
+    // Entry table row
+    entryRows.push({
+      rider: String(row[riderCol] || ''),
+      horse: String(row[horseCol] || ''),
+      division: String(row[divisionCol] || ''),
+      order: order,
+      stalls: sn > 0 ? sn + ' night' + (sn > 1 ? 's' : '') : '—',
+      rv: (rv1 + rv2 * 2) > 0 ? (rv1 + rv2 * 2) + ' night' + ((rv1 + rv2 * 2) > 1 ? 's' : '') : '—',
+    });
+  });
+
+  const totalCows = Object.values(cowByDiv).reduce((a,b) => a+b, 0);
+  const totalCutting = Object.values(cuttingByDiv).reduce((a,b) => a+b, 0);
+  const totalCowsNeeded = totalCows + totalCutting * 2;
+
+  uploadedData = { fileName, totalEntries, totalClasses, totalRevenue, totalStallNights, totalRvNights, totalHaulIn, cowByDiv, cuttingByDiv, totalCowsNeeded, totalCows, totalCutting, entryRows };
+
+  // Update UI
+  setLoadingState(false);
+  document.getElementById('fetch-error').style.display = 'none';
+
+  const isLive = fileName === 'Google Sheets (live)';
+  if (isLive) {
+    // Hide manual upload zone, show live badge
+    document.getElementById('upload-zone-wrap').style.display = 'none';
+    document.getElementById('upload-badge').style.display = 'flex';
+    document.getElementById('upload-filename').textContent = 'Live from Google Sheets — refreshes on page load';
+    document.querySelector('.clear-btn').style.display = 'none';
+  } else {
+    document.getElementById('upload-zone-wrap').style.display = 'none';
+    document.getElementById('upload-badge').style.display = 'flex';
+    document.getElementById('upload-filename').textContent = fileName;
+  }
+  document.getElementById('header-file').textContent = (isLive ? 'Live · ' : '') + totalEntries + ' entries loaded';
+
+  // Lock & fill sliders
+  setSlider('entries', totalEntries, 'note-entries');
+  setSlider('classes', totalClasses, 'note-classes');
+  setSlider('ncow', totalCows, null);
+  setSlider('ncutting', totalCutting, null);
+  setSlider('nstallnights', totalStallNights, 'note-stalls');
+  setSlider('nrvnights', Math.round(totalRvNights), null);
+  setSlider('nhaulin', totalHaulIn, 'note-haulin');
+  document.getElementById('note-cattle').style.display = 'block';
+
+  renderCowPanel();
+  renderEntriesPanel();
+  update();
+}
+
+function setSlider(id, val, noteId) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const max = Math.max(+el.max, val + 20);
+  el.max = max;
+  el.value = val;
+  el.classList.add('locked');
+  if (noteId) document.getElementById(noteId).style.display = 'block';
+}
+
+function clearUpload() {
+  uploadedData = null;
+  document.getElementById('upload-zone-wrap').style.display = 'block';
+  document.getElementById('upload-badge').style.display = 'none';
+  document.querySelector('.clear-btn').style.display = '';
+  document.getElementById('header-file').textContent = 'No entries loaded — upload a spreadsheet to auto-fill';
+  ['entries','classes','ncow','ncutting','nstallnights','nrvnights','nhaulin'].forEach(id => {
+    document.getElementById(id)?.classList.remove('locked');
+  });
+  ['note-entries','note-classes','note-cattle','note-stalls','note-haulin'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  document.getElementById('cow-empty').style.display = 'block';
+  document.getElementById('cow-content').style.display = 'none';
+  document.getElementById('entries-empty').style.display = 'block';
+  document.getElementById('entries-content').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  update();
+}
+
+function renderCowPanel() {
+  if (!uploadedData) return;
+  const d = uploadedData;
+  document.getElementById('cow-empty').style.display = 'none';
+  document.getElementById('cow-content').style.display = 'block';
+
+  document.getElementById('cow-hero-num').textContent = d.totalCowsNeeded;
+  document.getElementById('cow-hero-breakdown').textContent = d.totalCows + ' cow work runs + ' + d.totalCutting + ' cutting runs (×2 cows each)';
+  document.getElementById('cow-hero-file').textContent = 'From ' + d.totalEntries + ' entries in ' + d.fileName;
+
+  // Cow work rows
+  const cwEl = document.getElementById('cow-work-rows');
+  const cowEntries = Object.entries(d.cowByDiv);
+  document.getElementById('cow-work-total').textContent = d.totalCows + ' runs';
+  if (cowEntries.length === 0) {
+    cwEl.innerHTML = '<div style="font-size:13px;color:var(--text-light);padding:8px 0;">No cow work entries found</div>';
+  } else {
+    cwEl.innerHTML = cowEntries.map(([div, n]) =>
+      `<div class="cow-row"><span class="cow-div">${div}</span><span><span class="cow-count cow">${n} run${n>1?'s':''}</span><span class="cow-note">= ${n} cow${n>1?'s':''}</span></span></div>`
+    ).join('');
+  }
+
+  // Cutting rows
+  const cutEl = document.getElementById('cow-cutting-rows');
+  const cutEntries = Object.entries(d.cuttingByDiv);
+  const totalCutCows = d.totalCutting * 2;
+  document.getElementById('cow-cutting-total').textContent = totalCutCows + ' cows';
+  if (cutEntries.length === 0) {
+    cutEl.innerHTML = '<div style="font-size:13px;color:var(--text-light);padding:8px 0;">No cutting entries found</div>';
+  } else {
+    cutEl.innerHTML = cutEntries.map(([div, n]) =>
+      `<div class="cow-row"><span class="cow-div">${div}</span><span><span class="cow-count cutting">${n} run${n>1?'s':''}</span><span class="cow-note">= ${n*2} cows</span></span></div>`
+    ).join('');
+  }
+}
+
+function renderEntriesPanel() {
+  if (!uploadedData) return;
+  const d = uploadedData;
+  document.getElementById('entries-empty').style.display = 'none';
+  document.getElementById('entries-content').style.display = 'block';
+
+  document.getElementById('entry-metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Entries</div><div class="metric-value" style="font-size:1.5rem">${d.totalEntries}</div></div>
+    <div class="metric"><div class="metric-label">Class entries</div><div class="metric-value" style="font-size:1.5rem">${d.totalClasses}</div></div>
+    <div class="metric"><div class="metric-label">Stall nights</div><div class="metric-value" style="font-size:1.5rem">${d.totalStallNights}</div></div>
+    <div class="metric"><div class="metric-label">Cattle needed</div><div class="metric-value positive" style="font-size:1.5rem">${d.totalCowsNeeded}</div></div>
+  `;
+
+  document.getElementById('entry-table').innerHTML = `
+    <thead><tr><th>Rider</th><th>Horse</th><th>Division</th><th>Stalls</th><th>RV</th><th>Order</th></tr></thead>
+    <tbody>${d.entryRows.map(r => `
+      <tr>
+        <td>${r.rider}</td>
+        <td style="color:var(--text-muted)">${r.horse}</td>
+        <td style="color:var(--text-muted)">${r.division}</td>
+        <td class="mono">${r.stalls}</td>
+        <td class="mono">${r.rv}</td>
+        <td class="mono">${r.order}</td>
+      </tr>`).join('')}
+    </tbody>
+  `;
+}
+
+// Sponsor functions
+function addSponsor(name='', amount=500) {
+  const id = Date.now();
+  sponsors.push({id, name, amount});
+  renderSponsors(); update();
+}
+function removeSponsor(id) {
+  sponsors = sponsors.filter(s => s.id !== id);
+  renderSponsors(); update();
+}
+function renderSponsors() {
+  const el = document.getElementById('sponsor-list');
+  el.innerHTML = '';
+  sponsors.forEach(s => {
+    const row = document.createElement('div');
+    row.className = 'sponsor-row';
+    row.innerHTML = `<input type="text" placeholder="Sponsor / source" value="${s.name}" oninput="updateSponsor(${s.id},'name',this.value)"><input type="number" value="${s.amount}" min="0" step="50" style="width:90px;text-align:right" oninput="updateSponsor(${s.id},'amount',+this.value)"><button class="remove-btn" onclick="removeSponsor(${s.id})">×</button>`;
+    el.appendChild(row);
+  });
+}
+function updateSponsor(id, key, val) {
+  const s = sponsors.find(s => s.id === id);
+  if (s) { s[key] = val; update(); }
+}
+
+function fmt(n) { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString(); }
+
+function update() {
+  const v = id => +document.getElementById(id).value;
+  const classes = v('classes'), entries = v('entries'), days = v('days');
+  const classfee = v('classfee'), cattlefee = v('cattlefee');
+  const ncow = v('ncow'), ncutting = v('ncutting');
+  const officefee = v('officefee');
+  const stallnight = v('stallnight'), rvnight = v('rvnight');
+  const nstallnights = v('nstallnights'), nrvnights = v('nrvnights');
+  const nhaulin = v('nhaulin'), haulin = v('haulin');
+
+  // Labels
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  set('lbl-classes', classes);
+  set('lbl-entries', entries);
+  set('lbl-days', days + (days===1?' day':' days'));
+  set('lbl-classfee', '$'+classfee);
+  set('lbl-cattlefee', '$'+cattlefee);
+  set('lbl-ncow', ncow);
+  set('lbl-ncutting', ncutting);
+  set('lbl-cow-calc', cattlefee);
+  set('lbl-cutting-calc', cattlefee);
+  set('lbl-cattle-total', (ncow + ncutting*2) + ' cows total');
+  set('lbl-officefee', '$'+officefee);
+  set('lbl-stallnight', '$'+stallnight);
+  set('lbl-rvnight', '$'+rvnight);
+  set('lbl-nstallnights', nstallnights);
+  set('lbl-nrvnights', nrvnights);
+  set('lbl-nhaulin', nhaulin);
+  set('lbl-haulin', haulin > 0 ? '$'+haulin : 'none');
+  set('lbl-mix-total', (nstallnights + nrvnights + nhaulin) + ' total');
+  ['arena','cattle','secretary','judges','scribes','announcer','manager','awards','jackpot','hotels','misc'].forEach(id => set('lbl-'+id, fmt(v(id))));
+
+  const sponsorTotal = sponsors.reduce((s,x) => s + (+x.amount||0), 0);
+
+  // Revenue
+  const classIncome = classes * classfee;
+  const cattleIncome = (ncow + ncutting*2) * cattlefee;
+  const officeIncome = entries * officefee;
+  const stallIncome = nstallnights * stallnight;
+  const rvIncome = nrvnights * rvnight;
+  const haulinIncome = nhaulin * haulin;
+  const totalRev = classIncome + cattleIncome + officeIncome + stallIncome + rvIncome + haulinIncome + sponsorTotal;
+
+  // Expenses
+  const expIds = ['arena','cattle','secretary','judges','scribes','announcer','manager','awards','jackpot','hotels','misc'];
+  const expItems = expIds.map(id => ({name:id, value:v(id)}));
+  const totalExp = expItems.reduce((s,i) => s+i.value, 0);
+  const net = totalRev - totalExp;
+  const margin = totalRev > 0 ? net/totalRev*100 : 0;
+
+  set('out-revenue', fmt(totalRev));
+  set('out-expenses', fmt(totalExp));
+  set('out-net', fmt(net));
+  document.getElementById('out-net').className = 'metric-value ' + (net >= 0 ? 'positive' : 'negative');
+  set('out-rev-per-entry', fmt(totalRev/entries) + ' per entry');
+  set('out-exp-per-entry', fmt(totalExp/entries) + ' per entry');
+  set('out-margin', Math.round(margin) + '% net margin');
+  document.getElementById('out-margin').className = 'metric-sub ' + (margin >= 0 ? 'up' : 'down');
+
+  const revPerEntry = totalRev / entries;
+  const beEntries = revPerEntry > 0 ? Math.ceil(totalExp / revPerEntry) : 0;
+  set('out-breakeven', beEntries || '—');
+  set('out-breakeven-sub', 'entries needed');
+
+  const bePct = beEntries > 0 ? Math.min(100, Math.round(entries/beEntries*100)) : 100;
+  document.getElementById('be-bar').style.width = bePct + '%';
+  set('be-bar-label', bePct + '%');
+  set('be-mid', Math.round(beEntries/2) + ' entries');
+  set('be-max', entries + ' entries (current)');
+
+  const alertEl = document.getElementById('alert-box');
+  if (net >= 10000) alertEl.innerHTML = `<div class="alert alert-green">On track — projecting <strong>${fmt(net)} profit</strong> at a ${Math.round(margin)}% margin.</div>`;
+  else if (net >= 0) alertEl.innerHTML = `<div class="alert alert-amber">Thin margin — projecting <strong>${fmt(net)} profit</strong> (${Math.round(margin)}%). Consider raising fees.</div>`;
+  else alertEl.innerHTML = `<div class="alert alert-red">Projected loss of <strong>${fmt(Math.abs(net))}</strong>. Expenses exceed revenue at current settings.</div>`;
+
+  // Revenue bars
+  const revItems = [
+    {label:'Class fees', value:classIncome, color:'#4A8C61'},
+    {label:'Cattle fees', value:cattleIncome, color:'#2D5A3D'},
+    {label:'Stall fees', value:stallIncome, color:'#7AAB8E'},
+    {label:'RV fees', value:rvIncome, color:'#5B9E7A'},
+    {label:'Haul-in fees', value:haulinIncome, color:'#9FC4B0'},
+    {label:'Office fees', value:officeIncome, color:'#C5DDD3'},
+    {label:'Sponsors / other', value:sponsorTotal, color:'#A8C4B8'},
+  ];
+  document.getElementById('rev-breakdown').innerHTML = revItems.map(item => {
+    const pct = totalRev > 0 ? item.value/totalRev*100 : 0;
+    return `<div class="breakdown-row"><div class="breakdown-label">${item.label}</div><div class="breakdown-bar-wrap"><div class="breakdown-bar" style="width:${pct}%;background:${item.color}"></div></div><div class="breakdown-value">${fmt(item.value)}</div><div class="breakdown-pct">${Math.round(pct)}%</div></div>`;
+  }).join('');
+
+  const expLabels = {arena:'Arena rental',cattle:'Cattle / hay',secretary:'Secretary',judges:'Judge(s)',scribes:'Scribe(s)',announcer:'Announcer',manager:'Show manager',awards:'Show awards',jackpot:'Jackpot',hotels:'Hotels / travel',misc:'Other / misc'};
+  document.getElementById('exp-breakdown').innerHTML = [...expItems].sort((a,b) => b.value-a.value).filter(i => i.value > 0).map(item => {
+    const pct = totalExp > 0 ? item.value/totalExp*100 : 0;
+    return `<div class="breakdown-row"><div class="breakdown-label">${expLabels[item.name]}</div><div class="breakdown-bar-wrap"><div class="breakdown-bar" style="width:${pct}%;background:#C0876A"></div></div><div class="breakdown-value">${fmt(item.value)}</div><div class="breakdown-pct">${Math.round(pct)}%</div></div>`;
+  }).join('');
+
+  // Scenarios
+  const s1Rev = totalRev + classes * 5;
+  const s2Rev = totalRev + (totalRev/entries)*20;
+  const s1Net = s1Rev - totalExp, s2Net = s2Rev - totalExp;
+  document.getElementById('scenarios').innerHTML = `
+    <div class="scenario-card current"><div class="scenario-name">Current</div><div class="scenario-net ${net>=0?'pos':'neg'}">${fmt(net)}</div><div class="scenario-detail">${Math.round(margin)}% margin</div></div>
+    <div class="scenario-card"><div class="scenario-name">+$5 class fee</div><div class="scenario-net ${s1Net>=0?'pos':'neg'}">${fmt(s1Net)}</div><div class="scenario-detail">${fmt(s1Net-net)} vs current</div></div>
+    <div class="scenario-card"><div class="scenario-name">+20 entries</div><div class="scenario-net ${s2Net>=0?'pos':'neg'}">${fmt(s2Net)}</div><div class="scenario-detail">${fmt(s2Net-net)} vs current</div></div>
+  `;
+}
+
+window.onload = () => {
+  // Start on Entry Summary tab
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-entries').classList.add('active');
+  document.querySelector('[onclick*="entries"]').classList.add('active');
+  // Hide pw screen if already authenticated this session
+  if (sessionStorage.getItem('cown_auth') !== '1') {
+    document.getElementById('pw-screen').style.display = 'none';
+  }
+  update();
+  // Auto-fetch from Google Sheets if URL is configured
+  if (SHEETS_CSV_URL && SHEETS_CSV_URL !== 'YOUR_GOOGLE_SHEETS_CSV_URL_HERE') {
+    fetchFromSheets();
+  }
+};
+
+async function fetchFromSheets() {
+  setLoadingState(true);
+  try {
+    const res = await fetch(SHEETS_CSV_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const csv = await res.text();
+    const rows = parseCSV(csv);
+    if (rows.length > 1) {
+      parseEntries(rows.slice(1).map(row => {
+        const obj = {};
+        rows[0].forEach((h, i) => obj[h] = row[i] || '');
+        return obj;
+      }), 'Google Sheets (live)');
+    }
+  } catch(e) {
+    console.warn('Could not fetch from Google Sheets:', e);
+    setLoadingState(false);
+    document.getElementById('fetch-error').style.display = 'block';
+  }
+}
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [], cell = '', inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') { inQuote = !inQuote; }
+    else if (c === ',' && !inQuote) { row.push(cell.trim()); cell = ''; }
+    else if ((c === '\n' || c === '\r') && !inQuote) {
+      if (cell || row.length) { row.push(cell.trim()); rows.push(row); }
+      row = []; cell = '';
+      if (c === '\r' && text[i+1] === '\n') i++;
+    } else { cell += c; }
+  }
+  if (cell || row.length) { row.push(cell.trim()); rows.push(row); }
+  return rows;
+}
+
+function setLoadingState(loading) {
+  const el = document.getElementById('fetch-status');
+  if (el) el.style.display = loading ? 'block' : 'none';
+}
+</script>
+</body>
+</html>
