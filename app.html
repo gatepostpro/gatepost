@@ -579,13 +579,13 @@ function pgEntries(){
       return '<button class="pill'+(p===activePill?' active':'')+'" data-pill="'+esc(p)+'">'+esc(p)+(divCounts[p]?' ('+divCounts[p]+')':'')+ '</button>';
     }).join('');
   }
-  window.setEPill=function(p){ activePill=p; drawPills(); drawEntryTable(); };
+  window.setEPill=function(p){ activePill=p; drawPills(); }; // pill click handled by wirePillClicks
   function drawAndWirePills(){
     drawPills();
     wirePillClicks('ep', function(v){ activePill=v; drawAndWirePills(); drawEntryTable(); });
   }
   drawAndWirePills();
-  // Note: drawAndWirePills calls drawEntryTable internally
+  drawEntryTable();
 
   function drawEntryTable(){
     var q=(document.getElementById('eq')||{value:''}).value.trim().toLowerCase();
@@ -2503,11 +2503,23 @@ async function boot(){
       });
     }
 
-    // Step 3: Load entries with related data
-    // Clear stale local state first
+    // Step 3: Try localStorage first (fastest, most reliable)
     G.entries = [];
     G.payments = {};
     G.backNums = {};
+    try{
+      var cached = localStorage.getItem('gp_entries_'+showId);
+      if(cached){
+        G.entries = JSON.parse(cached);
+        var cachedPay = localStorage.getItem('gp_payments_'+showId);
+        var cachedBN  = localStorage.getItem('gp_backnums_'+showId);
+        if(cachedPay) G.payments = JSON.parse(cachedPay);
+        if(cachedBN)  G.backNums = JSON.parse(cachedBN);
+        toast('Loaded '+G.entries.length+' entries from cache');
+      }
+    } catch(ex){ console.warn('Cache load failed:', ex); }
+
+    // Step 3b: Load from DB (supplements cache with fresh data)
     var dbEntries = await sbFetch('entries?show_id=eq.'+showId+'&select=*');
     if(dbEntries && dbEntries.length){
       for(var i=0; i<dbEntries.length; i++){
@@ -2544,8 +2556,11 @@ async function boot(){
         // Derive division from first class
         var derivedDiv = entryClasses.length ? (entryClasses[0].division||'') : '';
 
+        // Skip if already loaded from cache
+        if(G.entries.find(function(x){ return x.dbId===e.id; })) continue;
+
         G.entries.push({
-          rowIndex: i, dbId: e.id,
+          rowIndex: G.entries.length, dbId: e.id,
           name:     (member.first_name||'Unknown')+' '+(member.last_name||''),
           horse:    horse.registered_name || horse.barn_name || 'Unknown Horse',
           horseGender: horse.gender || '',
@@ -2567,20 +2582,7 @@ async function boot(){
       toast('Loaded '+G.entries.length+' entries');
     }
 
-    // Try loading from localStorage if DB returned nothing
-    if(!G.entries.length && G.showId){
-      try{
-        var cached = localStorage.getItem('gp_entries_'+G.showId);
-        if(cached){
-          G.entries = JSON.parse(cached);
-          var cachedPay = localStorage.getItem('gp_payments_'+G.showId);
-          var cachedBN  = localStorage.getItem('gp_backnums_'+G.showId);
-          if(cachedPay) G.payments = JSON.parse(cachedPay);
-          if(cachedBN)  G.backNums = JSON.parse(cachedBN);
-          toast('Loaded '+G.entries.length+' entries from cache');
-        }
-      } catch(ex){ console.warn('localStorage load failed:', ex); }
-    }
+
 
     // Only show entries if we have valid ones with names
     var validEntries = G.entries.filter(function(e){ return e.name && e.name !== 'Unknown Unknown'; });
