@@ -1362,183 +1362,218 @@ function applyConfigToUI(){
 }
 
 function showEntryModal(rowIdx){
-  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
-  if(!e){
-    // rowIndex not found - try finding by position
-    e = G.entries[rowIdx];
-    if(!e){
-      toast('Entry not found (idx:'+rowIdx+'). Try refreshing.', true);
-      console.error('showEntryModal: no entry with rowIndex='+rowIdx, 'entries:', G.entries.map(function(x){ return x.rowIndex; }));
-      return;
-    }
-  }
+  var e = G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e){ e = G.entries[rowIdx]; }
+  if(!e){ toast('Entry not found', true); return; }
 
-  var root=document.getElementById('modal-root');
+  var root = document.getElementById('modal-root');
 
   function rebuild(){
-    var e2=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
-    if(!e2) return;
-    var lines=buildTabLines(e2), total=tabTotal(e2), paid=amtPaid(e2), bal=total-paid;
+    var entry = G.entries.find(function(x){ return x.rowIndex===rowIdx; }) || G.entries[rowIdx];
+    if(!entry) return;
 
-    // Build class rows
-    var allRiders = e2.riders
-      ? e2.riders.map(function(r){ return r.name; })
-      : [e2.name];
-    var riderSelectOpts = allRiders.map(function(r){
-      return '<option value="'+esc(r)+'">'+esc(r)+'</option>';
-    }).join('');
+    var lines = buildTabLines(entry);
+    var total = tabTotal(entry);
+    var paid  = amtPaid(entry);
+    var bal   = total - paid;
 
-    var classRows = e2.classes.map(function(cls,ci){
-      var isScratch = cls.status==='scratched';
-      var riderSel = isScratch
-        ? esc(cls.rider||e2.name)
-        : '<select data-ci="'+ci+'" data-ridx="'+rowIdx+'" onchange="assignClassRider('+rowIdx+','+ci+',this.value)" '
-          +'style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 4px;font-size:.78rem">'
-          +allRiders.map(function(r){
-            return '<option value="'+esc(r)+'"'+(r===(cls.rider||e2.name)?' selected':'')+'>'+esc(r)+'</option>';
-          }).join('')
-          +'</select>';
-      return '<tr style="'+(isScratch?'opacity:.45;text-decoration:line-through':'')+'">'
-        +'<td><span class="badge b-gray">'+esc(cls.num)+'</span></td>'
-        +'<td>'+esc(cls.name)
-        +'<span class="small" style="margin-left:6px;color:var(--muted)">'+esc(cls.division)+'</span>'
-        +(cls.org&&cls.org!=='CoWN'?'<span class="badge b-blue" style="margin-left:4px;font-size:.65rem">'+esc(cls.org)+'</span>':'')
-        +'</td>'
-        +'<td>'+riderSel+'</td>'
-        +'<td>'+(isScratch
-          ? '<span class="badge b-red">Scratched</span>'
-          : '<button class="btn btn-red btn-sm" onclick="scratchClass('+rowIdx+','+ci+')">Scratch</button>')
-        +'</td>'
-        +'</tr>';
-    }).join('');
+    // All riders on this horse
+    var riders = entry.riders ? entry.riders : [{name:entry.name, division:entry.division, isPrimary:true}];
 
-    // Build rider rows
-    var riders = e2.riders || [{name:e2.name, division:e2.division, isPrimary:true}];
-    var riderRows = riders.map(function(r,ri){
-      return '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--border)">'
+    // Classes tab content
+    var classHTML = '<table style="width:100%;border-collapse:collapse;font-size:.83rem">'
+      +'<thead><tr>'
+      +'<th style="padding:.4rem .5rem;border-bottom:2px solid var(--accent);color:var(--accent);font-family:Oswald">Class</th>'
+      +'<th style="padding:.4rem .5rem;border-bottom:2px solid var(--accent);color:var(--accent);font-family:Oswald">Name</th>'
+      +'<th style="padding:.4rem .5rem;border-bottom:2px solid var(--accent);color:var(--accent);font-family:Oswald">Rider</th>'
+      +'<th style="padding:.4rem .5rem;border-bottom:2px solid var(--accent);color:var(--accent);font-family:Oswald"></th>'
+      +'</tr></thead><tbody>';
+
+    if(!entry.classes.length){
+      classHTML += '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:1rem">No classes entered</td></tr>';
+    } else {
+      entry.classes.forEach(function(cls, ci){
+        var scratched = cls.status === 'scratched';
+        var riderSel = riders.length > 1
+          ? '<select data-ci="'+ci+'" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 4px;font-size:.75rem" onchange="assignClassRider('+rowIdx+','+ci+',this.value)">'
+            + riders.map(function(r){ return '<option value="'+esc(r.name)+'"'+(cls.rider===r.name?' selected':(!cls.rider&&r.isPrimary?' selected':''))+'>'+esc(r.name)+'</option>'; }).join('')
+            + '</select>'
+          : '<span style="font-size:.8rem">'+esc(cls.rider||entry.name)+'</span>';
+
+        classHTML += '<tr style="'+(scratched?'opacity:.4;text-decoration:line-through':'')+'">'
+          +'<td style="padding:.35rem .5rem;border-bottom:1px solid var(--border)"><span class="badge b-gray">'+esc(cls.num)+'</span></td>'
+          +'<td style="padding:.35rem .5rem;border-bottom:1px solid var(--border)">'
+          +'<div style="font-size:.83rem">'+esc(cls.name)+'</div>'
+          +'<div style="font-size:.72rem;color:var(--muted)">'+esc(cls.division)+(cls.org&&cls.org!=='CoWN'?' · '+esc(cls.org):'')+'</div>'
+          +'</td>'
+          +'<td style="padding:.35rem .5rem;border-bottom:1px solid var(--border)">'+riderSel+'</td>'
+          +'<td style="padding:.35rem .5rem;border-bottom:1px solid var(--border)">'
+          +(scratched
+            ? '<span class="badge b-red">Scratched</span>'
+            : '<button class="btn btn-red btn-sm" onclick="scratchClass('+rowIdx+','+ci+')">Scratch</button>')
+          +'</td></tr>';
+      });
+    }
+    classHTML += '</tbody></table>';
+    classHTML += '<div class="btn-row" style="margin-top:.75rem"><button class="btn btn-accent btn-sm" onclick="showAddClassPicker('+rowIdx+')">+ Add Class</button></div>';
+
+    // Riders tab content
+    var riderHTML = riders.map(function(r, ri){
+      return '<div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid var(--border)">'
         +'<div style="flex:1"><div class="bold" style="font-size:.85rem">'+esc(r.name)+'</div>'
-        +'<div class="small">'+esc(r.division||'')+(r.isPrimary?' &middot; Primary':'')+'</div></div>'
-        +(r.isPrimary?'<span class="badge b-gold">Primary</span>':'<button class="btn btn-red btn-sm" onclick="removeRider('+rowIdx+','+ri+')">Remove</button>')
+        +'<div class="small">'+esc(r.division||'')+(r.isPrimary?' · Primary':'')+'</div></div>'
+        +(r.isPrimary
+          ? '<span class="badge b-gold">Primary</span>'
+          : '<button class="btn btn-red btn-sm" onclick="removeRider('+rowIdx+','+ri+')">Remove</button>')
         +'</div>';
     }).join('');
 
-    // Build stall split rows
-    var stallLines = buildStallLines(e2);
-    var stallHTML = '';
-    if(stallLines.length){
-      stallHTML = '<div style="margin:.75rem 0 .5rem;font-size:.78rem;color:var(--muted)">Stall / Housing</div>'
-        + stallLines.map(function(l){
-          return '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';
-        }).join('');
+    // Get all unique divisions from classes for datalist
+    var divOptions = Array.from(new Set(G.cfg.classes.map(function(c){ return c.division||''; }).filter(Boolean)));
+
+    riderHTML += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-top:.75rem">'
+      +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Add a rider to this horse</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;align-items:flex-end">'
+      +'<div class="form-group"><label>First Name</label><input type="text" id="nrf" placeholder="First" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.82rem;width:100%"></div>'
+      +'<div class="form-group"><label>Last Name</label><input type="text" id="nrl" placeholder="Last" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.82rem;width:100%"></div>'
+      +'<div class="form-group"><label>Division</label><input type="text" id="nrd" placeholder="e.g. Open" list="rider-div-opts" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.82rem;width:100%">'
+      +'<datalist id="rider-div-opts">'+divOptions.map(function(d){ return '<option value="'+esc(d)+'">'; }).join('')+'</datalist></div>'
+      +'<button class="btn btn-accent btn-sm" style="margin-bottom:1px" onclick="addRider('+rowIdx+')">Add</button>'
+      +'</div></div>';
+
+    // Fees tab content
+    var feesHTML = '';
+
+    // Org fees
+    var orgFees = entry.orgFees||[];
+    feesHTML += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem">'
+      +'<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Association Fees</div>'
+      +'<button class="btn btn-dark btn-sm" onclick="showAddOrgFee('+rowIdx+')">+ Add Fee</button>'
+      +'</div>';
+    if(orgFees.length){
+      orgFees.forEach(function(f, fi){
+        feesHTML += '<div class="tab-line"><span><span class="badge b-blue" style="margin-right:5px">'+esc(f.org)+'</span>'+esc(f.desc)+'</span>'
+          +'<span style="display:flex;align-items:center;gap:.5rem">'+fmt$(f.amt)
+          +'<button class="btn btn-red btn-sm" onclick="removeOrgFee('+rowIdx+','+fi+')">&#10005;</button></span></div>';
+      });
+    } else {
+      feesHTML += '<div style="font-size:.82rem;color:var(--muted);padding:.3rem 0 .6rem">None added</div>';
     }
 
-    // Build per-org fee rows
-    var orgFeeHTML = buildOrgFeeRows(e2);
+    // Membership
+    var memLines = lines.filter(function(l){ return l.type==='membership'; });
+    if(memLines.length){
+      feesHTML += '<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:.6rem 0 .25rem">Membership</div>';
+      memLines.forEach(function(l){ feesHTML += '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; });
+    }
 
-    var html='<div class="modal-bg" id="em" onclick="if(event.target===this)closeModal()">'
-      +'<div class="modal" style="max-width:680px">'
+    // Classes
+    var classLines = lines.filter(function(l){ return l.type==='class'; });
+    if(classLines.length){
+      feesHTML += '<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:.6rem 0 .25rem">Classes</div>';
+      classLines.forEach(function(l){ feesHTML += '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; });
+    } else {
+      feesHTML += '<div style="font-size:.82rem;color:var(--muted);padding:.3rem 0">No classes entered</div>';
+    }
 
-      // Header
-      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem">'
-      +'<div><h2 style="margin-bottom:2px">'+esc(e2.horse||'Unknown Horse')+'</h2>'
-      +'<div class="small">'+esc(e2.name)+'</div></div>'
-      +'<div style="display:flex;gap:.35rem">'
-      +'<button class="btn btn-dark btn-sm" onclick="closeModal()">Close</button>'
-      +'</div></div>'
+    // Stalling
+    var stallLines = lines.filter(function(l){ return l.type==='stall'||l.type==='rv'; });
+    if(stallLines.length){
+      feesHTML += '<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:.6rem 0 .25rem">Stalling & RV</div>';
+      stallLines.forEach(function(l){ feesHTML += '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; });
+    }
 
-      // Tab row
-      +'<div class="tab-row">'
-      +'<button class="tab-btn active" onclick="swTabClasses(this)">Classes</button>'
-      +'<button class="tab-btn" onclick="swTabRiders(this)">Riders</button>'
-      +'<button class="tab-btn" onclick="swTabFees(this)">Fees &amp; Tab</button>'
-      +'<button class="tab-btn" onclick="swTabStall(this)">Stall Split</button>'
-      +'</div>'
-
-      // ── CLASSES TAB ──
-      +'<div class="tab-panel active" id="tp-classes">'
-      +'<div class="btn-row" style="margin-bottom:.75rem">'
-      +'<button class="btn btn-accent btn-sm" onclick="showAddClassPicker('+rowIdx+')">+ Add Class</button>'
-      +'</div>'
-      +'<div class="tbl-wrap"><table><thead><tr>'
-      +'<th style="width:60px">#</th><th>Class</th><th>Rider</th><th style="width:90px"></th>'
-      +'</tr></thead><tbody>'
-      +(classRows||'<tr><td colspan="4" class="empty-state">No classes entered</td></tr>')
-      +'</tbody></table></div>'
-      +'</div>'
-
-      // ── RIDERS TAB ──
-      +'<div class="tab-panel" id="tp-riders">'
-      +'<div style="margin-bottom:.75rem">'+riderRows+'</div>'
-      +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-top:.5rem">'
-      +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Add a rider to this horse</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem">'
-      +'<div class="form-group"><label>Rider Name</label>'
-      +'<div class="form-group"><label>First Name</label>'
-      +'<input type="text" id="new-rider-first" placeholder="First" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem"></div>'
-      +'<div class="form-group"><label>Last Name</label>'
-      +'<input type="text" id="new-rider-last" placeholder="Last" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem"></div>'
-      +'<div class="form-group"><label>Division</label>'
-      +'<input type="text" id="new-rider-div" placeholder="e.g. Open" list="div-datalist" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.83rem"></div>'
-    +'<datalist id="div-datalist">'
-    +Array.from(new Set(G.cfg.classes.map(function(c){ return c.division||''; }).filter(Boolean))).sort().map(function(d){ return '<option value="'+esc(d)+'">'; }).join('')
-    +'</datalist>'
-      +'</div>'
-      +'<button class="btn btn-accent btn-sm" onclick="addRider('+rowIdx+')">Add Rider</button>'
-      +'</div>'
-      +'</div>'
-
-      // ── FEES & TAB ──
-      +'<div class="tab-panel" id="tp-fees">'
-      // Association fees header
-      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem">'
-      +'<div style="font-size:.78rem;color:var(--muted)">Association Fees</div>'
-      +'<button class="btn btn-dark btn-sm" onclick="showAddOrgFee('+rowIdx+')">+ Add Fee</button>'
-      +'</div>'
-      +'<div id="org-fee-section">'+orgFeeHTML+'</div>'
-      // All tab lines in order
-      +(function(){
-        var allLines = buildTabLines(e2);
-        if(!allLines.length) return '<div style="color:var(--muted);font-size:.82rem;padding:1rem 0;text-align:center">No fees yet — check console</div>';
-        var sections = [
-          {label:'Fees', types:['office','membership']},
-          {label:'Classes', types:['class']},
-          {label:'Stalling & RV', types:['stall','rv']}
-        ];
-        var html2 = '';
-        sections.forEach(function(sec){
-          var secLines = allLines.filter(function(l){ return sec.types.indexOf(l.type)>-1; });
-          if(!secLines.length) return;
-          html2 += '<div style="font-size:.75rem;color:var(--muted);margin:.6rem 0 .25rem;text-transform:uppercase;letter-spacing:.05em">'+sec.label+'</div>';
-          secLines.forEach(function(l){
-            html2 += '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';
-          });
-        });
-        return html2;
-      })()
-      +'<div class="tab-total"><span>Total</span><span>'+fmt$(tabTotal(e2))+'</span></div>'
+    feesHTML += '<div class="tab-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
       +'<div class="pay-status">'
       +'<div style="flex:1"><div class="small">Paid</div><div class="bold" style="color:var(--green)">'+fmt$(paid)+'</div></div>'
       +'<div style="flex:1"><div class="small">Balance</div><div class="bold" style="color:'+(bal<=0?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</div></div>'
       +'<div>'+(bal>0
-        ?'<button class="btn btn-green btn-sm" onclick="markPaid('+rowIdx+','+tabTotal(e2)+')">Mark Paid</button>'
+        ?'<button class="btn btn-green btn-sm" onclick="markPaid('+rowIdx+','+total+')">Mark Paid</button>'
         :'<span class="badge b-green">&#10003; Paid</span>')
-      +'</div></div>'
-      +'</div>'
-
-      // ── STALL SPLIT TAB ──
-      +'<div class="tab-panel" id="tp-stall">'
-      +buildStallSplitUI(e2, rowIdx)
-      +'</div>'
-
       +'</div></div>';
 
-    root.innerHTML=html;
-    document.getElementById('em').addEventListener('click',function(ev){ if(ev.target===this) closeModal(); });
+    // Stall split tab content
+    var stallTotal = (entry.stall1qty||0)*G.cfg.fees.stall1 + (entry.stall2qty||0)*G.cfg.fees.stall2
+      + (entry.shavings||0)*G.cfg.fees.shavings + (entry.rv1qty||0)*G.cfg.fees.rv1
+      + (entry.rv2qty||0)*G.cfg.fees.rv2 + (entry.rvCircuit||0)*G.cfg.fees.rvCircuit;
+
+    var stallSplitHTML = '';
+    if(!stallTotal){
+      stallSplitHTML = '<div class="empty-state">No stalling or RV on this entry.</div>';
+    } else {
+      var splits = entry.stallSplit || [{name:entry.name, pct:100}];
+      entry.stallSplit = splits;
+
+      stallSplitHTML = '<div style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem">Total housing cost: <strong style="color:var(--accent)">'+fmt$(stallTotal)+'</strong></div>';
+
+      splits.forEach(function(s, si){
+        stallSplitHTML += '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--border)">'
+          +'<div style="flex:1"><div class="bold" style="font-size:.84rem">'+esc(s.name)+'</div>'
+          +'<div class="small" style="color:var(--green)">'+fmt$(stallTotal*s.pct/100)+'</div></div>'
+          +'<input type="number" value="'+s.pct+'" min="1" max="100" style="width:60px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:3px 6px;font-size:.82rem" onchange="updateSplitPct('+rowIdx+','+si+',this.value)"> %'
+          +(splits.length>1?'<button class="btn btn-red btn-sm" onclick="removeSplit('+rowIdx+','+si+')">&#10005;</button>':'')
+          +'</div>';
+      });
+
+      var totalPct = splits.reduce(function(s,x){ return s+x.pct; },0);
+      stallSplitHTML += '<div style="font-size:.75rem;margin:.4rem 0;color:'+(totalPct===100?'var(--green)':'var(--red)')+'">Total: '+totalPct+'% '+(totalPct===100?'&#10003;':'— must equal 100%')+'</div>';
+
+      // Rider dropdown
+      var riderOpts = '<option value="">— Select from entries —</option>'
+        + G.entries.filter(function(en){ return en.rowIndex!==rowIdx; }).map(function(en){
+          return '<option value="'+en.rowIndex+'">'+esc(en.name)+' / '+esc(en.horse)+'</option>';
+        }).join('');
+
+      stallSplitHTML += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.75rem;margin-top:.5rem">'
+        +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Add someone to split with</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 80px auto;gap:.5rem;align-items:flex-end">'
+        +'<div class="form-group"><label>From entries</label><select id="split-rider-sel" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%">'+riderOpts+'</select></div>'
+        +'<div class="form-group"><label>%</label><input type="number" id="split-pct" value="50" min="1" max="99" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%"></div>'
+        +'<button class="btn btn-accent btn-sm" style="margin-bottom:1px" onclick="addSplitPerson('+rowIdx+')">Add</button>'
+        +'</div>'
+        +'<div style="font-size:.75rem;color:var(--muted);margin-top:.35rem">Or type a name: <input type="text" id="split-name" placeholder="Name" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 6px;font-size:.78rem;margin-left:4px;width:140px"></div>'
+        +'</div>';
+    }
+
+    // Build full modal
+    var html = '<div class="modal-bg" id="em" onclick="if(event.target===this)closeModal()">'
+      +'<div class="modal" style="max-width:680px">'
+      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem">'
+      +'<div><h2 style="margin-bottom:2px">'+esc(entry.horse||'Unknown Horse')+'</h2>'
+      +'<div class="small">'+esc(entry.name)+'</div></div>'
+      +'<button class="btn btn-dark btn-sm" onclick="closeModal()">Close</button>'
+      +'</div>'
+      // Tab buttons
+      +'<div class="tab-row">'
+      +'<button class="tab-btn active" id="tbtn-classes" onclick="switchModalTab(\"classes\")">Classes</button>'
+      +'<button class="tab-btn" id="tbtn-riders" onclick="switchModalTab(\"riders\")">Riders</button>'
+      +'<button class="tab-btn" id="tbtn-fees" onclick="switchModalTab(\"fees\")">Fees &amp; Tab</button>'
+      +'<button class="tab-btn" id="tbtn-stall" onclick="switchModalTab(\"stall\")">Stall Split</button>'
+      +'</div>'
+      // Tab panels
+      +'<div id="mpanel-classes">'+classHTML+'</div>'
+      +'<div id="mpanel-riders" style="display:none">'+riderHTML+'</div>'
+      +'<div id="mpanel-fees" style="display:none">'+feesHTML+'</div>'
+      +'<div id="mpanel-stall" style="display:none">'+stallSplitHTML+'</div>'
+      +'</div></div>';
+
+    root.innerHTML = html;
   }
 
   rebuild();
   G._rebuildEntryModal = rebuild;
 }
+
+function switchModalTab(tab){
+  var tabs = ['classes','riders','fees','stall'];
+  tabs.forEach(function(t){
+    var btn = document.getElementById('tbtn-'+t);
+    var panel = document.getElementById('mpanel-'+t);
+    if(btn) btn.classList.toggle('active', t===tab);
+    if(panel) panel.style.display = t===tab ? 'block' : 'none';
+  });
+}
+
 
 // ── BUILD STALL LINE ITEMS ──
 function buildStallLines(e){
@@ -2451,6 +2486,12 @@ async function dbSaveShowClasses(showId, classes){
 
 // ═══════════════════════ BOOT ═══════════════════════
 async function boot(){
+  // Expose G globally for debugging
+  window.G = G;
+  window.buildTabLines = buildTabLines;
+  window.tabTotal = tabTotal;
+  window.saveEntriesToCache = saveEntriesToCache;
+
   // Load saved local config
   try{ var saved=localStorage.getItem('gatepost_cfg'); if(saved) G.cfg=JSON.parse(saved); } catch(e){}
 
@@ -2519,8 +2560,11 @@ async function boot(){
       }
     } catch(ex){ console.warn('Cache load failed:', ex); }
 
-    // Step 3b: Load from DB (supplements cache with fresh data)
-    var dbEntries = await sbFetch('entries?show_id=eq.'+showId+'&select=*');
+    // Step 3b: Only load from DB if cache was empty
+    if(G.entries.length){
+      console.log('Using cached entries:', G.entries.length);
+    }
+    var dbEntries = G.entries.length ? [] : await sbFetch('entries?show_id=eq.'+showId+'&select=*');
     if(dbEntries && dbEntries.length){
       for(var i=0; i<dbEntries.length; i++){
         var e = dbEntries[i];
@@ -2614,11 +2658,6 @@ saveConfig = function(){
       .catch(function(e){ toast('Error saving classes: '+e.message, true); });
   }
 };
-
-// Expose globals for console debugging
-window.G = G;
-window.buildTabLines = buildTabLines;
-window.tabTotal = tabTotal;
 
 boot();
 
