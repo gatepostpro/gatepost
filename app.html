@@ -199,6 +199,8 @@ var G = {
   showName: '',
   payments: {},   // rowIndex -> amount paid
   backNums: {},   // rowIndex -> back number
+  results: [],    // SHTX result rows: [{show,division,entries,horse,rider,score,place,pts,money}]
+  resultsFile: '',
   cfg: {
     showName:'', showDate:'', location:'', secretary:'', email:'',
     fees:{
@@ -322,6 +324,111 @@ function parseCognito(wb){
       cognitoAmount:amount, isPaid:isPaid, orderStr:orderStr
     };
   });
+}
+
+// ═══════════════════════ RESULTS (SHTX IMPORT) ═══════════════════════
+
+function normalizeHeader(h){ return (h||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+
+function parseSTHXRows(rawRows){
+  if(!rawRows || !rawRows.length) return [];
+  var headerMap={};
+  Object.keys(rawRows[0]).forEach(function(k){ headerMap[normalizeHeader(k)]=k; });
+  return rawRows.map(function(row){
+    function col(n){ var k=headerMap[n]; return k!=null?(row[k]||''):''; }
+    return {
+      showName:   (col('show')||'').trim(),
+      discipline: (col('classage')||'').trim(),
+      division:   (col('classdivision')||'').trim(),
+      entries:    parseInt(col('entries'),10)||0,
+      addedMoney: parseFloat(col('addedmoney'))||0,
+      horse:      (col('horse')||'').trim(),
+      rider:      (col('rider')||'').trim(),
+      riderNum:   (col('ridershtxno')||'').trim(),
+      owner:      (col('owner')||'').trim(),
+      goRound:    (col('goround')||'').trim(),
+      score:      parseFloat(col('score'))||0,
+      place:      parseInt(col('place'),10)||0,
+      pts:        parseFloat(col('shtxpts'))||0,
+      money:      parseFloat(col('money'))||0
+    };
+  }).filter(function(r){ return r.horse||r.rider; });
+}
+
+function saveResultsToStorage(){
+  if(!G.showId) return;
+  try{
+    localStorage.setItem('gp_results_'+G.showId, JSON.stringify(G.results));
+    localStorage.setItem('gp_resultsfile_'+G.showId, G.resultsFile||'');
+  } catch(ex){ console.warn('Results save failed:', ex); }
+}
+
+var _resDivFilter=null, _resDiscFilter=null, _resSearch='';
+
+function clearResults(){
+  G.results=[]; G.resultsFile='';
+  _resDivFilter=null; _resDiscFilter=null; _resSearch='';
+  saveResultsToStorage();
+  pgResults();
+}
+
+async function loadResultsFile(file){
+  return new Promise(function(resolve,reject){
+    var ext=(file.name||'').split('.').pop().toLowerCase();
+    var reader=new FileReader();
+    reader.onerror=function(){ reject(new Error('File read failed')); };
+    if(ext==='txt'||ext==='csv'){
+      reader.onload=function(e){
+        var lines=e.target.result.split(/\r?\n/).filter(function(l){ return l.trim(); });
+        if(!lines.length){ reject(new Error('Empty file')); return; }
+        var headers=lines[0].split('\t');
+        var rows=[];
+        for(var i=1;i<lines.length;i++){
+          var cells=lines[i].split('\t'), obj={};
+          headers.forEach(function(h,j){ obj[h]=cells[j]||''; });
+          rows.push(obj);
+        }
+        G.results=parseSTHXRows(rows); G.resultsFile=file.name;
+        _resDivFilter=null; _resDiscFilter=null; _resSearch='';
+        saveResultsToStorage(); resolve(G.results.length);
+      };
+      reader.readAsText(file);
+    } else {
+      reader.onload=function(e){
+        var wb=XLSX.read(e.target.result,{type:'array'});
+        var ws=wb.Sheets[wb.SheetNames[0]];
+        var rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+        G.results=parseSTHXRows(rows); G.resultsFile=file.name;
+        _resDivFilter=null; _resDiscFilter=null; _resSearch='';
+        saveResultsToStorage(); resolve(G.results.length);
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  });
+}
+
+function setupResultsDrop(zoneId){
+  var zone=document.getElementById(zoneId);
+  if(!zone) return;
+  zone.addEventListener('dragover',function(e){ e.preventDefault(); zone.style.borderColor='var(--accent)'; });
+  zone.addEventListener('dragleave',function(){ zone.style.borderColor=''; });
+  zone.addEventListener('drop',function(e){
+    e.preventDefault(); zone.style.borderColor='';
+    var f=e.dataTransfer.files[0]; if(f) handleResultsFile(f);
+  });
+}
+
+async function handleResultsFile(file){
+  var err=document.getElementById('res-import-err');
+  if(err) err.textContent='';
+  try{
+    var n=await loadResultsFile(file);
+    toast('Loaded '+n+' result rows from '+file.name);
+    pgResults();
+  } catch(ex){
+    if(err) err.textContent='Error: '+ex.message;
+    console.error(ex);
+  }
 }
 
 // ═══════════════════════ TAB CALCULATOR ═══════════════════════
@@ -810,22 +917,211 @@ function pgStalls(){
     +'</tbody></table></div></div>';
 }
 
-// ═══════════════════════ STUB PAGES ═══════════════════════
+// ═══════════════════════ PAGE: RESULTS ═══════════════════════
 function pgResults(){
-  document.getElementById('page').innerHTML='<div class="card"><div class="card-title">Enter Results</div>'
-    +'<div style="border:1px dashed var(--border2);border-radius:8px;padding:2.5rem;text-align:center;color:var(--muted)">'
-    +'<div style="font-size:1.5rem;margin-bottom:.5rem">&#127942;</div>'
-    +'<div style="font-family:Oswald;color:var(--accent)">Coming in next build</div>'
-    +'<div style="font-size:.82rem;margin-top:.35rem">Class-by-class results entry with auto points calculation</div>'
+  var pg=document.getElementById('page');
+
+  if(!G.results||!G.results.length){
+    pg.innerHTML='<div class="card">'
+      +'<div class="card-title">Import Results</div>'
+      +'<div id="res-drop-zone" style="border:2px dashed var(--border2);border-radius:10px;padding:3rem;text-align:center;transition:border-color .15s">'
+      +'<div style="font-size:2rem;margin-bottom:.5rem">&#128196;</div>'
+      +'<div style="font-family:Oswald;color:var(--accent);font-size:1.1rem;margin-bottom:.35rem">Drop SHTX File Here</div>'
+      +'<div style="font-size:.82rem;color:var(--muted);margin-bottom:1rem">Funnware .xlsx or tab-delimited .txt export</div>'
+      +'<label class="btn btn-accent" for="res-file-input" style="cursor:pointer">Choose File</label>'
+      +'<input type="file" id="res-file-input" accept=".xlsx,.xls,.txt,.csv" style="display:none">'
+      +'</div>'
+      +'<div id="res-import-err" class="err" style="margin-top:.5rem"></div>'
+      +'</div>';
+    setupResultsDrop('res-drop-zone');
+    document.getElementById('res-file-input').addEventListener('change',function(e){
+      var f=e.target.files[0]; if(f) handleResultsFile(f);
+    });
+    return;
+  }
+
+  var divs=[],discs=[];
+  G.results.forEach(function(r){
+    if(r.division&&divs.indexOf(r.division)<0) divs.push(r.division);
+    if(r.discipline&&discs.indexOf(r.discipline)<0) discs.push(r.discipline);
+  });
+  divs.sort(); discs.sort();
+
+  var activeDivs=_resDivFilter||divs.slice();
+  var activeDiscs=_resDiscFilter||discs.slice();
+  var srch=_resSearch||'';
+
+  var shown=G.results.filter(function(r){
+    if(activeDivs.indexOf(r.division)<0) return false;
+    if(activeDiscs.indexOf(r.discipline)<0) return false;
+    if(srch){
+      var q=srch.toLowerCase();
+      if((r.rider||'').toLowerCase().indexOf(q)<0&&(r.horse||'').toLowerCase().indexOf(q)<0) return false;
+    }
+    return true;
+  });
+
+  var groups={};
+  shown.forEach(function(r){
+    var k=r.division+'|||'+r.discipline;
+    if(!groups[k]) groups[k]={division:r.division,discipline:r.discipline,rows:[]};
+    groups[k].rows.push(r);
+  });
+  var groupKeys=Object.keys(groups).sort();
+
+  var uniqueRiders={};
+  G.results.forEach(function(r){ if(r.rider) uniqueRiders[r.rider]=1; });
+
+  var html='<div class="stat-grid">'
+    +'<div class="stat c-gold"><div class="n">'+G.results.length+'</div><div class="l">Result Rows</div></div>'
+    +'<div class="stat c-green"><div class="n">'+Object.keys(uniqueRiders).length+'</div><div class="l">Unique Riders</div></div>'
+    +'<div class="stat c-blue"><div class="n">'+Object.keys(groups).length+'</div><div class="l">Classes</div></div>'
+    +'<div class="stat c-purple"><div class="n">'+divs.length+'</div><div class="l">Divisions</div></div>'
+    +'</div>';
+
+  html+='<div class="card">';
+  html+='<div class="card-title"><span>Results &mdash; '+esc(G.resultsFile)+'</span>'
+    +'<div style="display:flex;gap:.4rem">'
+    +'<button class="btn btn-dark btn-sm" onclick="window.print()">&#128424; Print</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="clearResults()">&#10005; Clear</button>'
     +'</div></div>';
+
+  html+='<div style="margin-bottom:.75rem"><div style="font-size:.72rem;color:var(--muted);margin-bottom:.35rem">Division</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:.35rem">';
+  divs.forEach(function(d){
+    var on=activeDivs.indexOf(d)>=0;
+    html+='<button class="btn btn-sm '+(on?'btn-accent':'btn-dark')+'" onclick="resToggleDiv(\''+d.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'
+      +esc(d)+'</button>';
+  });
+  html+='</div></div>';
+
+  html+='<div style="margin-bottom:.75rem"><div style="font-size:.72rem;color:var(--muted);margin-bottom:.35rem">Discipline</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:.35rem">';
+  discs.forEach(function(d){
+    var on=activeDiscs.indexOf(d)>=0;
+    html+='<button class="btn btn-sm '+(on?'btn-accent':'btn-dark')+'" onclick="resToggleDisc(\''+d.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'
+      +esc(d)+'</button>';
+  });
+  html+='</div></div>';
+
+  html+='<div style="margin-bottom:.75rem">'
+    +'<input type="text" placeholder="Search rider or horse..." value="'+esc(srch)+'" '
+    +'oninput="_resSearch=this.value;pgResults()" '
+    +'style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);'
+    +'padding:.4rem .65rem;font-size:.83rem;width:100%;max-width:320px">'
+    +'</div>';
+
+  if(!groupKeys.length){
+    html+='<div class="empty">No results match filters.</div>';
+  } else {
+    groupKeys.forEach(function(k){
+      var g=groups[k];
+      var rows=g.rows.slice().sort(function(a,b){ return (a.place||999)-(b.place||999); });
+      html+='<div style="margin-bottom:1.25rem">'
+        +'<div style="font-family:Oswald;font-size:.95rem;color:var(--accent);margin-bottom:.4rem;display:flex;align-items:center;gap:.5rem">'
+        +'<span>'+esc(g.discipline)+' &mdash; '+esc(g.division)+'</span>'
+        +'<span style="font-size:.72rem;color:var(--muted);font-family:\'Source Sans 3\',sans-serif">'
+        +'('+rows.length+' entries)</span></div>'
+        +'<div class="tbl-wrap"><table><thead><tr>'
+        +'<th style="width:40px">Pl</th><th>Rider</th><th>Horse</th>'
+        +'<th style="width:70px;text-align:right">Score</th>'
+        +'<th style="width:60px;text-align:right">Pts</th>'
+        +'<th style="width:70px;text-align:right">Money</th>'
+        +'</tr></thead><tbody>';
+      rows.forEach(function(r,idx){
+        var isTie=idx>0&&rows[idx-1].place===r.place;
+        var plColor=r.place===1?'var(--accent)':r.place===2?'#aaa':r.place===3?'#cd7f32':'var(--text)';
+        html+='<tr>'
+          +'<td><span style="font-weight:600;color:'+plColor+'">'+r.place+'</span>'
+          +(isTie?' <span style="font-size:.68rem;color:var(--muted)">T</span>':'')+'</td>'
+          +'<td>'+esc(r.rider)+'</td>'
+          +'<td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>'
+          +'<td style="text-align:right">'+(!r.score?'&mdash;':r.score.toFixed(3))+'</td>'
+          +'<td style="text-align:right;color:var(--accent)">'+r.pts.toFixed(1)+'</td>'
+          +'<td style="text-align:right;color:var(--green)">'+(r.money?'$'+r.money.toFixed(0):'&mdash;')+'</td>'
+          +'</tr>';
+      });
+      html+='</tbody></table></div></div>';
+    });
+  }
+
+  html+='</div>';
+  pg.innerHTML=html;
 }
+
+window.resToggleDiv=function(d){
+  var all=[]; G.results.forEach(function(r){ if(r.division&&all.indexOf(r.division)<0) all.push(r.division); });
+  if(!_resDivFilter) _resDivFilter=all.slice();
+  var idx=_resDivFilter.indexOf(d);
+  if(idx>=0) _resDivFilter.splice(idx,1); else _resDivFilter.push(d);
+  pgResults();
+};
+window.resToggleDisc=function(d){
+  var all=[]; G.results.forEach(function(r){ if(r.discipline&&all.indexOf(r.discipline)<0) all.push(r.discipline); });
+  if(!_resDiscFilter) _resDiscFilter=all.slice();
+  var idx=_resDiscFilter.indexOf(d);
+  if(idx>=0) _resDiscFilter.splice(idx,1); else _resDiscFilter.push(d);
+  pgResults();
+};
+
+// ═══════════════════════ PAGE: POINTS ═══════════════════════
 function pgPoints(){
-  document.getElementById('page').innerHTML='<div class="card"><div class="card-title">Points Standings</div>'
-    +'<div style="border:1px dashed var(--border2);border-radius:8px;padding:2.5rem;text-align:center;color:var(--muted)">'
-    +'<div style="font-size:1.5rem;margin-bottom:.5rem">&#9733;</div>'
-    +'<div style="font-family:Oswald;color:var(--accent)">Coming in next build</div>'
-    +'<div style="font-size:.82rem;margin-top:.35rem">Live standings &middot; year-end totals &middot; qualifier tracking &middot; all-around</div>'
-    +'</div></div>';
+  var pg=document.getElementById('page');
+
+  if(!G.results||!G.results.length){
+    pg.innerHTML='<div class="card">'
+      +'<div class="card-title">Points Standings</div>'
+      +'<div style="border:1px dashed var(--border2);border-radius:8px;padding:2.5rem;text-align:center;color:var(--muted)">'
+      +'<div style="font-size:1.5rem;margin-bottom:.5rem">&#9733;</div>'
+      +'<div style="font-family:Oswald;color:var(--accent);margin-bottom:.4rem">No Results Loaded</div>'
+      +'<div style="font-size:.82rem">Import results on the '
+      +'<a href="javascript:showPage(\'results\')" style="color:var(--accent)">Results</a> page first</div>'
+      +'</div></div>';
+    return;
+  }
+
+  var divTotals={}, divOrder=[];
+  G.results.forEach(function(r){
+    if(!r.division||!r.rider) return;
+    if(!divTotals[r.division]){ divTotals[r.division]={}; divOrder.push(r.division); }
+    var d=divTotals[r.division];
+    if(!d[r.rider]) d[r.rider]={rider:r.rider,pts:0,wins:0,classes:0};
+    d[r.rider].pts   += r.pts||0;
+    d[r.rider].wins  += r.place===1?1:0;
+    d[r.rider].classes++;
+  });
+  divOrder.sort();
+
+  var html='<div class="card">'
+    +'<div class="card-title">Points Standings &mdash; '+esc(G.resultsFile)+'</div>';
+
+  divOrder.forEach(function(div){
+    var rMap=divTotals[div];
+    var rows=Object.keys(rMap).map(function(k){ return rMap[k]; })
+      .sort(function(a,b){ return b.pts-a.pts; });
+    html+='<div style="margin-bottom:1.5rem">'
+      +'<div style="font-family:Oswald;font-size:1rem;color:var(--accent);margin-bottom:.5rem">'+esc(div)+'</div>'
+      +'<div class="tbl-wrap"><table><thead><tr>'
+      +'<th style="width:36px">Rank</th><th>Rider</th>'
+      +'<th style="width:70px;text-align:right">Points</th>'
+      +'<th style="width:60px;text-align:right">Wins</th>'
+      +'<th style="width:60px;text-align:right">Classes</th>'
+      +'</tr></thead><tbody>';
+    rows.forEach(function(r,i){
+      var isTie=i>0&&rows[i-1].pts===r.pts;
+      html+='<tr>'
+        +'<td style="color:var(--muted)">'+(isTie?'T':i+1)+'</td>'
+        +'<td>'+esc(r.rider)+'</td>'
+        +'<td style="text-align:right;color:var(--accent);font-weight:600">'+r.pts.toFixed(1)+'</td>'
+        +'<td style="text-align:right">'+r.wins+'</td>'
+        +'<td style="text-align:right;color:var(--muted)">'+r.classes+'</td>'
+        +'</tr>';
+    });
+    html+='</tbody></table></div></div>';
+  });
+
+  html+='</div>';
+  pg.innerHTML=html;
 }
 
 // ═══════════════════════ PAGE: SETTINGS ═══════════════════════
@@ -2737,6 +3033,11 @@ async function boot(){
         toast('Loaded '+G.entries.length+' entries from cache');
       }
     } catch(ex){ console.warn('Cache load failed:', ex); }
+
+    try{
+      var cachedRes=localStorage.getItem('gp_results_'+showId);
+      if(cachedRes){ G.results=JSON.parse(cachedRes); G.resultsFile=localStorage.getItem('gp_resultsfile_'+showId)||''; }
+    } catch(ex){ console.warn('Results cache load failed:', ex); }
 
     // Step 3b: Only load from DB if cache was empty
     if(G.entries.length){
