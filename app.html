@@ -1513,6 +1513,7 @@ function showEntryModal(rowIdx){
             html2 += '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';
           });
         });
+        console.log('html2 result:', html2.substring(0,200));
         return html2;
       })()
       +'<div class="tab-total"><span>Total</span><span>'+fmt$(tabTotal(e2))+'</span></div>'
