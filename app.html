@@ -211,7 +211,7 @@ var G = {
   results: [],    // SHTX result rows: [{show,division,entries,horse,rider,score,place,pts,money}]
   resultsFile: '',
   scoreLinks: {}, // "org|div|disc" → URL for score sheet PDF
-  aaMoney: {},    // "org|div" → [1stPrize, 2ndPrize, 3rdPrize, 4thPrize, 5thPrize]
+  aaMoney: {},    // "org|div" → scalar added money total (payout split computed dynamically)
   cfg: {
     showName:'', showDate:'', location:'', secretary:'', email:'',
     fees:{
@@ -222,8 +222,11 @@ var G = {
       classBase:30, cowSurcharge:15, jackpot:0, addedMoney:0
     },
     classes:[],      // [{_id,num,name,division,org,isCow,baseFee,cowFee,jackpot,addedMoney}]
-    aaMoney:{},      // "org|div" → [1stPrize, 2ndPrize, 3rdPrize, 4thPrize, 5thPrize] — All Around prize money
+    aaMoney:{},      // "org|div" → scalar added money total
     colMap:{},       // colIndex -> role string
+    mapHeaders:[],   // saved column headers for entries mapper
+    resColMap:{},    // colIndex -> role string for SHTX results mapper
+    resMapHeaders:[], // saved column headers for results mapper
     orgs:['CoWN']    // associations this show runs
   }
 };
@@ -763,10 +766,18 @@ function parseClassDivStr(raw){
   return {org:org, division:div, discipline:disc||rest};
 }
 
-function parseSTHXRows(rawRows){
+function parseSTHXRows(rawRows, headerOverride){
   if(!rawRows||!rawRows.length) return [];
   var headerMap={};
-  Object.keys(rawRows[0]).forEach(function(k){ headerMap[normalizeHeader(k)]=k; });
+  // headerOverride: {normalizedRole → original header key} from saved resColMap
+  if(headerOverride && Object.keys(headerOverride).length){
+    Object.keys(headerOverride).forEach(function(role){ headerMap[role]=headerOverride[role]; });
+  }
+  // Auto-detection fills in anything not covered by the override
+  Object.keys(rawRows[0]).forEach(function(k){
+    var n=normalizeHeader(k);
+    if(!headerMap[n]) headerMap[n]=k;
+  });
   return rawRows.map(function(row){
     function col(n){ var k=headerMap[n]; var v=k!=null?row[k]:''; return (v===null||v===undefined)?'':String(v); }
     var parsed=parseClassDivStr(col('classdivision'));
@@ -795,6 +806,23 @@ function parseSTHXRows(rawRows){
   }).filter(function(r){ return r.horse||r.rider; });
 }
 
+// Standard payout percentages by number of paid places
+// Each row: [pct1, pct2, pct3, pct4, pct5] (sum=100, trailing zeros omitted)
+var AA_PAYOUT_TABLE = [
+  [],                           // 0 eligible
+  [100],                        // 1
+  [60,40],                      // 2
+  [50,30,20],                   // 3
+  [40,30,20,10],                // 4
+  [35,25,20,12,8]               // 5+
+];
+function calcAaPrizes(total, eligibleCount){
+  if(!total||!eligibleCount) return [0,0,0,0,0];
+  var n=Math.min(eligibleCount,5);
+  var pcts=AA_PAYOUT_TABLE[n]||AA_PAYOUT_TABLE[5];
+  return [0,0,0,0,0].map(function(_,i){ return i<pcts.length ? Math.round(total*pcts[i]/100) : 0; });
+}
+
 function saveResultsToStorage(){
   if(!G.showId) return;
   try{
@@ -818,36 +846,28 @@ window.editScoreLink=function(key){
 };
 
 window.editAaMoney=function(key){
-  var cur=G.aaMoney[key]||[0,0,0,0,0];
-  var labels=['1st','2nd','3rd','4th','5th'];
+  var cur=G.aaMoney[key]||0;
   var el=document.getElementById('aa-money-editor');
-  if(el&&el.dataset.key===key){
-    // toggle off if same key clicked again
-    el.remove(); return;
-  }
+  if(el&&el.dataset.key===key){ el.remove(); return; }
   if(el) el.remove();
   var form=document.createElement('div');
   form.id='aa-money-editor';
   form.dataset.key=key;
   form.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-bottom:.6rem;padding:.5rem .7rem;background:var(--bg);border:1px solid var(--border2);border-radius:6px;font-size:.82rem';
-  form.innerHTML='<strong style="color:var(--text)">Prize money:</strong>'
-    +labels.map(function(l,i){
-      return '<label style="display:flex;align-items:center;gap:.25rem;color:var(--muted)">'+l+': <span style="color:var(--text)">$</span>'
-        +'<input type="number" min="0" step="1" value="'+(cur[i]||0)+'" id="aamp'+i+'" style="width:4.5rem;background:var(--card-bg);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:.2rem .3rem;font-size:.82rem"></label>';
-    }).join('')
+  form.innerHTML='<strong style="color:var(--text)">Added money:</strong>'
+    +'<label style="display:flex;align-items:center;gap:.25rem;color:var(--muted)">Total $ '
+    +'<input type="number" min="0" step="1" value="'+cur+'" id="aamp-total" style="width:6rem;background:var(--card-bg);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:.2rem .3rem;font-size:.82rem"></label>'
+    +'<span style="font-size:.78rem;color:var(--muted)">Payout split by # of eligible riders (40/30/20/10 for 4, etc.)</span>'
     +'<button class="btn btn-accent btn-sm" onclick="saveAaMoney(\''+key.replace(/'/g,"\\'")+'\')">Save</button>'
     +'<button class="btn btn-dark btn-sm" onclick="document.getElementById(\'aa-money-editor\').remove()">Cancel</button>';
-  // Insert before the table
   var tbl=document.querySelector('#pg-results .tbl-wrap');
   if(tbl) tbl.parentNode.insertBefore(form, tbl);
 };
 window.saveAaMoney=function(key){
-  var prizes=[];
-  for(var i=0;i<5;i++){
-    var inp=document.getElementById('aamp'+i);
-    prizes.push(inp?parseFloat(inp.value)||0:0);
-  }
-  G.aaMoney[key]=prizes;
+  var inp=document.getElementById('aamp-total');
+  var total=inp?parseFloat(inp.value)||0:0;
+  G.aaMoney[key]=total;
+  if(G.cfg.aaMoney) G.cfg.aaMoney[key]=total;
   saveResultsToStorage();
   var el=document.getElementById('aa-money-editor');
   if(el) el.remove();
@@ -861,6 +881,19 @@ function clearResults(){
   _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1; _resSelShow='';
   saveResultsToStorage();
   pgResults();
+}
+
+// Build headerOverride from saved resColMap: {normalizedRole → originalKey}
+function buildResHeaderOverride(rawHeaders){
+  var resColMap=G.cfg.resColMap||{};
+  if(!Object.keys(resColMap).length) return null;
+  var override={};
+  Object.keys(resColMap).forEach(function(colIdx){
+    var role=resColMap[colIdx];
+    var origKey=rawHeaders[parseInt(colIdx,10)];
+    if(origKey!=null) override[role]=origKey;
+  });
+  return Object.keys(override).length ? override : null;
 }
 
 async function loadResultsFile(file){
@@ -880,7 +913,8 @@ async function loadResultsFile(file){
             headers.forEach(function(h,j){ obj[h]=cells[j]||''; });
             rows.push(obj);
           }
-          G.results=parseSTHXRows(rows); G.resultsFile=file.name;
+          var override=buildResHeaderOverride(headers);
+          G.results=parseSTHXRows(rows, override); G.resultsFile=file.name;
           _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1; _resSelShow='';
           saveResultsToStorage(); resolve(G.results.length);
         } catch(ex){ reject(ex); }
@@ -890,16 +924,16 @@ async function loadResultsFile(file){
       reader.onload=function(e){
         try{
           var wb=XLSX.read(e.target.result,{type:'array'});
-          // Find the sheet that has ClassDivision header (works with multi-sheet year-end files)
-          var ws=null;
+          var ws=null, rawHeaders=[];
           for(var si=0;si<wb.SheetNames.length;si++){
             var cws=wb.Sheets[wb.SheetNames[si]];
             var chdr=(XLSX.utils.sheet_to_json(cws,{header:1,defval:''})[0]||[]);
-            if(chdr.some(function(h){ return normalizeHeader(String(h))==='classdivision'; })){ ws=cws; break; }
+            if(chdr.some(function(h){ return normalizeHeader(String(h))==='classdivision'; })){ ws=cws; rawHeaders=chdr; break; }
           }
-          if(!ws) ws=wb.Sheets[wb.SheetNames[0]];
+          if(!ws){ ws=wb.Sheets[wb.SheetNames[0]]; rawHeaders=XLSX.utils.sheet_to_json(ws,{header:1,defval:''})[0]||[]; }
           var rows=XLSX.utils.sheet_to_json(ws,{defval:''});
-          G.results=parseSTHXRows(rows); G.resultsFile=file.name;
+          var override=buildResHeaderOverride(rawHeaders);
+          G.results=parseSTHXRows(rows, override); G.resultsFile=file.name;
           _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1; _resSelShow='';
           saveResultsToStorage(); resolve(G.results.length);
         } catch(ex){ reject(ex); }
@@ -1640,16 +1674,18 @@ function pgResults(){
         return 0;
       });
 
-      // Prize money: prefer G.cfg.aaMoney (set in Classes tab) over G.aaMoney (set in Results)
+      // Prize money: get added money total, compute per-place from payout table
       var aaMoneyKey=_resSelOrg+'|'+_resSelDiv;
-      var prizes=(G.cfg.aaMoney&&G.cfg.aaMoney[aaMoneyKey])||G.aaMoney[aaMoneyKey]||[0,0,0,0,0];
+      var aaTotal=(G.cfg.aaMoney&&G.cfg.aaMoney[aaMoneyKey])||G.aaMoney[aaMoneyKey]||0;
+      var prizes=calcAaPrizes(aaTotal, eligible.length);
 
       // ── Prize money config bar ──
       var _amEsc=aaMoneyKey.replace(/'/g,"\\'");
       html+='<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.6rem;padding:.45rem .6rem;background:var(--card-bg);border:1px solid var(--border);border-radius:6px">'
-        +'<span style="font-size:.78rem;color:var(--muted)">All Around prize money:</span>';
-      var anyPrize=prizes.some(function(p){ return p>0; });
-      if(anyPrize){
+        +'<span style="font-size:.78rem;color:var(--muted)">Added money:</span>';
+      if(aaTotal){
+        html+='<span style="font-size:.85rem;font-weight:700;color:var(--green)">$'+aaTotal+'</span>'
+          +'<span style="font-size:.78rem;color:var(--muted)">→</span>';
         prizes.forEach(function(p,i){
           if(p>0) html+='<span style="font-size:.82rem"><strong>'+(i+1)+(i===0?'st':i===1?'nd':i===2?'rd':'th')+'</strong> $'+p+'</span>';
         });
@@ -2139,7 +2175,8 @@ function pgSettings(){
     +'<button class="stab active" onclick="showStab(\'finances\',this)">&#36; Finances</button>'
     +'<button class="stab" onclick="showStab(\'classes\',this)">&#127891; Classes</button>'
     +'<button class="stab" onclick="showStab(\'orgs\',this)">&#127981; Organizations</button>'
-    +'<button class="stab" onclick="showStab(\'mapper\',this)">&#8644; Column Mapper</button>'
+    +'<button class="stab" onclick="showStab(\'mapper\',this)">&#8644; Entries Mapper</button>'
+    +'<button class="stab" onclick="showStab(\'resmapper\',this)">&#8644; Results Mapper</button>'
     +'<button class="stab" onclick="showStab(\'parser\',this)">&#128270; Parser Test</button>'
     +'</div>'
     // ── PARSER TEST ──
@@ -2219,9 +2256,9 @@ function pgSettings(){
     +'<div id="org-editor-root"></div>'
     +'</div>'
 
-    // ── MAPPER ──
+    // ── ENTRIES MAPPER ──
     +'<div class="ssec" id="ss-mapper">'
-    +'<div class="card"><div class="card-title">Column Mapper <small>Tell Gatepost what each Cognito column means — saved and reused every import</small></div>'
+    +'<div class="card"><div class="card-title">Entries Column Mapper <small>Tell Gatepost what each Cognito column means — saved and reused every import</small></div>'
     +'<p style="font-size:.83rem;color:var(--muted);margin-bottom:1rem">Drop any export from this association. Gatepost auto-detects most columns — review and fix anything it got wrong, then save. Works for any org&apos;s Cognito form.</p>'
     +'<div class="drop-zone" id="map-dz"><div class="dz-ico">&#128190;</div><h3>Drop Cognito Export to Map Columns</h3><p>Reads your column headers and suggests mappings</p><input type="file" id="map-fi" accept=".xlsx,.xls" style="display:none"></div>'
     +'</div>'
@@ -2233,12 +2270,28 @@ function pgSettings(){
     +'<div class="btn-row"><button class="btn btn-green" onclick="saveMapping()">&#10003; Save Mapping</button>'
     +'<button class="btn btn-dark" onclick="document.getElementById(\'mapper-out\').classList.add(\'hidden\')">Reset</button></div>'
     +'</div>'
+    +'</div>'
+
+    // ── RESULTS MAPPER ──
+    +'<div class="ssec" id="ss-resmapper">'
+    +'<div class="card"><div class="card-title">Results Column Mapper <small>Map Funnware/SHTX export columns — saved and applied on every results import</small></div>'
+    +'<p style="font-size:.83rem;color:var(--muted);margin-bottom:1rem">Drop any SHTX results file. Gatepost reads the headers and maps them to the expected fields. Save once and it will remember for next time.</p>'
+    +'<div class="drop-zone" id="resmap-dz"><div class="dz-ico">&#128196;</div><h3>Drop SHTX Results File to Map Columns</h3><p>.xlsx or tab-delimited .txt from Funnware</p><input type="file" id="resmap-fi" accept=".xlsx,.xls,.txt,.csv" style="display:none"></div>'
+    +'</div>'
+    +'<div id="resmapper-out" class="hidden">'
+    +'<div class="card"><div class="card-title">Column Mapping <small style="color:var(--green)" id="resmap-auto-count"></small></div>'
+    +'<p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">Set what each column in your file corresponds to. Columns not listed here are ignored.</p>'
+    +'<div id="resmap-fields"></div></div>'
+    +'<div class="btn-row"><button class="btn btn-green" onclick="saveResMapping()">&#10003; Save Results Mapping</button>'
+    +'<button class="btn btn-dark" onclick="document.getElementById(\'resmapper-out\').classList.add(\'hidden\')">Reset</button></div>'
+    +'</div>'
     +'</div>';
 
   // Wire up events
   applyConfigToUI();
   setupClassDrop();
   setupMapDrop();
+  setupResMapDrop();
   setupFeeListeners();
   if(G.cfg.classes.length) renderCfgClassTable();
 }
@@ -2250,23 +2303,142 @@ function showStab(id,btn){
   btn.classList.add('active');
   if(id==='orgs') renderOrgEditor();
   if(id==='mapper') tryRestoreMapper();
+  if(id==='resmapper') tryRestoreResMapper();
 }
 
 function tryRestoreMapper(){
-  // If no file has been dropped yet but we have saved headers, restore the UI
   var out=document.getElementById('mapper-out');
-  if(!out||!out.classList.contains('hidden')) return; // already showing
+  if(!out||!out.classList.contains('hidden')) return;
   if(G.cfg.mapHeaders&&G.cfg.mapHeaders.length&&Object.keys(G.cfg.colMap||{}).length){
     MAP_HEADERS=G.cfg.mapHeaders.slice();
     ACTIVE_MAP=Object.assign({},G.cfg.colMap);
     buildMapperUI();
-    // Show a note that this is the saved map
     var note=document.createElement('div');
     note.style.cssText='font-size:.78rem;color:var(--muted);margin-bottom:.5rem';
     note.innerHTML='&#10003; Showing saved column map from last import. Drop a new file to update.';
     var firstCard=document.querySelector('#mapper-out .card');
     if(firstCard) firstCard.parentNode.insertBefore(note, firstCard);
   }
+}
+
+// ── RESULTS COLUMN MAPPER ─────────────────────────────────────
+var RES_MAP_HEADERS=[];
+var RES_ACTIVE_MAP={};
+var RES_ROLES=[
+  {id:'classdivision', label:'Class/Division (required)', hints:[/classdivision/i,/class.?div/i,/class.*name/i]},
+  {id:'show',          label:'Show Name',                 hints:[/^show$/i,/showname/i,/show.?name/i]},
+  {id:'horse',         label:'Horse Name (required)',      hints:[/^horse$/i,/horse.?name/i]},
+  {id:'rider',         label:'Rider Name (required)',      hints:[/^rider$/i,/rider.?name/i,/exhibitor/i]},
+  {id:'owner',         label:'Owner',                     hints:[/^owner$/i,/owner.?name/i]},
+  {id:'entries',       label:'# Entries in Class',        hints:[/^entries$/i,/^entry.?count$/i,/^no.?entries/i]},
+  {id:'score',         label:'Score',                     hints:[/^score$/i,/raw.?score/i]},
+  {id:'place',         label:'Place / Placing',           hints:[/^place$/i,/placing/i,/^finish/i]},
+  {id:'money',         label:'Prize Money',               hints:[/^money$/i,/prize/i,/earnings/i]},
+  {id:'shtxpts',       label:'SHTX Points',               hints:[/shtxpts/i,/shtx.?pts/i,/shtx.?points/i,/^pts$/i,/^points$/i]},
+  {id:'ridershtxno',   label:'Rider SHTX #',              hints:[/ridershtxno/i,/shtx.?no/i,/member.?no/i]},
+  {id:'goround',       label:'Go Round',                  hints:[/goround/i,/go.?round/i]},
+  {id:'classage',      label:'Discipline Override',       hints:[/classage/i,/class.?age/i,/discipline/i]},
+  {id:'addedmoney',    label:'Added Money (per class)',   hints:[/addedmoney/i,/added.?money/i]}
+];
+
+function setupResMapDrop(){
+  var dz=document.getElementById('resmap-dz'), fi=document.getElementById('resmap-fi');
+  if(!dz||!fi) return;
+  dz.addEventListener('click',function(){ fi.click(); });
+  fi.addEventListener('change',function(e){ if(e.target.files[0]) loadResMapFile(e.target.files[0]); });
+  dz.addEventListener('dragover',function(e){ e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave',function(){ dz.classList.remove('drag'); });
+  dz.addEventListener('drop',function(e){ e.preventDefault(); dz.classList.remove('drag'); if(e.dataTransfer.files[0]) loadResMapFile(e.dataTransfer.files[0]); });
+}
+
+function loadResMapFile(file){
+  var ext=(file.name||'').split('.').pop().toLowerCase();
+  var reader=new FileReader();
+  reader.onerror=function(){ toast('File read error',true); };
+  if(ext==='txt'||ext==='csv'){
+    reader.onload=function(e){
+      var lines=e.target.result.split(/\r?\n/).filter(function(l){ return l.trim(); });
+      if(!lines.length){ toast('Empty file',true); return; }
+      RES_MAP_HEADERS=lines[0].split('\t');
+      buildResMapperUI();
+    };
+    reader.readAsText(file);
+  } else {
+    reader.onload=function(e){
+      try{
+        var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+        var ws=wb.Sheets[wb.SheetNames[0]];
+        // prefer sheet with classdivision column
+        for(var si=0;si<wb.SheetNames.length;si++){
+          var cws=wb.Sheets[wb.SheetNames[si]];
+          var chdr=(XLSX.utils.sheet_to_json(cws,{header:1,defval:''})[0]||[]);
+          if(chdr.some(function(h){ return /classdiv/i.test(String(h)); })){ ws=cws; break; }
+        }
+        RES_MAP_HEADERS=XLSX.utils.sheet_to_json(ws,{header:1,defval:''})[0]||[];
+        buildResMapperUI();
+      } catch(err){ toast('Error: '+err.message,true); }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+function buildResMapperUI(){
+  RES_ACTIVE_MAP={};
+  var autoCount=0;
+  var html='<div class="form-row">';
+  RES_ROLES.forEach(function(role){
+    var found=-1;
+    RES_MAP_HEADERS.forEach(function(h,i){
+      if(found===-1){
+        var hs=String(h||'');
+        for(var j=0;j<role.hints.length;j++){
+          if(role.hints[j].test(hs)){ found=i; break; }
+        }
+      }
+    });
+    // also try normalizeHeader match
+    if(found===-1){
+      RES_MAP_HEADERS.forEach(function(h,i){
+        if(found===-1&&normalizeHeader(String(h||''))===role.id) found=i;
+      });
+    }
+    if(found>-1){ RES_ACTIVE_MAP[found]=role.id; autoCount++; }
+    var opts=RES_MAP_HEADERS.map(function(h,i){
+      return h!=null?'<option value="'+i+'"'+(i===found?' selected':'')+'>Col '+i+': '+esc(String(h).substring(0,50))+'</option>':'';
+    }).join('');
+    var autoMark=found>-1?'<span style="color:var(--green);font-size:.68rem"> &#10003; auto</span>':'<span style="color:var(--muted);font-size:.68rem"> not found</span>';
+    html+='<div class="form-group"><label>'+esc(role.label)+autoMark+'</label>'
+      +'<select onchange="RES_ACTIVE_MAP[this.value]=\''+role.id+'\'" '
+      +'style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.35rem .5rem;font-size:.78rem">'
+      +'<option value="-1">— Not in this file —</option>'+opts+'</select></div>';
+  });
+  html+='</div>';
+  var ac=document.getElementById('resmap-auto-count');
+  if(ac) ac.textContent=autoCount+' auto-detected';
+  document.getElementById('resmap-fields').innerHTML=html;
+  document.getElementById('resmapper-out').classList.remove('hidden');
+}
+
+function tryRestoreResMapper(){
+  var out=document.getElementById('resmapper-out');
+  if(!out||!out.classList.contains('hidden')) return;
+  if(G.cfg.resMapHeaders&&G.cfg.resMapHeaders.length&&Object.keys(G.cfg.resColMap||{}).length){
+    RES_MAP_HEADERS=G.cfg.resMapHeaders.slice();
+    RES_ACTIVE_MAP=Object.assign({},G.cfg.resColMap);
+    buildResMapperUI();
+    var note=document.createElement('div');
+    note.style.cssText='font-size:.78rem;color:var(--muted);margin-bottom:.5rem';
+    note.innerHTML='&#10003; Showing saved results map from last import. Drop a new file to update.';
+    var firstCard=document.querySelector('#resmapper-out .card');
+    if(firstCard) firstCard.parentNode.insertBefore(note, firstCard);
+  }
+}
+
+function saveResMapping(){
+  G.cfg.resColMap=Object.assign({},RES_ACTIVE_MAP);
+  G.cfg.resMapHeaders=RES_MAP_HEADERS.slice();
+  try{ localStorage.setItem('gatepost_cfg',JSON.stringify(G.cfg)); } catch(e){}
+  toast('Results column mapping saved — '+Object.keys(RES_ACTIVE_MAP).length+' columns mapped');
 }
 
 window.testParser = function(){
@@ -2769,42 +2941,37 @@ function renderAAPrizeCfg(){
     return;
   }
   // Get divisions actually present in classes
-  var classedDivs={}; // org → Set of divisions
+  var classedDivs={};
   G.cfg.classes.forEach(function(c){
     var o=c.org||'CoWN';
     if(!classedDivs[o]) classedDivs[o]=[];
     if(c.division&&classedDivs[o].indexOf(c.division)<0) classedDivs[o].push(c.division);
   });
-  var labels=['1st','2nd','3rd','4th','5th'];
-  var html='';
+  var html='<p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">Enter a total added money amount — payout splits automatically based on number of eligible riders (e.g. 4 eligible → 40/30/20/10).</p>';
   aaOrgs.forEach(function(o){
     var divs=classedDivs[o]||(ORG_CLASSES[o].divisions||['Open']);
     divs.forEach(function(div){
       if(!div) return;
       var key=o+'|'+div;
-      var prizes=(G.cfg.aaMoney||{})[key]||[0,0,0,0,0];
-      html+='<div style="display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">'
-        +'<span style="font-size:.85rem;font-weight:600;min-width:160px;color:var(--text)">'+esc(o)+' '+esc(div)+'</span>';
-      labels.forEach(function(lbl,i){
-        html+='<label style="display:flex;align-items:center;gap:.25rem;font-size:.8rem;color:var(--muted)">'+lbl+' <span style="color:var(--text)">$</span>'
-          +'<input type="number" min="0" step="1" value="'+(prizes[i]||0)+'" '
-          +'onchange="updAAPrize(\''+key.replace(/'/g,"\\'")+'\','+i+',this.value)" '
-          +'style="width:4.5rem;background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:.18rem .28rem;font-size:.8rem"></label>';
-      });
-      html+='</div>';
+      var total=(G.cfg.aaMoney||{})[key]||0;
+      html+='<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">'
+        +'<span style="font-size:.85rem;font-weight:600;min-width:160px;color:var(--text)">'+esc(o)+' '+esc(div)+'</span>'
+        +'<label style="display:flex;align-items:center;gap:.3rem;font-size:.83rem;color:var(--muted)">Added Money $'
+        +'<input type="number" min="0" step="1" value="'+total+'" '
+        +'oninput="updAAPrize(\''+key.replace(/'/g,"\\'")+'\',this.value)" '
+        +'style="width:6rem;background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:.18rem .28rem;font-size:.85rem"></label>'
+        +'</div>';
     });
   });
-  if(!html) html='<p style="font-size:.83rem;color:var(--muted)">Import entries or add classes first to see divisions here.</p>';
+  if(html==='<p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">Enter a total added money amount — payout splits automatically based on number of eligible riders (e.g. 4 eligible → 40/30/20/10).</p>') html='<p style="font-size:.83rem;color:var(--muted)">Import entries or add classes first to see divisions here.</p>';
   root.innerHTML=html;
 }
 
-window.updAAPrize=function(key,idx,val){
+window.updAAPrize=function(key,val){
   if(!G.cfg.aaMoney) G.cfg.aaMoney={};
-  if(!G.cfg.aaMoney[key]) G.cfg.aaMoney[key]=[0,0,0,0,0];
-  G.cfg.aaMoney[key][idx]=parseFloat(val)||0;
-  // Mirror into G.aaMoney so Results page picks it up live
+  G.cfg.aaMoney[key]=parseFloat(val)||0;
   if(!G.aaMoney) G.aaMoney={};
-  G.aaMoney[key]=G.cfg.aaMoney[key].slice();
+  G.aaMoney[key]=G.cfg.aaMoney[key];
 };
 
 function feeInp(id,field,val,ph,disabled){
