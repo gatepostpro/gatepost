@@ -244,12 +244,35 @@ tr:hover td{background:rgba(255,255,255,.025)}
   .modal-grid{grid-template-columns:1fr}
 }
 
+/* go sheet styles */
+.go-sheet-row{display:flex;align-items:center;gap:.3rem;padding:.3rem .4rem;border-bottom:1px solid var(--border);transition:background .1s}
+.go-sheet-row:last-child{border-bottom:none}
+.go-sheet-row.dragging{opacity:.4}
+.go-sheet-row.drag-over{border-top:2px solid var(--accent)}
+.go-sheet-row.scratched{opacity:.45}
+.go-sheet-row.scratched .gs-name{text-decoration:line-through;color:var(--muted)}
+.go-sheet-row.full-scratched{opacity:.3}
+.go-sheet-row.full-scratched .gs-name{text-decoration:line-through;color:var(--red)}
+.drag-handle{cursor:grab;color:var(--muted);font-size:.9rem;padding:.1rem .25rem;flex-shrink:0;touch-action:none}
+.drag-handle:active{cursor:grabbing}
+.gs-backnum{width:44px;text-align:center;font-weight:700;color:var(--accent);flex-shrink:0;font-size:.9rem}
+.gs-name{flex:1;font-size:.85rem;min-width:0}
+.gs-horse{flex:1;font-size:.8rem;color:var(--muted);min-width:0}
+.gs-membernum{width:70px;font-size:.75rem;color:var(--muted);flex-shrink:0}
+.gs-actions{display:flex;gap:.2rem;flex-shrink:0}
+
 @media print{
   .sidebar,.topbar,.btn-row,.pills,.search-wrap,.no-print{display:none!important}
   .content{overflow:visible}.page{padding:0}
   body{background:#fff;color:#000}
-  .card{border:1px solid #ccc;break-inside:avoid;background:#fff}
+  .card{border:1px solid #ccc;background:#fff}
   th{background:#f0f0f0;color:#000}td{border-bottom:1px solid #ddd}
+  /* class sheet print: one per page */
+  .go-sheet-page{page-break-after:always;break-after:page;padding:1.5rem;border:none}
+  .go-sheet-page:last-child{page-break-after:avoid;break-after:avoid}
+  .go-sheet-row.scratched,.go-sheet-row.full-scratched{display:none}
+  .gs-actions,.drag-handle,.no-print{display:none!important}
+  .go-sheet-print-cols th,.go-sheet-print-cols td{border:1px solid #ccc}
 }
 </style>
 </head>
@@ -307,12 +330,15 @@ function normalizeAaReq(req){
 var G = {
   entries: [],
   showName: '',
-  payments: {},   // rowIndex -> amount paid
-  backNums: {},   // rowIndex -> back number
-  results: [],    // SHTX result rows: [{show,division,entries,horse,rider,score,place,pts,money}]
+  payments: {},      // rowIndex -> amount paid
+  backNums: {},      // rowIndex -> back number
+  classOrder: {},    // classKey -> [rowIndex, ...] custom running order
+  scratches: {},     // classKey -> [rowIndex, ...] per-class scratches
+  fullScratches: [], // [rowIndex, ...] scratched from whole show
+  results: [],       // SHTX result rows: [{show,division,entries,horse,rider,score,place,pts,money}]
   resultsFile: '',
-  scoreLinks: {}, // "org|div|disc" → URL for score sheet PDF
-  aaMoney: {},    // "org|div" → scalar added money total (payout split computed dynamically)
+  scoreLinks: {},    // "org|div|disc" → URL for score sheet PDF
+  aaMoney: {},       // "org|div" → scalar added money total (payout split computed dynamically)
   cfg: {
     showName:'', showDate:'', location:'', secretary:'', email:'',
     fees:{
@@ -1015,7 +1041,9 @@ async function loadResultsFile(file){
             rows.push(obj);
           }
           var override=buildResHeaderOverride(headers);
-          G.results=parseSTHXRows(rows, override); G.resultsFile=file.name;
+          G.results=parseSTHXRows(rows, override);
+          G.results.forEach(function(r,i){ r._idx=i; });
+          G.resultsFile=file.name;
           _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1; _resSelShow='';
           saveResultsToStorage(); resolve(G.results.length);
         } catch(ex){ reject(ex); }
@@ -1034,7 +1062,9 @@ async function loadResultsFile(file){
           if(!ws){ ws=wb.Sheets[wb.SheetNames[0]]; rawHeaders=XLSX.utils.sheet_to_json(ws,{header:1,defval:''})[0]||[]; }
           var rows=XLSX.utils.sheet_to_json(ws,{defval:''});
           var override=buildResHeaderOverride(rawHeaders);
-          G.results=parseSTHXRows(rows, override); G.resultsFile=file.name;
+          G.results=parseSTHXRows(rows, override);
+          G.results.forEach(function(r,i){ r._idx=i; });
+          G.resultsFile=file.name;
           _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1; _resSelShow='';
           saveResultsToStorage(); resolve(G.results.length);
         } catch(ex){ reject(ex); }
@@ -1076,6 +1106,9 @@ function saveEntriesToStorage(){
     localStorage.setItem('gp_entries_'+G.showId, JSON.stringify(G.entries));
     localStorage.setItem('gp_payments_'+G.showId, JSON.stringify(G.payments));
     localStorage.setItem('gp_backnums_'+G.showId, JSON.stringify(G.backNums));
+    localStorage.setItem('gp_classorder_'+G.showId, JSON.stringify(G.classOrder||{}));
+    localStorage.setItem('gp_scratches_'+G.showId, JSON.stringify(G.scratches||{}));
+    localStorage.setItem('gp_fullscratches_'+G.showId, JSON.stringify(G.fullScratches||[]));
   } catch(ex){ console.warn('localStorage save failed:', ex); }
 }
 
@@ -1435,27 +1468,116 @@ function wireImportDZ(){
 }
 
 // ═══════════════════════ PAGE: CLASS LISTS ═══════════════════════
+// ── Class sheet helpers ───────────────────────────────────────
+function clsKey(cls){ return (cls.num||'')+'|'+(cls.name||''); }
+
+function getClassOrder(key, entries){
+  if(G.classOrder[key]&&G.classOrder[key].length){
+    // Restore order, add any new entries not yet in the order
+    var existing=G.classOrder[key];
+    var inOrder=new Set(existing);
+    var extras=entries.filter(function(e){ return !inOrder.has(e.rowIndex); }).map(function(e){ return e.rowIndex; });
+    return existing.concat(extras);
+  }
+  // Default: sort by back number, then name
+  return entries.slice().sort(function(a,b){
+    var ba=parseInt(G.backNums[a.rowIndex])||9999, bb=parseInt(G.backNums[b.rowIndex])||9999;
+    if(ba!==bb) return ba-bb;
+    return (a.name||'').localeCompare(b.name||'');
+  }).map(function(e){ return e.rowIndex; });
+}
+
+function isScratched(classKey, rowIndex){
+  return (G.scratches[classKey]||[]).indexOf(rowIndex)>=0;
+}
+function isFullScratched(rowIndex){
+  return (G.fullScratches||[]).indexOf(rowIndex)>=0;
+}
+
+window.clsScratch=function(classKey, rowIndex){
+  if(!G.scratches[classKey]) G.scratches[classKey]=[];
+  var idx=G.scratches[classKey].indexOf(rowIndex);
+  if(idx>=0) G.scratches[classKey].splice(idx,1);
+  else G.scratches[classKey].push(rowIndex);
+  saveEntriesToStorage(); pgClasses();
+};
+window.clsFullScratch=function(rowIndex){
+  if(!G.fullScratches) G.fullScratches=[];
+  var idx=G.fullScratches.indexOf(rowIndex);
+  if(idx>=0) G.fullScratches.splice(idx,1);
+  else G.fullScratches.push(rowIndex);
+  saveEntriesToStorage(); pgClasses();
+};
+window.clsMoveUp=function(classKey, rowIndex){
+  var order=G.classOrder[classKey];
+  if(!order) return;
+  var i=order.indexOf(rowIndex);
+  if(i>0){ var t=order[i-1]; order[i-1]=order[i]; order[i]=t; }
+  saveEntriesToStorage(); pgClasses();
+};
+window.clsMoveDown=function(classKey, rowIndex){
+  var order=G.classOrder[classKey];
+  if(!order) return;
+  var i=order.indexOf(rowIndex);
+  if(i<order.length-1){ var t=order[i+1]; order[i+1]=order[i]; order[i]=t; }
+  saveEntriesToStorage(); pgClasses();
+};
+
+var _dragSrcKey='', _dragSrcIdx=-1;
+window.clsDragStart=function(classKey, rowIndex, ev){
+  _dragSrcKey=classKey; _dragSrcIdx=rowIndex;
+  ev.dataTransfer.effectAllowed='move';
+  ev.currentTarget.classList.add('dragging');
+};
+window.clsDragEnd=function(ev){
+  ev.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.drag-over').forEach(function(el){ el.classList.remove('drag-over'); });
+};
+window.clsDragOver=function(ev){ ev.preventDefault(); ev.currentTarget.classList.add('drag-over'); };
+window.clsDragLeave=function(ev){ ev.currentTarget.classList.remove('drag-over'); };
+window.clsDrop=function(classKey, rowIndex, ev){
+  ev.preventDefault();
+  ev.currentTarget.classList.remove('drag-over');
+  if(_dragSrcKey!==classKey||_dragSrcIdx===rowIndex) return;
+  var order=G.classOrder[classKey];
+  if(!order) return;
+  var from=order.indexOf(_dragSrcIdx), to=order.indexOf(rowIndex);
+  if(from<0||to<0) return;
+  order.splice(from,1); order.splice(to,0,_dragSrcIdx);
+  saveEntriesToStorage(); pgClasses();
+};
+
 function pgClasses(){
   var pg=document.getElementById('page');
-  if(!G.entries.length){ pg.innerHTML='<div class="card"><p class="empty-state">No entries loaded. <a href="#" onclick="showPage(\'entries\');return false" style="color:var(--accent)">Import entries first &rarr;</a></p></div>'; return; }
+  if(!G.entries.length){
+    pg.innerHTML='<div class="card"><p class="empty-state">No entries loaded. <a href="#" onclick="showPage(\'entries\');return false" style="color:var(--accent)">Import entries first &rarr;</a></p></div>';
+    return;
+  }
 
+  // Build class map
   var classMap={};
   G.entries.forEach(function(e){
     e.classes.forEach(function(cls){
-      var key=cls.num||cls.name;
-      if(!classMap[key]) classMap[key]={num:cls.num,name:cls.name,division:cls.division,org:cls.org,entries:[]};
-      classMap[key].entries.push(e);
+      var key=clsKey(cls);
+      if(!classMap[key]) classMap[key]={num:cls.num,name:cls.name,division:cls.division,org:cls.org,key:key,allEntries:[]};
+      classMap[key].allEntries.push(e);
     });
   });
 
   var sorted=Object.values(classMap).sort(function(a,b){ return (parseInt(a.num)||999)-(parseInt(b.num)||999); });
 
-  // Org filter
+  // Build running orders
+  sorted.forEach(function(cls){
+    if(!G.classOrder[cls.key]||!G.classOrder[cls.key].length){
+      G.classOrder[cls.key]=getClassOrder(cls.key, cls.allEntries);
+    }
+  });
+
   var orgs=Array.from(new Set(sorted.map(function(c){ return c.org||'CoWN'; }))).sort();
   var activeOrg='All';
 
   pg.innerHTML='<div class="btn-row no-print">'
-    +'<button class="btn btn-accent btn-sm" onclick="window.print()">&#128424; Print All Class Lists</button>'
+    +'<button class="btn btn-accent btn-sm" onclick="printGoSheets()">&#128424; Print Go Sheets</button>'
     +'</div>'
     +'<div class="pills no-print" id="org-pills"></div>'
     +'<div id="cl-content"></div>';
@@ -1465,7 +1587,6 @@ function pgClasses(){
       return '<button class="pill'+(o===activeOrg?' active':'')+'" data-org="'+esc(o)+'">'+esc(o)+'</button>';
     }).join('');
   }
-  window.setOrgPill=function(o){ activeOrg=o; drawOrgPills(); drawClassLists(); };
   function drawAndWireOrgPills(){
     drawOrgPills();
     wirePillClicks('org-pills', function(v){ activeOrg=v; drawAndWireOrgPills(); drawClassLists(); });
@@ -1475,24 +1596,128 @@ function pgClasses(){
   function drawClassLists(){
     var list=sorted.filter(function(c){ return activeOrg==='All'||(c.org||'CoWN')===activeOrg; });
     var html=list.map(function(cls){
-      return '<div class="card" style="break-inside:avoid">'
-        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">'
-        +'<div><span style="font-family:Oswald;font-size:1.1rem;color:var(--accent)">Class '+esc(cls.num)+' &mdash; '+esc(cls.name)+'</span>'
+      var key=cls.key;
+      var order=G.classOrder[key]||[];
+      var entryMap={};
+      cls.allEntries.forEach(function(e){ entryMap[e.rowIndex]=e; });
+      var orderedEntries=order.map(function(ri){ return entryMap[ri]; }).filter(Boolean);
+      var activeCount=orderedEntries.filter(function(e){ return !isFullScratched(e.rowIndex)&&!isScratched(key,e.rowIndex); }).length;
+      var scratchCount=orderedEntries.filter(function(e){ return isFullScratched(e.rowIndex)||isScratched(key,e.rowIndex); }).length;
+
+      var rows=orderedEntries.map(function(e,i){
+        var ri=e.rowIndex;
+        var fullS=isFullScratched(ri), clsS=isScratched(key,ri);
+        var rowCls='go-sheet-row'+(fullS?' full-scratched':clsS?' scratched':'');
+        var keyEsc=key.replace(/'/g,"\\'");
+        return '<div class="'+rowCls+'" draggable="true" '
+          +'ondragstart="clsDragStart(\''+keyEsc+'\','+ri+',event)" '
+          +'ondragend="clsDragEnd(event)" '
+          +'ondragover="clsDragOver(event)" '
+          +'ondragleave="clsDragLeave(event)" '
+          +'ondrop="clsDrop(\''+keyEsc+'\','+ri+',event)">'
+          +'<span class="drag-handle no-print">&#8597;</span>'
+          +'<div class="no-print" style="display:flex;gap:.15rem;flex-shrink:0">'
+          +'<button class="btn btn-dark btn-sm" style="padding:.15rem .3rem;font-size:.7rem" onclick="clsMoveUp(\''+keyEsc+'\','+ri+')" title="Move up">&#8679;</button>'
+          +'<button class="btn btn-dark btn-sm" style="padding:.15rem .3rem;font-size:.7rem" onclick="clsMoveDown(\''+keyEsc+'\','+ri+')" title="Move down">&#8681;</button>'
+          +'</div>'
+          +'<span class="gs-backnum">'+(G.backNums[ri]||'—')+'</span>'
+          +'<span class="gs-name">'+esc(e.name)+'</span>'
+          +'<span class="gs-horse">'+esc(e.horse)+'</span>'
+          +'<span class="gs-membernum no-print">'+esc(e.memberNum||'—')+'</span>'
+          +'<div class="gs-actions no-print">'
+          +(fullS
+            ?'<button class="btn btn-sm" style="background:rgba(231,76,60,.15);color:var(--red);padding:.15rem .4rem;font-size:.72rem" onclick="clsFullScratch('+ri+')" title="Un-scratch from show">&#10227; Unscratch</button>'
+            :(clsS
+              ?'<button class="btn btn-sm" style="background:rgba(231,76,60,.15);color:var(--red);padding:.15rem .4rem;font-size:.72rem" onclick="clsScratch(\''+keyEsc+'\','+ri+')" title="Un-scratch from class">&#10227; Unscratch</button>'
+              :'<button class="btn btn-dark btn-sm" style="padding:.15rem .4rem;font-size:.72rem" onclick="clsScratch(\''+keyEsc+'\','+ri+')" title="Scratch from this class">&#10007; Scratch</button>'
+               +'<button class="btn btn-dark btn-sm" style="padding:.15rem .4rem;font-size:.72rem;color:var(--red)" onclick="clsFullScratch('+ri+')" title="Scratch from whole show">&#10007;&#10007; Full</button>'
+            ))
+          +'</div>'
+          +'</div>';
+      }).join('');
+
+      return '<div class="card" style="margin-bottom:1rem">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;margin-bottom:.65rem">'
+        +'<div><span style="font-family:Oswald;font-size:1.05rem;color:var(--accent)">Class '+esc(cls.num)+' &mdash; '+esc(cls.name)+'</span>'
         +' '+divBadge(cls.division)
         +(cls.org&&cls.org!=='CoWN'?'<span class="badge b-blue" style="margin-left:4px">'+esc(cls.org)+'</span>':'')
-        +'</div><span class="badge b-blue">'+cls.entries.length+' entries</span></div>'
-        +'<table><thead><tr><th style="width:70px">Back#</th><th>Rider</th><th>Horse</th><th>CoWN #</th></tr></thead><tbody>'
-        +cls.entries.map(function(e){
-          return '<tr><td class="bold ctr">'+(G.backNums[e.rowIndex]||'—')+'</td>'
-            +'<td>'+esc(e.name)+'</td><td>'+esc(e.horse)+'</td>'
-            +'<td class="small">'+esc(e.memberNum||'—')+'</td></tr>';
-        }).join('')
-        +'</tbody></table></div>';
+        +'</div>'
+        +'<div style="display:flex;gap:.4rem;align-items:center">'
+        +'<span class="badge b-blue">'+activeCount+' going'+(scratchCount?' &middot; '+scratchCount+' scratched':'')+'</span>'
+        +'</div>'
+        +'</div>'
+        +'<div id="rows-'+key.replace(/[^a-zA-Z0-9]/g,'_')+'">'+rows+'</div>'
+        +'</div>';
     }).join('');
+
     document.getElementById('cl-content').innerHTML=html||'<p class="empty-state">No classes found.</p>';
   }
   drawClassLists();
 }
+
+window.printGoSheets=function(){
+  var classMap={};
+  G.entries.forEach(function(e){
+    e.classes.forEach(function(cls){
+      var key=clsKey(cls);
+      if(!classMap[key]) classMap[key]={num:cls.num,name:cls.name,division:cls.division,org:cls.org,key:key,allEntries:[]};
+      classMap[key].allEntries.push(e);
+    });
+  });
+  var sorted=Object.values(classMap).sort(function(a,b){ return (parseInt(a.num)||999)-(parseInt(b.num)||999); });
+  var showName=G.cfg.showName||G.showName||'Show';
+  var showDate=G.cfg.showDate||'';
+
+  var win=window.open('','_blank');
+  var pages=sorted.map(function(cls){
+    var key=cls.key;
+    var order=G.classOrder[key]||[];
+    var entryMap={};
+    cls.allEntries.forEach(function(e){ entryMap[e.rowIndex]=e; });
+    var orderedEntries=order.map(function(ri){ return entryMap[ri]; }).filter(Boolean)
+      .filter(function(e){ return !isFullScratched(e.rowIndex)&&!isScratched(key,e.rowIndex); });
+
+    var rows=orderedEntries.map(function(e,i){
+      return '<tr><td style="text-align:center;font-weight:700">'+(i+1)+'</td>'
+        +'<td style="text-align:center;font-weight:700;color:#b8862a">'+(G.backNums[e.rowIndex]||'')+'</td>'
+        +'<td>'+esc(e.name)+'</td><td>'+esc(e.horse)+'</td>'
+        +'<td>'+esc(e.memberNum||'')+'</td>'
+        +'<td style="width:70px"></td><td style="width:70px"></td>'
+        +'</tr>';
+    }).join('');
+
+    return '<div style="page-break-after:always;padding:1.5rem 2rem;font-family:Arial,sans-serif">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;border-bottom:2px solid #b8862a;padding-bottom:.5rem">'
+      +'<div><div style="font-size:1.4rem;font-weight:700;color:#b8862a">Class '+esc(cls.num)+' &mdash; '+esc(cls.name)+'</div>'
+      +'<div style="font-size:.9rem;color:#555">'+esc(cls.division||'')+(cls.org&&cls.org!=='CoWN'?' &middot; '+esc(cls.org):'')+'</div></div>'
+      +'<div style="text-align:right;font-size:.85rem;color:#555"><div>'+esc(showName)+'</div><div>'+esc(showDate)+'</div></div>'
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:.9rem">'
+      +'<thead><tr style="background:#f5f5f5">'
+      +'<th style="width:36px;padding:.4rem;border:1px solid #ccc">#</th>'
+      +'<th style="width:60px;padding:.4rem;border:1px solid #ccc">Back#</th>'
+      +'<th style="padding:.4rem;border:1px solid #ccc;text-align:left">Rider</th>'
+      +'<th style="padding:.4rem;border:1px solid #ccc;text-align:left">Horse</th>'
+      +'<th style="width:80px;padding:.4rem;border:1px solid #ccc">Member#</th>'
+      +'<th style="width:70px;padding:.4rem;border:1px solid #ccc">Score</th>'
+      +'<th style="width:70px;padding:.4rem;border:1px solid #ccc">Place</th>'
+      +'</tr></thead><tbody>'
+      +rows
+      +'</tbody></table>'
+      +'<div style="margin-top:.75rem;font-size:.75rem;color:#888">'+orderedEntries.length+' entries going</div>'
+      +'</div>';
+  }).join('');
+
+  win.document.write('<!DOCTYPE html><html><head><title>Go Sheets &mdash; '+esc(showName)+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#fff;color:#000}'
+    +'td{padding:.35rem .4rem;border:1px solid #ddd;vertical-align:middle}'
+    +'tr:nth-child(even){background:#fafafa}'
+    +'@media print{div[style*="page-break-after"]:last-child{page-break-after:avoid}}'
+    +'</style></head><body>'+pages+'</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(function(){ win.print(); },400);
+};
 
 // ═══════════════════════ PAGE: TABS ═══════════════════════
 function pgTabs(){
@@ -2062,7 +2287,8 @@ function pgResults(){
           +'<td>'+(plMismatch?'<span style="color:var(--red)" title="Calc: '+cp+'">'+plCell+' &#9888;</span>':plCell)+'</td>'
           +'<td>'+esc(r.rider)+'</td>'
           +'<td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>'
-          +'<td style="text-align:right">'+(!r.score?'&mdash;':r.score.toFixed(3))+'</td>'
+          +'<td class="score-cell" data-ridx="'+r._idx+'" style="text-align:right;cursor:pointer" title="Click to edit score">'
+          +(!r.score?'&mdash;':r.score.toFixed(3))+'</td>'
           +(showCalcCols?'<td style="text-align:right;color:var(--muted);font-size:.78rem">'+(cp||'&mdash;')+'</td>':'')
           +'<td style="text-align:right;color:'+(ptsMismatch?'var(--red)':'var(--accent)')+'">'+(isDQ?'&mdash;':(r.pts||0).toFixed(1))+'</td>'
           +(showCalcCols?'<td style="text-align:right;color:'+(isAqhaOrg?'var(--accent)':'var(--muted)')+';font-size:.78rem">'+(isDQ?'&mdash;':cpts!==undefined?cpts.toFixed(1):'&mdash;')+'</td>':'')
@@ -2141,6 +2367,33 @@ function pgResults(){
     });
     sheetsBtn.addEventListener('click',function(e){ e.stopPropagation(); sheetsInp.click(); });
   }
+
+  // ── Inline score editing ──────────────────────────────────────
+  pg.addEventListener('click', function(ev){
+    var cell=ev.target.closest('.score-cell');
+    if(!cell||cell.querySelector('input')) return;
+    var ridx=parseInt(cell.dataset.ridx);
+    var row=G.results[ridx];
+    if(!row) return;
+    var cur=row.score||'';
+    var inp=document.createElement('input');
+    inp.type='number'; inp.step='0.001'; inp.value=cur||'';
+    inp.style.cssText='width:75px;background:var(--bg);border:1px solid var(--accent);border-radius:4px;color:var(--text);padding:2px 5px;font-size:.83rem;text-align:right';
+    cell.innerHTML='';
+    cell.appendChild(inp);
+    inp.focus(); inp.select();
+    function commit(){
+      var val=parseFloat(inp.value);
+      if(!isNaN(val)){ row.score=val; } else { row.score=0; }
+      saveResultsToStorage();
+      pgResults();
+    }
+    inp.addEventListener('blur', commit);
+    inp.addEventListener('keydown', function(e){
+      if(e.key==='Enter') inp.blur();
+      if(e.key==='Escape'){ inp.removeEventListener('blur',commit); pgResults(); }
+    });
+  });
 }
 
 // ═══════════════════════ PAGE: SETUP ═══════════════════════
@@ -4858,13 +5111,19 @@ async function boot(){
         var cachedBN  = localStorage.getItem('gp_backnums_'+showId);
         if(cachedPay) G.payments = JSON.parse(cachedPay);
         if(cachedBN)  G.backNums = JSON.parse(cachedBN);
+        var cachedCO=localStorage.getItem('gp_classorder_'+showId);
+        var cachedSc=localStorage.getItem('gp_scratches_'+showId);
+        var cachedFS=localStorage.getItem('gp_fullscratches_'+showId);
+        if(cachedCO) G.classOrder=JSON.parse(cachedCO);
+        if(cachedSc) G.scratches=JSON.parse(cachedSc);
+        if(cachedFS) G.fullScratches=JSON.parse(cachedFS);
         toast('Loaded '+G.entries.length+' entries from cache');
       }
     } catch(ex){ console.warn('Cache load failed:', ex); }
 
     try{
       var cachedRes=localStorage.getItem('gp_results_'+showId);
-      if(cachedRes){ G.results=JSON.parse(cachedRes); G.resultsFile=localStorage.getItem('gp_resultsfile_'+showId)||''; }
+      if(cachedRes){ G.results=JSON.parse(cachedRes); G.results.forEach(function(r,i){ if(r._idx===undefined) r._idx=i; }); G.resultsFile=localStorage.getItem('gp_resultsfile_'+showId)||''; }
       var cachedLinks=localStorage.getItem('gp_scorelinks_'+showId);
       if(cachedLinks) G.scoreLinks=JSON.parse(cachedLinks);
       var cachedAA=localStorage.getItem('gp_aamoney_'+showId);
