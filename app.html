@@ -384,13 +384,16 @@ var ORG_CLASSES = {
     divisions: ['Open','Amateur','LTD Am','Rookie Am','Youth','LTD Youth','Rookie Youth'],
     disciplines: ['Cutting','Cow','Reining','Trail','Pleasure','Conformation'],
     allAround: false,
-    pointsSystem: 'entries'
+    aaTiebreak: [],
+    aaMinClasses: 3,          // minimum disciplines to qualify for All Around
+    aaRequired: ['Cutting','Conformation'],  // must show in these to be eligible
+    pointsSystem: 'aqha'
   },
   'AQHA Ranch': {
     divisions: ['Open','Amateur','LTD Am','Rookie Am','Youth','LTD Youth','Rookie Youth'],
     disciplines: ['Ranch Trail','Ranch Riding','Working Western Rail'],
     allAround: false,
-    pointsSystem: 'entries'
+    pointsSystem: 'aqha'
   },
   'AQHA RHC': {
     divisions: ['Open','Amateur','Youth'],
@@ -399,13 +402,13 @@ var ORG_CLASSES = {
                   'LTD 5/6 y/o Working Ranch Horse','4y/o+ Cowboy Working Ranch Horse',
                   '3 y/o+ Ranch Riding','3 y/o+ Ranch Cutting'],
     allAround: false,
-    pointsSystem: 'entries'
+    pointsSystem: 'aqha'
   },
   'APHA': {
     divisions: ['Open','Amateur','Novice Amateur','Youth','Novice Youth','Jr Horse'],
     disciplines: ['Cow Horse','Ranch Riding','Reining','Trail','Pleasure','Conformation'],
     allAround: false,
-    pointsSystem: 'entries'
+    pointsSystem: 'aqha'
   },
   'WHSR': {
     divisions: [''],
@@ -421,6 +424,9 @@ var ORG_CLASSES = {
   }
 };
 
+// Deep-copy of factory defaults — used to populate datalist suggestions in org editor
+var DEFAULT_ORG_CLASSES = JSON.parse(JSON.stringify(ORG_CLASSES));
+
 // Flat ordered lists for UI display
 var ORG_ORDER = ['CoWN','VRH','AQHA Ranch','AQHA RHC','APHA','WHSR','Jackpot'];
 
@@ -435,6 +441,23 @@ var DIV_ORDER_BY_ORG = {
   'WHSR':       [''],
   'Jackpot':    ['Open','Amateur','Youth']
 };
+
+// ── AQHA points calculator ────────────────────────────────────
+// AQHA scale: tier = floor(entries/5); 1st=tier, 2nd=tier-1 … down to 1pt, next=0.5pt
+// Fewer than 5 entries = no points awarded
+function calcAqhaPoints(rows, entries){
+  if(!entries||entries<1) entries=rows.length;
+  var tier=Math.floor(entries/5);
+  rows.forEach(function(r,i){
+    if(r.isDQ||!r.place){ rows[i]._pts=0; return; }
+    var p=r.place;
+    if(tier<1){ rows[i]._pts=0; return; }
+    if(p<=tier) rows[i]._pts=tier-p+1;
+    else if(p===tier+1) rows[i]._pts=0.5;
+    else rows[i]._pts=0;
+  });
+  return rows;
+}
 
 // ── CoWN points calculator ────────────────────────────────────
 // entries = total horses in the class
@@ -1574,8 +1597,9 @@ function pgResults(){
         cRank=i+2;
       });
 
-      // Calculate points using CoWN formula on calculated placings
+      // Calculate points using the org's points system on calculated placings
       var calcPtsMap = {};
+      var orgPtsSys=(ORG_CLASSES[_resSelOrg]||{}).pointsSystem||'entries';
       var byCalcPlace={};
       clsRows.forEach(function(r){
         var isDQ=!r.place&&!r.score&&!r.pts;
@@ -1584,13 +1608,29 @@ function pgResults(){
         if(!byCalcPlace[cp]) byCalcPlace[cp]=[];
         byCalcPlace[cp].push(r.rider+'|'+r.horse);
       });
-      Object.keys(byCalcPlace).forEach(function(pl){
-        var keys=byCalcPlace[pl]; pl=parseInt(pl);
-        var sum=0;
-        for(var k=0;k<keys.length;k++) sum+=Math.max(0, actualRows-(pl+k)+1);
-        var avg=sum/keys.length;
-        keys.forEach(function(k){ calcPtsMap[k]=avg; });
-      });
+      if(orgPtsSys==='entries'){
+        // CoWN: 1st=N … last=1, ties split
+        Object.keys(byCalcPlace).forEach(function(pl){
+          var keys=byCalcPlace[pl]; pl=parseInt(pl);
+          var sum=0;
+          for(var k=0;k<keys.length;k++) sum+=Math.max(0, actualRows-(pl+k)+1);
+          var avg=sum/keys.length;
+          keys.forEach(function(k){ calcPtsMap[k]=avg; });
+        });
+      } else if(orgPtsSys==='aqha'){
+        // AQHA: tier=floor(entries/5); 1st=tier … tier-th=1, tier+1=0.5
+        var tier=Math.floor(actualRows/5);
+        Object.keys(byCalcPlace).forEach(function(pl){
+          var keys=byCalcPlace[pl]; pl=parseInt(pl);
+          var pts=tier<1?0:(pl<=tier?(tier-pl+1):(pl===tier+1?0.5:0));
+          keys.forEach(function(k){ calcPtsMap[k]=pts; });
+        });
+      } else {
+        // none or unknown — no calculated points
+        Object.keys(byCalcPlace).forEach(function(pl){
+          byCalcPlace[pl].forEach(function(k){ calcPtsMap[k]=0; });
+        });
+      }
 
       // Count discrepancies
       var placeErrs=0, ptsErrs=0;
@@ -2105,6 +2145,28 @@ function resetOrgConfig(){
   location.reload();
 }
 
+function _orgDivSuggestions(sel){
+  // Canonical divisions for this org from factory defaults, minus already-added ones
+  var cfg=ORG_CLASSES[sel]||{};
+  var defaults=(DEFAULT_ORG_CLASSES[sel]||{}).divisions||[];
+  // Also collect from all defaults for a broad pool
+  var all=[];
+  Object.values(DEFAULT_ORG_CLASSES).forEach(function(c){ (c.divisions||[]).forEach(function(d){ if(all.indexOf(d)<0) all.push(d); }); });
+  // Prioritise defaults for this org, then others
+  var pool=defaults.slice();
+  all.forEach(function(d){ if(pool.indexOf(d)<0) pool.push(d); });
+  return pool.filter(function(d){ return (cfg.divisions||[]).indexOf(d)<0; });
+}
+function _orgDiscSuggestions(sel){
+  var cfg=ORG_CLASSES[sel]||{};
+  var defaults=(DEFAULT_ORG_CLASSES[sel]||{}).disciplines||[];
+  var all=[];
+  Object.values(DEFAULT_ORG_CLASSES).forEach(function(c){ (c.disciplines||[]).forEach(function(d){ if(all.indexOf(d)<0) all.push(d); }); });
+  var pool=defaults.slice();
+  all.forEach(function(d){ if(pool.indexOf(d)<0) pool.push(d); });
+  return pool.filter(function(d){ return (cfg.disciplines||[]).indexOf(d)<0; });
+}
+
 function renderOrgEditor(){
   var root=document.getElementById('org-editor-root');
   if(!root) return;
@@ -2120,6 +2182,14 @@ function renderOrgEditor(){
   tabBar+='<button class="btn btn-dark btn-sm" onclick="orgEdAddOrg()">+ New Org</button>';
   tabBar+='</div>';
 
+  // ── Division datalist ────────────────────────────────────────
+  var divSugg=_orgDivSuggestions(sel);
+  var divDL='<datalist id="oed-div-list">'+divSugg.map(function(d){ return '<option value="'+esc(d)+'">'; }).join('')+'</datalist>';
+
+  // ── Discipline datalist ──────────────────────────────────────
+  var discSugg=_orgDiscSuggestions(sel);
+  var discDL='<datalist id="oed-disc-list">'+discSugg.map(function(d){ return '<option value="'+esc(d)+'">'; }).join('')+'</datalist>';
+
   // ── Divisions column ─────────────────────────────────────────
   var divCol='<div class="card-title" style="margin-bottom:.5rem">Divisions</div>';
   cfg.divisions.forEach(function(d,i){
@@ -2130,8 +2200,8 @@ function renderOrgEditor(){
       +'<button class="btn btn-dark btn-sm" style="padding:.2rem .4rem;color:var(--red)" title="Remove" onclick="orgEdRemoveDiv(\''+esc(sel)+'\','+i+')">&#10005;</button>'
       +'</div>';
   });
-  divCol+='<div style="display:flex;gap:.3rem;margin-top:.5rem">'
-    +'<input id="oed-new-div" class="search-box" style="flex:1;padding:.3rem .5rem;font-size:.8rem" placeholder="New division name...">'
+  divCol+=divDL+'<div style="display:flex;gap:.3rem;margin-top:.5rem">'
+    +'<input id="oed-new-div" list="oed-div-list" class="search-box" style="flex:1;padding:.3rem .5rem;font-size:.8rem" placeholder="Choose or type division...">'
     +'<button class="btn btn-accent btn-sm" onclick="orgEdAddDiv(\''+esc(sel)+'\')">+ Add</button>'
     +'</div>';
 
@@ -2145,37 +2215,65 @@ function renderOrgEditor(){
       +'<button class="btn btn-dark btn-sm" style="padding:.2rem .4rem;color:var(--red)" onclick="orgEdRemoveDisc(\''+esc(sel)+'\','+i+')">&#10005;</button>'
       +'</div>';
   });
-  discCol+='<div style="display:flex;gap:.3rem;margin-top:.5rem">'
-    +'<input id="oed-new-disc" class="search-box" style="flex:1;padding:.3rem .5rem;font-size:.8rem" placeholder="New class / discipline...">'
+  discCol+=discDL+'<div style="display:flex;gap:.3rem;margin-top:.5rem">'
+    +'<input id="oed-new-disc" list="oed-disc-list" class="search-box" style="flex:1;padding:.3rem .5rem;font-size:.8rem" placeholder="Choose or type discipline...">'
     +'<button class="btn btn-accent btn-sm" onclick="orgEdAddDisc(\''+esc(sel)+'\')">+ Add</button>'
     +'</div>';
 
   // ── All Around + points settings ─────────────────────────────
   var aaChecked=cfg.allAround?' checked':'';
   var psSel=cfg.pointsSystem||'entries';
-  var settings='<div style="display:flex;flex-wrap:wrap;gap:1.5rem;align-items:flex-start;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)">'
+
+  // AA detail block (tiebreak + min classes + required disciplines)
+  var aaDetail='';
+  if(cfg.allAround){
+    var tb=(cfg.aaTiebreak||cfg.disciplines);
+    aaDetail+='<div style="font-size:.8rem;color:var(--muted);margin-top:.5rem">Tiebreak order: '
+      +tb.map(function(d,i){ return '<span style="color:var(--text)">'+esc(d)+'</span>'+(i<tb.length-1?' &rarr; ':''); }).join('')
+      +'<span style="font-size:.73rem;margin-left:.4rem">(follows discipline order)</span></div>';
+    // Min classes
+    var minCls=cfg.aaMinClasses||cfg.disciplines.length;
+    var requireAll=(minCls>=cfg.disciplines.length);
+    aaDetail+='<div style="display:flex;flex-wrap:wrap;gap:1rem;align-items:center;margin-top:.6rem">'
+      +'<div style="display:flex;align-items:center;gap:.4rem;font-size:.82rem">'
+      +'<span style="color:var(--muted)">Minimum classes to qualify:</span>'
+      +'<input type="number" id="oed-aa-min" value="'+minCls+'" min="1" max="'+cfg.disciplines.length+'" style="width:3rem;background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:.2rem .3rem;font-size:.82rem" onchange="orgEdSetAAMin(\''+esc(sel)+'\',this.value)">'
+      +'<span style="color:var(--muted)">of '+cfg.disciplines.length+'</span>'
+      +'</div></div>';
+    // Required disciplines checkboxes
+    var aaReq=cfg.aaRequired||[];
+    aaDetail+='<div style="margin-top:.5rem;font-size:.8rem"><span style="color:var(--muted)">Required disciplines (must show in ALL of these):</span>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:.4rem .8rem;margin-top:.35rem">';
+    cfg.disciplines.forEach(function(d){
+      var chk=aaReq.indexOf(d)>=0?' checked':'';
+      aaDetail+='<label style="display:flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.8rem">'
+        +'<input type="checkbox"'+chk+' onchange="orgEdToggleAAReq(\''+esc(sel)+'\',\''+esc(d)+'\',this.checked)" style="accent-color:var(--accent)"> '+esc(d)+'</label>';
+    });
+    aaDetail+='</div></div>';
+  }
+
+  var settings='<div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)">'
+    +'<div style="display:flex;flex-wrap:wrap;gap:1.5rem;align-items:flex-start">'
     +'<label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;font-size:.85rem">'
     +'<input type="checkbox" id="oed-aa"'+aaChecked+' onchange="orgEdSetAA(\''+esc(sel)+'\')" style="accent-color:var(--accent);width:15px;height:15px"> Compute All Around</label>'
-    +(cfg.allAround
-      ?'<div style="font-size:.8rem;color:var(--muted)">Tiebreak order: '
-        +(cfg.aaTiebreak||cfg.disciplines).map(function(d,i){
-          return '<span style="color:var(--text)">'+esc(d)+'</span>'+(i<(cfg.aaTiebreak||cfg.disciplines).length-1?' &rarr; ':'');
-        }).join('')
-        +'<span style="color:var(--muted);font-size:.73rem;margin-left:.4rem">(matches discipline order above)</span></div>'
-      :'')
     +'<div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem">'
-    +'<span style="color:var(--muted)">Points:</span>'
+    +'<span style="color:var(--muted)">Points system:</span>'
     +'<select onchange="orgEdSetPts(\''+esc(sel)+'\',this.value)" style="background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:5px;padding:.25rem .4rem;font-size:.8rem">'
-    +'<option value="entries"'+(psSel==='entries'?' selected':'')+'>Entries-based (1st=N … last=1)</option>'
-    +'<option value="none"'+(psSel==='none'?' selected':'')+'>None (money event, no points)</option>'
+    +'<option value="entries"'+(psSel==='entries'?' selected':'')+'>CoWN — entries-based (1st=N … last=1)</option>'
+    +'<option value="aqha"'+(psSel==='aqha'?' selected':'')+'>AQHA — entries-based (5=1pt, 10=2pts, 15=3pts…)</option>'
+    +'<option value="none"'+(psSel==='none'?' selected':'')+'>None (money event / no season points)</option>'
     +'</select></div>'
+    +'</div>'
+    +(aaDetail ? '<div style="margin-top:.6rem;padding:.6rem .75rem;background:var(--bg);border:1px solid var(--border);border-radius:6px">'+aaDetail+'</div>' : '')
     +'</div>';
 
-  // ── Delete org ───────────────────────────────────────────────
-  var danger=sel!=='CoWN'
-    ?'<div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)">'
-      +'<button class="btn btn-dark btn-sm" style="color:var(--red);border-color:var(--red)" onclick="orgEdRemoveOrg(\''+esc(sel)+'\')">&#10005; Remove '+esc(sel)+' org</button>'
-      +'</div>':''  ;
+  // ── Rename + Delete org ──────────────────────────────────────
+  var danger='<div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);display:flex;gap:.5rem;flex-wrap:wrap">'
+    +'<button class="btn btn-dark btn-sm" onclick="orgEdRenameOrg(\''+esc(sel)+'\')">&#9998; Rename org</button>'
+    +(sel!=='CoWN'
+      ?'<button class="btn btn-dark btn-sm" style="color:var(--red);border-color:var(--red)" onclick="orgEdRemoveOrg(\''+esc(sel)+'\')">&#10005; Remove '+esc(sel)+'</button>'
+      :'')
+    +'</div>';
 
   root.innerHTML=tabBar
     +'<div class="card">'
@@ -2216,6 +2314,37 @@ window.orgEdRemoveOrg=function(o){
   if(idx>=0) ORG_ORDER.splice(idx,1);
   _orgEdSel='CoWN';
   renderOrgEditor();
+};
+
+window.orgEdRenameOrg=function(o){
+  var newName=prompt('Rename "'+o+'" to:', o);
+  if(!newName||!newName.trim()) return;
+  newName=newName.trim();
+  if(newName===o) return;
+  if(ORG_CLASSES[newName]){ alert('"'+newName+'" already exists.'); return; }
+  ORG_CLASSES[newName]=ORG_CLASSES[o];
+  DIV_ORDER_BY_ORG[newName]=DIV_ORDER_BY_ORG[o];
+  delete ORG_CLASSES[o];
+  delete DIV_ORDER_BY_ORG[o];
+  var idx=ORG_ORDER.indexOf(o);
+  if(idx>=0) ORG_ORDER[idx]=newName; else ORG_ORDER.push(newName);
+  _orgEdSel=newName;
+  renderOrgEditor();
+};
+
+window.orgEdSetAAMin=function(o,val){
+  if(!ORG_CLASSES[o]) return;
+  var n=parseInt(val,10);
+  if(isNaN(n)||n<1) return;
+  ORG_CLASSES[o].aaMinClasses=Math.min(n, (ORG_CLASSES[o].disciplines||[]).length);
+};
+
+window.orgEdToggleAAReq=function(o,disc,checked){
+  if(!ORG_CLASSES[o]) return;
+  var req=ORG_CLASSES[o].aaRequired||(ORG_CLASSES[o].aaRequired=[]);
+  var idx=req.indexOf(disc);
+  if(checked && idx<0) req.push(disc);
+  if(!checked && idx>=0) req.splice(idx,1);
 };
 
 window.orgEdAddDiv=function(o){
@@ -2278,7 +2407,13 @@ window.orgEdSetAA=function(o){
   var cb=document.getElementById('oed-aa');
   if(!ORG_CLASSES[o]) return;
   ORG_CLASSES[o].allAround=cb&&cb.checked;
-  ORG_CLASSES[o].aaTiebreak=ORG_CLASSES[o].allAround?ORG_CLASSES[o].disciplines.slice():[];
+  if(ORG_CLASSES[o].allAround){
+    ORG_CLASSES[o].aaTiebreak=ORG_CLASSES[o].disciplines.slice();
+    if(!ORG_CLASSES[o].aaMinClasses) ORG_CLASSES[o].aaMinClasses=ORG_CLASSES[o].disciplines.length;
+    if(!ORG_CLASSES[o].aaRequired) ORG_CLASSES[o].aaRequired=[];
+  } else {
+    ORG_CLASSES[o].aaTiebreak=[];
+  }
   renderOrgEditor();
 };
 

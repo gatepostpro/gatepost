@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "WebSearch",
+      "WebFetch(domain:www.aqha.com)",
+      "WebFetch(domain:apha.com)",
+      "WebFetch(domain:www.nvrha.org)",
+      "Bash(node --input-type=module)",
+      "Bash(node -e ' *)"
     ]
   }
 }
