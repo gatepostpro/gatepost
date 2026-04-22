@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- v20260422 -->
+<!DOCTYPE html><!-- v20260422b -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -366,17 +366,134 @@ function normalizePersonName(s){
   return s;
 }
 
+// ── Canonical org/division/discipline structure ───────────────
+var ORG_CLASSES = {
+  'CoWN': {
+    divisions: ['Open','Non-Pro','Limited','Intermediate','Novice','L1 Novice',
+                'Youth','Novice Youth','Open Jr Horse','Non-Pro Jr Horse',
+                'Non-Pro Boxing','Collegiate Non-Pro','Collegiate Limited',
+                'Collegiate Novice','Open Schooling'],
+    disciplines: ['Cow','Reining','Trail','Pleasure'],
+    allAround: true,
+    // Tiebreak: highest SCORE wins, in this discipline order
+    aaTiebreak: ['Cow','Reining','Trail','Pleasure'],
+    // Points: entries-based (1st=N, 2nd=N-1 … last=1, DQ=0, ties split)
+    pointsSystem: 'entries'
+  },
+  'VRH': {
+    divisions: ['Open','Amateur','LTD Am','Rookie Am','Youth','LTD Youth','Rookie Youth'],
+    disciplines: ['Cutting','Cow','Reining','Trail','Pleasure','Conformation'],
+    allAround: false,
+    pointsSystem: 'entries'
+  },
+  'AQHA Ranch': {
+    divisions: ['Open','Amateur','LTD Am','Rookie Am','Youth','LTD Youth','Rookie Youth'],
+    disciplines: ['Ranch Trail','Ranch Riding','Working Western Rail'],
+    allAround: false,
+    pointsSystem: 'entries'
+  },
+  'AQHA RHC': {
+    divisions: ['Open','Amateur','Youth'],
+    disciplines: ['4 y/o Working Ranch Horse','5/6 y/o Working Ranch Horse',
+                  '7+ y/o Working Ranch Horse','LTD 4 y/o Working Ranch Horse',
+                  'LTD 5/6 y/o Working Ranch Horse','4y/o+ Cowboy Working Ranch Horse',
+                  '3 y/o+ Ranch Riding','3 y/o+ Ranch Cutting'],
+    allAround: false,
+    pointsSystem: 'entries'
+  },
+  'APHA': {
+    divisions: ['Open','Amateur','Novice Amateur','Youth','Novice Youth','Jr Horse'],
+    disciplines: ['Cow Horse','Ranch Riding','Reining','Trail','Pleasure','Conformation'],
+    allAround: false,
+    pointsSystem: 'entries'
+  },
+  'WHSR': {
+    divisions: [''],
+    disciplines: ['Cow','Reining'],
+    allAround: false,
+    pointsSystem: 'entries'
+  },
+  'Jackpot': {
+    divisions: ['Open','Amateur','Youth'],
+    disciplines: ['Ranch Riding','Cutting'],
+    allAround: false,
+    pointsSystem: 'none'  // jackpots are money events, no season points
+  }
+};
+
+// Flat ordered lists for UI display
+var ORG_ORDER = ['CoWN','VRH','AQHA Ranch','AQHA RHC','APHA','WHSR','Jackpot'];
+
+var DIV_ORDER_BY_ORG = {
+  'CoWN':       ['Open','Non-Pro','Limited','Intermediate','Novice','L1 Novice','Youth',
+                 'Novice Youth','Open Jr Horse','Non-Pro Jr Horse','Non-Pro Boxing',
+                 'Collegiate Non-Pro','Collegiate Limited','Collegiate Novice','Open Schooling'],
+  'VRH':        ['Open','Amateur','LTD Am','Rookie Am','Youth','LTD Youth','Rookie Youth'],
+  'AQHA Ranch': ['Open','Amateur','LTD Am','Rookie Am','Youth','LTD Youth','Rookie Youth'],
+  'AQHA RHC':   ['Open','Amateur','Youth'],
+  'APHA':       ['Open','Amateur','Novice Amateur','Youth','Novice Youth','Jr Horse'],
+  'WHSR':       [''],
+  'Jackpot':    ['Open','Amateur','Youth']
+};
+
+// ── CoWN points calculator ────────────────────────────────────
+// entries = total horses in the class
+// rows = [{place, score, isDQ}, ...] for the class
+// Returns array of {place, pts} in same order as input rows
+function calcCownPoints(rows, entries){
+  if(!entries||entries<1) entries=rows.length;
+  // Group by place to find ties
+  var byPlace={};
+  rows.forEach(function(r,i){
+    if(r.isDQ||!r.place){ rows[i]._pts=0; return; }
+    if(!byPlace[r.place]) byPlace[r.place]=[];
+    byPlace[r.place].push(i);
+  });
+  Object.keys(byPlace).forEach(function(pl){
+    var idxs=byPlace[pl];
+    pl=parseInt(pl);
+    // Sum points for all tied positions
+    var sum=0;
+    for(var k=0;k<idxs.length;k++){
+      var pos=pl+k;  // consecutive places occupied
+      var pts=Math.max(0, entries-pos+1);
+      sum+=pts;
+    }
+    var avg=sum/idxs.length;
+    idxs.forEach(function(i){ rows[i]._pts=avg; });
+  });
+  return rows;
+}
+
+// Recalculate placings from scores (higher score = better place)
+// Returns rows sorted and stamped with _calcPlace
+function calcPlacingsFromScores(rows){
+  var scored=rows.filter(function(r){ return r.score&&!r.isDQ; });
+  var dqd=rows.filter(function(r){ return r.isDQ||!r.score; });
+  scored.sort(function(a,b){ return (b.score||0)-(a.score||0); });
+  var rank=1;
+  scored.forEach(function(r,i){
+    if(i>0&&scored[i-1].score===r.score) r._calcPlace=scored[i-1]._calcPlace;
+    else r._calcPlace=rank;
+    rank=i+2;
+  });
+  dqd.forEach(function(r){ r._calcPlace=null; });
+  return scored.concat(dqd);
+}
+
 // Discipline patterns — matched against the END of the class string, in priority order
 var SHTX_DISCS = [
   [/\ball\s+aroun(?:d)?(?:\s+\d+)?$/i, 'All Around'],
   [/\bworking\s+ranch\s+horse$/i, 'Working Ranch Horse'],
-  [/\bworking\s+cow\s+horse$/i, 'Working Cow Horse'],
-  [/\bworking\s+cow(?:\s+\d+)?$/i, 'Working Cow'],
-  [/\bcow\s+work$/i, 'Cow Work'],
+  [/\bworking\s+cow\s+horse$/i, 'Cow Horse'],   // APHA calls it "Cow Horse"
+  [/\bcow\s+horse$/i, 'Cow Horse'],
+  [/\bworking\s+cow(?:\s+\d+)?$/i, 'Cow'],      // CoWN/VRH call it "Cow"
+  [/\bcow\s+work$/i, 'Cow'],
   [/\bworking\s+western\s+rail$/i, 'Working Western Rail'],
-  [/\branch\s*cow\s*work$/i, 'Ranch Cow Work'],
-  [/\branch\s+conformation$/i, 'Ranch Conformation'],
+  [/\branch\s+conformation$/i, 'Conformation'],
+  [/\bconformation$/i, 'Conformation'],
   [/\branch\s+cutting$/i, 'Ranch Cutting'],
+  [/\bcutting$/i, 'Cutting'],
   [/\branch\s+reining$/i, 'Ranch Reining'],
   [/\branch\s+riding$/i, 'Ranch Riding'],
   [/\branch\s+trail$/i, 'Ranch Trail'],
@@ -386,48 +503,62 @@ var SHTX_DISCS = [
   [/\bpleasure[r]?$/i, 'Pleasure'],
   [/\breining(?:\s+\d+)?$/i, 'Reining'],
   [/\btrail(?:\s+\d+)?$/i, 'Trail'],
-  [/\bcutting$/i, 'Cutting'],
   // Truncated SHTX exports (Funnware cuts long strings mid-word)
   [/\branch\s*pleasur$/i, 'Ranch Pleasure'],
   [/\branch\s*rein$/i, 'Ranch Reining'],
   [/\branch\s*rid$/i, 'Ranch Riding'],
   [/\branch\s*trai$/i, 'Ranch Trail'],
-  [/\branch\s*cow\s*wor$/i, 'Ranch Cow Work'],
+  [/\branch\s*cow\s*wor$/i, 'Cow'],
   [/\ball\s*arou?$/i, 'All Around'],
 ];
 
 // Canonical division name map (keys are lowercase)
 var SHTX_DIV = {
-  // Open
+  // ── CoWN ──────────────────────────────────────────────────
   '':'Open','open':'Open',
+  // Non-Pro
+  'non pro':'Non-Pro','non-pro':'Non-Pro','nonpro':'Non-Pro',
+  // Limited (CoWN calls it "Limited")
+  'limited':'Limited','ltd':'Limited',
+  'ltd non pro':'Limited','ltd non-pro':'Limited',
+  'limited non pro':'Limited','limited non-pro':'Limited',
+  'limited np':'Limited','ltd np':'Limited',
+  // Intermediate
+  'intermediate':'Intermediate','intermediate np':'Intermediate',
+  // Novice
+  'novice':'Novice',
+  // L1 Novice
+  'l1 novice':'L1 Novice','level 1 novice':'L1 Novice','l1':'L1 Novice',
+  // Youth
+  'youth':'Youth',
+  // Novice Youth
+  'novice youth':'Novice Youth','youth novice':'Novice Youth',
+  // Jr Horse
   'open jr horse':'Open Jr Horse','open jr. horse':'Open Jr Horse','open jr':'Open Jr Horse',
   'jr horse':'Open Jr Horse','jr':'Open Jr Horse',
-  // Non-Pro
-  'non pro':'Non-Pro','non-pro':'Non-Pro',
   'non pro jr horse':'Non-Pro Jr Horse','non-pro jr horse':'Non-Pro Jr Horse',
   'np jr horse':'Non-Pro Jr Horse','np jr. horse':'Non-Pro Jr Horse',
   'non pro jr':'Non-Pro Jr Horse','non-pro jr':'Non-Pro Jr Horse','np jr':'Non-Pro Jr Horse',
+  // Boxing
   'non pro boxing':'Non-Pro Boxing','non-pro boxing':'Non-Pro Boxing','nonpro boxing':'Non-Pro Boxing',
-  // Limited Non-Pro
-  'ltd non pro':'Ltd Non-Pro','ltd non-pro':'Ltd Non-Pro',
-  'limited non pro':'Ltd Non-Pro','limited non-pro':'Ltd Non-Pro',
-  'limited np':'Ltd Non-Pro','ltd np':'Ltd Non-Pro',
-  // Youth / Novice / Intermediate
-  'youth':'Youth','novice':'Novice','intermediate':'Intermediate',
-  'intermediate np':'Intermediate',        // GJHSA adds spurious "NP" suffix
-  'novice youth':'Novice Youth',           // canonical form
-  'youth novice':'Novice Youth',           // word-order variant
-  // Level 1
-  'l1 novice':'Level 1 Novice','level 1 novice':'Level 1 Novice',
-  'l1':'Level 1 Novice',
-  // Amateur
-  'amateur':'Amateur','ltd amateur':'Ltd Amateur','limited amateur':'Ltd Amateur',
-  // Ltd Youth
-  'ltd youth':'Ltd Youth','limited youth':'Ltd Youth',
-  // Rookie
-  'rookie amateur':'Rookie Amateur','rookie youth':'Rookie Youth',
-  // High School
-  'high school':'High School','wyo hs':'High School',
+  // Collegiate
+  'collegiate non pro':'Collegiate Non-Pro','collegiate non-pro':'Collegiate Non-Pro',
+  'collegiate nonpro':'Collegiate Non-Pro',
+  'collegiate limited':'Collegiate Limited',
+  'collegiate novice':'Collegiate Novice',
+  'collegiate':'Collegiate Non-Pro',
+  // Schooling
+  'open schooling':'Open Schooling','schooling':'Open Schooling',
+  // ── VRH / AQHA Ranch ──────────────────────────────────────
+  'amateur':'Amateur',
+  'ltd am':'LTD Am','ltd amateur':'LTD Am','limited amateur':'LTD Am','limited am':'LTD Am',
+  'rookie am':'Rookie Am','rookie amateur':'Rookie Am',
+  'ltd youth':'LTD Youth','limited youth':'LTD Youth',
+  'rookie youth':'Rookie Youth',
+  // ── APHA ──────────────────────────────────────────────────
+  'novice amateur':'Novice Amateur',
+  // ── WHSR ──────────────────────────────────────────────────
+  'high school':'High School','wyo hs':'High School','whsr':'High School',
 };
 
 // Parse Funnware ClassDivision compound string → {org, division, discipline}
@@ -477,25 +608,33 @@ function parseClassDivStr(raw){
 
   if(/^VRH\b/i.test(s)){
     org='VRH'; rest=n.replace(/^VRH\s*/i,'').trim();
+  } else if(/\bversatility\s+ranch\s+horse\b/i.test(s)){
+    org='VRH'; rest=n.replace(/\bVersatility\s+Ranch\s+Horse\b/gi,'').replace(/\s+/g,' ').trim();
   } else if(/\bversatility\b/i.test(s)){
-    org='VRH';
-    rest=n.replace(/\bVersatility\s+Ranch\s+Horse\b/gi,'VRH All Around')
-          .replace(/\bVersatility\b/gi,'').replace(/\s+/g,' ').trim();
-  } else if(/^collegiate\b/i.test(s)){
-    org='Collegiate'; rest=n.replace(/^collegiate\s*/i,'').trim();
-  } else if(/high\s+school|wyo\s+hs/i.test(s)){
-    org='High School'; rest=n.replace(/^(?:high\s+school|wyo\s+hs)\s*/i,'').trim();
+    org='VRH'; rest=n.replace(/\bVersatility\b/gi,'').replace(/\s+/g,' ').trim();
+  } else if(/^AQHA\s+RHC\b/i.test(s)){
+    org='AQHA RHC'; rest=n.replace(/^AQHA\s+RHC\s*/i,'').trim();
+  } else if(/\branch\s+heritage\b/i.test(s)){
+    org='AQHA RHC'; rest=n.replace(/\bAQHA\s+Ranch\s+Heritage\s+Challenge\b/gi,'')
+                          .replace(/\bRanch\s+Heritage\b/gi,'').replace(/\s+/g,' ').trim();
+  } else if(/^AQHA\b/i.test(s)){
+    org='AQHA Ranch'; rest=n.replace(/^AQHA\s*/i,'').trim();
   } else if(/^apha/i.test(s)){
     org='APHA'; rest=n.replace(/^apha\s*/i,'').trim();
+  } else if(/\bWHSR\b|wyoming\s+high\s+school|wyo\s+hs\b/i.test(s)){
+    org='WHSR'; rest=n.replace(/\b(?:WHSR|Wyoming\s+High\s+School\s+Rodeo|Wyo\s+HS)\b/gi,'').replace(/\s+/g,' ').trim();
+    forcedDiv='';
+  } else if(/^collegiate\b/i.test(s)){
+    // Collegiate divisions belong to CoWN — "Collegiate Non-Pro Trail"
+    org='CoWN'; rest=n;  // leave "Collegiate Non-Pro" in rest for div lookup
   } else if(/^(?:level\s+1|l1)\b/i.test(s)){
-    // Level 1 Novice is a CoWN division, not a separate org
-    org='CoWN'; forcedDiv='Level 1 Novice';
+    org='CoWN'; forcedDiv='L1 Novice';
     rest=n.replace(/^(?:level\s+1|l1)\s*(?:novice?)?\s*/i,'').trim();
   } else if(/jackpot/i.test(s)){
-    // Jackpots are CoWN events; strip "jackpot" and parse division+disc normally
-    org='CoWN'; rest=n.replace(/\s*jackpot\s*/gi,' ').replace(/\s+/g,' ').trim();
-  } else if(/schooling/i.test(s)){
-    org='CoWN'; rest=n.replace(/\s*schooling\s*/gi,' ').replace(/\s+/g,' ').trim();
+    org='Jackpot'; rest=n.replace(/\s*jackpot\s*/gi,' ').replace(/\s+/g,' ').trim();
+  } else if(/\bopen\s+schooling\b|^schooling\b/i.test(s)){
+    org='CoWN'; forcedDiv='Open Schooling';
+    rest=n.replace(/\b(?:open\s+)?schooling\b/gi,'').replace(/\s+/g,' ').trim();
   } else {
     org='CoWN'; rest=n;
   }
@@ -507,9 +646,8 @@ function parseClassDivStr(raw){
     if(m){ disc=SHTX_DISCS[i][1]; divPart=rest.slice(0,m.index).trim(); break; }
   }
 
-  // Canonicalize division (forcedDiv wins for Level 1)
-  var div=forcedDiv||SHTX_DIV[divPart.toLowerCase()]||(divPart||'Open');
-  if(!divPart&&org==='High School') div='High School';
+  // Canonicalize division
+  var div=forcedDiv!==null ? forcedDiv : (SHTX_DIV[divPart.toLowerCase()]||(divPart||'Open'));
 
   return {org:org, division:div, discipline:disc||rest};
 }
@@ -1195,8 +1333,7 @@ function pgResults(){
     ? G.results.filter(function(r){ return r.showName===_resSelShow; })
     : G.results;
 
-  // Build org list in canonical order
-  var ORG_ORDER=['CoWN','VRH','Collegiate','High School','APHA'];
+  // Build org list in canonical order (use global ORG_ORDER constant)
   var orgsFound={};
   activeResults.forEach(function(r){ if(r.org) orgsFound[r.org]=1; });
   var orgs=ORG_ORDER.filter(function(o){ return orgsFound[o]; });
@@ -1207,13 +1344,11 @@ function pgResults(){
 
   var orgRows=activeResults.filter(function(r){ return r.org===_resSelOrg; });
 
-  // Build division list for selected org
+  // Build division list for selected org using canonical order for that org
   var divsFound={};
-  orgRows.forEach(function(r){ if(r.division) divsFound[r.division]=1; });
-  var DIV_ORDER=['Open','Open Jr Horse','Non-Pro','Non-Pro Jr','Non-Pro Jr Horse','Non-Pro Boxing',
-    'Ltd Non-Pro','Youth','Novice','Youth Novice','Intermediate','Amateur','Ltd Amateur',
-    'Ltd Youth','Rookie Amateur','Rookie Youth','High School'];
-  var divs=DIV_ORDER.filter(function(d){ return divsFound[d]; });
+  orgRows.forEach(function(r){ if(r.division!==undefined) divsFound[r.division]=1; });
+  var divOrderForOrg=DIV_ORDER_BY_ORG[_resSelOrg]||DIV_ORDER_BY_ORG['CoWN'];
+  var divs=divOrderForOrg.filter(function(d){ return divsFound[d]; });
   Object.keys(divsFound).forEach(function(d){ if(divs.indexOf(d)<0) divs.push(d); });
 
   if(!_resSelDiv&&divs.length) _resSelDiv=divs[0];
@@ -1288,12 +1423,11 @@ function pgResults(){
     }
 
     // ── LEVEL 3: Class pills ──
-    var DISC_ORDER=['Reining','Trail','Working Cow','Working Cow Horse','Pleasure','Ranch Pleasure',
-      'All Around','Ranch Reining','Ranch Riding','Ranch Trail','Ranch Cutting','Ranch Conformation',
-      'Ranch Cow Work','Working Ranch Horse','VRH All Around','Cutting','Cow Work','Working Western Rail'];
+    // Use canonical discipline order for the selected org
+    var discOrderForOrg=(ORG_CLASSES[_resSelOrg]||ORG_CLASSES['CoWN']).disciplines;
     var clsFound={};
     divRows.forEach(function(r){ if(r.discipline) clsFound[r.discipline]=1; });
-    var classes=DISC_ORDER.filter(function(c){ return clsFound[c]; });
+    var classes=discOrderForOrg.filter(function(c){ return clsFound[c]; });
     Object.keys(clsFound).forEach(function(c){ if(classes.indexOf(c)<0) classes.push(c); });
 
     if(!_resSelClass&&classes.length) _resSelClass=classes[0];
@@ -1364,7 +1498,67 @@ function pgResults(){
         return dir*((a.place||999)-(b.place||999));
       });
 
-      // Pre-compute tied places (within this single show/class view)
+      // ── Verification: recalculate placings & points, compare to Funnware ──
+      var fwEntries = clsRows.length>0 ? (clsRows[0].entries||clsRows.length) : clsRows.length;
+      var actualRows = clsRows.length;
+      var entryMismatch = fwEntries !== actualRows;
+
+      // Calculate placings from score
+      var scoredRows = clsRows.filter(function(r){ return r.score&&!(!r.place&&!r.score&&!r.pts); });
+      var sortedByScore = scoredRows.slice().sort(function(a,b){ return (b.score||0)-(a.score||0); });
+      var calcPlaceMap = {};
+      var cRank=1;
+      sortedByScore.forEach(function(r,i){
+        if(i>0&&sortedByScore[i-1].score===r.score) calcPlaceMap[r.rider+'|'+r.horse]=calcPlaceMap[sortedByScore[i-1].rider+'|'+sortedByScore[i-1].horse];
+        else calcPlaceMap[r.rider+'|'+r.horse]=cRank;
+        cRank=i+2;
+      });
+
+      // Calculate points using CoWN formula on calculated placings
+      var calcPtsMap = {};
+      var byCalcPlace={};
+      clsRows.forEach(function(r){
+        var isDQ=!r.place&&!r.score&&!r.pts;
+        if(isDQ){ calcPtsMap[r.rider+'|'+r.horse]=0; return; }
+        var cp=calcPlaceMap[r.rider+'|'+r.horse]||r.place;
+        if(!byCalcPlace[cp]) byCalcPlace[cp]=[];
+        byCalcPlace[cp].push(r.rider+'|'+r.horse);
+      });
+      Object.keys(byCalcPlace).forEach(function(pl){
+        var keys=byCalcPlace[pl]; pl=parseInt(pl);
+        var sum=0;
+        for(var k=0;k<keys.length;k++) sum+=Math.max(0, actualRows-(pl+k)+1);
+        var avg=sum/keys.length;
+        keys.forEach(function(k){ calcPtsMap[k]=avg; });
+      });
+
+      // Count discrepancies
+      var placeErrs=0, ptsErrs=0;
+      clsRows.forEach(function(r){
+        var isDQ=!r.place&&!r.score&&!r.pts;
+        if(isDQ) return;
+        var key=r.rider+'|'+r.horse;
+        var cp=calcPlaceMap[key];
+        var cpts=calcPtsMap[key];
+        if(cp&&r.place&&cp!==r.place) placeErrs++;
+        if(cpts!==undefined&&r.pts!==undefined&&Math.abs((cpts||0)-(r.pts||0))>0.05) ptsErrs++;
+      });
+      var hasErrors=entryMismatch||placeErrs>0||ptsErrs>0;
+
+      // ── Audit bar ──
+      html+='<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.6rem;padding:.5rem .6rem;'
+        +'background:'+(hasErrors?'rgba(231,76,60,.08)':'rgba(39,174,96,.07)')+';border-radius:6px;border:1px solid '+(hasErrors?'rgba(231,76,60,.25)':'rgba(39,174,96,.2)')+'">';
+      if(hasErrors){
+        html+='<span style="font-size:.78rem;font-weight:600;color:var(--red)">&#9888; Verification issues:</span>';
+        if(entryMismatch) html+='<span style="font-size:.75rem;color:var(--red)">Funnware says '+fwEntries+' entries, found '+actualRows+' rows</span>';
+        if(placeErrs) html+='<span style="font-size:.75rem;color:var(--red)">'+placeErrs+' placing discrepanc'+(placeErrs===1?'y':'ies')+'</span>';
+        if(ptsErrs) html+='<span style="font-size:.75rem;color:var(--red)">'+ptsErrs+' points discrepanc'+(ptsErrs===1?'y':'ies')+'</span>';
+      } else {
+        html+='<span style="font-size:.78rem;color:var(--green)">&#10003; Verified — '+actualRows+' entries, placings and points match</span>';
+      }
+      html+='</div>';
+
+      // Pre-compute tied places (using Funnware place for display)
       var placeCounts={};
       clsRows.forEach(function(r){ if(r.place) placeCounts[r.place]=(placeCounts[r.place]||0)+1; });
       function rowIsTied(r){ return r.place&&placeCounts[r.place]>1; }
@@ -1387,9 +1581,14 @@ function pgResults(){
       }
       html+='</div>';
 
+      // ── Results table (Funnware + calculated columns when there are errors) ──
       html+='<div class="tbl-wrap"><table><thead><tr>'
         +sTh('place','Pl',null)+sTh('rider','Rider',null)+sTh('horse','Horse',null)
-        +sTh('score','Score','right')+sTh('pts','Pts','right')+sTh('money','Money','right')
+        +sTh('score','Score','right')
+        +(hasErrors?'<th style="text-align:right;color:var(--muted);font-size:.75rem">Calc Pl</th>':'')
+        +sTh('pts','FW Pts','right')
+        +(hasErrors?'<th style="text-align:right;color:var(--muted);font-size:.75rem">Calc Pts</th>':'')
+        +sTh('money','Money','right')
         +'</tr></thead><tbody>';
       clsRows.forEach(function(r){
         var isDQ=!r.place&&!r.score&&!r.pts;
@@ -1403,12 +1602,19 @@ function pgResults(){
         } else {
           plCell='<span style="font-weight:600;color:'+plColor+'">'+r.place+'</span>';
         }
-        html+='<tr'+(isDQ?' style="opacity:.55"':'')+'>'
-          +'<td>'+plCell+'</td>'
+        var key=r.rider+'|'+r.horse;
+        var cp=calcPlaceMap[key];
+        var cpts=calcPtsMap[key];
+        var plMismatch=!isDQ&&cp&&r.place&&cp!==r.place;
+        var ptsMismatch=!isDQ&&cpts!==undefined&&Math.abs((cpts||0)-(r.pts||0))>0.05;
+        html+='<tr'+(isDQ?' style="opacity:.55"':'')+(plMismatch||ptsMismatch?' style="background:rgba(231,76,60,.05)"':'')+'>'
+          +'<td>'+(plMismatch?'<span style="color:var(--red)" title="Calc: '+cp+'">'+plCell+' &#9888;</span>':plCell)+'</td>'
           +'<td>'+esc(r.rider)+'</td>'
           +'<td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>'
           +'<td style="text-align:right">'+(!r.score?'&mdash;':r.score.toFixed(3))+'</td>'
-          +'<td style="text-align:right;color:var(--accent)">'+(isDQ?'&mdash;':r.pts.toFixed(1))+'</td>'
+          +(hasErrors?'<td style="text-align:right;color:var(--muted);font-size:.78rem">'+(cp||'&mdash;')+'</td>':'')
+          +'<td style="text-align:right;color:'+(ptsMismatch?'var(--red)':'var(--accent)')+'">'+(isDQ?'&mdash;':(r.pts||0).toFixed(1))+'</td>'
+          +(hasErrors?'<td style="text-align:right;color:var(--muted);font-size:.78rem">'+(isDQ?'&mdash;':cpts!==undefined?cpts.toFixed(1):'&mdash;')+'</td>':'')
           +'<td style="text-align:right;color:var(--green)">'+(r.money?'$'+r.money.toFixed(0):'&mdash;')+'</td>'
           +'</tr>';
       });
