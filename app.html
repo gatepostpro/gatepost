@@ -104,9 +104,11 @@ tr:hover td{background:rgba(255,255,255,.025)}
 .tab-total{display:flex;justify-content:space-between;padding:.75rem 0 .25rem;font-weight:600;font-size:1rem;border-top:2px solid var(--border2);margin-top:.5rem}
 .pay-status{display:flex;align-items:center;gap:.75rem;padding:.75rem;background:var(--card2);border-radius:8px;margin-top:.75rem}
 /* settings */
-.stab-row{display:flex;gap:.2rem;border-bottom:1px solid var(--border);margin-bottom:1.25rem}
+.stab-row{display:flex;align-items:center;gap:.2rem;border-bottom:1px solid var(--border);margin-bottom:1.25rem;flex-wrap:wrap}
 .stab{background:none;border:none;color:var(--muted);padding:.5rem .9rem;cursor:pointer;font-size:.82rem;font-family:'Oswald',sans-serif;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
 .stab:hover{color:var(--text)}.stab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.stab-group-label{font-size:.62rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;padding:0 .5rem 0 .25rem;white-space:nowrap;align-self:center;margin-bottom:-1px}
+.stab-group-sep{margin-left:.5rem;padding-left:.75rem;border-left:1px solid var(--border)}
 .ssec{display:none}.ssec.active{display:block}
 .form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:.75rem;margin-bottom:.75rem}
 .form-group{display:flex;flex-direction:column;gap:.3rem}
@@ -164,7 +166,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
       <div class="sp-meta" id="pill-meta">Select or create a show to begin</div>
     </div>
     <nav class="nav">
-      <div class="nav-section">Show</div>
+      <div class="nav-section">Secretary Tools</div>
       <div class="nav-item active" data-page="setup"><span class="ico">&#9881;</span> Setup</div>
       <div class="nav-item" data-page="entries"><span class="ico">&#9776;</span> Entries</div>
       <div class="nav-item" data-page="classes"><span class="ico">&#127891;</span> Classes</div>
@@ -2172,9 +2174,11 @@ var CFG_ROW_ID=0;
 function pgSettings(){
   var pg=document.getElementById('page');
   pg.innerHTML='<div class="stab-row">'
-    +'<button class="stab active" onclick="showStab(\'finances\',this)">&#36; Finances</button>'
-    +'<button class="stab" onclick="showStab(\'classes\',this)">&#127891; Classes</button>'
-    +'<button class="stab" onclick="showStab(\'orgs\',this)">&#127981; Organizations</button>'
+    +'<span class="stab-group-label">Show Configuration</span>'
+    +'<button class="stab active" onclick="showStab(\'finances\',this)">&#36; Show Finances</button>'
+    +'<button class="stab" onclick="showStab(\'classes\',this)">&#127891; Class Fees</button>'
+    +'<button class="stab" onclick="showStab(\'orgs\',this)">&#127981; Associations</button>'
+    +'<span class="stab-group-label stab-group-sep">Tools</span>'
     +'<button class="stab" onclick="showStab(\'mapper\',this)">&#8644; Entries Mapper</button>'
     +'<button class="stab" onclick="showStab(\'resmapper\',this)">&#8644; Results Mapper</button>'
     +'<button class="stab" onclick="showStab(\'parser\',this)">&#128270; Parser Test</button>'
@@ -2247,7 +2251,7 @@ function pgSettings(){
     // ── All Around Prize Money ──
     +'<div class="card" id="aa-prize-cfg">'
     +'<div class="card-title">All Around Prize Money <small style="color:var(--muted)">Per-division, shown on Results &rarr; Points Summary</small></div>'
-    +'<div id="aa-prize-body"><p style="font-size:.83rem;color:var(--muted)">No All Around-enabled orgs found. Enable All Around in the Organizations tab.</p></div>'
+    +'<div id="aa-prize-body"><p style="font-size:.83rem;color:var(--muted)">No All Around-enabled orgs found. Enable All Around in the Associations tab.</p></div>'
     +'</div>'
     +'</div>'
 
@@ -2543,7 +2547,7 @@ function renderOrgEditor(){
     tabBar+='<button class="btn btn-sm '+(o===sel?'btn-accent':'btn-dark')+'" onclick="orgEdSelOrg(\''+o.replace(/'/g,"\\'")+'\')">'
       +esc(o)+'</button>';
   });
-  tabBar+='<button class="btn btn-dark btn-sm" onclick="orgEdAddOrg()">+ New Org</button>';
+  tabBar+='<button class="btn btn-dark btn-sm" onclick="orgEdAddOrg()">+ New Association</button>';
   tabBar+='</div>';
 
   // ── Division datalist ────────────────────────────────────────
@@ -2660,7 +2664,7 @@ function renderOrgEditor(){
 
   // ── Rename + Delete org ──────────────────────────────────────
   var danger='<div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);display:flex;gap:.5rem;flex-wrap:wrap">'
-    +'<button class="btn btn-dark btn-sm" onclick="orgEdRenameOrg(\''+esc(sel)+'\')">&#9998; Rename org</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="orgEdRenameOrg(\''+esc(sel)+'\')">&#9998; Rename association</button>'
     +(sel!=='CoWN'
       ?'<button class="btn btn-dark btn-sm" style="color:var(--red);border-color:var(--red)" onclick="orgEdRemoveOrg(\''+esc(sel)+'\')">&#10005; Remove '+esc(sel)+'</button>'
       :'')
@@ -2937,7 +2941,7 @@ function renderAAPrizeCfg(){
   // Find all orgs with allAround enabled
   var aaOrgs=ORG_ORDER.filter(function(o){ return ORG_CLASSES[o]&&ORG_CLASSES[o].allAround; });
   if(!aaOrgs.length){
-    root.innerHTML='<p style="font-size:.83rem;color:var(--muted)">No All Around-enabled orgs. Enable All Around in the Organizations tab.</p>';
+    root.innerHTML='<p style="font-size:.83rem;color:var(--muted)">No All Around-enabled orgs. Enable All Around in the Associations tab.</p>';
     return;
   }
   // Get divisions actually present in classes
