@@ -254,6 +254,12 @@ function parseCognito(wb){
   var ws = wb.Sheets[wb.SheetNames[0]];
   var raw = XLSX.utils.sheet_to_json(ws,{header:1,defval:null,cellDates:true});
   var headers = raw[0];
+  // Sanity-check: Cognito exports have "Entry #" or "Rider" in early columns
+  // SHTX/Funnware files have "Show", "ClassDivision" etc — reject them here
+  var headerStr = (headers||[]).slice(0,10).map(function(h){ return String(h||'').toLowerCase(); }).join('|');
+  if(headerStr.indexOf('classdivision')>-1 || headerStr.indexOf('placecode')>-1){
+    throw new Error('This looks like a Funnware/SHTX results file, not a Cognito entry form export. Use the Results tab to import it.');
+  }
   var rows = raw.slice(1).filter(function(r){ return r[4]; });
 
   // Build column role map from headers
@@ -686,7 +692,10 @@ function pgImport(){
     +(G.entries.length ? '<div class="card"><div class="card-title">Currently Loaded</div>'
     +'<p style="color:var(--muted);font-size:.85rem"><strong style="color:var(--accent)">'+esc(G.showName)+'</strong> &mdash; '
     +G.entries.length+' entries loaded. '
-    +'<a href="#" onclick="showPage(\'entries\');return false" style="color:var(--accent)">View entries &rarr;</a></p></div>' : '');
+    +'<a href="#" onclick="showPage(\'entries\');return false" style="color:var(--accent)">View entries &rarr;</a></p>'
+    +'<div style="margin-top:.75rem"><button class="btn btn-dark btn-sm" style="color:var(--red);border-color:var(--red)" onclick="clearAllEntries()">&#10006; Clear All Entries</button>'
+    +'<span style="font-size:.72rem;color:var(--muted);margin-left:.75rem">Removes from local cache and database for this show</span></div>'
+    +'</div>' : '');
 
   var dz=document.getElementById('dz'), fi=document.getElementById('fi');
   function load(file){
@@ -1049,10 +1058,11 @@ function pgResults(){
     inp.addEventListener('change',function(e){
       var f=e.target.files[0]; if(f) handleResultsFile(f);
     });
-    document.getElementById('res-choose-btn').addEventListener('click',function(){ inp.click(); });
-    document.getElementById('res-drop-zone').addEventListener('click',function(e){
-      if(e.target.id!=='res-choose-btn') inp.click();
+    document.getElementById('res-choose-btn').addEventListener('click',function(e){
+      e.stopPropagation();
+      inp.click();
     });
+    document.getElementById('res-drop-zone').addEventListener('click',function(){ inp.click(); });
     setupResultsDrop('res-drop-zone');
     return;
   }
@@ -2993,6 +3003,34 @@ async function syncEntriesToSupabase(){
   if(errors.length) console.warn('Sync errors:', errors);
   return {synced, errors};
 }
+
+window.clearAllEntries = async function(){
+  if(!confirm('Delete ALL entries for this show from local cache AND the database? This cannot be undone.')) return;
+  // Clear localStorage
+  localStorage.removeItem('gp_entries_'+G.showId);
+  localStorage.removeItem('gp_payments_'+G.showId);
+  localStorage.removeItem('gp_backnums_'+G.showId);
+  // Clear in-memory state
+  G.entries=[]; G.payments={}; G.backNums={};
+  // Delete from Supabase: entry_classes first (FK constraint), then entries
+  try{
+    // Get all entry IDs for this show
+    var existing = await sbFetch('entries?show_id=eq.'+G.showId+'&select=id');
+    if(existing && existing.length){
+      // Delete entry_classes for each entry
+      for(var i=0;i<existing.length;i++){
+        await sbFetch('entry_classes?entry_id=eq.'+existing[i].id,{method:'DELETE'});
+      }
+      // Delete entries
+      await sbFetch('entries?show_id=eq.'+G.showId,{method:'DELETE'});
+    }
+    alert('All entries cleared. Re-import the correct Cognito export file.');
+  } catch(err){
+    alert('Local cache cleared. Database delete failed: '+err.message+'\nYou may need to clear entries from Supabase manually.');
+    console.error(err);
+  }
+  pgImport();
+};
 
 // ═══════════════════════ SUPABASE ═══════════════════════
 // Inline Supabase client — no separate module needed for now
