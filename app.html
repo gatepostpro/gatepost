@@ -196,6 +196,13 @@ tr:hover td{background:rgba(255,255,255,.025)}
 <script>
 
 // ═══════════════════════ GLOBAL STATE ═══════════════════════
+// aaRequired normalizer: upgrades flat string arrays to array-of-arrays (OR groups)
+function normalizeAaReq(req){
+  if(!req||!req.length) return [];
+  if(typeof req[0]==='string') return req.map(function(d){ return [d]; });
+  return req;
+}
+
 var G = {
   entries: [],
   showName: '',
@@ -204,6 +211,7 @@ var G = {
   results: [],    // SHTX result rows: [{show,division,entries,horse,rider,score,place,pts,money}]
   resultsFile: '',
   scoreLinks: {}, // "org|div|disc" → URL for score sheet PDF
+  aaMoney: {},    // "org|div" → [1stPrize, 2ndPrize, 3rdPrize, 4thPrize, 5thPrize]
   cfg: {
     showName:'', showDate:'', location:'', secretary:'', email:'',
     fees:{
@@ -385,8 +393,10 @@ var ORG_CLASSES = {
     disciplines: ['Cutting','Cow','Reining','Trail','Pleasure','Conformation'],
     allAround: false,
     aaTiebreak: [],
-    aaMinClasses: 3,          // minimum disciplines to qualify for All Around
-    aaRequired: ['Cutting','Conformation'],  // must show in these to be eligible
+    aaMinClasses: 3,
+    // aaRequired is array-of-arrays (OR groups):
+    //   rider must satisfy ALL slots, but each slot is satisfied by showing in ANY listed discipline
+    aaRequired: [['Cutting','Cow'], ['Conformation']],
     pointsSystem: 'aqha'
   },
   'AQHA Ranch': {
@@ -507,6 +517,16 @@ function calcPlacingsFromScores(rows){
 // Discipline patterns — matched against the END of the class string, in priority order
 var SHTX_DISCS = [
   [/\ball\s+aroun(?:d)?(?:\s+\d+)?$/i, 'All Around'],
+  // ── AQHA RHC age-based disciplines (must come before generic "working ranch horse") ──
+  [/\bcowboy\s+working\s+ranch\s+horse$/i, '4y/o+ Cowboy Working Ranch Horse'],
+  [/\b4\s*y\/?\.?o\.?\+?\s+cowboy\s+working\s+ranch\s+horse$/i, '4y/o+ Cowboy Working Ranch Horse'],
+  [/\bltd\.?\s+5\/?6\s*y\/?\.?o\.?\s+working\s+ranch\s+horse$/i, 'LTD 5/6 y/o Working Ranch Horse'],
+  [/\bltd\.?\s+4\s*y\/?\.?o\.?\s+working\s+ranch\s+horse$/i, 'LTD 4 y/o Working Ranch Horse'],
+  [/\b7\s*\+\s*y\/?\.?o\.?\s+working\s+ranch\s+horse$/i, '7+ y/o Working Ranch Horse'],
+  [/\b5\/?6\s*y\/?\.?o\.?\s+working\s+ranch\s+horse$/i, '5/6 y/o Working Ranch Horse'],
+  [/\b4\s*y\/?\.?o\.?\s+working\s+ranch\s+horse$/i, '4 y/o Working Ranch Horse'],
+  [/\b3\s*y\/?\.?o\.?\+?\s+ranch\s+cutting$/i, '3 y/o+ Ranch Cutting'],
+  [/\b3\s*y\/?\.?o\.?\+?\s+ranch\s+riding$/i, '3 y/o+ Ranch Riding'],
   [/\bworking\s+ranch\s+horse$/i, 'Working Ranch Horse'],
   [/\bworking\s+cow\s+horse$/i, 'Cow Horse'],   // APHA calls it "Cow Horse"
   [/\bcow\s+horse$/i, 'Cow Horse'],
@@ -640,6 +660,9 @@ function parseClassDivStr(raw){
   } else if(/\branch\s+heritage\b/i.test(s)){
     org='AQHA RHC'; rest=n.replace(/\bAQHA\s+Ranch\s+Heritage\s+Challenge\b/gi,'')
                           .replace(/\bRanch\s+Heritage\b/gi,'').replace(/\s+/g,' ').trim();
+  } else if(/^AQHA\s+Ranch\b/i.test(s)){
+    // Must check "AQHA Ranch" before generic "AQHA" — otherwise "Ranch" stays in rest and breaks division lookup
+    org='AQHA Ranch'; rest=n.replace(/^AQHA\s+Ranch\s*/i,'').trim();
   } else if(/^AQHA\b/i.test(s)){
     org='AQHA Ranch'; rest=n.replace(/^AQHA\s*/i,'').trim();
   } else if(/^apha/i.test(s)){
@@ -773,6 +796,7 @@ function saveResultsToStorage(){
     localStorage.setItem('gp_results_'+G.showId, JSON.stringify(G.results));
     localStorage.setItem('gp_resultsfile_'+G.showId, G.resultsFile||'');
     localStorage.setItem('gp_scorelinks_'+G.showId, JSON.stringify(G.scoreLinks||{}));
+    localStorage.setItem('gp_aamoney_'+G.showId, JSON.stringify(G.aaMoney||{}));
   } catch(ex){ console.warn('Results save failed:', ex); }
 }
 
@@ -788,10 +812,47 @@ window.editScoreLink=function(key){
   window.setScoreLink(key, url);
 };
 
+window.editAaMoney=function(key){
+  var cur=G.aaMoney[key]||[0,0,0,0,0];
+  var labels=['1st','2nd','3rd','4th','5th'];
+  var el=document.getElementById('aa-money-editor');
+  if(el&&el.dataset.key===key){
+    // toggle off if same key clicked again
+    el.remove(); return;
+  }
+  if(el) el.remove();
+  var form=document.createElement('div');
+  form.id='aa-money-editor';
+  form.dataset.key=key;
+  form.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-bottom:.6rem;padding:.5rem .7rem;background:var(--bg);border:1px solid var(--border2);border-radius:6px;font-size:.82rem';
+  form.innerHTML='<strong style="color:var(--text)">Prize money:</strong>'
+    +labels.map(function(l,i){
+      return '<label style="display:flex;align-items:center;gap:.25rem;color:var(--muted)">'+l+': <span style="color:var(--text)">$</span>'
+        +'<input type="number" min="0" step="1" value="'+(cur[i]||0)+'" id="aamp'+i+'" style="width:4.5rem;background:var(--card-bg);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:.2rem .3rem;font-size:.82rem"></label>';
+    }).join('')
+    +'<button class="btn btn-accent btn-sm" onclick="saveAaMoney(\''+key.replace(/'/g,"\\'")+'\')">Save</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="document.getElementById(\'aa-money-editor\').remove()">Cancel</button>';
+  // Insert before the table
+  var tbl=document.querySelector('#pg-results .tbl-wrap');
+  if(tbl) tbl.parentNode.insertBefore(form, tbl);
+};
+window.saveAaMoney=function(key){
+  var prizes=[];
+  for(var i=0;i<5;i++){
+    var inp=document.getElementById('aamp'+i);
+    prizes.push(inp?parseFloat(inp.value)||0:0);
+  }
+  G.aaMoney[key]=prizes;
+  saveResultsToStorage();
+  var el=document.getElementById('aa-money-editor');
+  if(el) el.remove();
+  pgResults();
+};
+
 var _resSelOrg='', _resSelDiv='', _resSelClass='', _resSearch='', _resSortCol='place', _resSortDir=1, _resSelShow='';
 
 function clearResults(){
-  G.results=[]; G.resultsFile='';
+  G.results=[]; G.resultsFile=''; G.aaMoney={};
   _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1; _resSelShow='';
   saveResultsToStorage();
   pgResults();
@@ -1531,34 +1592,120 @@ function pgResults(){
     html+='</div>';
 
     if(_resSelClass==='__aa__'){
-      // ══ COMPUTED POINTS SUMMARY (all non-AA classes) ══
+      // ══ COMPUTED ALL AROUND / POINTS SUMMARY ══
+      var orgCfg=ORG_CLASSES[_resSelOrg]||{};
+      var aaMinCls=orgCfg.aaMinClasses||scoringDiscs.length;
+      var aaReqGroups=normalizeAaReq(orgCfg.aaRequired||[]);
+      var hasEligRules=aaMinCls<scoringDiscs.length||aaReqGroups.length>0;
+
+      // Build per-rider totals
       var aaMap={};
       divRows.filter(function(r){ return r.discipline&&r.discipline!=='All Around'&&r.discipline!=='VRH All Around'; })
         .forEach(function(r){
           if(!r.rider) return;
-          if(!aaMap[r.rider]) aaMap[r.rider]={rider:r.rider,horse:r.horse,total:0,wins:0,byDisc:{}};
+          if(!aaMap[r.rider]) aaMap[r.rider]={rider:r.rider,horse:r.horse,total:0,byDisc:{},scoreByDisc:{}};
           aaMap[r.rider].total+=(r.pts||0);
-          if(r.place===1) aaMap[r.rider].wins++;
           aaMap[r.rider].byDisc[r.discipline]=(aaMap[r.rider].byDisc[r.discipline]||0)+(r.pts||0);
+          if(!aaMap[r.rider].scoreByDisc[r.discipline]||(r.score||0)>(aaMap[r.rider].scoreByDisc[r.discipline]||0))
+            aaMap[r.rider].scoreByDisc[r.discipline]=r.score||0;
         });
-      var aaRows=Object.keys(aaMap).map(function(k){ return aaMap[k]; }).sort(function(a,b){ return b.total-a.total; });
 
+      // Eligibility check
+      var allRiders=Object.keys(aaMap).map(function(k){ return aaMap[k]; });
+      allRiders.forEach(function(r){
+        var shown=Object.keys(r.byDisc);
+        var meetsMin=shown.length>=aaMinCls;
+        var meetsReq=aaReqGroups.every(function(group){
+          return group.some(function(d){ return shown.indexOf(d)>=0; });
+        });
+        r.eligible=meetsMin&&meetsReq;
+      });
+      var eligible=allRiders.filter(function(r){ return r.eligible; });
+      var ineligible=allRiders.filter(function(r){ return !r.eligible; });
+
+      // Sort eligible by total pts; tiebreak by aaTiebreak score order
+      var tb=orgCfg.aaTiebreak||[];
+      eligible.sort(function(a,b){
+        if(b.total!==a.total) return b.total-a.total;
+        for(var ti=0;ti<tb.length;ti++){
+          var d=tb[ti];
+          var diff=(b.scoreByDisc[d]||0)-(a.scoreByDisc[d]||0);
+          if(diff!==0) return diff;
+        }
+        return 0;
+      });
+
+      // Prize money for this org|div
+      var aaMoneyKey=_resSelOrg+'|'+_resSelDiv;
+      var prizes=G.aaMoney[aaMoneyKey]||[0,0,0,0,0];
+
+      // ── Prize money config bar ──
+      var _amEsc=aaMoneyKey.replace(/'/g,"\\'");
+      html+='<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.6rem;padding:.45rem .6rem;background:var(--card-bg);border:1px solid var(--border);border-radius:6px">'
+        +'<span style="font-size:.78rem;color:var(--muted)">All Around prize money:</span>';
+      var anyPrize=prizes.some(function(p){ return p>0; });
+      if(anyPrize){
+        prizes.forEach(function(p,i){
+          if(p>0) html+='<span style="font-size:.82rem"><strong>'+(i+1)+(i===0?'st':i===1?'nd':i===2?'rd':'th')+'</strong> $'+p+'</span>';
+        });
+      } else {
+        html+='<span style="font-size:.78rem;color:var(--muted)">none configured</span>';
+      }
+      html+='<button class="btn btn-dark btn-sm" onclick="editAaMoney(\''+_amEsc+'\')">&#9998; Edit</button>'
+        +'</div>';
+
+      // ── Eligibility rules note ──
+      if(hasEligRules){
+        var reqDesc=aaReqGroups.map(function(g){ return g.join(' or '); }).join('; ');
+        html+='<div style="font-size:.75rem;color:var(--muted);margin-bottom:.5rem">'
+          +'&#9432; Eligibility: must show in '+aaMinCls+' of '+scoringDiscs.length+' disciplines'
+          +(aaReqGroups.length?' — required: '+esc(reqDesc):'')+'</div>';
+      }
+
+      // ── AA table ──
+      var hasMoney=prizes.some(function(p){ return p>0; });
       html+='<div class="tbl-wrap"><table><thead><tr>'
         +'<th style="width:36px">Rank</th><th>Rider</th><th>Horse</th>';
       scoringDiscs.forEach(function(c){ html+='<th style="text-align:right;font-size:.8rem">'+esc(c)+'</th>'; });
-      html+='<th style="text-align:right;background:rgba(212,160,74,.1);color:var(--accent)">Total</th>'
-        +'</tr></thead><tbody>';
-      aaRows.forEach(function(r,i){
-        var isTie=i>0&&aaRows[i-1].total===r.total;
-        var plColor=i===0?'var(--accent)':i===1?'#aaa':i===2?'#cd7f32':'var(--muted)';
-        html+='<tr><td style="font-weight:600;color:'+plColor+'">'+(isTie?'T':i+1)+'</td>'
+      html+='<th style="text-align:right;background:rgba(212,160,74,.1);color:var(--accent)">Total</th>';
+      if(hasMoney) html+='<th style="text-align:right;color:var(--green)">Prize</th>';
+      html+='</tr></thead><tbody>';
+
+      // Eligible riders — ranked
+      var rank=1;
+      eligible.forEach(function(r,i){
+        var isTie=i>0&&eligible[i-1].total===r.total&&tb.every(function(d){ return (eligible[i-1].scoreByDisc[d]||0)===(r.scoreByDisc[d]||0); });
+        if(!isTie) rank=i+1;
+        var plColor=rank===1?'var(--accent)':rank===2?'#aaa':rank===3?'#cd7f32':'var(--text)';
+        var prize=prizes[rank-1]||0;
+        var rankLabel=isTie?'T-'+rank:String(rank);
+        html+='<tr><td style="font-weight:600;color:'+plColor+'">'+rankLabel+'</td>'
           +'<td>'+esc(r.rider)+'</td><td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>';
         scoringDiscs.forEach(function(c){
           var pts=r.byDisc[c]||0;
           html+='<td style="text-align:right">'+(pts?pts.toFixed(1):'&mdash;')+'</td>';
         });
-        html+='<td style="text-align:right;font-weight:700;color:var(--accent);background:rgba(212,160,74,.06)">'+r.total.toFixed(1)+'</td></tr>';
+        html+='<td style="text-align:right;font-weight:700;color:var(--accent);background:rgba(212,160,74,.06)">'+r.total.toFixed(1)+'</td>';
+        if(hasMoney) html+='<td style="text-align:right;color:var(--green)">'+(prize?'$'+prize:'&mdash;')+'</td>';
+        html+='</tr>';
       });
+
+      // Ineligible riders grayed out below
+      if(ineligible.length){
+        ineligible.sort(function(a,b){ return b.total-a.total; });
+        html+='<tr><td colspan="'+(3+scoringDiscs.length+(hasMoney?2:1))+'" style="font-size:.72rem;color:var(--muted);padding:.5rem .4rem;border-top:1px solid var(--border)">Not eligible for All Around:</td></tr>';
+        ineligible.forEach(function(r){
+          html+='<tr style="opacity:.45"><td style="color:var(--muted)">—</td>'
+            +'<td>'+esc(r.rider)+'</td><td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>';
+          scoringDiscs.forEach(function(c){
+            var pts=r.byDisc[c]||0;
+            html+='<td style="text-align:right">'+(pts?pts.toFixed(1):'&mdash;')+'</td>';
+          });
+          html+='<td style="text-align:right;color:var(--muted)">'+r.total.toFixed(1)+'</td>';
+          if(hasMoney) html+='<td></td>';
+          html+='</tr>';
+        });
+      }
       html+='</tbody></table></div>';
 
     } else if(_resSelClass){
@@ -1633,6 +1780,9 @@ function pgResults(){
       }
 
       // Count discrepancies
+      // For AQHA orgs: Funnware often exports 0 for pts (AQHA tracks points centrally).
+      // So pts mismatch only counts when Funnware actually exported a non-zero value.
+      var isAqhaOrg=(orgPtsSys==='aqha');
       var placeErrs=0, ptsErrs=0;
       clsRows.forEach(function(r){
         var isDQ=!r.place&&!r.score&&!r.pts;
@@ -1641,9 +1791,13 @@ function pgResults(){
         var cp=calcPlaceMap[key];
         var cpts=calcPtsMap[key];
         if(cp&&r.place&&cp!==r.place) placeErrs++;
-        if(cpts!==undefined&&r.pts!==undefined&&Math.abs((cpts||0)-(r.pts||0))>0.05) ptsErrs++;
+        if(!isAqhaOrg && cpts!==undefined&&r.pts!==undefined&&Math.abs((cpts||0)-(r.pts||0))>0.05) ptsErrs++;
+        // For AQHA: only flag if Funnware exported a non-zero value that doesn't match
+        if(isAqhaOrg && r.pts>0 && cpts!==undefined && Math.abs((cpts||0)-(r.pts||0))>0.05) ptsErrs++;
       });
       var hasErrors=entryMismatch||placeErrs>0||ptsErrs>0;
+      // Always show calculated pts column for AQHA orgs (as a reference, not just on error)
+      var showCalcCols=hasErrors||isAqhaOrg;
 
       // ── Audit bar ──
       html+='<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.6rem;padding:.5rem .6rem;'
@@ -1653,6 +1807,9 @@ function pgResults(){
         if(entryMismatch) html+='<span style="font-size:.75rem;color:var(--red)">Funnware says '+fwEntries+' entries, found '+actualRows+' rows</span>';
         if(placeErrs) html+='<span style="font-size:.75rem;color:var(--red)">'+placeErrs+' placing discrepanc'+(placeErrs===1?'y':'ies')+'</span>';
         if(ptsErrs) html+='<span style="font-size:.75rem;color:var(--red)">'+ptsErrs+' points discrepanc'+(ptsErrs===1?'y':'ies')+'</span>';
+      } else if(isAqhaOrg){
+        html+='<span style="font-size:.78rem;color:var(--green)">&#10003; Placings verified — '+actualRows+' entries</span>'
+          +'<span style="font-size:.75rem;color:var(--muted)">AQHA pts calculated (submitted to AQHA separately)</span>';
       } else {
         html+='<span style="font-size:.78rem;color:var(--green)">&#10003; Verified — '+actualRows+' entries, placings and points match</span>';
       }
@@ -1681,13 +1838,15 @@ function pgResults(){
       }
       html+='</div>';
 
-      // ── Results table (Funnware + calculated columns when there are errors) ──
+      // ── Results table ──
+      // Calc Pl/Pts columns always shown for AQHA orgs; for CoWN shown only on discrepancy
+      var calcPtsLabel=isAqhaOrg?'AQHA Pts':'Calc Pts';
       html+='<div class="tbl-wrap"><table><thead><tr>'
         +sTh('place','Pl',null)+sTh('rider','Rider',null)+sTh('horse','Horse',null)
         +sTh('score','Score','right')
-        +(hasErrors?'<th style="text-align:right;color:var(--muted);font-size:.75rem">Calc Pl</th>':'')
-        +sTh('pts','FW Pts','right')
-        +(hasErrors?'<th style="text-align:right;color:var(--muted);font-size:.75rem">Calc Pts</th>':'')
+        +(showCalcCols?'<th style="text-align:right;color:var(--muted);font-size:.75rem">Calc Pl</th>':'')
+        +sTh('pts',isAqhaOrg?'FW Pts':'Pts','right')
+        +(showCalcCols?'<th style="text-align:right;color:'+(isAqhaOrg?'var(--accent)':'var(--muted)')+';font-size:.75rem">'+calcPtsLabel+'</th>':'')
         +sTh('money','Money','right')
         +'</tr></thead><tbody>';
       clsRows.forEach(function(r){
@@ -1706,15 +1865,15 @@ function pgResults(){
         var cp=calcPlaceMap[key];
         var cpts=calcPtsMap[key];
         var plMismatch=!isDQ&&cp&&r.place&&cp!==r.place;
-        var ptsMismatch=!isDQ&&cpts!==undefined&&Math.abs((cpts||0)-(r.pts||0))>0.05;
+        var ptsMismatch=!isDQ&&cpts!==undefined&&(isAqhaOrg?r.pts>0:true)&&Math.abs((cpts||0)-(r.pts||0))>0.05;
         html+='<tr'+(isDQ?' style="opacity:.55"':'')+(plMismatch||ptsMismatch?' style="background:rgba(231,76,60,.05)"':'')+'>'
           +'<td>'+(plMismatch?'<span style="color:var(--red)" title="Calc: '+cp+'">'+plCell+' &#9888;</span>':plCell)+'</td>'
           +'<td>'+esc(r.rider)+'</td>'
           +'<td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>'
           +'<td style="text-align:right">'+(!r.score?'&mdash;':r.score.toFixed(3))+'</td>'
-          +(hasErrors?'<td style="text-align:right;color:var(--muted);font-size:.78rem">'+(cp||'&mdash;')+'</td>':'')
+          +(showCalcCols?'<td style="text-align:right;color:var(--muted);font-size:.78rem">'+(cp||'&mdash;')+'</td>':'')
           +'<td style="text-align:right;color:'+(ptsMismatch?'var(--red)':'var(--accent)')+'">'+(isDQ?'&mdash;':(r.pts||0).toFixed(1))+'</td>'
-          +(hasErrors?'<td style="text-align:right;color:var(--muted);font-size:.78rem">'+(isDQ?'&mdash;':cpts!==undefined?cpts.toFixed(1):'&mdash;')+'</td>':'')
+          +(showCalcCols?'<td style="text-align:right;color:'+(isAqhaOrg?'var(--accent)':'var(--muted)')+';font-size:.78rem">'+(isDQ?'&mdash;':cpts!==undefined?cpts.toFixed(1):'&mdash;')+'</td>':'')
           +'<td style="text-align:right;color:var(--green)">'+(r.money?'$'+r.money.toFixed(0):'&mdash;')+'</td>'
           +'</tr>';
       });
@@ -2114,11 +2273,19 @@ window.testParser = function(){
 // ══════════════════════════════════════════════════════════════
 var _orgEdSel = 'CoWN';  // currently selected org in editor
 
+var ORG_CONFIG_VERSION=3; // bump when factory defaults change in a breaking way
 function loadOrgConfig(){
   try{
     var saved=localStorage.getItem('gp_org_classes');
     if(saved){
       var parsed=JSON.parse(saved);
+      // If saved data predates current version, discard it so new defaults apply
+      if((parsed._v||0)<ORG_CONFIG_VERSION){
+        localStorage.removeItem('gp_org_classes');
+        return;
+      }
+      // Remove internal version key before merging
+      delete parsed._v;
       // Merge saved into ORG_CLASSES (replace each key if present)
       Object.keys(parsed).forEach(function(k){ ORG_CLASSES[k]=parsed[k]; });
       // Rebuild DIV_ORDER_BY_ORG from ORG_CLASSES
@@ -2132,7 +2299,9 @@ function loadOrgConfig(){
 
 function saveOrgConfig(){
   try{
-    localStorage.setItem('gp_org_classes', JSON.stringify(ORG_CLASSES));
+    var toSave=JSON.parse(JSON.stringify(ORG_CLASSES));
+    toSave._v=ORG_CONFIG_VERSION;
+    localStorage.setItem('gp_org_classes', JSON.stringify(toSave));
     // Rebuild DIV_ORDER_BY_ORG
     Object.keys(ORG_CLASSES).forEach(function(k){ DIV_ORDER_BY_ORG[k]=ORG_CLASSES[k].divisions; });
     showToast('Association structure saved.');
@@ -2240,16 +2409,43 @@ function renderOrgEditor(){
       +'<input type="number" id="oed-aa-min" value="'+minCls+'" min="1" max="'+cfg.disciplines.length+'" style="width:3rem;background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:.2rem .3rem;font-size:.82rem" onchange="orgEdSetAAMin(\''+esc(sel)+'\',this.value)">'
       +'<span style="color:var(--muted)">of '+cfg.disciplines.length+'</span>'
       +'</div></div>';
-    // Required disciplines checkboxes
-    var aaReq=cfg.aaRequired||[];
-    aaDetail+='<div style="margin-top:.5rem;font-size:.8rem"><span style="color:var(--muted)">Required disciplines (must show in ALL of these):</span>'
-      +'<div style="display:flex;flex-wrap:wrap;gap:.4rem .8rem;margin-top:.35rem">';
-    cfg.disciplines.forEach(function(d){
-      var chk=aaReq.indexOf(d)>=0?' checked':'';
-      aaDetail+='<label style="display:flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.8rem">'
-        +'<input type="checkbox"'+chk+' onchange="orgEdToggleAAReq(\''+esc(sel)+'\',\''+esc(d)+'\',this.checked)" style="accent-color:var(--accent)"> '+esc(d)+'</label>';
+    // Required discipline OR-groups
+    var aaReqGroups=normalizeAaReq(cfg.aaRequired||[]);
+    var availForReq=cfg.disciplines.filter(function(d){
+      return !aaReqGroups.some(function(g){ return g.indexOf(d)>=0; });
     });
-    aaDetail+='</div></div>';
+    aaDetail+='<div style="margin-top:.5rem;font-size:.8rem">'
+      +'<div style="color:var(--muted);margin-bottom:.4rem">Required slots — rider must satisfy each row (any discipline in the row counts):</div>';
+    aaReqGroups.forEach(function(group,gi){
+      aaDetail+='<div style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap;margin-bottom:.35rem">'
+        +'<span style="color:var(--muted);font-size:.72rem;min-width:3rem">Slot '+(gi+1)+':</span>';
+      group.forEach(function(d,oi){
+        if(oi>0) aaDetail+='<span style="color:var(--muted);font-size:.72rem">OR</span>';
+        aaDetail+='<span style="display:inline-flex;align-items:center;gap:.2rem;padding:.15rem .45rem;background:var(--bg);border:1px solid var(--border2);border-radius:4px;font-size:.8rem">'
+          +esc(d)+'<button style="background:none;border:none;color:var(--red);cursor:pointer;padding:0 0 0 .2rem;font-size:.85rem;line-height:1" '
+          +'onclick="orgEdRemoveAaReqOption(\''+esc(sel)+'\','+gi+','+oi+')">&#10005;</button></span>';
+      });
+      // "OR" dropdown to add another option to this group
+      var notInGroup=cfg.disciplines.filter(function(d){ return group.indexOf(d)<0; });
+      if(notInGroup.length){
+        aaDetail+='<select style="background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:.15rem .3rem;font-size:.75rem" '
+          +'onchange="if(this.value){orgEdAddAaReqOption(\''+esc(sel)+'\','+gi+',this.value);this.value=\'\'}">'
+          +'<option value="">+ OR…</option>'
+          +notInGroup.map(function(d){ return '<option>'+esc(d)+'</option>'; }).join('')
+          +'</select>';
+      }
+      aaDetail+='<button class="btn btn-dark btn-sm" style="padding:.1rem .35rem;font-size:.72rem;color:var(--red)" '
+        +'onclick="orgEdRemoveAaReqGroup(\''+esc(sel)+'\','+gi+')">&#10005; slot</button>'
+        +'</div>';
+    });
+    // Add new slot dropdown
+    var availDiscs=cfg.disciplines.slice();
+    aaDetail+='<div style="margin-top:.35rem"><select style="background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:.2rem .4rem;font-size:.78rem" '
+      +'onchange="if(this.value){orgEdAddAaReqGroup(\''+esc(sel)+'\',this.value);this.value=\'\'}">'
+      +'<option value="">+ Add required slot…</option>'
+      +availDiscs.map(function(d){ return '<option>'+esc(d)+'</option>'; }).join('')
+      +'</select></div>'
+      +'</div>';
   }
 
   var settings='<div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)">'
@@ -2339,12 +2535,36 @@ window.orgEdSetAAMin=function(o,val){
   ORG_CLASSES[o].aaMinClasses=Math.min(n, (ORG_CLASSES[o].disciplines||[]).length);
 };
 
-window.orgEdToggleAAReq=function(o,disc,checked){
+window.orgEdAddAaReqGroup=function(o,disc){
+  if(!disc||!ORG_CLASSES[o]) return;
+  if(!ORG_CLASSES[o].aaRequired) ORG_CLASSES[o].aaRequired=[];
+  // Convert flat array (legacy) to array-of-arrays
+  ORG_CLASSES[o].aaRequired=normalizeAaReq(ORG_CLASSES[o].aaRequired);
+  ORG_CLASSES[o].aaRequired.push([disc]);
+  renderOrgEditor();
+};
+window.orgEdAddAaReqOption=function(o,groupIdx,disc){
+  if(!disc||!ORG_CLASSES[o]) return;
+  ORG_CLASSES[o].aaRequired=normalizeAaReq(ORG_CLASSES[o].aaRequired||[]);
+  var grp=ORG_CLASSES[o].aaRequired[groupIdx];
+  if(!grp) return;
+  if(grp.indexOf(disc)<0) grp.push(disc);
+  renderOrgEditor();
+};
+window.orgEdRemoveAaReqOption=function(o,groupIdx,optIdx){
   if(!ORG_CLASSES[o]) return;
-  var req=ORG_CLASSES[o].aaRequired||(ORG_CLASSES[o].aaRequired=[]);
-  var idx=req.indexOf(disc);
-  if(checked && idx<0) req.push(disc);
-  if(!checked && idx>=0) req.splice(idx,1);
+  ORG_CLASSES[o].aaRequired=normalizeAaReq(ORG_CLASSES[o].aaRequired||[]);
+  var grp=ORG_CLASSES[o].aaRequired[groupIdx];
+  if(!grp) return;
+  grp.splice(optIdx,1);
+  if(grp.length===0) ORG_CLASSES[o].aaRequired.splice(groupIdx,1);
+  renderOrgEditor();
+};
+window.orgEdRemoveAaReqGroup=function(o,groupIdx){
+  if(!ORG_CLASSES[o]) return;
+  ORG_CLASSES[o].aaRequired=normalizeAaReq(ORG_CLASSES[o].aaRequired||[]);
+  ORG_CLASSES[o].aaRequired.splice(groupIdx,1);
+  renderOrgEditor();
 };
 
 window.orgEdAddDiv=function(o){
@@ -2411,6 +2631,7 @@ window.orgEdSetAA=function(o){
     ORG_CLASSES[o].aaTiebreak=ORG_CLASSES[o].disciplines.slice();
     if(!ORG_CLASSES[o].aaMinClasses) ORG_CLASSES[o].aaMinClasses=ORG_CLASSES[o].disciplines.length;
     if(!ORG_CLASSES[o].aaRequired) ORG_CLASSES[o].aaRequired=[];
+    else ORG_CLASSES[o].aaRequired=normalizeAaReq(ORG_CLASSES[o].aaRequired);
   } else {
     ORG_CLASSES[o].aaTiebreak=[];
   }
@@ -4246,6 +4467,8 @@ async function boot(){
       if(cachedRes){ G.results=JSON.parse(cachedRes); G.resultsFile=localStorage.getItem('gp_resultsfile_'+showId)||''; }
       var cachedLinks=localStorage.getItem('gp_scorelinks_'+showId);
       if(cachedLinks) G.scoreLinks=JSON.parse(cachedLinks);
+      var cachedAA=localStorage.getItem('gp_aamoney_'+showId);
+      if(cachedAA) G.aaMoney=JSON.parse(cachedAA);
     } catch(ex){ console.warn('Results cache load failed:', ex); }
 
     // Step 3b: Only load from DB if cache was empty
