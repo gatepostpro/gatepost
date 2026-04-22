@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- v20260422d -->
+<!DOCTYPE html><!-- v20260422f -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -653,27 +653,59 @@ function parseClassDivStr(raw){
   // Canonicalize division
   var div=forcedDiv!==null ? forcedDiv : (SHTX_DIV[divPart.toLowerCase()]||(divPart||'Open'));
 
-  // ── Discipline-based org fallback ────────────────────────────────────────
-  // If we assigned CoWN but the discipline isn't in CoWN's list, re-route to
-  // the correct org. This handles exports where Funnware omits the org prefix
-  // (e.g. "Open Ranch Trail" would otherwise land in CoWN).
-  if(org==='CoWN' && disc){
-    var cownDiscs=ORG_CLASSES.CoWN.disciplines;
-    if(cownDiscs.indexOf(disc)<0){
-      // Find the org whose discipline list contains this discipline
-      var orgKeys=Object.keys(ORG_CLASSES);
-      for(var oi=0;oi<orgKeys.length;oi++){
-        if(orgKeys[oi]==='CoWN'||orgKeys[oi]==='Jackpot') continue;
-        if(ORG_CLASSES[orgKeys[oi]].disciplines.indexOf(disc)>=0){
-          org=orgKeys[oi];
-          // Re-look up division in new org's context (same divPart)
-          var newOrgDivs=DIV_ORDER_BY_ORG[org]||[];
-          var remappedDiv=SHTX_DIV[divPart.toLowerCase()];
-          if(!remappedDiv) remappedDiv=newOrgDivs.indexOf(divPart)>=0?divPart:(newOrgDivs[0]||div);
-          div=remappedDiv;
-          break;
+  // ── Secondary org inference (when no explicit prefix was found) ─────────
+  // Uses three signals in priority order:
+  //   1. Discipline is unique to one non-CoWN org (Ranch Trail → AQHA Ranch)
+  //   2. Division name belongs only to one org (Amateur → VRH/AQHA; Novice Amateur → APHA)
+  //   3. "Ranch" keyword anywhere → AQHA Ranch (if discipline confirms it)
+  if(org==='CoWN'){
+    var cownDiscs=ORG_CLASSES.CoWN.disciplines; // ['Cow','Reining','Trail','Pleasure']
+
+    // Signal 1: discipline not in CoWN → find the right org
+    if(disc && cownDiscs.indexOf(disc)<0){
+      // AQHA Ranch disciplines are all prefixed "Ranch..." or "Working Western Rail"
+      if(ORG_CLASSES['AQHA Ranch'].disciplines.indexOf(disc)>=0){
+        org='AQHA Ranch';
+      } else if(disc==='Cutting'||disc==='Conformation'||disc==='VRH All Around'){
+        org='VRH';
+      } else if(disc==='Cow Horse'){
+        org='APHA';
+      } else {
+        // Generic scan
+        var orgKeys=Object.keys(ORG_CLASSES);
+        for(var oi=0;oi<orgKeys.length;oi++){
+          if(orgKeys[oi]==='CoWN'||orgKeys[oi]==='Jackpot') continue;
+          if(ORG_CLASSES[orgKeys[oi]].disciplines.indexOf(disc)>=0){ org=orgKeys[oi]; break; }
         }
       }
+    }
+
+    // Signal 2: division name that doesn't exist in CoWN
+    if(org==='CoWN'){
+      var cownDivs=DIV_ORDER_BY_ORG.CoWN;
+      if(cownDivs.indexOf(div)<0 && div){
+        // "Amateur","LTD Am","Rookie Am","LTD Youth","Rookie Youth" → VRH or AQHA Ranch
+        var vrhAqhaDivs=['Amateur','LTD Am','Rookie Am','LTD Youth','Rookie Youth'];
+        if(vrhAqhaDivs.indexOf(div)>=0){
+          // AQHA Ranch if discipline is a Ranch discipline, otherwise VRH
+          org=ORG_CLASSES['AQHA Ranch'].disciplines.indexOf(disc)>=0 ? 'AQHA Ranch' : 'VRH';
+        } else if(div==='Novice Amateur'||div==='Jr Horse'){
+          org='APHA';
+        }
+      }
+    }
+
+    // Signal 3: "Ranch" as a standalone keyword in the raw string (not already handled)
+    if(org==='CoWN' && /\branch\b/i.test(s) && disc && cownDiscs.indexOf(disc)<0){
+      org='AQHA Ranch';
+    }
+
+    // If org changed, re-canonicalize division against the new org's known divisions
+    if(org!=='CoWN'){
+      var newDivList=DIV_ORDER_BY_ORG[org]||[];
+      var remapped=SHTX_DIV[divPart.toLowerCase()];
+      if(remapped && newDivList.indexOf(remapped)>=0) div=remapped;
+      else if(newDivList.indexOf(div)<0 && newDivList.length) div=newDivList[0];
     }
   }
 
@@ -1979,27 +2011,7 @@ function pgSettings(){
 
     // ── ORGS ──
     +'<div class="ssec" id="ss-orgs">'
-    +'<div class="card"><div class="card-title">Organizations at This Show <small>Each org can have its own fee rules and drug testing requirements</small></div>'
-    +'<p style="font-size:.84rem;color:var(--muted);margin-bottom:1rem">When multiple associations share a show, Gatepost tracks classes and fees separately by org. Drug testing fees, for example, only apply to AQHA entries.</p>'
-    +'<div id="org-list">'
-    +orgRow('CoWN','CoWN Stock Horse Association',false)
-    +orgRow('AQHA','American Quarter Horse Association',true)
-    +orgRow('APHA','American Paint Horse Association',false)
-    +orgRow('NHSRA','National High School Rodeo Association',false)
-    +'</div>'
-    +'<div class="btn-row" style="margin-top:.75rem">'
-    +'<button class="btn btn-dark btn-sm" onclick="addCustomOrg()">+ Add Custom Org</button>'
-    +'</div></div>'
-    +'<div class="card"><div class="card-title">Per-Org Fee Overrides <small>Leave blank to use defaults from Finances tab</small></div>'
-    +'<div id="org-fee-overrides">'
-    +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem 1rem;margin-bottom:.5rem">'
-    +'<div style="font-family:Oswald;color:var(--blue);font-size:.9rem;margin-bottom:.6rem">AQHA <small style="font-family:Source Sans 3;font-weight:400;font-size:.75rem;color:var(--muted)">Only applies to AQHA-tagged classes</small></div>'
-    +'<div class="form-row">'
-    +pFg('Drug Test Fee','fee-aqha-drug',0)
-    +pFg('AQHA Office Fee','fee-aqha-office',0)
-    +pFg('VRH Class Fee','fee-aqha-vrh',0)
-    +'</div></div>'
-    +'</div></div>'
+    +'<div id="org-editor-root"></div>'
     +'</div>'
 
     // ── MAPPER ──
@@ -2031,6 +2043,7 @@ function showStab(id,btn){
   document.querySelectorAll('.stab').forEach(function(b){ b.classList.remove('active'); });
   document.getElementById('ss-'+id).classList.add('active');
   btn.classList.add('active');
+  if(id==='orgs') renderOrgEditor();
 }
 
 window.testParser = function(){
@@ -2054,6 +2067,224 @@ window.testParser = function(){
       +(!discOk&&orgOk?'"'+esc(result.discipline)+'" is not a '+esc(result.org)+' discipline. ':'')
       +'</div>':'')
     +'<div style="color:var(--muted);font-size:.73rem;margin-top:.3rem">Raw: "'+esc(raw)+'"</div>';
+};
+
+// ══════════════════════════════════════════════════════════════
+// ORG / DIVISION / DISCIPLINE EDITOR
+// ══════════════════════════════════════════════════════════════
+var _orgEdSel = 'CoWN';  // currently selected org in editor
+
+function loadOrgConfig(){
+  try{
+    var saved=localStorage.getItem('gp_org_classes');
+    if(saved){
+      var parsed=JSON.parse(saved);
+      // Merge saved into ORG_CLASSES (replace each key if present)
+      Object.keys(parsed).forEach(function(k){ ORG_CLASSES[k]=parsed[k]; });
+      // Rebuild DIV_ORDER_BY_ORG from ORG_CLASSES
+      Object.keys(ORG_CLASSES).forEach(function(k){ DIV_ORDER_BY_ORG[k]=ORG_CLASSES[k].divisions; });
+      // Rebuild ORG_ORDER
+      var savedKeys=Object.keys(parsed);
+      savedKeys.forEach(function(k){ if(ORG_ORDER.indexOf(k)<0) ORG_ORDER.push(k); });
+    }
+  } catch(e){ console.warn('Could not load org config:', e); }
+}
+
+function saveOrgConfig(){
+  try{
+    localStorage.setItem('gp_org_classes', JSON.stringify(ORG_CLASSES));
+    // Rebuild DIV_ORDER_BY_ORG
+    Object.keys(ORG_CLASSES).forEach(function(k){ DIV_ORDER_BY_ORG[k]=ORG_CLASSES[k].divisions; });
+    showToast('Association structure saved.');
+  } catch(e){ alert('Save failed: '+e.message); }
+}
+
+function resetOrgConfig(){
+  if(!confirm('Reset ALL association structure to built-in defaults? This cannot be undone.')) return;
+  localStorage.removeItem('gp_org_classes');
+  location.reload();
+}
+
+function renderOrgEditor(){
+  var root=document.getElementById('org-editor-root');
+  if(!root) return;
+  var sel=_orgEdSel;
+  var cfg=ORG_CLASSES[sel]||{divisions:[],disciplines:[],allAround:false,aaTiebreak:[],pointsSystem:'entries'};
+
+  // ── Org tab bar ──────────────────────────────────────────────
+  var tabBar='<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:1rem;align-items:center">';
+  ORG_ORDER.forEach(function(o){
+    tabBar+='<button class="btn btn-sm '+(o===sel?'btn-accent':'btn-dark')+'" onclick="orgEdSelOrg(\''+o.replace(/'/g,"\\'")+'\')">'
+      +esc(o)+'</button>';
+  });
+  tabBar+='<button class="btn btn-dark btn-sm" onclick="orgEdAddOrg()">+ New Org</button>';
+  tabBar+='</div>';
+
+  // ── Divisions column ─────────────────────────────────────────
+  var divCol='<div class="card-title" style="margin-bottom:.5rem">Divisions</div>';
+  cfg.divisions.forEach(function(d,i){
+    divCol+='<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.3rem">'
+      +'<span style="flex:1;font-size:.85rem;padding:.28rem .5rem;background:var(--bg);border:1px solid var(--border);border-radius:4px">'+esc(d)+'</span>'
+      +'<button class="btn btn-dark btn-sm" style="padding:.2rem .4rem" title="Move up" onclick="orgEdMoveDiv(\''+esc(sel)+'\','+i+',-1)">&#8679;</button>'
+      +'<button class="btn btn-dark btn-sm" style="padding:.2rem .4rem" title="Move down" onclick="orgEdMoveDiv(\''+esc(sel)+'\','+i+',1)">&#8681;</button>'
+      +'<button class="btn btn-dark btn-sm" style="padding:.2rem .4rem;color:var(--red)" title="Remove" onclick="orgEdRemoveDiv(\''+esc(sel)+'\','+i+')">&#10005;</button>'
+      +'</div>';
+  });
+  divCol+='<div style="display:flex;gap:.3rem;margin-top:.5rem">'
+    +'<input id="oed-new-div" class="search-box" style="flex:1;padding:.3rem .5rem;font-size:.8rem" placeholder="New division name...">'
+    +'<button class="btn btn-accent btn-sm" onclick="orgEdAddDiv(\''+esc(sel)+'\')">+ Add</button>'
+    +'</div>';
+
+  // ── Disciplines column ───────────────────────────────────────
+  var discCol='<div class="card-title" style="margin-bottom:.5rem">Disciplines / Classes</div>';
+  cfg.disciplines.forEach(function(d,i){
+    discCol+='<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.3rem">'
+      +'<span style="flex:1;font-size:.85rem;padding:.28rem .5rem;background:var(--bg);border:1px solid var(--border);border-radius:4px">'+esc(d)+'</span>'
+      +'<button class="btn btn-dark btn-sm" style="padding:.2rem .4rem" onclick="orgEdMoveDisc(\''+esc(sel)+'\','+i+',-1)">&#8679;</button>'
+      +'<button class="btn btn-dark btn-sm" style="padding:.2rem .4rem" onclick="orgEdMoveDisc(\''+esc(sel)+'\','+i+',1)">&#8681;</button>'
+      +'<button class="btn btn-dark btn-sm" style="padding:.2rem .4rem;color:var(--red)" onclick="orgEdRemoveDisc(\''+esc(sel)+'\','+i+')">&#10005;</button>'
+      +'</div>';
+  });
+  discCol+='<div style="display:flex;gap:.3rem;margin-top:.5rem">'
+    +'<input id="oed-new-disc" class="search-box" style="flex:1;padding:.3rem .5rem;font-size:.8rem" placeholder="New class / discipline...">'
+    +'<button class="btn btn-accent btn-sm" onclick="orgEdAddDisc(\''+esc(sel)+'\')">+ Add</button>'
+    +'</div>';
+
+  // ── All Around + points settings ─────────────────────────────
+  var aaChecked=cfg.allAround?' checked':'';
+  var psSel=cfg.pointsSystem||'entries';
+  var settings='<div style="display:flex;flex-wrap:wrap;gap:1.5rem;align-items:flex-start;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)">'
+    +'<label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;font-size:.85rem">'
+    +'<input type="checkbox" id="oed-aa"'+aaChecked+' onchange="orgEdSetAA(\''+esc(sel)+'\')" style="accent-color:var(--accent);width:15px;height:15px"> Compute All Around</label>'
+    +(cfg.allAround
+      ?'<div style="font-size:.8rem;color:var(--muted)">Tiebreak order: '
+        +(cfg.aaTiebreak||cfg.disciplines).map(function(d,i){
+          return '<span style="color:var(--text)">'+esc(d)+'</span>'+(i<(cfg.aaTiebreak||cfg.disciplines).length-1?' &rarr; ':'');
+        }).join('')
+        +'<span style="color:var(--muted);font-size:.73rem;margin-left:.4rem">(matches discipline order above)</span></div>'
+      :'')
+    +'<div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem">'
+    +'<span style="color:var(--muted)">Points:</span>'
+    +'<select onchange="orgEdSetPts(\''+esc(sel)+'\',this.value)" style="background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:5px;padding:.25rem .4rem;font-size:.8rem">'
+    +'<option value="entries"'+(psSel==='entries'?' selected':'')+'>Entries-based (1st=N … last=1)</option>'
+    +'<option value="none"'+(psSel==='none'?' selected':'')+'>None (money event, no points)</option>'
+    +'</select></div>'
+    +'</div>';
+
+  // ── Delete org ───────────────────────────────────────────────
+  var danger=sel!=='CoWN'
+    ?'<div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)">'
+      +'<button class="btn btn-dark btn-sm" style="color:var(--red);border-color:var(--red)" onclick="orgEdRemoveOrg(\''+esc(sel)+'\')">&#10005; Remove '+esc(sel)+' org</button>'
+      +'</div>':''  ;
+
+  root.innerHTML=tabBar
+    +'<div class="card">'
+    +'<div class="card-title">'+esc(sel)+' <small style="font-size:.72rem;color:var(--muted)">'+cfg.divisions.length+' divisions &mdash; '+cfg.disciplines.length+' disciplines</small></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">'
+    +'<div>'+divCol+'</div>'
+    +'<div>'+discCol+'</div>'
+    +'</div>'
+    +settings
+    +danger
+    +'</div>'
+    +'<div class="btn-row">'
+    +'<button class="btn btn-accent" onclick="saveOrgConfig()">&#10003; Save Changes</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="resetOrgConfig()">&#8635; Reset to Defaults</button>'
+    +'</div>';
+}
+
+window.orgEdSelOrg=function(o){ _orgEdSel=o; renderOrgEditor(); };
+
+window.orgEdAddOrg=function(){
+  var name=prompt('Abbreviation for new org (e.g. NSBA):');
+  if(!name||!name.trim()) return;
+  name=name.trim().toUpperCase();
+  if(ORG_CLASSES[name]){ alert(name+' already exists.'); return; }
+  ORG_CLASSES[name]={divisions:['Open'],disciplines:[],allAround:false,aaTiebreak:[],pointsSystem:'entries'};
+  DIV_ORDER_BY_ORG[name]=['Open'];
+  if(ORG_ORDER.indexOf(name)<0) ORG_ORDER.push(name);
+  _orgEdSel=name;
+  renderOrgEditor();
+};
+
+window.orgEdRemoveOrg=function(o){
+  if(o==='CoWN'){alert('Cannot remove CoWN.'); return;}
+  if(!confirm('Remove org "'+o+'" and all its divisions/disciplines? This only affects Gatepost\'s class structure — no show data is deleted.')) return;
+  delete ORG_CLASSES[o];
+  delete DIV_ORDER_BY_ORG[o];
+  var idx=ORG_ORDER.indexOf(o);
+  if(idx>=0) ORG_ORDER.splice(idx,1);
+  _orgEdSel='CoWN';
+  renderOrgEditor();
+};
+
+window.orgEdAddDiv=function(o){
+  var inp=document.getElementById('oed-new-div');
+  var val=(inp&&inp.value.trim());
+  if(!val) return;
+  if(!ORG_CLASSES[o]) return;
+  if(ORG_CLASSES[o].divisions.indexOf(val)>=0){alert('"'+val+'" already exists.'); return;}
+  ORG_CLASSES[o].divisions.push(val);
+  DIV_ORDER_BY_ORG[o]=ORG_CLASSES[o].divisions;
+  renderOrgEditor();
+};
+
+window.orgEdRemoveDiv=function(o,i){
+  if(!ORG_CLASSES[o]) return;
+  ORG_CLASSES[o].divisions.splice(i,1);
+  DIV_ORDER_BY_ORG[o]=ORG_CLASSES[o].divisions;
+  renderOrgEditor();
+};
+
+window.orgEdMoveDiv=function(o,i,dir){
+  var arr=ORG_CLASSES[o]&&ORG_CLASSES[o].divisions;
+  if(!arr) return;
+  var j=i+dir;
+  if(j<0||j>=arr.length) return;
+  var tmp=arr[i]; arr[i]=arr[j]; arr[j]=tmp;
+  DIV_ORDER_BY_ORG[o]=arr;
+  renderOrgEditor();
+};
+
+window.orgEdAddDisc=function(o){
+  var inp=document.getElementById('oed-new-disc');
+  var val=(inp&&inp.value.trim());
+  if(!val) return;
+  if(!ORG_CLASSES[o]) return;
+  if(ORG_CLASSES[o].disciplines.indexOf(val)>=0){alert('"'+val+'" already exists.'); return;}
+  ORG_CLASSES[o].disciplines.push(val);
+  if(ORG_CLASSES[o].allAround) ORG_CLASSES[o].aaTiebreak=ORG_CLASSES[o].disciplines.slice();
+  renderOrgEditor();
+};
+
+window.orgEdRemoveDisc=function(o,i){
+  if(!ORG_CLASSES[o]) return;
+  ORG_CLASSES[o].disciplines.splice(i,1);
+  if(ORG_CLASSES[o].allAround) ORG_CLASSES[o].aaTiebreak=ORG_CLASSES[o].disciplines.slice();
+  renderOrgEditor();
+};
+
+window.orgEdMoveDisc=function(o,i,dir){
+  var arr=ORG_CLASSES[o]&&ORG_CLASSES[o].disciplines;
+  if(!arr) return;
+  var j=i+dir;
+  if(j<0||j>=arr.length) return;
+  var tmp=arr[i]; arr[i]=arr[j]; arr[j]=tmp;
+  if(ORG_CLASSES[o].allAround) ORG_CLASSES[o].aaTiebreak=arr.slice();
+  renderOrgEditor();
+};
+
+window.orgEdSetAA=function(o){
+  var cb=document.getElementById('oed-aa');
+  if(!ORG_CLASSES[o]) return;
+  ORG_CLASSES[o].allAround=cb&&cb.checked;
+  ORG_CLASSES[o].aaTiebreak=ORG_CLASSES[o].allAround?ORG_CLASSES[o].disciplines.slice():[];
+  renderOrgEditor();
+};
+
+window.orgEdSetPts=function(o,val){
+  if(!ORG_CLASSES[o]) return;
+  ORG_CLASSES[o].pointsSystem=val;
 };
 
 // ── Settings helpers ──
@@ -3803,6 +4034,9 @@ async function boot(){
   window.buildTabLines = buildTabLines;
   window.tabTotal = tabTotal;
   window.saveEntriesToCache = saveEntriesToCache;
+
+  // Load any saved association structure customizations
+  loadOrgConfig();
 
   // Load saved local config
   try{ var saved=localStorage.getItem('gatepost_cfg'); if(saved) G.cfg=JSON.parse(saved); } catch(e){}
