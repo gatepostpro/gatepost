@@ -141,12 +141,109 @@ tr:hover td{background:rgba(255,255,255,.025)}
 .toast.show{opacity:1}
 .empty-state{color:var(--muted);text-align:center;padding:2.5rem;font-size:.9rem}
 .hidden{display:none!important}
+/* selector rows in results (org/div/class) — scroll on mobile */
+.sel-row{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.85rem}
+@media(max-width:768px){
+  .sel-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+  .sel-row .btn{white-space:nowrap;flex-shrink:0}
+  /* results card header: stack search below title on phone */
+  .res-card-head{flex-direction:column;align-items:flex-start;gap:.5rem}
+  .res-card-head .res-search-row{width:100%}
+  .res-card-head .res-search-row input{width:100%!important}
+}
+/* entry card (mobile) */
+.entry-card{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:.75rem;margin-bottom:.5rem;cursor:pointer;transition:border-color .15s}
+.entry-card:active{border-color:var(--accent)}
 /* assoc tag */
 .assoc-tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:.68rem;font-weight:600;margin:1px}
 .at-cown{background:rgba(212,160,74,.15);color:var(--accent)}
 .at-aqha{background:rgba(41,128,185,.15);color:#5dade2}
 .at-apha{background:rgba(142,68,173,.15);color:#a569bd}
 .at-other{background:rgba(138,154,173,.1);color:var(--muted)}
+/* ── MOBILE NAV OVERLAY ── */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:150}
+.sidebar-overlay.open{display:block}
+.hamburger{display:none;background:none;border:none;color:var(--text);font-size:1.35rem;cursor:pointer;padding:.3rem .4rem;line-height:1;margin-right:.25rem}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  /* Layout: stack sidebar as overlay instead of side-by-side */
+  .shell{flex-direction:column;height:auto;min-height:100vh;overflow:visible}
+  .sidebar{
+    position:fixed;top:0;left:0;bottom:0;z-index:160;
+    width:260px;transform:translateX(-100%);transition:transform .22s ease;
+  }
+  .sidebar.open{transform:translateX(0)}
+  .content{flex:1;overflow-y:visible}
+  .topbar{position:sticky;top:0;z-index:100}
+  .page{padding:.85rem;padding-bottom:5rem}
+  .hamburger{display:block}
+
+  /* Cards */
+  .card{padding:.85rem 1rem}
+  .card-title{font-size:.97rem}
+
+  /* Stat grid: 2 columns on phone */
+  .stat-grid{grid-template-columns:1fr 1fr}
+  .stat .n{font-size:1.5rem}
+
+  /* Tables: horizontal scroll, larger tap rows */
+  td,th{padding:.5rem .5rem}
+  .tbl-wrap{-webkit-overflow-scrolling:touch}
+
+  /* Buttons: bigger tap targets */
+  .btn{padding:.5rem 1rem;font-size:.85rem}
+  .btn-sm{padding:.38rem .65rem;font-size:.8rem}
+
+  /* Form rows: single column */
+  .form-row{grid-template-columns:1fr}
+
+  /* Settings tabs: horizontal scroll, no wrap */
+  .stab-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .stab-row::-webkit-scrollbar{height:3px}
+  .stab-row::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+  .stab{white-space:nowrap;padding:.5rem .75rem}
+  .stab-group-label{white-space:nowrap}
+
+  /* Pills: scroll horizontally */
+  .pills{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+  .pill{white-space:nowrap;padding:.3rem .85rem;font-size:.8rem}
+
+  /* Modals: full width */
+  .modal{max-width:100%;border-radius:0;min-height:50vh}
+  .modal-bg{padding:0;align-items:flex-end}
+
+  /* Drop zones: smaller on mobile (file drop doesn't work on iOS anyway) */
+  .drop-zone{padding:1.5rem 1rem}
+  .drop-zone h3{font-size:.95rem}
+
+  /* Fee strip: 2 columns */
+  .fee-strip{grid-template-columns:1fr 1fr}
+
+  /* Topbar: tighter */
+  .topbar{padding:.5rem .85rem}
+  .topbar-title{font-size:1rem}
+
+  /* Toast: full-width bottom */
+  .toast{left:.75rem;right:.75rem;text-align:center;bottom:1rem}
+
+  /* Show pill in sidebar: slightly larger text */
+  .show-pill .sp-name{font-size:1rem}
+
+  /* Cfg table: allow scroll */
+  .cfg-tbl{font-size:.8rem}
+
+  /* Hide sidebar footer on mobile (space) */
+  .sidebar-footer{display:none}
+}
+
+@media(max-width:480px){
+  .stat-grid{grid-template-columns:1fr 1fr}
+  .page{padding:.65rem;padding-bottom:5rem}
+  .card{padding:.75rem .85rem}
+  .modal-grid{grid-template-columns:1fr}
+}
+
 @media print{
   .sidebar,.topbar,.btn-row,.pills,.search-wrap,.no-print{display:none!important}
   .content{overflow:visible}.page{padding:0}
@@ -186,12 +283,14 @@ tr:hover td{background:rgba(255,255,255,.025)}
   <!-- CONTENT -->
   <div class="content">
     <div class="topbar">
+      <button class="hamburger" id="hamburger" aria-label="Open menu">&#9776;</button>
       <span class="topbar-title" id="page-title">Import Entries</span>
       <div class="topbar-right" id="topbar-right"></div>
     </div>
     <div class="page" id="page"></div>
   </div>
 </div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
 <div id="modal-root"></div>
 <div class="toast" id="toast"></div>
 
@@ -1102,8 +1201,25 @@ function showPage(p){
 
 function mk(tag,cls){ var el=document.createElement(tag); if(cls) el.className=cls; return el; }
 
+// ── Mobile sidebar open/close ──────────────────────────────────
+function openSidebar(){
+  document.querySelector('.sidebar').classList.add('open');
+  document.getElementById('sidebar-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeSidebar(){
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+document.getElementById('hamburger').addEventListener('click', openSidebar);
+document.getElementById('sidebar-overlay').addEventListener('click', closeSidebar);
+
 document.querySelectorAll('.nav-item').forEach(function(el){
-  el.addEventListener('click',function(){ showPage(el.dataset.page); });
+  el.addEventListener('click',function(){
+    closeSidebar();
+    if(el.dataset.page) showPage(el.dataset.page);
+  });
 });
 
 // ═══════════════════════ PAGE: ENTRIES ═══════════════════════
@@ -1185,34 +1301,68 @@ function pgEntries(){
         ||(e.division||'').toLowerCase().indexOf(q)>-1||(e.memberNum||'').toLowerCase().indexOf(q)>-1;
       return dOk&&qOk;
     });
-    var t='<table><thead><tr><th>Back#</th><th>Rider</th><th>Horse</th><th>Assoc</th><th>Division</th><th>Classes</th><th>Fees</th><th>Status</th><th></th></tr></thead><tbody>';
-    if(!list.length) t+='<tr><td colspan="9" class="empty-state">No entries match</td></tr>';
-    list.forEach(function(e){
-      t+='<tr>'
-        +'<td class="ctr bold" style="width:50px">'
-        +'<input type="number" value="'+(G.backNums[e.rowIndex]||'')+'" placeholder="—" onchange="G.backNums['+e.rowIndex+']=this.value" style="width:48px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--accent);padding:2px 4px;text-align:center;font-size:.82rem">'
-        +'</td>'
-        +'<td><div class="bold">'+esc(e.name)+'</div><div class="small">'+esc(e.memberNum||'No # on file')+'</div></td>'
-        +'<td><div>'+esc(e.horse)+'</div><div class="small">'+esc(e.horseGender)+'</div></td>'
-        +'<td>'+assocTags(e.assocRaw)+'</td>'
-        +'<td>'+divBadge(e.division)+'</td>'
-        +'<td class="small">'+e.classes.map(function(c){ return '<span class="badge b-gray" style="margin:1px">'+esc(c.num||c.name.substring(0,8))+'</span>'; }).join('')+'</td>'
-        +'<td class="bold">'+fmt$(tabTotal(e))+'</td>'
-        +'<td>'+paidBadge(e)+'</td>'
-        +'<td><button class="btn btn-dark btn-sm gp-view-btn" data-rowidx="'+e.rowIndex+'">View</button></td>'
-        +'</tr>';
-    });
-    t+='</tbody></table>';
+    var isMobile=window.innerWidth<640;
+    var t='';
+    if(!list.length){
+      t='<div class="empty-state">No entries match</div>';
+    } else if(isMobile){
+      // Card layout for mobile
+      t=list.map(function(e){
+        var backNum=G.backNums[e.rowIndex]||'';
+        return '<div class="entry-card" data-rowidx="'+e.rowIndex+'">'
+          +'<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem">'
+          +'<input type="number" value="'+backNum+'" placeholder="#" onchange="G.backNums['+e.rowIndex+']=this.value;saveEntriesToStorage()" '
+          +'style="width:52px;background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--accent);padding:.3rem .4rem;text-align:center;font-size:1rem;font-weight:700">'
+          +'<div style="flex:1">'
+          +'<div style="font-weight:700;font-size:.95rem">'+esc(e.name)+'</div>'
+          +'<div style="font-size:.78rem;color:var(--muted)">'+esc(e.horse)+(e.memberNum?' &middot; '+esc(e.memberNum):'')+'</div>'
+          +'</div>'
+          +paidBadge(e)
+          +'</div>'
+          +'<div style="display:flex;flex-wrap:wrap;gap:.3rem;align-items:center">'
+          +divBadge(e.division)
+          +assocTags(e.assocRaw)
+          +'<span style="font-size:.78rem;color:var(--muted);margin-left:auto">'+fmt$(tabTotal(e))+'</span>'
+          +'</div>'
+          +'<div style="margin-top:.4rem;display:flex;gap:.25rem;flex-wrap:wrap">'
+          +e.classes.map(function(c){ return '<span class="badge b-gray">'+esc(c.num||c.name.substring(0,10))+'</span>'; }).join('')
+          +'</div>'
+          +'</div>';
+      }).join('');
+    } else {
+      // Full table for desktop/tablet
+      t='<table><thead><tr><th>Back#</th><th>Rider</th><th>Horse</th><th>Assoc</th><th>Division</th><th>Classes</th><th>Fees</th><th>Status</th><th></th></tr></thead><tbody>';
+      list.forEach(function(e){
+        t+='<tr>'
+          +'<td class="ctr bold" style="width:50px">'
+          +'<input type="number" value="'+(G.backNums[e.rowIndex]||'')+'" placeholder="—" onchange="G.backNums['+e.rowIndex+']=this.value" style="width:48px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--accent);padding:2px 4px;text-align:center;font-size:.82rem">'
+          +'</td>'
+          +'<td><div class="bold">'+esc(e.name)+'</div><div class="small">'+esc(e.memberNum||'No # on file')+'</div></td>'
+          +'<td><div>'+esc(e.horse)+'</div><div class="small">'+esc(e.horseGender)+'</div></td>'
+          +'<td>'+assocTags(e.assocRaw)+'</td>'
+          +'<td>'+divBadge(e.division)+'</td>'
+          +'<td class="small">'+e.classes.map(function(c){ return '<span class="badge b-gray" style="margin:1px">'+esc(c.num||c.name.substring(0,8))+'</span>'; }).join('')+'</td>'
+          +'<td class="bold">'+fmt$(tabTotal(e))+'</td>'
+          +'<td>'+paidBadge(e)+'</td>'
+          +'<td><button class="btn btn-dark btn-sm gp-view-btn" data-rowidx="'+e.rowIndex+'">View</button></td>'
+          +'</tr>';
+      });
+      t+='</tbody></table>';
+    }
     document.getElementById('et').innerHTML=t;
   }
   // Initial render via drawAndWirePills above
   document.getElementById('eq').addEventListener('input', function(){
     drawEntryTable();
   });
-  // Single delegated listener on parent - never duplicated on redraw
+  // Single delegated listener — handles table View button and mobile card tap
   document.getElementById('et').addEventListener('click', function(ev){
     var btn = ev.target.closest('.gp-view-btn');
-    if(btn) showEntryModal(parseInt(btn.dataset.rowidx));
+    if(btn){ showEntryModal(parseInt(btn.dataset.rowidx)); return; }
+    // Don't open modal if tapping the back# input
+    if(ev.target.tagName==='INPUT') return;
+    var card = ev.target.closest('.entry-card');
+    if(card) showEntryModal(parseInt(card.dataset.rowidx));
   });
 }
 
@@ -1549,21 +1699,21 @@ function pgResults(){
     +'</div>';
 
   html+='<div class="card">';
-  html+='<div class="card-title"><span>'+esc(G.resultsFile)+'</span>'
-    +'<div style="display:flex;gap:.4rem;align-items:center">'
+  html+='<div class="card-title res-card-head"><span>'+esc(G.resultsFile)+'</span>'
+    +'<div class="res-search-row" style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">'
     +'<input type="text" placeholder="Search rider or horse..." value="'+esc(_resSearch)+'" '
     +'oninput="_resSearch=this.value;pgResults()" '
     +'style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);'
     +'padding:.28rem .6rem;font-size:.78rem;width:185px">'
-    +'<button class="btn btn-dark btn-sm" id="res-load-sheets-btn" title="Select score sheet PDFs from the same folder">&#128196; Load Score Sheets</button>'
+    +'<button class="btn btn-dark btn-sm" id="res-load-sheets-btn" title="Select score sheet PDFs from the same folder">&#128196; Score Sheets</button>'
     +'<button class="btn btn-dark btn-sm" onclick="window.print()">&#128424;</button>'
-    +'<button class="btn btn-dark btn-sm" onclick="clearResults()">&#10005; Clear</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="clearResults()">&#10005;</button>'
     +'</div></div>';
 
   // ── SHOW SELECTOR (multi-show files only) ──
   if(showNames.length>1){
     html+='<div style="font-size:.68rem;color:var(--muted);margin-bottom:.3rem;letter-spacing:.08em;text-transform:uppercase">Show</div>';
-    html+='<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.85rem">';
+    html+='<div class="sel-row">';
     showNames.forEach(function(s){
       html+='<button class="btn btn-sm '+(s===_resSelShow?'btn-accent':'btn-dark')+'" '
         +'onclick="resSelShow(\''+s.replace(/'/g,"\\'")+'\')">'+esc(s)+'</button>';
@@ -1573,9 +1723,8 @@ function pgResults(){
 
   // ── LEVEL 1: Organization pills ──
   html+='<div style="font-size:.68rem;color:var(--muted);margin-bottom:.3rem;letter-spacing:.08em;text-transform:uppercase">Organization</div>';
-  html+='<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.85rem">';
+  html+='<div class="sel-row">';
   orgs.forEach(function(o){
-    var n=orgsFound[o]||0;
     html+='<button class="btn btn-sm '+(o===_resSelOrg?'btn-accent':'btn-dark')+'" '
       +'onclick="resSelOrg(\''+o.replace(/'/g,"\\'")+'\')">'
       +esc(o)+'</button>';
@@ -1585,7 +1734,7 @@ function pgResults(){
   if(_resSelOrg){
     // ── LEVEL 2: Division pills ──
     html+='<div style="font-size:.68rem;color:var(--muted);margin-bottom:.3rem;letter-spacing:.08em;text-transform:uppercase">Division</div>';
-    html+='<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.85rem">';
+    html+='<div class="sel-row">';
     divs.forEach(function(d){
       var rSet={};
       orgRows.filter(function(r){ return r.division===d; }).forEach(function(r){ if(r.rider) rSet[r.rider]=1; });
@@ -1619,7 +1768,7 @@ function pgResults(){
     if(_resSelClass&&!clsFound[_resSelClass]) _resSelClass=classes[0]||'';
 
     html+='<div style="font-size:.68rem;color:var(--muted);margin-bottom:.3rem;letter-spacing:.08em;text-transform:uppercase;border-top:1px solid var(--border);padding-top:.65rem">Class</div>';
-    html+='<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.85rem">';
+    html+='<div class="sel-row">';
     classes.forEach(function(c){
       html+='<button class="btn btn-sm '+(c===_resSelClass?'btn-accent':'btn-dark')+'" '
         +'onclick="resSelClass(\''+c.replace(/'/g,"\\'")+'\')">'+esc(c)+'</button>';
