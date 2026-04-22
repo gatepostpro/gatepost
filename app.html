@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- v20260422b -->
+<!DOCTYPE html><!-- v20260422d -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -632,9 +632,13 @@ function parseClassDivStr(raw){
     rest=n.replace(/^(?:level\s+1|l1)\s*(?:novice?)?\s*/i,'').trim();
   } else if(/jackpot/i.test(s)){
     org='Jackpot'; rest=n.replace(/\s*jackpot\s*/gi,' ').replace(/\s+/g,' ').trim();
-  } else if(/\bopen\s+schooling\b|^schooling\b/i.test(s)){
+  } else if(/\bopen\s+schooling\b/i.test(s)){
+    // "Open Schooling Trail" — strip the whole "Open Schooling" phrase, keep discipline
     org='CoWN'; forcedDiv='Open Schooling';
-    rest=n.replace(/\b(?:open\s+)?schooling\b/gi,'').replace(/\s+/g,' ').trim();
+    rest=n.replace(/\bopen\s+schooling\b/gi,'').replace(/\s+/g,' ').trim();
+  } else if(/^schooling\b/i.test(s)){
+    org='CoWN'; forcedDiv='Open Schooling';
+    rest=n.replace(/^schooling\s*/i,'').trim();
   } else {
     org='CoWN'; rest=n;
   }
@@ -648,6 +652,30 @@ function parseClassDivStr(raw){
 
   // Canonicalize division
   var div=forcedDiv!==null ? forcedDiv : (SHTX_DIV[divPart.toLowerCase()]||(divPart||'Open'));
+
+  // ── Discipline-based org fallback ────────────────────────────────────────
+  // If we assigned CoWN but the discipline isn't in CoWN's list, re-route to
+  // the correct org. This handles exports where Funnware omits the org prefix
+  // (e.g. "Open Ranch Trail" would otherwise land in CoWN).
+  if(org==='CoWN' && disc){
+    var cownDiscs=ORG_CLASSES.CoWN.disciplines;
+    if(cownDiscs.indexOf(disc)<0){
+      // Find the org whose discipline list contains this discipline
+      var orgKeys=Object.keys(ORG_CLASSES);
+      for(var oi=0;oi<orgKeys.length;oi++){
+        if(orgKeys[oi]==='CoWN'||orgKeys[oi]==='Jackpot') continue;
+        if(ORG_CLASSES[orgKeys[oi]].disciplines.indexOf(disc)>=0){
+          org=orgKeys[oi];
+          // Re-look up division in new org's context (same divPart)
+          var newOrgDivs=DIV_ORDER_BY_ORG[org]||[];
+          var remappedDiv=SHTX_DIV[divPart.toLowerCase()];
+          if(!remappedDiv) remappedDiv=newOrgDivs.indexOf(divPart)>=0?divPart:(newOrgDivs[0]||div);
+          div=remappedDiv;
+          break;
+        }
+      }
+    }
+  }
 
   return {org:org, division:div, discipline:disc||rest};
 }
@@ -1876,6 +1904,23 @@ function pgSettings(){
     +'<button class="stab" onclick="showStab(\'classes\',this)">&#127891; Classes</button>'
     +'<button class="stab" onclick="showStab(\'orgs\',this)">&#127981; Organizations</button>'
     +'<button class="stab" onclick="showStab(\'mapper\',this)">&#8644; Column Mapper</button>'
+    +'<button class="stab" onclick="showStab(\'parser\',this)">&#128270; Parser Test</button>'
+    +'</div>'
+    // ── PARSER TEST ──
+    +'<div class="ssec" id="ss-parser">'
+    +settingsCard('Class String Parser Test','Paste any raw SHTX ClassDivision string to see how Gatepost parses it',
+      '<div style="display:flex;gap:.5rem;align-items:flex-start;flex-wrap:wrap">'
+      +'<input id="parser-input" class="search-box" style="flex:1;min-width:260px;padding:.5rem .7rem" placeholder="e.g. Open Schooling Trail, VRH Amateur Reining, Collegiate Non-Pro Cow...">'
+      +'<button class="btn btn-accent btn-sm" onclick="testParser()">Parse</button>'
+      +'</div>'
+      +'<div id="parser-result" style="margin-top:.75rem;font-size:.85rem"></div>'
+      +'<div style="margin-top:1rem;font-size:.78rem;color:var(--muted)">'
+      +'<strong style="color:var(--text)">CoWN disciplines:</strong> Cow, Reining, Trail, Pleasure &nbsp;|&nbsp; '
+      +'<strong style="color:var(--text)">VRH:</strong> Cutting, Cow, Reining, Trail, Pleasure, Conformation &nbsp;|&nbsp; '
+      +'<strong style="color:var(--text)">AQHA Ranch:</strong> Ranch Trail, Ranch Riding, Working Western Rail &nbsp;|&nbsp; '
+      +'<strong style="color:var(--text)">APHA:</strong> Cow Horse, Ranch Riding, Reining, Trail, Pleasure, Conformation'
+      +'</div>'
+    )
     +'</div>'
 
     // ── FINANCES ──
@@ -1987,6 +2032,29 @@ function showStab(id,btn){
   document.getElementById('ss-'+id).classList.add('active');
   btn.classList.add('active');
 }
+
+window.testParser = function(){
+  var raw = (document.getElementById('parser-input')||{value:''}).value.trim();
+  var el = document.getElementById('parser-result');
+  if(!raw){ el.innerHTML='<span style="color:var(--muted)">Enter a string above.</span>'; return; }
+  var result = parseClassDivStr(raw);
+  var orgOk = ORG_CLASSES[result.org];
+  var divOk = orgOk && DIV_ORDER_BY_ORG[result.org] && DIV_ORDER_BY_ORG[result.org].indexOf(result.division)>=0;
+  var discOk = orgOk && ORG_CLASSES[result.org].disciplines.indexOf(result.discipline)>=0;
+  function pill(val, ok){
+    return '<span style="display:inline-block;padding:3px 10px;border-radius:5px;font-family:Oswald;font-size:.95rem;margin-right:.5rem;'
+      +'background:'+(ok?'rgba(39,174,96,.15)':'rgba(231,76,60,.15)')+';color:'+(ok?'var(--green)':'var(--red)')+'">'+esc(val||'(empty)')+'</span>';
+  }
+  el.innerHTML='<div style="margin-bottom:.4rem"><strong>Org:</strong> '+pill(result.org, !!orgOk)
+    +'<strong>Division:</strong> '+pill(result.division, divOk)
+    +'<strong>Discipline:</strong> '+pill(result.discipline, discOk)+'</div>'
+    +((!orgOk||!divOk||!discOk)?'<div style="color:var(--red);font-size:.78rem">&#9888; '
+      +(!orgOk?'Unknown org. ':'')
+      +(!divOk&&orgOk?'"'+esc(result.division)+'" is not a known '+esc(result.org)+' division. ':'')
+      +(!discOk&&orgOk?'"'+esc(result.discipline)+'" is not a '+esc(result.org)+' discipline. ':'')
+      +'</div>':'')
+    +'<div style="color:var(--muted);font-size:.73rem;margin-top:.3rem">Raw: "'+esc(raw)+'"</div>';
+};
 
 // ── Settings helpers ──
 function settingsCard(title, sub, body){
