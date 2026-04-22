@@ -222,6 +222,7 @@ var G = {
       classBase:30, cowSurcharge:15, jackpot:0, addedMoney:0
     },
     classes:[],      // [{_id,num,name,division,org,isCow,baseFee,cowFee,jackpot,addedMoney}]
+    aaMoney:{},      // "org|div" → [1stPrize, 2ndPrize, 3rdPrize, 4thPrize, 5thPrize] — All Around prize money
     colMap:{},       // colIndex -> role string
     orgs:['CoWN']    // associations this show runs
   }
@@ -242,11 +243,15 @@ function extractDivName(h){
 
 function detectOrg(h){
   var s = String(h||'').toLowerCase();
-  if(/aqha/.test(s)) return 'AQHA';
+  if(/vrh|versatility/.test(s)) return 'VRH';
+  if(/rhc|ranch\s*heritage/.test(s)) return 'AQHA RHC';
+  if(/aqha\s*ranch|ranch\s*riding|ranch\s*trail|working\s*western/.test(s)) return 'AQHA Ranch';
+  if(/aqha/.test(s)) return 'AQHA Ranch'; // generic AQHA → AQHA Ranch
   if(/apha/.test(s)) return 'APHA';
-  if(/nhsra/.test(s)) return 'NHSRA';
+  if(/nhsra|whsr|high\s*school/.test(s)) return 'WHSR';
   if(/cown|cow\s*n/i.test(s)) return 'CoWN';
-  return 'Other';
+  if(/jackpot/.test(s)) return 'Jackpot';
+  return 'CoWN'; // default to CoWN (most common at these shows)
 }
 
 function assocTags(raw){
@@ -1635,9 +1640,9 @@ function pgResults(){
         return 0;
       });
 
-      // Prize money for this org|div
+      // Prize money: prefer G.cfg.aaMoney (set in Classes tab) over G.aaMoney (set in Results)
       var aaMoneyKey=_resSelOrg+'|'+_resSelDiv;
-      var prizes=G.aaMoney[aaMoneyKey]||[0,0,0,0,0];
+      var prizes=(G.cfg.aaMoney&&G.cfg.aaMoney[aaMoneyKey])||G.aaMoney[aaMoneyKey]||[0,0,0,0,0];
 
       // ── Prize money config bar ──
       var _amEsc=aaMoneyKey.replace(/'/g,"\\'");
@@ -2156,14 +2161,10 @@ function pgSettings(){
 
     // ── FINANCES ──
     +'<div class="ssec active" id="ss-finances">'
-    +settingsCard('Show Information','',
-      formRow([fg('Show Name','cfg-show-name','text','e.g. CoWN Summerfest 2025'),fg('Show Date','cfg-show-date','date'),fg('Location','cfg-show-location','text','Venue')])
-      +formRow([fg('Secretary','cfg-secretary','text'),fg('Contact Email','cfg-email','email')])
-      +'<div class="form-row"><div class="form-group"><label>Show Status</label>'
-      +'<select id="cfg-show-status"><option value="setup">Setup</option><option value="entries_open">Entries Open</option><option value="entries_closed">Entries Closed</option><option value="running">Running Now</option><option value="complete">Complete</option></select></div>'
-      +'<div class="form-group"><label>Back to Show List</label>'
-      +'<button class="btn btn-dark btn-sm" onclick="goToIndex()">&#8592; All Shows</button></div></div>'
-    )
+    +'<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;font-size:.82rem;color:var(--muted)">'
+    +'&#9432; Show name, date, and secretary are configured on the '
+    +'<button class="btn btn-dark btn-sm" onclick="showPage(\'setup\')" style="font-size:.8rem">Setup</button> tab.'
+    +'</div>'
     +settingsCard('Stalling Fees','Applied per-night per stall',
       formRow([pFg('Stall — 1 Night','fee-stall1',40),pFg('Stall — 2 Nights','fee-stall2',80),pFg('Stall — 3 Nights','fee-stall3',120),pFg('Stall — Circuit','fee-stall-circuit',150)])
       +formRow([pFg('Shavings/bag','fee-shavings',12),pFg('RV — 1 Night','fee-rv1',40),pFg('RV — 2 Nights','fee-rv2',80),pFg('RV — Circuit','fee-rv-circuit',110)])
@@ -2206,6 +2207,11 @@ function pgSettings(){
     +'</tr></thead><tbody id="cfg-cls-tbody">'
     +'<tr><td colspan="11" class="empty-state">No classes loaded yet.</td></tr>'
     +'</tbody></table></div></div>'
+    // ── All Around Prize Money ──
+    +'<div class="card" id="aa-prize-cfg">'
+    +'<div class="card-title">All Around Prize Money <small style="color:var(--muted)">Per-division, shown on Results &rarr; Points Summary</small></div>'
+    +'<div id="aa-prize-body"><p style="font-size:.83rem;color:var(--muted)">No All Around-enabled orgs found. Enable All Around in the Organizations tab.</p></div>'
+    +'</div>'
     +'</div>'
 
     // ── ORGS ──
@@ -2243,6 +2249,24 @@ function showStab(id,btn){
   document.getElementById('ss-'+id).classList.add('active');
   btn.classList.add('active');
   if(id==='orgs') renderOrgEditor();
+  if(id==='mapper') tryRestoreMapper();
+}
+
+function tryRestoreMapper(){
+  // If no file has been dropped yet but we have saved headers, restore the UI
+  var out=document.getElementById('mapper-out');
+  if(!out||!out.classList.contains('hidden')) return; // already showing
+  if(G.cfg.mapHeaders&&G.cfg.mapHeaders.length&&Object.keys(G.cfg.colMap||{}).length){
+    MAP_HEADERS=G.cfg.mapHeaders.slice();
+    ACTIVE_MAP=Object.assign({},G.cfg.colMap);
+    buildMapperUI();
+    // Show a note that this is the saved map
+    var note=document.createElement('div');
+    note.style.cssText='font-size:.78rem;color:var(--muted);margin-bottom:.5rem';
+    note.innerHTML='&#10003; Showing saved column map from last import. Drop a new file to update.';
+    var firstCard=document.querySelector('#mapper-out .card');
+    if(firstCard) firstCard.parentNode.insertBefore(note, firstCard);
+  }
 }
 
 window.testParser = function(){
@@ -2297,14 +2321,13 @@ function loadOrgConfig(){
   } catch(e){ console.warn('Could not load org config:', e); }
 }
 
-function saveOrgConfig(){
+function saveOrgConfig(silent){
   try{
     var toSave=JSON.parse(JSON.stringify(ORG_CLASSES));
     toSave._v=ORG_CONFIG_VERSION;
     localStorage.setItem('gp_org_classes', JSON.stringify(toSave));
-    // Rebuild DIV_ORDER_BY_ORG
     Object.keys(ORG_CLASSES).forEach(function(k){ DIV_ORDER_BY_ORG[k]=ORG_CLASSES[k].divisions; });
-    showToast('Association structure saved.');
+    if(!silent) toast('Association structure saved.');
   } catch(e){ alert('Save failed: '+e.message); }
 }
 
@@ -2473,7 +2496,8 @@ function renderOrgEditor(){
 
   root.innerHTML=tabBar
     +'<div class="card">'
-    +'<div class="card-title">'+esc(sel)+' <small style="font-size:.72rem;color:var(--muted)">'+cfg.divisions.length+' divisions &mdash; '+cfg.disciplines.length+' disciplines</small></div>'
+    +'<div class="card-title">'+esc(sel)+' <small style="font-size:.72rem;color:var(--muted)">'+cfg.divisions.length+' divisions &mdash; '+cfg.disciplines.length+' disciplines</small>'
+    +'<span style="float:right;font-size:.7rem;color:var(--green);font-weight:400">&#10003; auto-saved</span></div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">'
     +'<div>'+divCol+'</div>'
     +'<div>'+discCol+'</div>'
@@ -2482,12 +2506,11 @@ function renderOrgEditor(){
     +danger
     +'</div>'
     +'<div class="btn-row">'
-    +'<button class="btn btn-accent" onclick="saveOrgConfig()">&#10003; Save Changes</button>'
     +'<button class="btn btn-dark btn-sm" onclick="resetOrgConfig()">&#8635; Reset to Defaults</button>'
     +'</div>';
 }
 
-window.orgEdSelOrg=function(o){ _orgEdSel=o; renderOrgEditor(); };
+window.orgEdSelOrg=function(o){ saveOrgConfig(true); _orgEdSel=o; renderOrgEditor(); };
 
 window.orgEdAddOrg=function(){
   var name=prompt('Abbreviation for new org (e.g. NSBA):');
@@ -2498,7 +2521,7 @@ window.orgEdAddOrg=function(){
   DIV_ORDER_BY_ORG[name]=['Open'];
   if(ORG_ORDER.indexOf(name)<0) ORG_ORDER.push(name);
   _orgEdSel=name;
-  renderOrgEditor();
+  saveOrgConfig(true); renderOrgEditor();
 };
 
 window.orgEdRemoveOrg=function(o){
@@ -2509,7 +2532,7 @@ window.orgEdRemoveOrg=function(o){
   var idx=ORG_ORDER.indexOf(o);
   if(idx>=0) ORG_ORDER.splice(idx,1);
   _orgEdSel='CoWN';
-  renderOrgEditor();
+  saveOrgConfig(true); renderOrgEditor();
 };
 
 window.orgEdRenameOrg=function(o){
@@ -2525,23 +2548,15 @@ window.orgEdRenameOrg=function(o){
   var idx=ORG_ORDER.indexOf(o);
   if(idx>=0) ORG_ORDER[idx]=newName; else ORG_ORDER.push(newName);
   _orgEdSel=newName;
-  renderOrgEditor();
-};
-
-window.orgEdSetAAMin=function(o,val){
-  if(!ORG_CLASSES[o]) return;
-  var n=parseInt(val,10);
-  if(isNaN(n)||n<1) return;
-  ORG_CLASSES[o].aaMinClasses=Math.min(n, (ORG_CLASSES[o].disciplines||[]).length);
+  saveOrgConfig(true); renderOrgEditor();
 };
 
 window.orgEdAddAaReqGroup=function(o,disc){
   if(!disc||!ORG_CLASSES[o]) return;
   if(!ORG_CLASSES[o].aaRequired) ORG_CLASSES[o].aaRequired=[];
-  // Convert flat array (legacy) to array-of-arrays
   ORG_CLASSES[o].aaRequired=normalizeAaReq(ORG_CLASSES[o].aaRequired);
   ORG_CLASSES[o].aaRequired.push([disc]);
-  renderOrgEditor();
+  saveOrgConfig(true); renderOrgEditor();
 };
 window.orgEdAddAaReqOption=function(o,groupIdx,disc){
   if(!disc||!ORG_CLASSES[o]) return;
@@ -2549,7 +2564,7 @@ window.orgEdAddAaReqOption=function(o,groupIdx,disc){
   var grp=ORG_CLASSES[o].aaRequired[groupIdx];
   if(!grp) return;
   if(grp.indexOf(disc)<0) grp.push(disc);
-  renderOrgEditor();
+  saveOrgConfig(true); renderOrgEditor();
 };
 window.orgEdRemoveAaReqOption=function(o,groupIdx,optIdx){
   if(!ORG_CLASSES[o]) return;
@@ -2558,13 +2573,13 @@ window.orgEdRemoveAaReqOption=function(o,groupIdx,optIdx){
   if(!grp) return;
   grp.splice(optIdx,1);
   if(grp.length===0) ORG_CLASSES[o].aaRequired.splice(groupIdx,1);
-  renderOrgEditor();
+  saveOrgConfig(true); renderOrgEditor();
 };
 window.orgEdRemoveAaReqGroup=function(o,groupIdx){
   if(!ORG_CLASSES[o]) return;
   ORG_CLASSES[o].aaRequired=normalizeAaReq(ORG_CLASSES[o].aaRequired||[]);
   ORG_CLASSES[o].aaRequired.splice(groupIdx,1);
-  renderOrgEditor();
+  saveOrgConfig(true); renderOrgEditor();
 };
 
 window.orgEdAddDiv=function(o){
@@ -2575,14 +2590,14 @@ window.orgEdAddDiv=function(o){
   if(ORG_CLASSES[o].divisions.indexOf(val)>=0){alert('"'+val+'" already exists.'); return;}
   ORG_CLASSES[o].divisions.push(val);
   DIV_ORDER_BY_ORG[o]=ORG_CLASSES[o].divisions;
-  renderOrgEditor();
+  saveOrgConfig(true); renderOrgEditor();
 };
 
 window.orgEdRemoveDiv=function(o,i){
   if(!ORG_CLASSES[o]) return;
   ORG_CLASSES[o].divisions.splice(i,1);
   DIV_ORDER_BY_ORG[o]=ORG_CLASSES[o].divisions;
-  renderOrgEditor();
+  saveOrgConfig(true); renderOrgEditor();
 };
 
 window.orgEdMoveDiv=function(o,i,dir){
@@ -2592,7 +2607,7 @@ window.orgEdMoveDiv=function(o,i,dir){
   if(j<0||j>=arr.length) return;
   var tmp=arr[i]; arr[i]=arr[j]; arr[j]=tmp;
   DIV_ORDER_BY_ORG[o]=arr;
-  renderOrgEditor();
+  saveOrgConfig(true); renderOrgEditor();
 };
 
 window.orgEdAddDisc=function(o){
@@ -2603,14 +2618,14 @@ window.orgEdAddDisc=function(o){
   if(ORG_CLASSES[o].disciplines.indexOf(val)>=0){alert('"'+val+'" already exists.'); return;}
   ORG_CLASSES[o].disciplines.push(val);
   if(ORG_CLASSES[o].allAround) ORG_CLASSES[o].aaTiebreak=ORG_CLASSES[o].disciplines.slice();
-  renderOrgEditor();
+  saveOrgConfig(true); renderOrgEditor();
 };
 
 window.orgEdRemoveDisc=function(o,i){
   if(!ORG_CLASSES[o]) return;
   ORG_CLASSES[o].disciplines.splice(i,1);
   if(ORG_CLASSES[o].allAround) ORG_CLASSES[o].aaTiebreak=ORG_CLASSES[o].disciplines.slice();
-  renderOrgEditor();
+  saveOrgConfig(true); renderOrgEditor();
 };
 
 window.orgEdMoveDisc=function(o,i,dir){
@@ -2620,7 +2635,7 @@ window.orgEdMoveDisc=function(o,i,dir){
   if(j<0||j>=arr.length) return;
   var tmp=arr[i]; arr[i]=arr[j]; arr[j]=tmp;
   if(ORG_CLASSES[o].allAround) ORG_CLASSES[o].aaTiebreak=arr.slice();
-  renderOrgEditor();
+  saveOrgConfig(true); renderOrgEditor();
 };
 
 window.orgEdSetAA=function(o){
@@ -2635,12 +2650,21 @@ window.orgEdSetAA=function(o){
   } else {
     ORG_CLASSES[o].aaTiebreak=[];
   }
-  renderOrgEditor();
+  saveOrgConfig(true); renderOrgEditor();
 };
 
 window.orgEdSetPts=function(o,val){
   if(!ORG_CLASSES[o]) return;
   ORG_CLASSES[o].pointsSystem=val;
+  saveOrgConfig(true);
+};
+
+window.orgEdSetAAMin=function(o,val){
+  if(!ORG_CLASSES[o]) return;
+  var n=parseInt(val,10);
+  if(isNaN(n)||n<1) return;
+  ORG_CLASSES[o].aaMinClasses=Math.min(n, (ORG_CLASSES[o].disciplines||[]).length);
+  saveOrgConfig(true);
 };
 
 // ── Settings helpers ──
@@ -2666,9 +2690,14 @@ function orgRow(id,name,hasDrug){
 }
 
 function setupFeeListeners(){
-  ['fee-class-base','fee-cow-surcharge','fee-jackpot'].forEach(function(id){
+  // All fee fields — update strip + class totals on any change
+  var feeIds=['fee-class-base','fee-cow-surcharge','fee-jackpot','fee-added-money',
+    'fee-stall1','fee-stall2','fee-stall3','fee-stall-circuit','fee-shavings',
+    'fee-rv1','fee-rv2','fee-rv-circuit','fee-office','fee-membership-1yr',
+    'fee-membership-3yr','fee-membership-life','fee-day-license','fee-late','fee-horse-license'];
+  feeIds.forEach(function(id){
     var el=document.getElementById(id);
-    if(el) el.addEventListener('input',updateFeeStrip);
+    if(el) el.addEventListener('input',function(){ updateFeeStrip(); renderCfgClassTable(); });
   });
   updateFeeStrip();
 }
@@ -2714,7 +2743,7 @@ function renderCfgClassTable(){
         +'<td><input type="text" value="'+escH(c.name)+'" onchange="updCls(\''+c._id+'\',\'name\',this.value)"></td>'
         +'<td><input type="text" value="'+escH(c.division||'')+'" onchange="updCls(\''+c._id+'\',\'division\',this.value)"></td>'
         +'<td><select onchange="updCls(\''+c._id+'\',\'org\',this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px;font-size:.78rem;width:100%">'
-        +['CoWN','AQHA','APHA','NHSRA','Other'].map(function(o){ return '<option value="'+o+'"'+(c.org===o?' selected':'')+'>'+o+'</option>'; }).join('')
+        +ORG_ORDER.concat(['Other']).map(function(o){ return '<option value="'+o+'"'+(c.org===o?' selected':'')+'>'+o+'</option>'; }).join('')
         +'</select></td>'
         +'<td style="text-align:center"><input type="checkbox"'+(c.isCow?' checked':'')+' onchange="updCls(\''+c._id+'\',\'isCow\',this.checked);refreshCfgRow(\''+c._id+'\')"></td>'
         +'<td>'+feeInp(c._id,'baseFee',c.baseFee,'30')+'</td>'
@@ -2727,7 +2756,56 @@ function renderCfgClassTable(){
     });
   });
   tbody.innerHTML=html;
+  renderAAPrizeCfg();
 }
+
+function renderAAPrizeCfg(){
+  var root=document.getElementById('aa-prize-body');
+  if(!root) return;
+  // Find all orgs with allAround enabled
+  var aaOrgs=ORG_ORDER.filter(function(o){ return ORG_CLASSES[o]&&ORG_CLASSES[o].allAround; });
+  if(!aaOrgs.length){
+    root.innerHTML='<p style="font-size:.83rem;color:var(--muted)">No All Around-enabled orgs. Enable All Around in the Organizations tab.</p>';
+    return;
+  }
+  // Get divisions actually present in classes
+  var classedDivs={}; // org → Set of divisions
+  G.cfg.classes.forEach(function(c){
+    var o=c.org||'CoWN';
+    if(!classedDivs[o]) classedDivs[o]=[];
+    if(c.division&&classedDivs[o].indexOf(c.division)<0) classedDivs[o].push(c.division);
+  });
+  var labels=['1st','2nd','3rd','4th','5th'];
+  var html='';
+  aaOrgs.forEach(function(o){
+    var divs=classedDivs[o]||(ORG_CLASSES[o].divisions||['Open']);
+    divs.forEach(function(div){
+      if(!div) return;
+      var key=o+'|'+div;
+      var prizes=(G.cfg.aaMoney||{})[key]||[0,0,0,0,0];
+      html+='<div style="display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">'
+        +'<span style="font-size:.85rem;font-weight:600;min-width:160px;color:var(--text)">'+esc(o)+' '+esc(div)+'</span>';
+      labels.forEach(function(lbl,i){
+        html+='<label style="display:flex;align-items:center;gap:.25rem;font-size:.8rem;color:var(--muted)">'+lbl+' <span style="color:var(--text)">$</span>'
+          +'<input type="number" min="0" step="1" value="'+(prizes[i]||0)+'" '
+          +'onchange="updAAPrize(\''+key.replace(/'/g,"\\'")+'\','+i+',this.value)" '
+          +'style="width:4.5rem;background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:.18rem .28rem;font-size:.8rem"></label>';
+      });
+      html+='</div>';
+    });
+  });
+  if(!html) html='<p style="font-size:.83rem;color:var(--muted)">Import entries or add classes first to see divisions here.</p>';
+  root.innerHTML=html;
+}
+
+window.updAAPrize=function(key,idx,val){
+  if(!G.cfg.aaMoney) G.cfg.aaMoney={};
+  if(!G.cfg.aaMoney[key]) G.cfg.aaMoney[key]=[0,0,0,0,0];
+  G.cfg.aaMoney[key][idx]=parseFloat(val)||0;
+  // Mirror into G.aaMoney so Results page picks it up live
+  if(!G.aaMoney) G.aaMoney={};
+  G.aaMoney[key]=G.cfg.aaMoney[key].slice();
+};
 
 function feeInp(id,field,val,ph,disabled){
   return '<input type="number" value="'+(val!==null&&val!==undefined?val:'')+'" placeholder="'+ph+'" min="0" step="1"'
@@ -2925,7 +3003,7 @@ function buildMapperUI(){
         +'<td>'+(isCow?'<span class="badge b-cow">Cow Count</span>':'<span class="badge b-blue">Class Entries</span>')+'</td>'
         +'<td>'+(isCow?'<span class="badge b-gray">—</span>':'<input type="text" value="'+escH(div)+'" onchange="ACTIVE_MAP['+i+']=\'div_classes:\'+this.value" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 7px;font-size:.78rem;width:100%">')+'</td>'
         +'<td><select onchange="ACTIVE_MAP['+i+']=ACTIVE_MAP['+i+'].split(\':\')[0]+\':\'+ACTIVE_MAP['+i+'].split(\':\')[1]+\':org:\'+this.value" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px;font-size:.78rem">'
-        +['CoWN','AQHA','APHA','NHSRA','Other'].map(function(o){ return '<option value="'+o+'"'+(o===org?' selected':'')+'>'+o+'</option>'; }).join('')
+        +ORG_ORDER.concat(['Other']).map(function(o){ return '<option value="'+o+'"'+(o===org?' selected':'')+'>'+o+'</option>'; }).join('')
         +'</select></td></tr>';
     }
   });
@@ -2975,6 +3053,8 @@ function mapSelect(roleId,label,detectedIdx,autoDetected){
 
 function saveMapping(){
   G.cfg.colMap=Object.assign({},ACTIVE_MAP);
+  G.cfg.mapHeaders=MAP_HEADERS.slice();
+  try{ localStorage.setItem('gatepost_cfg',JSON.stringify(G.cfg)); } catch(e){}
   toast('Column mapping saved — '+Object.keys(ACTIVE_MAP).length+' columns mapped');
 };
 
