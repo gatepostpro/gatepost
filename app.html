@@ -1644,6 +1644,7 @@ function pgClasses(){
         +'</div>'
         +'<div style="display:flex;gap:.4rem;align-items:center">'
         +'<span class="badge b-blue">'+activeCount+' going'+(scratchCount?' &middot; '+scratchCount+' scratched':'')+'</span>'
+        +'<button class="btn btn-dark btn-sm no-print" onclick="printGoSheets(\''+key.replace(/'/g,"\\'")+'\')">&#128424;</button>'
         +'</div>'
         +'</div>'
         +'<div id="rows-'+key.replace(/[^a-zA-Z0-9]/g,'_')+'">'+rows+'</div>'
@@ -1655,7 +1656,7 @@ function pgClasses(){
   drawClassLists();
 }
 
-window.printGoSheets=function(){
+window.printGoSheets=function(onlyKey){
   var classMap={};
   G.entries.forEach(function(e){
     e.classes.forEach(function(cls){
@@ -1665,6 +1666,7 @@ window.printGoSheets=function(){
     });
   });
   var sorted=Object.values(classMap).sort(function(a,b){ return (parseInt(a.num)||999)-(parseInt(b.num)||999); });
+  if(onlyKey) sorted=sorted.filter(function(c){ return c.key===onlyKey; });
   var showName=G.cfg.showName||G.showName||'Show';
   var showDate=G.cfg.showDate||'';
 
