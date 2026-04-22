@@ -1035,19 +1035,25 @@ function pgResults(){
   if(!G.results||!G.results.length){
     pg.innerHTML='<div class="card">'
       +'<div class="card-title">Import Results</div>'
-      +'<div id="res-drop-zone" style="border:2px dashed var(--border2);border-radius:10px;padding:3rem;text-align:center;transition:border-color .15s">'
+      +'<div id="res-drop-zone" style="border:2px dashed var(--border2);border-radius:10px;padding:3rem;text-align:center;cursor:pointer;transition:border-color .15s">'
       +'<div style="font-size:2rem;margin-bottom:.5rem">&#128196;</div>'
       +'<div style="font-family:Oswald;color:var(--accent);font-size:1.1rem;margin-bottom:.35rem">Drop SHTX File Here</div>'
       +'<div style="font-size:.82rem;color:var(--muted);margin-bottom:1rem">Funnware .xlsx or tab-delimited .txt export</div>'
-      +'<label class="btn btn-accent" for="res-file-input" style="cursor:pointer">Choose File</label>'
-      +'<input type="file" id="res-file-input" accept=".xlsx,.xls,.txt,.csv" style="display:none">'
+      +'<button class="btn btn-accent" id="res-choose-btn">Choose File</button>'
       +'</div>'
       +'<div id="res-import-err" class="err" style="margin-top:.5rem"></div>'
       +'</div>';
-    setupResultsDrop('res-drop-zone');
-    document.getElementById('res-file-input').addEventListener('change',function(e){
+    // Create file input outside the DOM tree to avoid display:none issues
+    var inp=document.createElement('input');
+    inp.type='file'; inp.accept='.xlsx,.xls,.txt,.csv';
+    inp.addEventListener('change',function(e){
       var f=e.target.files[0]; if(f) handleResultsFile(f);
     });
+    document.getElementById('res-choose-btn').addEventListener('click',function(){ inp.click(); });
+    document.getElementById('res-drop-zone').addEventListener('click',function(e){
+      if(e.target.id!=='res-choose-btn') inp.click();
+    });
+    setupResultsDrop('res-drop-zone');
     return;
   }
 
