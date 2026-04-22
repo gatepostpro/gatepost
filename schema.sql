@@ -528,5 +528,76 @@ create policy "allow_all_for_now" on back_numbers     for all using (true) with 
 create policy "allow_all_for_now" on users            for all using (true) with check (true);
 
 -- ============================================================
+-- SHOW RESULTS
+-- Stores imported SHTX/Funnware result rows, one per competitor
+-- per class. Does not require member/horse UUID linkage — name
+-- strings from the export are sufficient; link to members/horses
+-- later when matched.
+-- ============================================================
+create table show_results (
+  id              uuid primary key default uuid_generate_v4(),
+  show_id         uuid references shows(id) on delete cascade,
+  association_id  uuid references associations(id),
+
+  -- Parsed from Funnware ClassDivision compound string
+  org             text not null,        -- 'CoWN','VRH','Collegiate','High School'
+  division        text not null,        -- 'Open','Non-Pro','Ltd Non-Pro','Youth'
+  discipline      text not null,        -- 'Reining','Trail','Working Cow','All Around'
+  raw_class       text,                 -- original ClassDivision string verbatim
+
+  -- Competitor (name-based; link to member/horse records later)
+  rider_name      text,
+  horse_name      text,
+  owner_name      text,
+  rider_shtx_num  text,
+
+  -- Optional soft links to Gatepost records
+  member_id       uuid references members(id) on delete set null,
+  horse_id        uuid references horses(id) on delete set null,
+
+  -- Class stats
+  entries_count   int,
+  added_money     numeric(8,2) default 0,
+
+  -- Result
+  go_round        text,
+  score           numeric(8,3),
+  "placing"       int,
+  points          numeric(8,3) default 0,
+  money_earned    numeric(8,2) default 0,
+
+  source          text default 'shtx_import',  -- 'shtx_import','manual'
+  imported_at     timestamptz default now(),
+  created_at      timestamptz default now()
+);
+
+create index idx_show_results_show   on show_results(show_id);
+create index idx_show_results_class  on show_results(show_id, org, division, discipline);
+create index idx_show_results_rider  on show_results(show_id, rider_name);
+create index idx_show_results_member on show_results(member_id) where member_id is not null;
+
+alter table show_results enable row level security;
+create policy "allow_all_for_now" on show_results for all using (true) with check (true);
+
+-- ============================================================
+-- ALTER POINTS
+-- Add org + discipline columns so CoWN Open Reining and
+-- VRH Amateur Ranch Reining are separate standing rows.
+-- Run these as ALTER statements against an existing DB;
+-- if rebuilding from scratch the columns are included above.
+-- ============================================================
+alter table points
+  add column if not exists org        text not null default 'CoWN',
+  add column if not exists discipline text not null default 'All Around';
+
+drop index if exists idx_points_unique;
+create unique index idx_points_unique
+  on points(member_id, horse_id, association_id, season_year, org, division, discipline);
+
+drop index if exists idx_points_standings;
+create index idx_points_standings
+  on points(association_id, season_year, org, division, total_points desc);
+
+-- ============================================================
 -- DONE
 -- ============================================================
