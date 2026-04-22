@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- v20260421012324 -->
+<!DOCTYPE html><!-- v20260422 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -158,25 +158,27 @@ tr:hover td{background:rgba(255,255,255,.025)}
 <div class="shell">
   <!-- SIDEBAR -->
   <div class="sidebar">
-    <div class="sidebar-logo"><h1>GATEPOST</h1><span>SHOW MANAGEMENT</span></div>
+    <div class="sidebar-logo"><h1>GATEPOST<span style="color:var(--accent);font-size:.65em;vertical-align:super;margin-left:2px">PRO</span></h1><span>SHOW MANAGEMENT</span></div>
     <div class="show-pill" id="show-pill">
-      <div class="sp-name">No show loaded</div>
-      <div class="sp-meta">Import a Cognito file to begin</div>
+      <div class="sp-name" id="pill-name">No show loaded</div>
+      <div class="sp-meta" id="pill-meta">Select or create a show to begin</div>
     </div>
     <nav class="nav">
-      <div class="nav-section">Show Day</div>
-      <div class="nav-item active" data-page="import"><span class="ico">&#8679;</span> Import Entries</div>
-      <div class="nav-item" data-page="entries"><span class="ico">&#9776;</span> All Entries</div>
-      <div class="nav-item" data-page="classes"><span class="ico">&#127891;</span> Class Lists</div>
+      <div class="nav-section">Show</div>
+      <div class="nav-item active" data-page="setup"><span class="ico">&#9881;</span> Setup</div>
+      <div class="nav-item" data-page="entries"><span class="ico">&#9776;</span> Entries</div>
+      <div class="nav-item" data-page="classes"><span class="ico">&#127891;</span> Classes</div>
       <div class="nav-item" data-page="tabs"><span class="ico">&#36;</span> Tabs &amp; Payments</div>
       <div class="nav-item" data-page="stalls"><span class="ico">&#127968;</span> Stalls &amp; RV</div>
       <div class="nav-section">Results</div>
-      <div class="nav-item" data-page="results"><span class="ico">&#127942;</span> Enter Results</div>
-      <div class="nav-item" data-page="points"><span class="ico">&#9733;</span> Points</div>
-      <div class="nav-section">Configuration</div>
-      <div class="nav-item" data-page="settings"><span class="ico">&#9881;</span> Show Management</div>
+      <div class="nav-item" data-page="results"><span class="ico">&#127942;</span> Results</div>
+      <div class="nav-item" data-page="publish"><span class="ico">&#8679;</span> Publish</div>
+      <div class="nav-section">Admin</div>
+      <div class="nav-item" data-page="settings"><span class="ico">&#128736;</span> Settings</div>
+      <div class="nav-section">Hub</div>
+      <div class="nav-item" onclick="window.open('season.html','_blank')" style="cursor:pointer"><span class="ico">&#127942;</span> Season Hub &#8599;</div>
     </nav>
-    <div class="sidebar-footer">Gatepost v0.2 &mdash; CoWN Edition</div>
+    <div class="sidebar-footer">Gatepost Pro &mdash; <span id="assoc-footer">CoWN Edition</span></div>
   </div>
 
   <!-- CONTENT -->
@@ -385,6 +387,13 @@ var SHTX_DISCS = [
   [/\breining(?:\s+\d+)?$/i, 'Reining'],
   [/\btrail(?:\s+\d+)?$/i, 'Trail'],
   [/\bcutting$/i, 'Cutting'],
+  // Truncated SHTX exports (Funnware cuts long strings mid-word)
+  [/\branch\s*pleasur$/i, 'Ranch Pleasure'],
+  [/\branch\s*rein$/i, 'Ranch Reining'],
+  [/\branch\s*rid$/i, 'Ranch Riding'],
+  [/\branch\s*trai$/i, 'Ranch Trail'],
+  [/\branch\s*cow\s*wor$/i, 'Ranch Cow Work'],
+  [/\ball\s*arou?$/i, 'All Around'],
 ];
 
 // Canonical division name map (keys are lowercase)
@@ -392,7 +401,7 @@ var SHTX_DIV = {
   // Open
   '':'Open','open':'Open',
   'open jr horse':'Open Jr Horse','open jr. horse':'Open Jr Horse','open jr':'Open Jr Horse',
-  'jr horse':'Open Jr Horse',
+  'jr horse':'Open Jr Horse','jr':'Open Jr Horse',
   // Non-Pro
   'non pro':'Non-Pro','non-pro':'Non-Pro',
   'non pro jr horse':'Non-Pro Jr Horse','non-pro jr horse':'Non-Pro Jr Horse',
@@ -476,7 +485,7 @@ function parseClassDivStr(raw){
     org='Collegiate'; rest=n.replace(/^collegiate\s*/i,'').trim();
   } else if(/high\s+school|wyo\s+hs/i.test(s)){
     org='High School'; rest=n.replace(/^(?:high\s+school|wyo\s+hs)\s*/i,'').trim();
-  } else if(/^apha\b/i.test(s)){
+  } else if(/^apha/i.test(s)){
     org='APHA'; rest=n.replace(/^apha\s*/i,'').trim();
   } else if(/^(?:level\s+1|l1)\b/i.test(s)){
     // Level 1 Novice is a CoWN division, not a separate org
@@ -558,11 +567,11 @@ window.editScoreLink=function(key){
   window.setScoreLink(key, url);
 };
 
-var _resSelOrg='', _resSelDiv='', _resSelClass='', _resSearch='', _resSortCol='place', _resSortDir=1;
+var _resSelOrg='', _resSelDiv='', _resSelClass='', _resSearch='', _resSortCol='place', _resSortDir=1, _resSelShow='';
 
 function clearResults(){
   G.results=[]; G.resultsFile='';
-  _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1;
+  _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1; _resSelShow='';
   saveResultsToStorage();
   pgResults();
 }
@@ -585,7 +594,7 @@ async function loadResultsFile(file){
             rows.push(obj);
           }
           G.results=parseSTHXRows(rows); G.resultsFile=file.name;
-          _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1;
+          _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1; _resSelShow='';
           saveResultsToStorage(); resolve(G.results.length);
         } catch(ex){ reject(ex); }
       };
@@ -604,7 +613,7 @@ async function loadResultsFile(file){
           if(!ws) ws=wb.Sheets[wb.SheetNames[0]];
           var rows=XLSX.utils.sheet_to_json(ws,{defval:''});
           G.results=parseSTHXRows(rows); G.resultsFile=file.name;
-          _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1;
+          _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1; _resSelShow='';
           saveResultsToStorage(); resolve(G.results.length);
         } catch(ex){ reject(ex); }
       };
@@ -739,9 +748,9 @@ function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 
 // ═══════════════════════ NAVIGATION ═══════════════════════
 var PAGE_TITLES = {
-  import:'Import Entries', entries:'All Entries', classes:'Class Lists',
-  tabs:'Tabs & Payments', stalls:'Stalls & RV', results:'Enter Results',
-  points:'Points', settings:'Show Management'
+  setup:'Show Setup', entries:'Entries', classes:'Classes',
+  tabs:'Tabs & Payments', stalls:'Stalls & RV', results:'Results',
+  publish:'Publish Results', settings:'Settings'
 };
 
 function showPage(p){
@@ -757,9 +766,6 @@ function showPage(p){
   backBtn.onclick=function(){ window.location.href='index.html'; };
   tr.appendChild(backBtn);
 
-  if(p !== 'import' && G.entries.length){
-    var b = mk('button','btn btn-dark btn-sm'); b.innerHTML='&#8679; New Import'; b.onclick=function(){ showPage('import'); }; tr.appendChild(b);
-  }
   if(p === 'entries'){
     var ab = mk('button','btn btn-accent btn-sm'); ab.innerHTML='+ Add Entry'; ab.onclick=showAddEntryModal; tr.appendChild(ab);
   }
@@ -767,7 +773,7 @@ function showPage(p){
     var sb = mk('button','btn btn-green btn-sm'); sb.innerHTML='&#10003; Save Config'; sb.onclick=saveConfig; tr.appendChild(sb);
     var eb = mk('button','btn btn-dark btn-sm'); eb.innerHTML='&#8681; Export'; eb.onclick=exportConfig; tr.appendChild(eb);
   }
-  var renders = {import:pgImport, entries:pgEntries, classes:pgClasses, tabs:pgTabs, stalls:pgStalls, results:pgResults, points:pgPoints, settings:pgSettings};
+  var renders = {setup:pgSetup, entries:pgEntries, classes:pgClasses, tabs:pgTabs, stalls:pgStalls, results:pgResults, publish:pgPublish, settings:pgSettings};
   if(renders[p]) renders[p]();
 }
 
@@ -777,99 +783,41 @@ document.querySelectorAll('.nav-item').forEach(function(el){
   el.addEventListener('click',function(){ showPage(el.dataset.page); });
 });
 
-// ═══════════════════════ PAGE: IMPORT ═══════════════════════
-function pgImport(){
-  var pg = document.getElementById('page');
-  pg.innerHTML = '<div class="card">'
-    +'<div class="card-title">Import Cognito Export</div>'
-    +'<div class="drop-zone" id="dz"><div class="dz-ico">&#128190;</div>'
-    +'<h3>Drop Cognito Excel file here</h3>'
-    +'<p>Or click to browse &mdash; .xlsx files exported from Cognito Forms</p>'
-    +'<input type="file" id="fi" accept=".xlsx,.xls" style="display:none"></div>'
-    +'<div id="imp-status" style="margin-top:.75rem;font-size:.85rem"></div></div>'
-    +(G.entries.length ? '<div class="card"><div class="card-title">Currently Loaded</div>'
-    +'<p style="color:var(--muted);font-size:.85rem"><strong style="color:var(--accent)">'+esc(G.showName)+'</strong> &mdash; '
-    +G.entries.length+' entries loaded. '
-    +'<a href="#" onclick="showPage(\'entries\');return false" style="color:var(--accent)">View entries &rarr;</a></p>'
-    +'<div style="margin-top:.75rem"><button class="btn btn-dark btn-sm" style="color:var(--red);border-color:var(--red)" onclick="clearAllEntries()">&#10006; Clear All Entries</button>'
-    +'<span style="font-size:.72rem;color:var(--muted);margin-left:.75rem">Removes from local cache and database for this show</span></div>'
-    +'</div>' : '');
-
-  var dz=document.getElementById('dz'), fi=document.getElementById('fi');
-  function load(file){
-    document.getElementById('imp-status').innerHTML='<span style="color:var(--muted)">Reading...</span>';
-    var reader=new FileReader();
-    reader.onload=function(e){
-      try{
-        var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
-        G.entries=parseCognito(wb);
-        G.showName=file.name.replace(/\.xlsx?$/i,'').replace(/[-_]/g,' ');
-        G.payments={}; G.backNums={};
-        G.entries.forEach(function(en){
-          G.payments[en.rowIndex]=en.isPaid?tabTotal(en):0;
-        });
-        document.getElementById('show-pill').innerHTML=
-          '<div class="sp-name">'+esc(G.showName)+'</div>'
-          +'<div class="sp-meta">'+G.entries.length+' entries</div>';
-        // Save to localStorage so refresh doesn't lose data
-        try{
-          localStorage.setItem('gp_entries_'+G.showId, JSON.stringify(G.entries));
-          localStorage.setItem('gp_payments_'+G.showId, JSON.stringify(G.payments));
-          localStorage.setItem('gp_backnums_'+G.showId, JSON.stringify(G.backNums));
-        } catch(ex){ console.warn('localStorage save failed:', ex); }
-        document.getElementById('imp-status').innerHTML='<span style="color:var(--green)">&#10003; '+G.entries.length+' entries loaded.</span>';
-
-        // Auto-extract class list into config if not already populated
-        if(!G.cfg.classes.length){
-          var classMap={};
-          G.entries.forEach(function(en){
-            en.classes.forEach(function(cls){
-              if(cls.num && !classMap[cls.num]){
-                var isCow=COW_WORDS.some(function(k){ return (cls.name||'').toLowerCase().indexOf(k)>-1; });
-                CFG_ROW_ID++;
-                classMap[cls.num]={_id:'cr'+CFG_ROW_ID,num:cls.num,name:cls.name,
-                  division:cls.division,org:cls.org||'CoWN',isCow:isCow,
-                  baseFee:null,cowFee:null,jackpot:null,addedMoney:null};
-              }
-            });
-          });
-          G.cfg.classes=Object.values(classMap).sort(function(a,b){ return (parseInt(a.num)||999)-(parseInt(b.num)||999); });
-        }
-
-        // Sync to Supabase if we have a show loaded
-        if(G.showId){
-          document.getElementById('imp-status').innerHTML='<span style="color:var(--muted)">Saving to database...</span>';
-          syncEntriesToSupabase().then(function(){
-            var el=document.getElementById('imp-status');
-            if(el) el.innerHTML='<span style="color:var(--green)">&#10003; '+G.entries.length+' entries saved.</span>';
-            setTimeout(function(){ showPage('entries'); },700);
-          }).catch(function(err){
-            console.error('Sync error:', err);
-            var el=document.getElementById('imp-status');
-            if(el) el.innerHTML='<span style="color:var(--accent)">Loaded locally. Sync failed: '+esc(err.message)+'</span>';
-            setTimeout(function(){ showPage('entries'); },1200);
-          });
-        } else {
-          setTimeout(function(){ showPage('entries'); },700);
-        }
-      } catch(err){
-        document.getElementById('imp-status').innerHTML='<span style="color:var(--red)">Error: '+esc(err.message)+'</span>';
-        console.error(err);
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  }
-  dz.addEventListener('click',function(){ fi.click(); });
-  fi.addEventListener('change',function(e){ if(e.target.files[0]) load(e.target.files[0]); });
-  dz.addEventListener('dragover',function(e){ e.preventDefault(); dz.classList.add('drag'); });
-  dz.addEventListener('dragleave',function(){ dz.classList.remove('drag'); });
-  dz.addEventListener('drop',function(e){ e.preventDefault(); dz.classList.remove('drag'); if(e.dataTransfer.files[0]) load(e.dataTransfer.files[0]); });
-}
-
 // ═══════════════════════ PAGE: ENTRIES ═══════════════════════
 function pgEntries(){
   var pg=document.getElementById('page');
-  if(!G.entries.length){ pg.innerHTML='<div class="card"><p class="empty-state">No entries loaded. <a href="#" onclick="showPage(\'import\');return false" style="color:var(--accent)">Import a file</a></p></div>'; return; }
+  var hasEntries=G.entries.length>0;
+
+  // ── Import section (always at top) ──────────────────────────
+  var importCard;
+  if(!hasEntries){
+    importCard='<div class="card">'
+      +'<div class="card-title">Import Entries</div>'
+      +'<div class="drop-zone" id="dz"><div class="dz-ico">&#128190;</div>'
+      +'<h3>Drop Cognito Excel file here</h3>'
+      +'<p>Or click to browse &mdash; .xlsx files exported from Cognito Forms</p>'
+      +'<input type="file" id="fi" accept=".xlsx,.xls" style="display:none"></div>'
+      +'<div id="imp-status" style="margin-top:.75rem;font-size:.85rem"></div>'
+      +'</div>';
+  } else {
+    importCard='<div class="card" style="padding:.75rem 1.25rem">'
+      +'<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">'
+      +'<div class="drop-zone" id="dz" style="flex:1;min-width:220px;padding:1rem 1.25rem;display:flex;align-items:center;gap:.75rem;text-align:left">'
+      +'<span style="font-size:1.4rem;color:var(--muted)">&#128190;</span>'
+      +'<div><div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.9rem">Re-import Entries</div>'
+      +'<div style="color:var(--muted);font-size:.75rem">Drop new Cognito .xlsx to replace current entries</div></div>'
+      +'<input type="file" id="fi" accept=".xlsx,.xls" style="display:none"></div>'
+      +'<button class="btn btn-dark btn-sm" style="color:var(--red);border-color:var(--red);flex-shrink:0" onclick="clearAllEntries()">&#10006; Clear All Entries</button>'
+      +'</div>'
+      +'<div id="imp-status" style="margin-top:.5rem;font-size:.85rem"></div>'
+      +'</div>';
+  }
+
+  if(!hasEntries){
+    pg.innerHTML=importCard;
+    wireImportDZ();
+    return;
+  }
 
   var totalFees=G.entries.reduce(function(s,e){ return s+tabTotal(e); },0);
   var totalPaid=G.entries.reduce(function(s,e){ return s+amtPaid(e); },0);
@@ -877,7 +825,8 @@ function pgEntries(){
   var divCounts={};
   G.entries.forEach(function(e){ if(e.division) divCounts[e.division]=(divCounts[e.division]||0)+1; });
 
-  pg.innerHTML='<div class="stat-grid">'
+  pg.innerHTML=importCard
+    +'<div class="stat-grid">'
     +'<div class="stat c-gold"><div class="n">'+G.entries.length+'</div><div class="l">Entries</div></div>'
     +'<div class="stat c-blue"><div class="n">'+uniqueRiders+'</div><div class="l">Riders</div></div>'
     +'<div class="stat c-green"><div class="n">'+fmt$(totalFees)+'</div><div class="l">Total Fees</div></div>'
@@ -887,6 +836,8 @@ function pgEntries(){
     +'<div class="search-wrap"><span class="search-ico">&#128269;</span><input class="search-box" id="eq" placeholder="Search rider, horse, division, CoWN #..."></div>'
     +'<div class="pills" id="ep"></div>'
     +'<div class="tbl-wrap" id="et"></div></div>';
+
+  wireImportDZ();
 
   var pills=['All'].concat(Object.keys(divCounts).sort());
   var activePill='All';
@@ -942,10 +893,78 @@ function pgEntries(){
   });
 }
 
+function wireImportDZ(){
+  var dz=document.getElementById('dz'), fi=document.getElementById('fi');
+  if(!dz||!fi) return;
+  function loadFile(file){
+    var stat=document.getElementById('imp-status');
+    if(stat) stat.innerHTML='<span style="color:var(--muted)">Reading...</span>';
+    var reader=new FileReader();
+    reader.onload=function(e){
+      try{
+        var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
+        G.entries=parseCognito(wb);
+        G.payments={}; G.backNums={};
+        G.entries.forEach(function(en){ G.payments[en.rowIndex]=en.isPaid?tabTotal(en):0; });
+        var spn=document.getElementById('pill-name'), spm=document.getElementById('pill-meta');
+        if(spn) spn.textContent=G.showName||file.name.replace(/\.xlsx?$/i,'');
+        if(spm) spm.textContent=G.entries.length+' entries';
+        try{
+          localStorage.setItem('gp_entries_'+G.showId, JSON.stringify(G.entries));
+          localStorage.setItem('gp_payments_'+G.showId, JSON.stringify(G.payments));
+          localStorage.setItem('gp_backnums_'+G.showId, JSON.stringify(G.backNums));
+        } catch(ex){}
+        if(!G.cfg.classes.length){
+          var classMap={};
+          G.entries.forEach(function(en){
+            en.classes.forEach(function(cls){
+              if(cls.num && !classMap[cls.num]){
+                var isCow=COW_WORDS.some(function(k){ return (cls.name||'').toLowerCase().indexOf(k)>-1; });
+                CFG_ROW_ID++;
+                classMap[cls.num]={_id:'cr'+CFG_ROW_ID,num:cls.num,name:cls.name,
+                  division:cls.division,org:cls.org||'CoWN',isCow:isCow,
+                  baseFee:null,cowFee:null,jackpot:null,addedMoney:null};
+              }
+            });
+          });
+          G.cfg.classes=Object.values(classMap).sort(function(a,b){ return (parseInt(a.num)||999)-(parseInt(b.num)||999); });
+        }
+        if(G.showId){
+          var st2=document.getElementById('imp-status');
+          if(st2) st2.innerHTML='<span style="color:var(--muted)">Saving to database...</span>';
+          syncEntriesToSupabase().then(function(){
+            var el=document.getElementById('imp-status');
+            if(el) el.innerHTML='<span style="color:var(--green)">&#10003; '+G.entries.length+' entries saved.</span>';
+            setTimeout(function(){ showPage('entries'); },700);
+          }).catch(function(err){
+            var el=document.getElementById('imp-status');
+            if(el) el.innerHTML='<span style="color:var(--accent)">Loaded locally. Sync failed: '+esc(err.message)+'</span>';
+            setTimeout(function(){ showPage('entries'); },1200);
+          });
+        } else {
+          var el=document.getElementById('imp-status');
+          if(el) el.innerHTML='<span style="color:var(--green)">&#10003; '+G.entries.length+' entries loaded.</span>';
+          setTimeout(function(){ showPage('entries'); },700);
+        }
+      } catch(err){
+        var el=document.getElementById('imp-status');
+        if(el) el.innerHTML='<span style="color:var(--red)">Error: '+esc(err.message)+'</span>';
+        console.error(err);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+  dz.addEventListener('click',function(e){ if(e.target!==fi) fi.click(); });
+  fi.addEventListener('change',function(e){ if(e.target.files[0]) loadFile(e.target.files[0]); });
+  dz.addEventListener('dragover',function(e){ e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave',function(){ dz.classList.remove('drag'); });
+  dz.addEventListener('drop',function(e){ e.preventDefault(); dz.classList.remove('drag'); if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+}
+
 // ═══════════════════════ PAGE: CLASS LISTS ═══════════════════════
 function pgClasses(){
   var pg=document.getElementById('page');
-  if(!G.entries.length){ pg.innerHTML='<div class="card"><p class="empty-state">No entries loaded. <a href="#" onclick="showPage(\'import\');return false" style="color:var(--accent)">Import a file</a></p></div>'; return; }
+  if(!G.entries.length){ pg.innerHTML='<div class="card"><p class="empty-state">No entries loaded. <a href="#" onclick="showPage(\'entries\');return false" style="color:var(--accent)">Import entries first &rarr;</a></p></div>'; return; }
 
   var classMap={};
   G.entries.forEach(function(e){
@@ -1127,6 +1146,7 @@ function pgStalls(){
 }
 
 // ═══════════════════════ PAGE: RESULTS ═══════════════════════
+window.resSelShow=function(s){ _resSelShow=s; _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSortCol='place'; _resSortDir=1; pgResults(); };
 window.resSelOrg=function(o){ _resSelOrg=o; _resSelDiv=''; _resSelClass=''; _resSortCol='place'; _resSortDir=1; pgResults(); };
 window.resSelDiv=function(d){ _resSelDiv=d; _resSelClass=''; _resSortCol='place'; _resSortDir=1; pgResults(); };
 window.resSelClass=function(c){ _resSelClass=c; _resSortCol='place'; _resSortDir=1; pgResults(); };
@@ -1165,17 +1185,27 @@ function pgResults(){
     return;
   }
 
+  // ── Show selector (when results file contains multiple shows) ──
+  var showNames=[];
+  var showNamesFound={};
+  G.results.forEach(function(r){ if(r.showName&&!showNamesFound[r.showName]){ showNamesFound[r.showName]=1; showNames.push(r.showName); } });
+  showNames.sort();
+  if(showNames.length>1 && !_resSelShow) _resSelShow=showNames[0];
+  var activeResults = (showNames.length>1 && _resSelShow)
+    ? G.results.filter(function(r){ return r.showName===_resSelShow; })
+    : G.results;
+
   // Build org list in canonical order
-  var ORG_ORDER=['CoWN','VRH','Collegiate','High School','Ranch','Level 1','Jackpot','Schooling'];
+  var ORG_ORDER=['CoWN','VRH','Collegiate','High School','APHA'];
   var orgsFound={};
-  G.results.forEach(function(r){ if(r.org) orgsFound[r.org]=1; });
+  activeResults.forEach(function(r){ if(r.org) orgsFound[r.org]=1; });
   var orgs=ORG_ORDER.filter(function(o){ return orgsFound[o]; });
   Object.keys(orgsFound).forEach(function(o){ if(orgs.indexOf(o)<0) orgs.push(o); });
 
   // Default selections
   if(!_resSelOrg&&orgs.length) _resSelOrg=orgs[0];
 
-  var orgRows=G.results.filter(function(r){ return r.org===_resSelOrg; });
+  var orgRows=activeResults.filter(function(r){ return r.org===_resSelOrg; });
 
   // Build division list for selected org
   var divsFound={};
@@ -1188,12 +1218,11 @@ function pgResults(){
 
   if(!_resSelDiv&&divs.length) _resSelDiv=divs[0];
 
-  // Apply search globally for display in header
   var uniqueRiders={};
-  G.results.forEach(function(r){ if(r.rider) uniqueRiders[r.rider]=1; });
+  activeResults.forEach(function(r){ if(r.rider) uniqueRiders[r.rider]=1; });
 
   var html='<div class="stat-grid">'
-    +'<div class="stat c-gold"><div class="n">'+G.results.length+'</div><div class="l">Result Rows</div></div>'
+    +'<div class="stat c-gold"><div class="n">'+activeResults.length+'</div><div class="l">Result Rows</div></div>'
     +'<div class="stat c-green"><div class="n">'+Object.keys(uniqueRiders).length+'</div><div class="l">Riders</div></div>'
     +'<div class="stat c-blue"><div class="n">'+orgs.length+'</div><div class="l">Organizations</div></div>'
     +'<div class="stat c-purple"><div class="n">'+divs.length+'</div><div class="l">Divisions</div></div>'
@@ -1206,9 +1235,21 @@ function pgResults(){
     +'oninput="_resSearch=this.value;pgResults()" '
     +'style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);'
     +'padding:.28rem .6rem;font-size:.78rem;width:185px">'
+    +'<button class="btn btn-dark btn-sm" id="res-load-sheets-btn" title="Select score sheet PDFs from the same folder">&#128196; Load Score Sheets</button>'
     +'<button class="btn btn-dark btn-sm" onclick="window.print()">&#128424;</button>'
     +'<button class="btn btn-dark btn-sm" onclick="clearResults()">&#10005; Clear</button>'
     +'</div></div>';
+
+  // ── SHOW SELECTOR (multi-show files only) ──
+  if(showNames.length>1){
+    html+='<div style="font-size:.68rem;color:var(--muted);margin-bottom:.3rem;letter-spacing:.08em;text-transform:uppercase">Show</div>';
+    html+='<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.85rem">';
+    showNames.forEach(function(s){
+      html+='<button class="btn btn-sm '+(s===_resSelShow?'btn-accent':'btn-dark')+'" '
+        +'onclick="resSelShow(\''+s.replace(/'/g,"\\'")+'\')">'+esc(s)+'</button>';
+    });
+    html+='</div><hr style="border-color:var(--border);margin-bottom:.85rem">';
+  }
 
   // ── LEVEL 1: Organization pills ──
   html+='<div style="font-size:.68rem;color:var(--muted);margin-bottom:.3rem;letter-spacing:.08em;text-transform:uppercase">Organization</div>';
@@ -1323,9 +1364,12 @@ function pgResults(){
         return dir*((a.place||999)-(b.place||999));
       });
 
-      // Pre-compute tied places so ALL tied rows get the T indicator
+      // Pre-compute tied places (within this single show/class view)
       var placeCounts={};
       clsRows.forEach(function(r){ if(r.place) placeCounts[r.place]=(placeCounts[r.place]||0)+1; });
+      function rowIsTied(r){ return r.place&&placeCounts[r.place]>1; }
+      var tieNotes=Object.keys(placeCounts).filter(function(p){ return placeCounts[p]>1; })
+        .map(function(p){ return 'T-'+p; });
 
       // Score sheet link bar
       var slKey=_resSelOrg+'|'+_resSelDiv+'|'+_resSelClass;
@@ -1338,12 +1382,8 @@ function pgResults(){
       } else {
         html+='<button class="btn btn-dark btn-sm" onclick="editScoreLink(\''+slKey.replace(/'/g,"\\'")+'\')">&#128196; + Score Sheet Link</button>';
       }
-      // Entry count and tie note
-      var tiedPlaces=Object.keys(placeCounts).filter(function(p){ return placeCounts[p]>1; });
-      if(tiedPlaces.length){
-        html+='<span style="font-size:.72rem;color:var(--muted)">Tied places: '+tiedPlaces.map(function(p){
-          return 'T-'+p+' ('+placeCounts[p]+' way)';
-        }).join(', ')+'</span>';
+      if(tieNotes.length){
+        html+='<span style="font-size:.72rem;color:var(--muted)">Tied: '+tieNotes.join(', ')+'</span>';
       }
       html+='</div>';
 
@@ -1353,7 +1393,7 @@ function pgResults(){
         +'</tr></thead><tbody>';
       clsRows.forEach(function(r){
         var isDQ=!r.place&&!r.score&&!r.pts;
-        var isTied=r.place&&placeCounts[r.place]>1;
+        var isTied=rowIsTied(r);
         var plColor=r.place===1?'var(--accent)':r.place===2?'#aaa':r.place===3?'#cd7f32':'var(--muted)';
         var plCell;
         if(isDQ){
@@ -1380,14 +1420,245 @@ function pgResults(){
 
   html+='</div>';
   pg.innerHTML=html;
+
+  // Wire up score sheet multi-file loader
+  var sheetsBtn=document.getElementById('res-load-sheets-btn');
+  if(sheetsBtn){
+    var sheetsInp=document.createElement('input');
+    sheetsInp.type='file'; sheetsInp.accept='.pdf'; sheetsInp.multiple=true;
+    sheetsInp.addEventListener('change',function(e){
+      var files=Array.from(e.target.files);
+      var matched=0;
+      files.forEach(function(f){
+        // Normalize: lowercase, strip extension, replace punctuation/underscores with spaces
+        var base=f.name.replace(/\.pdf$/i,'').toLowerCase().replace(/[_\-]+/g,' ').replace(/\s+/g,' ').trim();
+        var url=URL.createObjectURL(f);
+
+        // Collect unique org+div+disc combos from activeResults
+        var seen={};
+        var candidates=[];
+        activeResults.forEach(function(r){
+          if(!r.org||!r.division||!r.discipline) return;
+          var k=r.org+'|'+r.division+'|'+r.discipline;
+          if(seen[k]) return; seen[k]=1;
+          candidates.push({k:k, org:r.org, div:r.division, disc:r.discipline});
+        });
+
+        // Score each candidate. Naming convention examples:
+        //   "CoWN Open-.pdf"                    → org + div only
+        //   "Fall Fest   CoWN Open Results.pdf" → show + org + div (results PDF)
+        //   "Amateur Ranch Riding Jackpot.pdf"  → div + disc only
+        var bestScore=0, bestKeys=[];
+        candidates.forEach(function(c){
+          var orgLow=c.org.toLowerCase().replace(/[^a-z0-9 ]/g,' ');
+          var divLow=c.div.toLowerCase().replace(/[^a-z0-9 ]/g,' ');
+          var discLow=c.disc.toLowerCase().replace(/[^a-z0-9 ]/g,' ');
+          var s=0;
+          if(base.indexOf(discLow)>=0) s+=4;
+          if(base.indexOf(divLow)>=0) s+=2;
+          if(base.indexOf(orgLow)>=0) s+=1;
+          if(s>bestScore){ bestScore=s; bestKeys=[c.k]; }
+          else if(s===bestScore&&s>0) bestKeys.push(c.k);
+        });
+
+        // Accept if we matched at least division (score ≥ 2)
+        if(bestScore>=2){
+          // If only org+div matched (no discipline, score is 2 or 3):
+          //   assign same PDF to ALL disciplines in that org+div
+          var keys = bestScore<4
+            ? candidates.filter(function(c){
+                var divLow=c.div.toLowerCase().replace(/[^a-z0-9 ]/g,' ');
+                return base.indexOf(divLow)>=0;
+              }).map(function(c){ return c.k; })
+            : bestKeys;
+
+          keys.forEach(function(k){ G.scoreLinks[k]=url; });
+          if(keys.length) matched++;
+        }
+      });
+      saveResultsToStorage();
+      pgResults();
+      if(matched<files.length){
+        alert('Matched '+matched+' of '+files.length+' PDFs. Use the ✎ Edit button on unmatched classes to link manually.');
+      }
+    });
+    sheetsBtn.addEventListener('click',function(e){ e.stopPropagation(); sheetsInp.click(); });
+  }
 }
 
-// ═══════════════════════ PAGE: POINTS ═══════════════════════
-function pgPoints(){
-  // Points page = season-level standings (future). For now redirect to Results > All Around.
-  _resSelClass='All Around';
-  showPage('results');
+// ═══════════════════════ PAGE: SETUP ═══════════════════════
+function pgSetup(){
+  var pg=document.getElementById('page');
+  var s=G.cfg;
+
+  // Status badge helper
+  function statusBadge(st){
+    var map={setup:'s-setup',entries_open:'s-entries_open',entries_closed:'s-entries_closed',running:'s-running',complete:'s-complete'};
+    var labels={setup:'Setup',entries_open:'Entries Open',entries_closed:'Entries Closed',running:'Running',complete:'Complete'};
+    return '<span class="sr-status '+(map[st]||'s-setup')+'" style="font-size:.75rem;padding:3px 10px;border-radius:10px">'+(labels[st]||st)+'</span>';
+  }
+
+  // Quick stats
+  var entryCount=G.entries.length;
+  var resultCount=G.results.length;
+  var showNames=[]; var sn={};
+  G.results.forEach(function(r){ if(r.showName&&!sn[r.showName]){sn[r.showName]=1;showNames.push(r.showName);} });
+
+  pg.innerHTML=
+  // ── Header banner ──
+  '<div class="card" style="background:linear-gradient(135deg,var(--card) 0%,var(--card2) 100%);border-color:var(--border2);margin-bottom:.75rem">'
+  +'<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem">'
+  +'<div>'
+  +'<div style="font-family:Oswald;font-size:1.6rem;color:var(--accent);letter-spacing:.03em">'+(s.showName||'Untitled Show')+'</div>'
+  +'<div style="color:var(--muted);font-size:.85rem;margin-top:.25rem">'
+  +(s.showDate?'<span style="margin-right:1rem">&#128197; '+s.showDate+'</span>':'')
+  +(s.location?'<span style="margin-right:1rem">&#128205; '+esc(s.location)+'</span>':'')
+  +(s.secretary?'<span>&#128100; '+esc(s.secretary)+'</span>':'')
+  +'</div>'
+  +'</div>'
+  +'<div style="display:flex;align-items:center;gap:.5rem">'
+  +statusBadge(s.showStatus||'setup')
+  +'<button class="btn btn-dark btn-sm" onclick="showPage(\'settings\')">&#9998; Edit</button>'
+  +'</div>'
+  +'</div>'
+  +'</div>'
+
+  // ── Quick stats row ──
+  +'<div class="stat-grid" style="margin-bottom:.75rem">'
+  +'<div class="stat c-gold" style="cursor:pointer" onclick="showPage(\'entries\')">'
+  +'<div class="n">'+entryCount+'</div><div class="l">Entries</div></div>'
+  +'<div class="stat c-blue" style="cursor:pointer" onclick="showPage(\'classes\')">'
+  +'<div class="n">'+G.cfg.classes.length+'</div><div class="l">Classes</div></div>'
+  +'<div class="stat c-green" style="cursor:pointer" onclick="showPage(\'results\')">'
+  +'<div class="n">'+resultCount+'</div><div class="l">Result Rows</div></div>'
+  +'<div class="stat c-purple" style="cursor:pointer" onclick="showPage(\'publish\')">'
+  +'<div class="n">'+(showNames.length||0)+'</div><div class="l">Shows in Results</div></div>'
+  +'</div>'
+
+  // ── Checklist ──
+  +'<div class="card"><div class="card-title">Show Progress</div>'
+  +'<div style="display:flex;flex-direction:column;gap:.5rem">'
+  +checkRow(entryCount>0,'Entries imported','Import a Cognito export on the Entries tab','entries')
+  +checkRow(G.cfg.classes.length>0,'Classes configured','Set up your class list on the Classes tab','classes')
+  +checkRow(resultCount>0,'Results imported','Import the SHTX results file on the Results tab','results')
+  +checkRow(resultCount>0&&G.publishedAt,'Results published to Season Hub','Review and publish on the Publish tab','publish')
+  +'</div></div>'
+
+  // ── Quick actions ──
+  +'<div class="card"><div class="card-title">Quick Actions</div>'
+  +'<div style="display:flex;flex-wrap:wrap;gap:.5rem">'
+  +'<button class="btn btn-accent btn-sm" onclick="showPage(\'entries\')">&#9776; Manage Entries</button>'
+  +'<button class="btn btn-dark btn-sm" onclick="showPage(\'classes\')">&#127891; Class Lists</button>'
+  +'<button class="btn btn-dark btn-sm" onclick="showPage(\'tabs\')">&#36; Tabs &amp; Payments</button>'
+  +'<button class="btn btn-dark btn-sm" onclick="showPage(\'stalls\')">&#127968; Stall Assignments</button>'
+  +'<button class="btn btn-dark btn-sm" onclick="showPage(\'results\')">&#127942; Results</button>'
+  +'<button class="btn btn-dark btn-sm" onclick="showPage(\'publish\')">&#8679; Publish</button>'
+  +'</div></div>';
+
+  function checkRow(done, label, hint, page){
+    var icon=done
+      ?'<span style="color:var(--green);font-size:1.1rem">&#10003;</span>'
+      :'<span style="color:var(--muted);font-size:1.1rem">&#9675;</span>';
+    return '<div style="display:flex;align-items:center;gap:.75rem;padding:.4rem 0;border-bottom:1px solid var(--border)">'
+      +icon
+      +'<div style="flex:1">'
+      +'<span style="font-size:.88rem;'+(done?'color:var(--text)':'color:var(--muted)')+'">'+label+'</span>'
+      +(!done?'<div style="font-size:.75rem;color:var(--muted);margin-top:1px">'+hint+'</div>':'')
+      +'</div>'
+      +(!done?'<button class="btn btn-dark btn-sm" onclick="showPage(\''+page+'\')">Go &#8594;</button>':'')
+      +'</div>';
+  }
 }
+
+// ═══════════════════════ PAGE: PUBLISH ═══════════════════════
+function pgPublish(){
+  var pg=document.getElementById('page');
+  var hasResults=G.results&&G.results.length>0;
+  var showNames=[]; var sn={};
+  G.results.forEach(function(r){ if(r.showName&&!sn[r.showName]){sn[r.showName]=1;showNames.push(r.showName);} });
+
+  pg.innerHTML=
+  '<div class="card"><div class="card-title">Publish Results to Season Hub</div>'
+  +(hasResults
+    ?'<p style="color:var(--muted);font-size:.85rem;margin-bottom:.85rem">'
+      +'Review results before publishing. Once pushed, points will appear in the Season Hub standings. '
+      +'You can re-publish to update if corrections are made.</p>'
+
+      // Shows in results file
+      +'<div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem">Shows in current results file</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem">'
+      +showNames.map(function(s){
+        return '<span style="background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:.25rem .65rem;font-size:.82rem">'+esc(s)+'</span>';
+      }).join('')
+      +'</div>'
+
+      // Approval checklist
+      +'<div style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:1rem">'
+      +'<label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;cursor:pointer">'
+      +'<input type="checkbox" id="pub-check1"> Results reviewed for accuracy</label>'
+      +'<label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;cursor:pointer">'
+      +'<input type="checkbox" id="pub-check2"> DQs and scratches confirmed</label>'
+      +'<label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;cursor:pointer">'
+      +'<input type="checkbox" id="pub-check3"> All-around points verified</label>'
+      +'</div>'
+
+      +'<div id="pub-status" style="margin-bottom:.75rem"></div>'
+
+      +'<div class="btn-row">'
+      +'<button class="btn btn-accent" id="pub-btn" onclick="pushToSeasonHub()">&#8679; Push to Season Hub</button>'
+      +'<button class="btn btn-dark btn-sm" onclick="showPage(\'results\')">&#8592; Review Results</button>'
+      +'</div>'
+      +(G.publishedAt?'<div style="font-size:.75rem;color:var(--muted);margin-top:.75rem">Last published: '+new Date(G.publishedAt).toLocaleString()+'</div>':'')
+
+    :'<div class="empty">No results imported yet. Import the SHTX results file on the Results tab first.</div>'
+      +'<button class="btn btn-dark btn-sm" style="margin-top:.75rem" onclick="showPage(\'results\')">&#8594; Go to Results</button>'
+  )
+  +'</div>';
+}
+
+window.pushToSeasonHub=async function(){
+  var c1=document.getElementById('pub-check1');
+  var c2=document.getElementById('pub-check2');
+  var c3=document.getElementById('pub-check3');
+  if(!c1.checked||!c2.checked||!c3.checked){
+    document.getElementById('pub-status').innerHTML='<span style="color:var(--red);font-size:.83rem">Please check all boxes to confirm results are ready.</span>';
+    return;
+  }
+  var btn=document.getElementById('pub-btn');
+  btn.disabled=true; btn.textContent='Publishing…';
+  document.getElementById('pub-status').innerHTML='<span style="color:var(--muted);font-size:.83rem">Writing to Season Hub…</span>';
+  try{
+    // Upsert all result rows to season_results table
+    var payload=G.results.map(function(r){
+      return {
+        show_id: G.showId,
+        association_id: G.assocId||null,
+        show_name: r.showName||G.cfg.showName||'',
+        org: r.org, division: r.division, discipline: r.discipline,
+        raw_class: r.rawClass||'',
+        horse: r.horse, rider: r.rider, owner: r.owner||'',
+        score: r.score||null, place: r.place||null,
+        pts: r.pts||null, money: r.money||null,
+        published_at: new Date().toISOString()
+      };
+    });
+    // Delete existing rows for this show then insert fresh
+    await sbFetch('season_results?show_id=eq.'+G.showId,{method:'DELETE'});
+    // Insert in batches of 200
+    for(var i=0;i<payload.length;i+=200){
+      await sbFetch('season_results',{method:'POST',body:JSON.stringify(payload.slice(i,i+200))});
+    }
+    G.publishedAt=new Date().toISOString();
+    document.getElementById('pub-status').innerHTML='<span style="color:var(--green);font-size:.83rem">&#10003; '+G.results.length+' rows published to Season Hub.</span>';
+    btn.textContent='&#8679; Re-Publish';
+    btn.disabled=false;
+  } catch(err){
+    document.getElementById('pub-status').innerHTML='<span style="color:var(--red);font-size:.83rem">Error: '+esc(err.message)+'</span>';
+    btn.textContent='&#8679; Push to Season Hub';
+    btn.disabled=false;
+    console.error(err);
+  }
+};
 
 // ═══════════════════════ PAGE: SETTINGS ═══════════════════════
 var CFG_ROW_ID=0;
@@ -3159,7 +3430,7 @@ window.clearAllEntries = async function(){
     alert('Local cache cleared. Database delete failed: '+err.message+'\nYou may need to clear entries from Supabase manually.');
     console.error(err);
   }
-  pgImport();
+  showPage('entries');
 };
 
 // ═══════════════════════ SUPABASE ═══════════════════════
@@ -3410,7 +3681,7 @@ async function boot(){
       // Re-index rowIndex
       G.entries.forEach(function(e, i){ e.rowIndex = i; });
     }
-    showPage(G.entries.length ? 'entries' : 'import');
+    showPage(G.entries.length ? 'entries' : 'setup');
 
   } catch(err){
     console.error('Boot error:', err);
@@ -3418,7 +3689,7 @@ async function boot(){
       '<div class="sp-name" style="color:var(--red)">Error loading show</div>'
       +'<div class="sp-meta">'+esc(err.message)+'</div>';
     // Still show the app — just without data
-    showPage('import');
+    showPage('setup');
   }
 }
 

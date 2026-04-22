@@ -1,0 +1,424 @@
+<!DOCTYPE html><!-- v20260422 -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gatepost Pro — Season Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f1923;--card:#1a2733;--card2:#1e2f3d;--accent:#D4A04A;--accent2:#b8863a;
+  --green:#27ae60;--red:#e74c3c;--blue:#2980b9;--purple:#8e44ad;
+  --text:#e8dcc8;--muted:#8a9aad;--border:#2a3a4a;--border2:#354a5e
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Source Sans 3',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.shell{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:220px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sidebar-logo{padding:1.25rem 1rem 1rem;border-bottom:1px solid var(--border)}
+.sidebar-logo h1{font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:var(--accent);letter-spacing:.05em}
+.sidebar-logo span{display:block;font-size:.7rem;color:var(--muted);letter-spacing:.1em;margin-top:2px}
+.nav{flex:1;padding:.5rem 0}
+.nav-item{display:flex;align-items:center;gap:.6rem;padding:.55rem 1rem;cursor:pointer;color:var(--muted);font-size:.85rem;border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(212,160,74,.08)}
+.nav-section{padding:.75rem 1rem .25rem;font-size:.65rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.sidebar-footer{padding:.75rem;border-top:1px solid var(--border);font-size:.72rem;color:var(--muted)}
+.sidebar-config{padding:.75rem;border-top:1px solid var(--border)}
+.sidebar-config label{display:block;font-size:.7rem;color:var(--muted);margin-bottom:.2rem;letter-spacing:.04em;text-transform:uppercase}
+.sidebar-config select,.sidebar-config input{width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:5px;padding:.35rem .5rem;font-size:.8rem;margin-bottom:.6rem}
+.sidebar-config select:focus,.sidebar-config input:focus{outline:none;border-color:var(--accent)}
+.content{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:.6rem 1.25rem;display:flex;align-items:center;gap:1rem;flex-shrink:0}
+.topbar-title{font-family:'Oswald',sans-serif;font-size:1.1rem;color:var(--accent)}
+.topbar-right{margin-left:auto;display:flex;gap:.5rem;align-items:center}
+.page{padding:1.25rem;flex:1}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.25rem;margin-bottom:1rem}
+.card-title{font-family:'Oswald',sans-serif;color:var(--accent);font-size:1.05rem;margin-bottom:.85rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.75rem;margin-bottom:1rem}
+.stat{background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.75rem;text-align:center}
+.stat .n{font-family:'Oswald',sans-serif;font-size:1.9rem;font-weight:700}
+.stat .l{font-size:.72rem;color:var(--muted);margin-top:2px}
+.c-gold .n{color:var(--accent)}.c-green .n{color:var(--green)}.c-blue .n{color:var(--blue)}.c-purple .n{color:var(--purple)}
+table{width:100%;border-collapse:collapse;font-size:.83rem}
+th{text-align:left;padding:.45rem .6rem;border-bottom:2px solid var(--accent);color:var(--accent);font-family:'Oswald',sans-serif;white-space:nowrap}
+td{padding:.45rem .6rem;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:hover td{background:rgba(255,255,255,.025)}
+.ctr{text-align:center}
+.bold{font-weight:600}
+.small{font-size:.75rem;color:var(--muted)}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:600;white-space:nowrap}
+.b-gold{background:rgba(212,160,74,.15);color:var(--accent)}
+.b-green{background:rgba(39,174,96,.15);color:#2ecc71}
+.b-blue{background:rgba(41,128,185,.15);color:#5dade2}
+.b-gray{background:rgba(138,154,173,.1);color:var(--muted)}
+.b-drop{background:rgba(231,76,60,.08);color:#e74c3c;text-decoration:line-through;opacity:.6}
+.btn{display:inline-flex;align-items:center;gap:.35rem;padding:.4rem .85rem;border:none;border-radius:6px;cursor:pointer;font-size:.8rem;font-weight:600;font-family:'Source Sans 3',sans-serif;transition:all .15s;white-space:nowrap}
+.btn-accent{background:var(--accent);color:#1a1a1a}.btn-accent:hover{background:var(--accent2)}
+.btn-dark{background:var(--card2);color:var(--text);border:1px solid var(--border2)}.btn-dark:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sm{padding:.25rem .55rem;font-size:.75rem}
+.pills{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.75rem}
+.pill{background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:.2rem .65rem;font-size:.75rem;cursor:pointer;color:var(--muted);transition:all .15s}
+.pill:hover{color:var(--text)}.pill.active{border-color:var(--accent);color:var(--accent);background:rgba(212,160,74,.1)}
+.loading-msg{text-align:center;padding:3rem;color:var(--muted)}
+.spinner{display:inline-block;width:24px;height:24px;border:3px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin-right:.5rem;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{color:var(--muted);text-align:center;padding:2.5rem;font-size:.9rem}
+.rank-gold{color:var(--accent);font-weight:700}
+.rank-silver{color:#aaa;font-weight:700}
+.rank-bronze{color:#cd7f32;font-weight:700}
+.show-col{font-size:.72rem;text-align:right;white-space:nowrap}
+.tbl-wrap{overflow-x:auto}
+@media print{
+  .sidebar,.topbar,.topbar-right,.pills,.no-print{display:none!important}
+  .page{padding:0}
+  body,html{background:white;color:black}
+  table td,table th{border-color:#ccc}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h1>GATEPOST<span style="color:var(--accent);font-size:.65em;vertical-align:super;margin-left:2px">PRO</span></h1>
+      <span>SEASON HUB</span>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">View</div>
+      <div class="nav-item active" id="nav-standings">&#127942; Standings</div>
+      <div class="nav-item" id="nav-merit" style="opacity:.5;cursor:default" title="Coming soon">&#11088; Merit Points</div>
+    </nav>
+    <div class="sidebar-config">
+      <label>Year</label>
+      <select id="cfg-year"></select>
+      <label>Drop Shows</label>
+      <select id="cfg-drop">
+        <option value="0">0 — No drops</option>
+        <option value="1">1 drop show</option>
+        <option value="2" selected>2 drop shows</option>
+        <option value="3">3 drop shows</option>
+      </select>
+      <label>Min Shows to Count</label>
+      <select id="cfg-min">
+        <option value="1" selected>1 show</option>
+        <option value="2">2 shows</option>
+        <option value="3">3 shows</option>
+      </select>
+    </div>
+    <div class="sidebar-footer">Gatepost Pro &mdash; CoWN Edition</div>
+  </div>
+
+  <div class="content">
+    <div class="topbar">
+      <span class="topbar-title" id="page-title">Season Standings</span>
+      <div class="topbar-right">
+        <button class="btn btn-dark btn-sm no-print" onclick="window.print()">&#128424; Print</button>
+        <button class="btn btn-dark btn-sm no-print" onclick="window.location.href='index.html'">&#8592; Shows</button>
+      </div>
+    </div>
+    <div class="page" id="page">
+      <div class="loading-msg"><span class="spinner"></span>Loading season data…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+var SUPABASE_URL='https://tpurkcxtkvwpywxnuzwe.supabase.co';
+var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwdXJrY3h0a3Z3cHl3eG51endlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMyMzQwMjIsImV4cCI6MjA1ODgxMDAyMn0.ZS8DkLKbcKL_D_hO3Af8VxFEYQGpZ-rdSHVXSVWRYUM';
+
+async function sbFetch(path, opts){
+  opts=opts||{};
+  var headers=Object.assign({'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},opts.headers||{});
+  var r=await fetch(SUPABASE_URL+'/rest/v1/'+path,Object.assign({},opts,{headers:headers}));
+  if(!r.ok){var t=await r.text();throw new Error(r.status+': '+t);}
+  if(r.status===204||r.headers.get('content-length')==='0') return null;
+  return r.json();
+}
+
+// ── State ────────────────────────────────────────────────────
+var S = {
+  rows: [],         // all season_results rows
+  shows: [],        // unique show names
+  year: new Date().getFullYear(),
+  drop: 2,
+  minShows: 1,
+  selDiv: '',
+  selDisc: ''
+};
+
+// ── Canonical orders ─────────────────────────────────────────
+var DIV_ORDER=['Open','Open Jr Horse','Non-Pro','Non-Pro Jr Horse','Non-Pro Boxing',
+  'Ltd Non-Pro','Youth','Novice Youth','Novice','Intermediate','Level 1 Novice',
+  'Amateur','Ltd Amateur','Ltd Youth','Rookie Amateur','Rookie Youth','High School'];
+var DISC_ORDER=['Reining','Trail','Working Cow','Working Cow Horse','Pleasure','Ranch Pleasure',
+  'Ranch Reining','Ranch Riding','Ranch Trail','Ranch Cow Work','Ranch Cutting',
+  'Ranch Conformation','All Around','VRH All Around','Working Ranch Horse','Cutting'];
+
+// ── Bootstrap ────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function(){
+  // Year selector: current year back 3
+  var yr=document.getElementById('cfg-year');
+  var curYr=new Date().getFullYear();
+  for(var y=curYr;y>=curYr-3;y--){
+    var o=document.createElement('option');
+    o.value=y; o.textContent=y+'–'+(y+1)+' Season';
+    if(y===curYr) o.selected=true;
+    yr.appendChild(o);
+  }
+  yr.addEventListener('change',function(){ S.year=parseInt(this.value); loadData(); });
+  document.getElementById('cfg-drop').addEventListener('change',function(){ S.drop=parseInt(this.value); render(); });
+  document.getElementById('cfg-min').addEventListener('change',function(){ S.minShows=parseInt(this.value); render(); });
+  loadData();
+});
+
+async function loadData(){
+  document.getElementById('page').innerHTML='<div class="loading-msg"><span class="spinner"></span>Loading…</div>';
+  try{
+    // Fetch all season_results rows
+    var data=await sbFetch('season_results?order=show_name.asc&select=*',{headers:{'Prefer':'return=representation'}});
+    S.rows=data||[];
+
+    // Extract unique show names for the year (approximate by matching S.year in show_name or published_at)
+    var showSet={};
+    S.rows.forEach(function(r){ if(r.show_name) showSet[r.show_name]=1; });
+    S.shows=Object.keys(showSet).sort();
+
+    S.selDiv=''; S.selDisc='';
+    render();
+  } catch(err){
+    document.getElementById('page').innerHTML='<div class="card"><p class="empty">Error loading data: '+esc(err.message)+'</p></div>';
+  }
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function render(){
+  var pg=document.getElementById('page');
+  if(!S.rows.length){
+    pg.innerHTML='<div class="card"><div class="empty">No season results yet.<br><br>'
+      +'Push results from the Show Management app to populate standings.</div></div>';
+    return;
+  }
+
+  // ── Stats ────────────────────────────────────────────────────
+  var riders={}; S.rows.forEach(function(r){ if(r.rider) riders[r.rider]=1; });
+  var html='<div class="stat-grid">'
+    +'<div class="stat c-gold"><div class="n">'+S.shows.length+'</div><div class="l">Shows</div></div>'
+    +'<div class="stat c-blue"><div class="n">'+Object.keys(riders).length+'</div><div class="l">Riders</div></div>'
+    +'<div class="stat c-green"><div class="n">'+S.rows.length+'</div><div class="l">Result Rows</div></div>'
+    +'<div class="stat c-purple"><div class="n">'+S.drop+'</div><div class="l">Drop Shows</div></div>'
+    +'</div>';
+
+  // ── Division pills ───────────────────────────────────────────
+  var divsFound={};
+  S.rows.forEach(function(r){ if(r.division) divsFound[r.division]=1; });
+  var divs=DIV_ORDER.filter(function(d){ return divsFound[d]; });
+  Object.keys(divsFound).forEach(function(d){ if(divs.indexOf(d)<0) divs.push(d); });
+  if(!S.selDiv&&divs.length) S.selDiv=divs[0];
+
+  html+='<div class="card">';
+  html+='<div style="font-size:.68rem;color:var(--muted);margin-bottom:.3rem;letter-spacing:.08em;text-transform:uppercase">Division</div>';
+  html+='<div class="pills no-print">';
+  divs.forEach(function(d){
+    html+='<button class="pill'+(d===S.selDiv?' active':'')+'" onclick="selDiv(\''+d.replace(/'/g,"\\'")+'\')">'+esc(d)+'</button>';
+  });
+  html+='</div>';
+
+  if(S.selDiv){
+    var divRows=S.rows.filter(function(r){ return r.division===S.selDiv; });
+
+    // ── Discipline pills ─────────────────────────────────────────
+    var discsFound={};
+    divRows.forEach(function(r){ if(r.discipline) discsFound[r.discipline]=1; });
+    var discs=DISC_ORDER.filter(function(c){ return discsFound[c]; });
+    Object.keys(discsFound).forEach(function(c){ if(discs.indexOf(c)<0) discs.push(c); });
+    // Remove All Around from pill list (it's computed)
+    var mainDiscs=discs.filter(function(c){ return c!=='All Around'&&c!=='VRH All Around'; });
+    if(!S.selDisc&&mainDiscs.length) S.selDisc=mainDiscs[0];
+    if(S.selDisc&&!discsFound[S.selDisc]) S.selDisc=mainDiscs[0]||'';
+
+    html+='<div style="font-size:.68rem;color:var(--muted);margin-bottom:.3rem;margin-top:.65rem;letter-spacing:.08em;text-transform:uppercase">Class</div>';
+    html+='<div class="pills no-print">';
+    mainDiscs.forEach(function(c){
+      html+='<button class="pill'+(c===S.selDisc?' active':'')+'" onclick="selDisc(\''+c.replace(/'/g,"\\'")+'\')">'+esc(c)+'</button>';
+    });
+    if(mainDiscs.length>1){
+      html+='<button class="pill'+(S.selDisc==='__aa__'?' active':'')+'" onclick="selDisc(\'__aa__\')">&#9733; All Around</button>';
+    }
+    html+='</div>';
+
+    // ── Standings table ─────────────────────────────────────────
+    if(S.selDisc==='__aa__'){
+      html+=renderAllAround(divRows, mainDiscs);
+    } else if(S.selDisc){
+      html+=renderStandings(divRows.filter(function(r){ return r.discipline===S.selDisc; }));
+    }
+  }
+
+  html+='</div>';
+  pg.innerHTML=html;
+}
+
+function renderStandings(rows){
+  // Group by rider
+  var riderMap={};
+  rows.forEach(function(r){
+    if(!r.rider) return;
+    if(!riderMap[r.rider]) riderMap[r.rider]={rider:r.rider,horse:r.horse||'',shows:{}};
+    var m=riderMap[r.rider];
+    // Store pts per show (rider may appear multiple times in same show — take best)
+    var cur=m.shows[r.show_name]||{pts:0,place:999};
+    var pts=parseFloat(r.pts)||0;
+    var pl=parseInt(r.place)||999;
+    if(pts>cur.pts||pl<cur.place){
+      m.shows[r.show_name]={pts:pts,place:pl};
+    }
+    // Update horse to most recent non-empty
+    if(r.horse) m.horse=r.horse;
+  });
+
+  var riders=Object.values(riderMap);
+  if(!riders.length) return '<div class="empty">No results for this class.</div>';
+
+  // Apply drop-show logic
+  riders.forEach(function(m){
+    var showList=Object.keys(m.shows).sort();
+    m.showCount=showList.length;
+    m.showPts=showList.map(function(s){ return {show:s,pts:m.shows[s].pts}; });
+    // Sort ascending by pts — lowest get dropped
+    var sorted=m.showPts.slice().sort(function(a,b){ return a.pts-b.pts; });
+    var dropN=Math.min(S.drop, Math.max(0, sorted.length-1)); // don't drop all
+    var droppedShows={};
+    sorted.slice(0,dropN).forEach(function(sp){ droppedShows[sp.show]=1; });
+    m.dropped=droppedShows;
+    m.total=m.showPts.reduce(function(s,sp){ return s+(droppedShows[sp.show]?0:sp.pts); },0);
+  });
+
+  // Filter by min shows
+  riders=riders.filter(function(m){ return m.showCount>=S.minShows; });
+  if(!riders.length) return '<div class="empty">No riders meet the minimum show requirement.</div>';
+
+  // Sort by total desc
+  riders.sort(function(a,b){ return b.total-a.total; });
+
+  // Assign ranks (handle ties)
+  var rank=1;
+  riders.forEach(function(m,i){
+    if(i>0&&riders[i-1].total===m.total) m.rank=riders[i-1].rank;
+    else{ m.rank=rank; }
+    rank=i+2;
+  });
+
+  // Build column list: all unique shows, sorted
+  var showSet={};
+  riders.forEach(function(m){ Object.keys(m.shows).forEach(function(s){ showSet[s]=1; }); });
+  var shows=Object.keys(showSet).sort();
+
+  var html='<div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem">';
+  html+=S.shows.length+' shows total &mdash; dropping '+S.drop+' lowest per rider &mdash; '+riders.length+' riders</div>';
+  html+='<div class="tbl-wrap"><table><thead><tr>';
+  html+='<th style="width:36px">Rank</th><th>Rider</th><th>Horse</th>';
+  shows.forEach(function(s){
+    html+='<th class="show-col" title="'+esc(s)+'">'+esc(abbreviateShow(s))+'</th>';
+  });
+  html+='<th style="text-align:right;background:rgba(212,160,74,.1);color:var(--accent)">Total</th>';
+  html+='</tr></thead><tbody>';
+
+  riders.forEach(function(m,i){
+    var rc=m.rank===1?'rank-gold':m.rank===2?'rank-silver':m.rank===3?'rank-bronze':'';
+    html+='<tr>';
+    html+='<td class="ctr bold '+rc+'">'+m.rank+'</td>';
+    html+='<td class="bold">'+esc(m.rider)+'</td>';
+    html+='<td class="small">'+esc(m.horse)+'</td>';
+    shows.forEach(function(s){
+      var sp=m.shows[s];
+      if(!sp){ html+='<td class="show-col" style="color:var(--muted)">&mdash;</td>'; return; }
+      var isDrop=m.dropped[s];
+      html+='<td class="show-col'+(isDrop?' b-drop':'')+'">'+sp.pts.toFixed(1)+(isDrop?' &#9660;':'')+'</td>';
+    });
+    html+='<td style="text-align:right;font-weight:700;color:var(--accent);background:rgba(212,160,74,.06)">'+m.total.toFixed(1)+'</td>';
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  return html;
+}
+
+function renderAllAround(divRows, discs){
+  // Build rider map across all disciplines
+  var riderMap={};
+  discs.forEach(function(disc){
+    var discRows=divRows.filter(function(r){ return r.discipline===disc; });
+    discRows.forEach(function(r){
+      if(!r.rider) return;
+      if(!riderMap[r.rider]) riderMap[r.rider]={rider:r.rider,horse:r.horse||'',byDisc:{}};
+      var m=riderMap[r.rider];
+      if(!m.byDisc[disc]) m.byDisc[disc]={};
+      var pts=parseFloat(r.pts)||0;
+      var cur=m.byDisc[disc][r.show_name]||0;
+      if(pts>cur) m.byDisc[disc][r.show_name]=pts;
+      if(r.horse) m.horse=r.horse;
+    });
+  });
+
+  var riders=Object.values(riderMap);
+  // Apply drop per discipline, then sum
+  riders.forEach(function(m){
+    m.total=0;
+    m.totalShows=0;
+    discs.forEach(function(disc){
+      var showMap=m.byDisc[disc]||{};
+      var showPts=Object.keys(showMap).map(function(s){ return showMap[s]; }).sort(function(a,b){ return a-b; });
+      var dropN=Math.min(S.drop, Math.max(0,showPts.length-1));
+      var sum=showPts.slice(dropN).reduce(function(s,p){ return s+p; },0);
+      m.total+=sum;
+      if(showPts.length) m.totalShows=Math.max(m.totalShows, showPts.length);
+    });
+  });
+
+  riders=riders.filter(function(m){ return m.totalShows>=S.minShows; });
+  if(!riders.length) return '<div class="empty">No all-around data.</div>';
+
+  riders.sort(function(a,b){ return b.total-a.total; });
+  var rank=1;
+  riders.forEach(function(m,i){
+    if(i>0&&riders[i-1].total===m.total) m.rank=riders[i-1].rank;
+    else m.rank=rank;
+    rank=i+2;
+  });
+
+  var html='<div class="tbl-wrap"><table><thead><tr>';
+  html+='<th style="width:36px">Rank</th><th>Rider</th><th>Horse</th>';
+  discs.forEach(function(c){ html+='<th style="text-align:right;font-size:.8rem">'+esc(c)+'</th>'; });
+  html+='<th style="text-align:right;background:rgba(212,160,74,.1);color:var(--accent)">Total</th>';
+  html+='</tr></thead><tbody>';
+  riders.forEach(function(m){
+    var rc=m.rank===1?'rank-gold':m.rank===2?'rank-silver':m.rank===3?'rank-bronze':'';
+    html+='<tr>';
+    html+='<td class="ctr bold '+rc+'">'+m.rank+'</td>';
+    html+='<td class="bold">'+esc(m.rider)+'</td>';
+    html+='<td class="small">'+esc(m.horse)+'</td>';
+    discs.forEach(function(c){
+      var showMap=m.byDisc[c]||{};
+      var sum=Object.values(showMap).reduce(function(s,p){return s+p;},0);
+      html+='<td style="text-align:right">'+(sum?sum.toFixed(1):'&mdash;')+'</td>';
+    });
+    html+='<td style="text-align:right;font-weight:700;color:var(--accent);background:rgba(212,160,74,.06)">'+m.total.toFixed(1)+'</td>';
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  return html;
+}
+
+function abbreviateShow(name){
+  // Shorten show name for column header
+  return name.replace(/\b(Fall|Spring|Summer|Winter|Fest|Show|Classic|Open)\b/gi,function(m){ return m.slice(0,2); })
+             .replace(/\s+/g,' ').trim().slice(0,12);
+}
+
+window.selDiv=function(d){ S.selDiv=d; S.selDisc=''; render(); };
+window.selDisc=function(c){ S.selDisc=c; render(); };
+</script>
+</body>
+</html>

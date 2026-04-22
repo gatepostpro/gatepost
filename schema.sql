@@ -599,5 +599,61 @@ create index idx_points_standings
   on points(association_id, season_year, org, division, total_points desc);
 
 -- ============================================================
+-- SEASON RESULTS
+-- Flat denormalized table written by the "Push to Season Hub"
+-- action in app.html. One row per competitor per class per show.
+-- Used by season.html to build year-end standings with drop-show logic.
+-- ============================================================
+create table if not exists season_results (
+  id              uuid primary key default uuid_generate_v4(),
+  show_id         uuid,                 -- references shows(id) — soft link, not FK
+  association_id  uuid,                 -- references associations(id) — soft link
+  show_name       text not null,
+  org             text not null,        -- 'CoWN','VRH','Collegiate','High School','APHA'
+  division        text not null,        -- 'Open','Non-Pro','Ltd Non-Pro','Youth', etc.
+  discipline      text not null,        -- 'Reining','Trail','Working Cow', etc.
+  raw_class       text,
+  rider           text,
+  horse           text,
+  owner           text,
+  score           numeric(8,3),
+  place           int,
+  pts             numeric(8,3) default 0,
+  money           numeric(8,2) default 0,
+  published_at    timestamptz default now(),
+  created_at      timestamptz default now()
+);
+
+create index if not exists idx_season_results_assoc
+  on season_results(association_id, show_name);
+create index if not exists idx_season_results_class
+  on season_results(org, division, discipline);
+create index if not exists idx_season_results_rider
+  on season_results(rider);
+
+alter table season_results enable row level security;
+create policy "allow_all_for_now" on season_results for all using (true) with check (true);
+
+-- ============================================================
+-- HORSE REVISIONS
+-- Append-only audit log for horse record changes.
+-- Edits create a new revision row rather than overwriting.
+-- ============================================================
+create table if not exists horse_revisions (
+  id              uuid primary key default uuid_generate_v4(),
+  horse_id        uuid references horses(id) on delete cascade,
+  revised_at      timestamptz default now(),
+  revised_by      uuid references users(id) on delete set null,
+  note            text,                 -- reason for change
+  data            jsonb not null        -- full snapshot of horse fields at this revision
+);
+
+create index if not exists idx_horse_revisions_horse
+  on horse_revisions(horse_id, revised_at desc);
+
+alter table horse_revisions enable row level security;
+create policy "allow_all_for_now" on horse_revisions for all using (true) with check (true);
+
+-- ============================================================
 -- DONE
 -- ============================================================
