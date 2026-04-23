@@ -2044,14 +2044,17 @@ window.openScribeMode=function(initialKey){
       '.scr-mcard.touched{border-color:rgba(184,134,42,.55)}'+
       '.scr-mc-name{font-family:Oswald;font-size:.92rem;color:var(--accent);margin-bottom:.12rem;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
       '.scr-mc-vals{font-size:.7rem;min-height:.85rem;margin-bottom:.28rem}'+
-      '.scr-mc-sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-bottom:.3rem}'+
-      '.scr-mb3{padding:.52rem 0;font-size:.75rem;font-weight:800;border:1px solid var(--border2);border-radius:5px;cursor:pointer;background:var(--card2);line-height:1;text-align:center;min-height:40px}'+
+      '.scr-mcard.dq-on{border-color:#e74c3c;background:rgba(231,76,60,.08)}'+
+      '.scr-mcard.op-on{border-color:#e07c00;background:rgba(224,124,0,.06)}'+
+      '.scr-mc-sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-bottom:.3rem}'+
+      '.scr-mb3{padding:.58rem 0;font-size:.92rem;font-weight:800;border:1px solid var(--border2);border-radius:5px;cursor:pointer;background:var(--card2);line-height:1;text-align:center;min-height:44px}'+
       '.scr-mb3.neg{color:#e74c3c;border-color:rgba(231,76,60,.3)}'+
-      '.scr-mb3.zero{color:var(--muted)}'+
+      '.scr-mb3.zero{color:var(--muted);grid-column:1/-1;min-height:34px;padding:.42rem 0;font-size:.78rem}'+
       '.scr-mb3.pos{color:#2ecc71;border-color:rgba(46,204,113,.3)}'+
       '.scr-mb3.sel{background:var(--accent);color:#000;border-color:var(--accent)}'+
       '.scr-mc-pbtns{display:flex;gap:2px;margin-bottom:.2rem}'+
-      '.scr-padd3{flex:1;padding:.38rem 0;font-size:.7rem;font-weight:700;border:1px solid rgba(231,76,60,.4);border-radius:5px;cursor:pointer;background:rgba(231,76,60,.07);color:#e74c3c;min-height:32px;text-align:center}';
+      '.scr-padd3{flex:1;padding:.38rem 0;font-size:.78rem;font-weight:700;border:1px solid rgba(231,76,60,.4);border-radius:5px;cursor:pointer;background:rgba(231,76,60,.07);color:#e74c3c;min-height:34px;text-align:center}'+
+      '.scr-pen-lbl3{font-size:.6rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:.22rem}';
     document.head.appendChild(sty);
   }
 
@@ -2088,6 +2091,7 @@ window.openScribeMode=function(initialKey){
   }
 
   function render(){
+    var savedScroll=(document.querySelector('.scr-hscroll')||{scrollLeft:0}).scrollLeft;
     var cls=getCls();
     var entries=getGoEntries(selKey);
     if(!entries.length){
@@ -2137,6 +2141,12 @@ window.openScribeMode=function(initialKey){
     }).join('');
 
     // ── Horizontal maneuver scroll — all maneuvers side by side ──
+    var statusCardClass=s.isDQ?' dq-on':s.isOP?' op-on':'';
+    var statusBadge=s.isDQ
+      ?'<div style="background:#e74c3c;color:#fff;font-size:.6rem;font-weight:800;padding:.1rem .35rem;border-radius:3px;display:inline-block;margin-bottom:.18rem">DQ</div>'
+      :s.isOP
+      ?'<div style="background:#e07c00;color:#fff;font-size:.6rem;font-weight:800;padding:.1rem .35rem;border-radius:3px;display:inline-block;margin-bottom:.18rem">OP</div>'
+      :'';
     var hscrollHtml='';
     if(tmpl){
       hscrollHtml='<div class="scr-hscroll">';
@@ -2144,25 +2154,34 @@ window.openScribeMode=function(initialKey){
         var cm=s.m[mi];
         var penVals=tmpl.penValues||[];
         var touched=cm.score!==0||cm.pen>0;
-        // 4-col grid: row1 = [−1½,−1,−½,0], row2 = [+½,+1,+1½] starting col 2
-        var scoreCells=MVALS.map(function(v,vi){
-          var c3='scr-mb3'+(v<0?' neg':v>0?' pos':' zero')+(v===cm.score?' sel':'');
-          var extra=vi===4?' style="grid-column-start:2"':'';
-          return '<button class="'+c3+'"'+extra+' onclick="scrSetM('+mi+','+v+')">'+MLABELS[vi]+'</button>';
+        // 3-col grid: row1 neg [−1½,−1,−½], row2 pos [+½,+1,+1½], row3 zero (full width)
+        var negBtns=[[-1.5,'−1½'],[-1,'−1'],[-0.5,'−½']].map(function(p){
+          return '<button class="scr-mb3 neg'+(cm.score===p[0]?' sel':'')+'" onclick="scrSetM('+mi+','+p[0]+')">'+p[1]+'</button>';
         }).join('');
+        var posBtns=[[0.5,'+½'],[1,'+1'],[1.5,'+1½']].map(function(p){
+          return '<button class="scr-mb3 pos'+(cm.score===p[0]?' sel':'')+'" onclick="scrSetM('+mi+','+p[0]+')">'+p[1]+'</button>';
+        }).join('');
+        var zeroBtn='<button class="scr-mb3 zero'+(cm.score===0?' sel':'')+'" onclick="scrSetM('+mi+',0)">0</button>';
         var penBtns=penVals.map(function(pv){
-          return '<button class="scr-padd3" onclick="scrMPenAdd('+mi+','+pv+')">'+(pv===0.5?'½':pv)+'pt</button>';
+          return '<button class="scr-padd3" onclick="scrMPenAdd('+mi+','+pv+')">'+(pv===0.5?'½':pv)+' pen</button>';
         }).join('');
         var scoreDisp=cm.score!==0
-          ?(cm.score>0?'<span style="color:#2ecc71">+'+cm.score+'</span>':'<span style="color:#e74c3c">'+cm.score+'</span>')
+          ?(cm.score>0?'<span style="color:#2ecc71;font-weight:700">+'+cm.score+'</span>':'<span style="color:#e74c3c;font-weight:700">'+cm.score+'</span>')
           :'<span style="color:var(--muted)">0</span>';
-        var penDisp=cm.pen>0?'<span style="color:#e74c3c;margin-left:.35rem">−'+cm.pen+'pt</span>':'';
-        hscrollHtml+='<div class="scr-mcard'+(touched?' touched':'')+'">'
+        var penDisp=cm.pen>0?'<span style="color:#e74c3c;font-weight:700;margin-left:.35rem">−'+cm.pen+' pen</span>':'';
+        hscrollHtml+='<div class="scr-mcard'+(touched?' touched':'')+statusCardClass+'">'
+          +statusBadge
           +'<div class="scr-mc-name">'+esc(mname)+'</div>'
           +'<div class="scr-mc-vals">'+scoreDisp+penDisp+'</div>'
-          +'<div class="scr-mc-sgrid">'+scoreCells+'</div>'
-          +(penVals.length?'<div class="scr-mc-pbtns">'+penBtns+'</div>':'')
-          +(cm.pen>0?'<button class="scr-pclr" style="margin-top:.1rem" onclick="scrMPenClr('+mi+')">✕ clr</button>':'')
+          // Penalties FIRST
+          +(penVals.length
+            ?'<div class="scr-pen-lbl3">Penalty</div>'
+             +'<div class="scr-mc-pbtns">'+penBtns+'</div>'
+             +(cm.pen>0?'<button class="scr-pclr" style="margin-bottom:.3rem" onclick="scrMPenClr('+mi+')">✕ clear penalty</button>':'')
+            :'')
+          // Score grid
+          +'<div class="scr-pen-lbl3">Score</div>'
+          +'<div class="scr-mc-sgrid">'+negBtns+posBtns+zeroBtn+'</div>'
           +'</div>';
       });
       hscrollHtml+='</div>';
@@ -2245,6 +2264,9 @@ window.openScribeMode=function(initialKey){
       +'<button class="btn btn-accent" style="flex:1;padding:.55rem;font-size:.9rem;font-weight:700" onclick="scrPost()">✓ Post Score</button>'
       +'</div>'
       +'</div></div>';
+
+    var hs=document.querySelector('.scr-hscroll');
+    if(hs) hs.scrollLeft=savedScroll;
 
     // ── Handlers ───────────────────────────────────────────────
     window.scrSetM=function(mi,v){ initState(ri).m[mi].score=v; render(); };
