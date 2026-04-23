@@ -516,22 +516,22 @@ var ORG_CLASSES = {
                 'Youth','Novice Youth','Open Jr Horse','Non-Pro Jr Horse',
                 'Non-Pro Boxing','Collegiate Non-Pro','Collegiate Limited',
                 'Collegiate Novice','Open Schooling'],
-    disciplines: ['Cow','Reining','Trail','Pleasure'],
+    disciplines: ['Cow Work','Reining','Trail','Pleasure'],
     allAround: true,
     // Tiebreak: highest SCORE wins, in this discipline order
-    aaTiebreak: ['Cow','Reining','Trail','Pleasure'],
+    aaTiebreak: ['Cow Work','Reining','Trail','Pleasure'],
     // Points: entries-based (1st=N, 2nd=N-1 … last=1, DQ=0, ties split)
     pointsSystem: 'entries'
   },
   'VRH': {
     divisions: ['Open','Amateur','LTD Am','Rookie Am','Youth','LTD Youth','Rookie Youth'],
-    disciplines: ['Cutting','Cow','Reining','Trail','Pleasure','Conformation'],
+    disciplines: ['Cutting','Cow Work','Reining','Trail','Pleasure','Conformation'],
     allAround: false,
     aaTiebreak: [],
     aaMinClasses: 3,
     // aaRequired is array-of-arrays (OR groups):
     //   rider must satisfy ALL slots, but each slot is satisfied by showing in ANY listed discipline
-    aaRequired: [['Cutting','Cow'], ['Conformation']],
+    aaRequired: [['Cutting','Cow Work'], ['Conformation']],
     pointsSystem: 'aqha'
   },
   'AQHA Ranch': {
@@ -557,7 +557,7 @@ var ORG_CLASSES = {
   },
   'WHSR': {
     divisions: [''],
-    disciplines: ['Cow','Reining'],
+    disciplines: ['Cow Work','Reining'],
     allAround: false,
     pointsSystem: 'entries'
   },
@@ -665,8 +665,9 @@ var SHTX_DISCS = [
   [/\bworking\s+ranch\s+horse$/i, 'Working Ranch Horse'],
   [/\bworking\s+cow\s+horse$/i, 'Cow Horse'],   // APHA calls it "Cow Horse"
   [/\bcow\s+horse$/i, 'Cow Horse'],
-  [/\bworking\s+cow(?:\s+\d+)?$/i, 'Cow'],      // CoWN/VRH call it "Cow"
-  [/\bcow\s+work$/i, 'Cow'],
+  [/\bworking\s+cow(?:\s+\d+)?$/i, 'Cow Work'],
+  [/\bcow\s+work$/i, 'Cow Work'],
+  [/^cow$/i, 'Cow Work'],
   [/\bworking\s+western\s+rail$/i, 'Working Western Rail'],
   [/\branch\s+conformation$/i, 'Conformation'],
   [/\bconformation$/i, 'Conformation'],
@@ -686,7 +687,7 @@ var SHTX_DISCS = [
   [/\branch\s*rein$/i, 'Ranch Reining'],
   [/\branch\s*rid$/i, 'Ranch Riding'],
   [/\branch\s*trai$/i, 'Ranch Trail'],
-  [/\branch\s*cow\s*wor$/i, 'Cow'],
+  [/\branch\s*cow\s*wor$/i, 'Cow Work'],
   [/\ball\s*arou?$/i, 'All Around'],
 ];
 
@@ -840,7 +841,7 @@ function parseClassDivStr(raw){
   //   2. Division name belongs only to one org (Amateur → VRH/AQHA; Novice Amateur → APHA)
   //   3. "Ranch" keyword anywhere → AQHA Ranch (if discipline confirms it)
   if(org==='CoWN'){
-    var cownDiscs=ORG_CLASSES.CoWN.disciplines; // ['Cow','Reining','Trail','Pleasure']
+    var cownDiscs=ORG_CLASSES.CoWN.disciplines; // ['Cow Work','Reining','Trail','Pleasure']
 
     // Signal 1: discipline not in CoWN → find the right org
     if(disc && cownDiscs.indexOf(disc)<0){
@@ -1578,6 +1579,7 @@ function pgClasses(){
 
   pg.innerHTML='<div class="btn-row no-print">'
     +'<button class="btn btn-accent btn-sm" onclick="printGoSheets()">&#128424; Print Go Sheets</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="openScribeMode()" style="margin-left:auto">&#9999;&#65039; Scribe View</button>'
     +'</div>'
     +'<div class="pills no-print" id="org-pills"></div>'
     +'<div id="cl-content"></div>';
@@ -1642,8 +1644,9 @@ function pgClasses(){
         +' '+divBadge(cls.division)
         +(cls.org&&cls.org!=='CoWN'?'<span class="badge b-blue" style="margin-left:4px">'+esc(cls.org)+'</span>':'')
         +'</div>'
-        +'<div style="display:flex;gap:.4rem;align-items:center">'
+        +'<div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">'
         +'<span class="badge b-blue">'+activeCount+' going'+(scratchCount?' &middot; '+scratchCount+' scratched':'')+'</span>'
+        +'<button class="btn btn-dark btn-sm no-print" onclick="openScoreEntry(\''+key.replace(/'/g,"\\'")+'\')">&#9998; Scores</button>'
         +'<button class="btn btn-dark btn-sm no-print" onclick="printGoSheets(\''+key.replace(/'/g,"\\'")+'\')">&#128424;</button>'
         +'</div>'
         +'</div>'
@@ -1719,6 +1722,349 @@ window.printGoSheets=function(onlyKey){
   win.document.close();
   win.focus();
   setTimeout(function(){ win.print(); },400);
+};
+
+// ─── Score Entry ────────────────────────────────────────────
+// Build the list of active (non-scratched) entries for a class key in go-sheet order
+function getGoEntries(key){
+  var entryMap={};
+  G.entries.forEach(function(e){
+    e.classes.forEach(function(cls){
+      if(clsKey(cls)===key) entryMap[e.rowIndex]=e;
+    });
+  });
+  var order=G.classOrder[key]||Object.keys(entryMap).map(Number);
+  return order.map(function(ri){ return entryMap[ri]; }).filter(function(e){
+    return e&&!isFullScratched(e.rowIndex)&&!isScratched(key,e.rowIndex);
+  });
+}
+
+// Pull existing manually-entered (or imported) scores for a class
+function getExistingScores(cls){
+  var map={};
+  (G.results||[]).forEach(function(r){
+    if(r.org===cls.org && r.division===cls.division && r.discipline===cls.name){
+      map[r.rider]={score:r.score, place:r.place};
+    }
+  });
+  return map;
+}
+
+// Compute placements from an array of {rowIndex, score} — handles ties
+function computePlacements(scored){
+  var sorted=scored.slice().sort(function(a,b){ return (b.score||0)-(a.score||0); });
+  var place=1;
+  for(var i=0;i<sorted.length;){
+    var s=sorted[i].score||0;
+    var j=i;
+    while(j<sorted.length&&(sorted[j].score||0)===s) j++;
+    for(var k=i;k<j;k++) sorted[k].place=(s>0)?place:0;
+    if(s>0) place=j+1;
+    i=j;
+  }
+  var pm={};
+  sorted.forEach(function(x){ pm[x.rowIndex]=x.place; });
+  return pm;
+}
+
+// Save a set of {rowIndex, score, place} into G.results for a class
+function commitScores(cls, entries, scores){
+  // Remove existing rows for this class
+  var keep=[];
+  (G.results||[]).forEach(function(r){
+    if(!(r.org===cls.org && r.division===cls.division && r.discipline===cls.name)) keep.push(r);
+  });
+  var total=entries.length;
+  entries.forEach(function(e){
+    var sc=scores[e.rowIndex]||{score:0,place:0};
+    if(!sc.score) return; // skip blank
+    keep.push({
+      showName: G.cfg.showName||G.showName||'',
+      org:      cls.org||'CoWN',
+      division: cls.division||'',
+      discipline: cls.name||'',
+      rawClass: (cls.num?cls.num+' ':'')+cls.name,
+      entries:  total,
+      score:    sc.score,
+      place:    sc.place,
+      horse:    e.horse||'',
+      rider:    e.name||'',
+      riderNum: e.memberNum||'',
+      pts:      0,
+      money:    0,
+      addedMoney:0,
+      goRound:  '',
+      _manual:  true
+    });
+  });
+  G.results=keep;
+  saveResultsToStorage();
+}
+
+// Secretary score-entry modal
+window.openScoreEntry=function(key){
+  var cls=null;
+  G.entries.forEach(function(e){
+    e.classes.forEach(function(c){ if(clsKey(c)===key&&!cls) cls=c; });
+  });
+  if(!cls) return;
+
+  var entries=getGoEntries(key);
+  var existingScores=getExistingScores(cls);
+  var mr=document.getElementById('modal-root');
+
+  function renderModal(scoreState){
+    var rows=entries.map(function(e,i){
+      var rider=e.name||'';
+      var ex=existingScores[rider]||{};
+      var cur=scoreState[e.rowIndex];
+      var val=(cur!==undefined)?cur:(ex.score||'');
+      var hasScore=cur!==undefined?(cur>0):(ex.score>0);
+      return '<div class="score-entry-row" style="display:flex;align-items:center;gap:.5rem;padding:.4rem .2rem;border-bottom:1px solid var(--border)">'
+        +'<span style="width:36px;text-align:center;font-weight:700;color:var(--accent);font-size:.9rem">'+(G.backNums[e.rowIndex]||'—')+'</span>'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(rider)+'</div>'
+        +'<div style="font-size:.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(e.horse||'')+'</div>'
+        +'</div>'
+        +'<input type="number" step="0.001" min="0" max="300" placeholder="—" value="'+esc(String(val))+'" '
+        +'data-ri="'+e.rowIndex+'" '
+        +'style="width:80px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);'
+        +'padding:.3rem .4rem;font-size:.95rem;text-align:right'+(hasScore?';border-color:var(--accent)':'')+'" '
+        +'oninput="scoreEntryInput('+e.rowIndex+',this.value)">'
+        +'</div>';
+    }).join('');
+
+    mr.innerHTML='<div class="modal-bg" id="se-modal-bg" onclick="if(event.target===this)closeModal()">'
+      +'<div class="modal" style="max-width:520px">'
+      +'<h2>&#9998; '+esc(cls.num?'Class '+cls.num+' — ':'')+esc(cls.name)+'</h2>'
+      +'<div style="font-size:.8rem;color:var(--muted);margin-bottom:1rem">'+esc(cls.division||'')+(cls.org&&cls.org!=='CoWN'?' &middot; '+esc(cls.org):'')+'</div>'
+      +'<div style="max-height:55vh;overflow-y:auto">'+rows+'</div>'
+      +'<div style="display:flex;gap:.5rem;margin-top:1rem;flex-wrap:wrap">'
+      +'<button class="btn btn-dark btn-sm" onclick="scoreEntryAutoPlace()">&#8645; Auto-Place from Scores</button>'
+      +'<button class="btn btn-accent" style="margin-left:auto" onclick="scoreEntrySave(\''+key.replace(/'/g,"\\'")+'\')">&#10003; Save Scores</button>'
+      +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
+      +'</div>'
+      +'</div>'
+      +'</div>';
+  }
+
+  // Score state accumulator (rowIndex -> score value)
+  window._seState={};
+  window._seCls=cls;
+  window._seEntries=entries;
+  window._seKey=key;
+
+  // Pre-populate from existing
+  entries.forEach(function(e){
+    var ex=existingScores[e.name||''];
+    if(ex&&ex.score) window._seState[e.rowIndex]=ex.score;
+  });
+
+  renderModal(window._seState);
+
+  window.scoreEntryInput=function(ri, val){
+    var v=parseFloat(val);
+    window._seState[ri]=isNaN(v)?0:v;
+    // Update border color live
+    var inp=document.querySelector('input[data-ri="'+ri+'"]');
+    if(inp) inp.style.borderColor=(v>0)?'var(--accent)':'var(--border2)';
+  };
+
+  window.scoreEntryAutoPlace=function(){
+    var scored=entries.map(function(e){
+      return {rowIndex:e.rowIndex, score:window._seState[e.rowIndex]||0};
+    });
+    var pm=computePlacements(scored);
+    window._sePlaces=pm;
+    // Show places next to inputs
+    entries.forEach(function(e){
+      var p=pm[e.rowIndex]||0;
+      var inp=document.querySelector('input[data-ri="'+e.rowIndex+'"]');
+      if(!inp) return;
+      var row=inp.closest('.score-entry-row');
+      var lbl=row.querySelector('.place-lbl');
+      if(!lbl){ lbl=document.createElement('span'); lbl.className='place-lbl';
+        lbl.style.cssText='width:28px;text-align:center;font-size:.82rem;font-weight:700;color:var(--accent)';
+        row.appendChild(lbl);
+      }
+      lbl.textContent=p?ordinal(p):'DQ';
+    });
+  };
+
+  window.scoreEntrySave=function(key){
+    var scored=entries.map(function(e){
+      return {rowIndex:e.rowIndex, score:window._seState[e.rowIndex]||0};
+    });
+    var pm=window._sePlaces||computePlacements(scored);
+    var scoresFull={};
+    entries.forEach(function(e){
+      scoresFull[e.rowIndex]={score:window._seState[e.rowIndex]||0, place:pm[e.rowIndex]||0};
+    });
+    commitScores(cls, entries, scoresFull);
+    closeModal();
+    // Flash confirmation
+    var notice=document.createElement('div');
+    notice.textContent='Scores saved for '+cls.name+' ('+cls.division+')';
+    notice.style.cssText='position:fixed;bottom:1.2rem;right:1.2rem;background:var(--accent);color:#000;'
+      +'padding:.5rem 1rem;border-radius:8px;font-weight:700;font-size:.85rem;z-index:300';
+    document.body.appendChild(notice);
+    setTimeout(function(){ notice.remove(); },2500);
+  };
+};
+
+function ordinal(n){
+  var s=['th','st','nd','rd'],v=n%100;
+  return n+(s[(v-20)%10]||s[v]||s[0]);
+}
+
+// ─── Scribe Mode ─────────────────────────────────────────────
+window.openScribeMode=function(initialKey){
+  // Build class list from entries
+  var classMap={};
+  G.entries.forEach(function(e){
+    e.classes.forEach(function(cls){
+      var k=clsKey(cls);
+      if(!classMap[k]) classMap[k]={key:k,num:cls.num,name:cls.name,division:cls.division,org:cls.org};
+    });
+  });
+  var classList=Object.values(classMap).sort(function(a,b){
+    return (parseInt(a.num)||999)-(parseInt(b.num)||999);
+  });
+  if(!classList.length){ alert('No classes loaded. Import entries first.'); return; }
+
+  var selKey=initialKey||classList[0].key;
+  var mr=document.getElementById('modal-root');
+
+  function renderScribe(){
+    var cls=classMap[selKey];
+    var entries=getGoEntries(selKey);
+    var existingScores=getExistingScores(cls);
+
+    // Init scribe state
+    if(!window._scrState) window._scrState={};
+    entries.forEach(function(e){
+      if(window._scrState[e.rowIndex]===undefined){
+        var ex=existingScores[e.name||''];
+        window._scrState[e.rowIndex]=(ex&&ex.score)?ex.score:undefined;
+      }
+    });
+
+    var opts=classList.map(function(c){
+      return '<option value="'+esc(c.key)+'"'+(c.key===selKey?' selected':'')+'>Class '
+        +esc(c.num||'?')+' — '+esc(c.name)+' ('+esc(c.division||'')+')</option>';
+    }).join('');
+
+    var rows=entries.map(function(e){
+      var val=window._scrState[e.rowIndex];
+      var hasScore=(val!==undefined&&val>0);
+      return '<div class="scribe-row" style="display:flex;align-items:center;gap:.6rem;padding:.65rem .5rem;border-bottom:1px solid var(--border)">'
+        +'<span style="width:44px;text-align:center;font-family:Oswald;font-size:1.2rem;color:var(--accent)">'+(G.backNums[e.rowIndex]||'—')+'</span>'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:.95rem;font-weight:600">'+esc(e.name||'')+'</div>'
+        +'<div style="font-size:.78rem;color:var(--muted)">'+esc(e.horse||'')+'</div>'
+        +'</div>'
+        +'<input type="number" inputmode="decimal" step="0.001" min="0" max="300" placeholder="Score" '
+        +'value="'+(hasScore?val:'')+'" '
+        +'data-scri="'+e.rowIndex+'" '
+        +'style="width:90px;background:var(--bg);border:2px solid '+(hasScore?'var(--accent)':'var(--border2)')+';'
+        +'border-radius:8px;color:var(--text);padding:.45rem .5rem;font-size:1.1rem;text-align:right;'
+        +'font-weight:700" '
+        +'oninput="scrInput('+e.rowIndex+',this.value)">'
+        +'</div>';
+    }).join('');
+
+    var doneCount=entries.filter(function(e){ var v=window._scrState[e.rowIndex]; return v!==undefined&&v>0; }).length;
+
+    mr.innerHTML='<div style="position:fixed;inset:0;background:var(--bg);z-index:250;display:flex;flex-direction:column;overflow:hidden">'
+      +'<div style="background:var(--topbar);border-bottom:1px solid var(--border2);padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;flex-shrink:0">'
+      +'<span style="font-family:Oswald;color:var(--accent);font-size:1.15rem;white-space:nowrap">&#9999;&#65039; Scribe</span>'
+      +'<select onchange="scrSelClass(this.value)" style="flex:1;background:var(--card);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.35rem .5rem;font-size:.85rem">'
+      +opts+'</select>'
+      +'<button class="btn btn-dark btn-sm" onclick="closeScribeMode()" style="flex-shrink:0">&#10005;</button>'
+      +'</div>'
+      +'<div style="padding:.5rem 1rem;background:var(--card2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'
+      +'<span style="font-size:.8rem;color:var(--muted)">'+entries.length+' going &middot; '+doneCount+' scored</span>'
+      +'<div style="display:flex;gap:.4rem">'
+      +'<button class="btn btn-dark btn-sm" onclick="scrAutoPlace()">&#8645; Place</button>'
+      +'<button class="btn btn-accent btn-sm" onclick="scrSave()">&#10003; Post Scores</button>'
+      +'</div>'
+      +'</div>'
+      +'<div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">'+rows+'</div>'
+      +'</div>';
+
+    window._scrCls=cls;
+    window._scrEntries=entries;
+    window._scrKey=selKey;
+    window._scrPlaces=null;
+  }
+
+  window.scrSelClass=function(key){
+    selKey=key;
+    window._scrState={};
+    renderScribe();
+  };
+
+  window.scrInput=function(ri, val){
+    var v=parseFloat(val);
+    window._scrState[ri]=isNaN(v)?undefined:v;
+    window._scrPlaces=null;
+    var inp=document.querySelector('input[data-scri="'+ri+'"]');
+    if(inp) inp.style.borderColor=(v>0)?'var(--accent)':'var(--border2)';
+    // update count
+    var entries=window._scrEntries||[];
+    var done=entries.filter(function(e){ var v=window._scrState[e.rowIndex]; return v!==undefined&&v>0; }).length;
+    var lbl=document.querySelector('[data-scr-count]');
+    if(lbl) lbl.textContent=entries.length+' going · '+done+' scored';
+  };
+
+  window.scrAutoPlace=function(){
+    var entries=window._scrEntries||[];
+    var scored=entries.map(function(e){ return {rowIndex:e.rowIndex,score:window._scrState[e.rowIndex]||0}; });
+    window._scrPlaces=computePlacements(scored);
+    entries.forEach(function(e){
+      var p=window._scrPlaces[e.rowIndex]||0;
+      var inp=document.querySelector('input[data-scri="'+e.rowIndex+'"]');
+      if(!inp) return;
+      var row=inp.closest('.scribe-row');
+      var lbl=row.querySelector('.scr-place-lbl');
+      if(!lbl){ lbl=document.createElement('span'); lbl.className='scr-place-lbl';
+        lbl.style.cssText='width:32px;text-align:center;font-size:.85rem;font-weight:700;color:var(--accent)';
+        row.appendChild(lbl);
+      }
+      lbl.textContent=p?ordinal(p):'DQ';
+    });
+  };
+
+  window.scrSave=function(){
+    var cls=window._scrCls;
+    var entries=window._scrEntries||[];
+    var scored=entries.map(function(e){ return {rowIndex:e.rowIndex,score:window._scrState[e.rowIndex]||0}; });
+    var pm=window._scrPlaces||computePlacements(scored);
+    var scoresFull={};
+    entries.forEach(function(e){
+      scoresFull[e.rowIndex]={score:window._scrState[e.rowIndex]||0, place:pm[e.rowIndex]||0};
+    });
+    commitScores(cls, entries, scoresFull);
+    // Show confirmation then refresh
+    var cnt=entries.filter(function(e){ var v=scoresFull[e.rowIndex]; return v&&v.score>0; }).length;
+    var notice=document.createElement('div');
+    notice.textContent='&#10003; '+cnt+' scores posted for '+cls.name+' ('+cls.division+')';
+    notice.style.cssText='position:fixed;top:5rem;left:50%;transform:translateX(-50%);'
+      +'background:var(--accent);color:#000;padding:.5rem 1.25rem;border-radius:8px;'
+      +'font-weight:700;font-size:.9rem;z-index:400;white-space:nowrap';
+    document.body.appendChild(notice);
+    setTimeout(function(){ notice.remove(); },2200);
+    window._scrState={};
+    renderScribe();
+  };
+
+  window.closeScribeMode=function(){
+    mr.innerHTML='';
+    window._scrState=null;
+  };
+
+  window._scrState={};
+  renderScribe();
 };
 
 // ═══════════════════════ PAGE: TABS ═══════════════════════
