@@ -1917,9 +1917,53 @@ function ordinal(n){
   return n+(s[(v-20)%10]||s[v]||s[0]);
 }
 
+// ─── Score Sheet Templates ────────────────────────────────────
+var SCORE_TEMPLATES={
+  'Reining':{
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
+    penalties:[{v:0.5,l:'½ pt'},{v:1,l:'1 pt'},{v:2,l:'2 pt'},{v:5,l:'5 pt'}],
+    hasNRHA:true
+  },
+  'Trail':{
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
+    penalties:[{v:1,l:'1 pt'},{v:3,l:'3 pt'},{v:5,l:'5 pt'}],
+    hasNRHA:true
+  },
+  'Pleasure':{
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
+    penalties:[{v:1,l:'1 pt'},{v:3,l:'3 pt'},{v:5,l:'5 pt'}],
+    hasNRHA:true
+  },
+  'Cow Work':{
+    maneuvers:['Boxing','Rating','Fence Turn L','Fence Turn R','Circling L','Circling R','Track & Rate','Stop & Hold','Position & Control','Degree of Diff.','Eye Appeal'],
+    penalties:[{v:1,l:'1 pt'},{v:2,l:'2 pt'},{v:3,l:'3 pt'},{v:5,l:'5 pt'}]
+  },
+  'BDBD Cow Work':{
+    maneuvers:['Boxing','Drive (Run & Rate)','Boxing','Drive (Run & Rate)','Position & Control','Degree of Difficulty','Eye Appeal','Courage'],
+    penalties:[{v:3,l:'3 pt'},{v:5,l:'5 pt'}]
+  },
+  'Novice Cow Work':{
+    maneuvers:['Position & Control','Degree of Difficulty','Eye Appeal','Courage','Time Worked'],
+    penalties:[{v:1,l:'1 pt'},{v:3,l:'3 pt'},{v:5,l:'5 pt'}],
+    hasComments:true
+  }
+};
+
+function getTemplateForDisc(name){
+  if(!name) return null;
+  if(SCORE_TEMPLATES[name]) return name;
+  var n=name.toLowerCase();
+  if(n.indexOf('novice')>=0&&n.indexOf('cow')>=0) return 'Novice Cow Work';
+  if(n.indexOf('bdbd')>=0) return 'BDBD Cow Work';
+  if(n.indexOf('cow')>=0) return 'Cow Work';
+  if(n.indexOf('rein')>=0) return 'Reining';
+  if(n.indexOf('trail')>=0) return 'Trail';
+  if(n.indexOf('pleasure')>=0) return 'Pleasure';
+  return null;
+}
+
 // ─── Scribe Mode ─────────────────────────────────────────────
 window.openScribeMode=function(initialKey){
-  // Build class list from entries
   var classMap={};
   G.entries.forEach(function(e){
     e.classes.forEach(function(cls){
@@ -1933,138 +1977,296 @@ window.openScribeMode=function(initialKey){
   if(!classList.length){ alert('No classes loaded. Import entries first.'); return; }
 
   var selKey=initialKey||classList[0].key;
+  var riderIdx=0;
+  var sheetData={};      // key -> {rowIndex -> state}
+  var tmplOverride={};   // key -> template name
+
   var mr=document.getElementById('modal-root');
+  var MVALS=[-1.5,-1,-0.5,0,0.5,1,1.5];
+  var MLABELS=['−1½','−1','−½','0','+½','+1','+1½'];
 
-  function renderScribe(){
-    var cls=classMap[selKey];
-    var entries=getGoEntries(selKey);
-    var existingScores=getExistingScores(cls);
+  // Inject CSS once
+  if(!document.getElementById('scribe-css')){
+    var sty=document.createElement('style'); sty.id='scribe-css';
+    sty.textContent=
+      '.scr-wrap{position:fixed;inset:0;background:var(--bg);z-index:250;display:flex;flex-direction:column;overflow:hidden}'+
+      '.scr-head{background:var(--topbar);border-bottom:1px solid var(--border2);padding:.5rem .65rem;display:flex;align-items:center;gap:.4rem;flex-shrink:0}'+
+      '.scr-rider-bar{background:var(--card2);border-bottom:1px solid var(--border);padding:.45rem .65rem;display:flex;align-items:center;gap:.4rem;flex-shrink:0}'+
+      '.scr-score-bar{background:var(--card);border-bottom:2px solid var(--accent);padding:.35rem .75rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}'+
+      '.scr-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:.65rem .75rem}'+
+      '.scr-foot{background:var(--card2);border-top:1px solid var(--border2);padding:.5rem .65rem;flex-shrink:0}'+
+      '.scr-stitle{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:.85rem 0 .3rem}'+
+      '.scr-maneuver{margin-bottom:.55rem}'+
+      '.scr-m-label{font-size:.8rem;font-weight:500;margin-bottom:.18rem}'+
+      '.scr-m-btns{display:flex;gap:2px}'+
+      '.scr-mb{flex:1;padding:.38rem 0;font-size:.72rem;font-weight:700;border:1px solid var(--border2);border-radius:4px;cursor:pointer;background:transparent;min-width:0;line-height:1}'+
+      '.scr-mb.neg{color:#e74c3c}.scr-mb.zero{color:var(--muted)}.scr-mb.pos{color:#2ecc71}'+
+      '.scr-mb.sel{background:var(--accent);color:#000;border-color:var(--accent)}'+
+      '.scr-pen-row{display:flex;align-items:center;gap:.45rem;padding:.3rem 0;border-bottom:1px solid var(--border)}'+
+      '.scr-pen-btn{width:34px;height:34px;border-radius:6px;border:1px solid var(--border2);background:var(--card2);color:var(--text);font-size:1.15rem;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}'+
+      '.scr-pen-cnt{font-size:1.1rem;font-weight:700;width:22px;text-align:center;flex-shrink:0}'+
+      '.scr-big{font-family:Oswald;font-size:2rem;font-weight:700;color:var(--accent);line-height:1;min-width:90px;text-align:right}'+
+      '.scr-op-btn{width:100%;padding:.5rem .75rem;border:1px solid var(--border2);border-radius:8px;background:transparent;color:var(--text);cursor:pointer;text-align:left;font-size:.88rem;margin-top:.5rem;font-weight:500}'+
+      '.scr-op-btn.on{background:rgba(231,76,60,.15);border-color:#e74c3c;color:#e74c3c;font-weight:700}'+
+      '.scr-nav-btn{padding:.35rem .6rem;border-radius:6px;border:1px solid var(--border2);background:var(--card2);color:var(--text);cursor:pointer;font-size:1rem;flex-shrink:0}'+
+      '.scr-nav-btn:disabled{opacity:.3;cursor:default}';
+    document.head.appendChild(sty);
+  }
 
-    // Init scribe state
-    if(!window._scrState) window._scrState={};
-    entries.forEach(function(e){
-      if(window._scrState[e.rowIndex]===undefined){
-        var ex=existingScores[e.name||''];
-        window._scrState[e.rowIndex]=(ex&&ex.score)?ex.score:undefined;
+  function getCls(){ return classMap[selKey]; }
+
+  function getTmplName(){
+    if(tmplOverride[selKey]) return tmplOverride[selKey];
+    return getTemplateForDisc(getCls().name);
+  }
+  function getTmpl(){ var n=getTmplName(); return n?SCORE_TEMPLATES[n]:null; }
+
+  function initState(ri){
+    var tmpl=getTmpl();
+    if(!sheetData[selKey]) sheetData[selKey]={};
+    if(!sheetData[selKey][ri]){
+      var s={m:[],pen:{},isOP:false,nrha:0,comments:''};
+      if(tmpl){
+        tmpl.maneuvers.forEach(function(){ s.m.push(0); });
+        tmpl.penalties.forEach(function(p){ s.pen[p.v]=0; });
       }
-    });
+      sheetData[selKey][ri]=s;
+    }
+    return sheetData[selKey][ri];
+  }
 
-    var opts=classList.map(function(c){
+  function calcTotal(s, tmpl){
+    if(s.isOP) return null;
+    var ms=s.m.reduce(function(a,v){return a+v;},0);
+    var ps=0;
+    if(tmpl) tmpl.penalties.forEach(function(p){ ps+=p.v*(s.pen[p.v]||0); });
+    return Math.round((70+ms-ps)*1000)/1000;
+  }
+
+  function isDone(ri){
+    if(!sheetData[selKey]||!sheetData[selKey][ri]) return false;
+    var s=sheetData[selKey][ri];
+    return s.isOP||s.m.some(function(v){return v!==0;})||(s.rawScore>0);
+  }
+
+  function render(){
+    var cls=getCls();
+    var entries=getGoEntries(selKey);
+    if(!entries.length){
+      mr.innerHTML='<div class="scr-wrap"><div style="padding:2rem;text-align:center">'
+        +'<p style="margin-bottom:1rem">No active entries in this class.</p>'
+        +'<button class="btn btn-dark" onclick="closeScribeMode()">Close</button></div></div>';
+      return;
+    }
+    if(riderIdx<0) riderIdx=0;
+    if(riderIdx>=entries.length) riderIdx=entries.length-1;
+
+    var entry=entries[riderIdx];
+    var ri=entry.rowIndex;
+    var s=initState(ri);
+    var tmpl=getTmpl();
+    var tmplName=getTmplName();
+    var total=calcTotal(s, tmpl||{maneuvers:[],penalties:[]});
+    var totalStr=s.isOP?'OP':(total!==null?total.toFixed(1):'—');
+    var manSum=s.m.reduce(function(a,v){return a+v;},0);
+    var penSum=0;
+    if(tmpl) tmpl.penalties.forEach(function(p){penSum+=p.v*(s.pen[p.v]||0);});
+
+    // Class selector
+    var clsOpts=classList.map(function(c){
       return '<option value="'+esc(c.key)+'"'+(c.key===selKey?' selected':'')+'>Class '
         +esc(c.num||'?')+' — '+esc(c.name)+' ('+esc(c.division||'')+')</option>';
     }).join('');
 
-    var rows=entries.map(function(e){
-      var val=window._scrState[e.rowIndex];
-      var hasScore=(val!==undefined&&val>0);
-      return '<div class="scribe-row" style="display:flex;align-items:center;gap:.6rem;padding:.65rem .5rem;border-bottom:1px solid var(--border)">'
-        +'<span style="width:44px;text-align:center;font-family:Oswald;font-size:1.2rem;color:var(--accent)">'+(G.backNums[e.rowIndex]||'—')+'</span>'
-        +'<div style="flex:1;min-width:0">'
-        +'<div style="font-size:.95rem;font-weight:600">'+esc(e.name||'')+'</div>'
-        +'<div style="font-size:.78rem;color:var(--muted)">'+esc(e.horse||'')+'</div>'
-        +'</div>'
-        +'<input type="number" inputmode="decimal" step="0.001" min="0" max="300" placeholder="Score" '
-        +'value="'+(hasScore?val:'')+'" '
-        +'data-scri="'+e.rowIndex+'" '
-        +'style="width:90px;background:var(--bg);border:2px solid '+(hasScore?'var(--accent)':'var(--border2)')+';'
-        +'border-radius:8px;color:var(--text);padding:.45rem .5rem;font-size:1.1rem;text-align:right;'
-        +'font-weight:700" '
-        +'oninput="scrInput('+e.rowIndex+',this.value)">'
-        +'</div>';
+    // Progress dots
+    var dots=entries.map(function(e,i){
+      var done=isDone(e.rowIndex);
+      return '<span style="width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;background:'
+        +(i===riderIdx?'var(--accent)':(done?'rgba(184,134,42,.5)':'var(--border2)'))+'" title="'+esc(e.name)+'"></span>';
     }).join('');
 
-    var doneCount=entries.filter(function(e){ var v=window._scrState[e.rowIndex]; return v!==undefined&&v>0; }).length;
+    // Template switcher
+    var tmplBtns=Object.keys(SCORE_TEMPLATES).map(function(t){
+      return '<button class="btn btn-sm '+(t===tmplName?'btn-accent':'btn-dark')+' no-print" '
+        +'onclick="scrSetTmpl(\''+t.replace(/'/g,"\\'")+'\')">'+esc(t)+'</button>';
+    }).join('');
 
-    mr.innerHTML='<div style="position:fixed;inset:0;background:var(--bg);z-index:250;display:flex;flex-direction:column;overflow:hidden">'
-      +'<div style="background:var(--topbar);border-bottom:1px solid var(--border2);padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;flex-shrink:0">'
-      +'<span style="font-family:Oswald;color:var(--accent);font-size:1.15rem;white-space:nowrap">&#9999;&#65039; Scribe</span>'
-      +'<select onchange="scrSelClass(this.value)" style="flex:1;background:var(--card);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.35rem .5rem;font-size:.85rem">'
-      +opts+'</select>'
-      +'<button class="btn btn-dark btn-sm" onclick="closeScribeMode()" style="flex-shrink:0">&#10005;</button>'
+    // Maneuver rows
+    var mHtml='';
+    if(tmpl){
+      mHtml='<div class="scr-stitle">Maneuvers (base 70)</div>';
+      tmpl.maneuvers.forEach(function(name,mi){
+        var cur=s.m[mi];
+        var btns=MVALS.map(function(v,vi){
+          var cls2='scr-mb '+(v<0?'neg':v>0?'pos':'zero')+(v===cur?' sel':'');
+          return '<button class="'+cls2+'" onclick="scrSetM('+mi+','+v+')">'+MLABELS[vi]+'</button>';
+        }).join('');
+        mHtml+='<div class="scr-maneuver"><div class="scr-m-label">'+esc(name)
+          +(cur!==0?'<span style="color:'+(cur>0?'#2ecc71':'#e74c3c')+';margin-left:.4rem;font-size:.75rem">'
+            +(cur>0?'+':'')+cur+'</span>':'')
+          +'</div><div class="scr-m-btns">'+btns+'</div></div>';
+      });
+    } else {
+      mHtml='<div class="scr-stitle">Score</div>'
+        +'<input type="number" step="0.001" min="0" max="300" placeholder="70.000" '
+        +'value="'+(s.rawScore||'')+'" '
+        +'style="width:160px;background:var(--bg);border:2px solid var(--accent);border-radius:8px;'
+        +'color:var(--text);padding:.5rem .75rem;font-size:1.3rem;font-weight:700;text-align:center;display:block;margin-bottom:.5rem" '
+        +'oninput="scrSetRaw(this.value)">';
+    }
+
+    // Penalty rows
+    var penHtml='';
+    if(tmpl&&tmpl.penalties&&tmpl.penalties.length){
+      penHtml='<div class="scr-stitle">Penalties</div>';
+      tmpl.penalties.forEach(function(p){
+        var cnt=s.pen[p.v]||0;
+        var tot=p.v*cnt;
+        penHtml+='<div class="scr-pen-row">'
+          +'<span style="font-size:.85rem;font-weight:600;min-width:40px">'+esc(p.l)+'</span>'
+          +'<button class="scr-pen-btn" onclick="scrPenDec('+p.v+')">−</button>'
+          +'<span class="scr-pen-cnt">'+cnt+'</span>'
+          +'<button class="scr-pen-btn" onclick="scrPenInc('+p.v+')">+</button>'
+          +(tot>0?'<span style="font-size:.78rem;color:#e74c3c;margin-left:.25rem">= −'+tot+' pts</span>':'')
+          +'</div>';
+      });
+    }
+
+    // OP + NRHA + Comments
+    var opHtml='<button class="scr-op-btn'+(s.isOP?' on':'')+'" onclick="scrToggleOP()">'
+      +(s.isOP?'✓ Off Pattern (OP) — score voided':'○ Off Pattern (OP)')+'</button>';
+
+    var nrhaHtml=(tmpl&&tmpl.hasNRHA)
+      ?'<div style="display:flex;align-items:center;gap:.5rem;margin-top:.55rem">'
+        +'<span style="font-size:.8rem;flex:1">Natural Ranch Horse Appearance</span>'
+        +'<input type="number" step="0.5" min="-5" max="5" placeholder="0" value="'+(s.nrha||'')+'" '
+        +'style="width:64px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;'
+        +'color:var(--text);padding:.25rem .4rem;text-align:center" oninput="scrSetNRHA(this.value)"></div>'
+      :'';
+
+    var commHtml=(tmpl&&tmpl.hasComments)
+      ?'<div class="scr-stitle">Comments</div>'
+        +'<textarea rows="2" placeholder="Comments..." '
+        +'style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;'
+        +'color:var(--text);padding:.35rem .5rem;font-size:.82rem;resize:none" '
+        +'oninput="scrSetComments(this.value)">'+esc(s.comments||'')+'</textarea>'
+      :'';
+
+    mr.innerHTML='<div class="scr-wrap">'
+      // ── Header
+      +'<div class="scr-head">'
+      +'<button class="scr-nav-btn" onclick="closeScribeMode()">✕</button>'
+      +'<select onchange="scrSelClass(this.value)" style="flex:1;background:var(--card);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.3rem .4rem;font-size:.78rem">'+clsOpts+'</select>'
       +'</div>'
-      +'<div style="padding:.5rem 1rem;background:var(--card2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'
-      +'<span style="font-size:.8rem;color:var(--muted)">'+entries.length+' going &middot; '+doneCount+' scored</span>'
-      +'<div style="display:flex;gap:.4rem">'
-      +'<button class="btn btn-dark btn-sm" onclick="scrAutoPlace()">&#8645; Place</button>'
-      +'<button class="btn btn-accent btn-sm" onclick="scrSave()">&#10003; Post Scores</button>'
+      // ── Rider bar
+      +'<div class="scr-rider-bar">'
+      +'<button class="scr-nav-btn" onclick="scrPrev()" '+(riderIdx===0?'disabled':'')+'>◀</button>'
+      +'<div style="flex:1;min-width:0;text-align:center">'
+      +'<div style="font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
+      +'<span style="color:var(--accent);margin-right:.35rem">#'+(G.backNums[ri]||'—')+'</span>'+esc(entry.name||'')+'</div>'
+      +'<div style="font-size:.73rem;color:var(--muted)">'+esc(entry.horse||'')+'</div>'
+      +'<div style="display:flex;gap:3px;justify-content:center;margin-top:.2rem;flex-wrap:wrap">'+dots+'</div>'
       +'</div>'
+      +'<button class="scr-nav-btn" onclick="scrNext()" '+(riderIdx>=entries.length-1?'disabled':'')+'>▶</button>'
       +'</div>'
-      +'<div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">'+rows+'</div>'
+      // ── Score bar
+      +'<div class="scr-score-bar">'
+      +'<div style="font-size:.72rem;color:var(--muted);line-height:1.5">'
+      +'<div>Base: 70</div>'
+      +(manSum!==0?'<div style="color:'+(manSum>=0?'#2ecc71':'#e74c3c')+'">'+(manSum>=0?'+':'')+manSum.toFixed(1)+' maneuvers</div>':'')
+      +(penSum>0?'<div style="color:#e74c3c">−'+penSum.toFixed(1)+' penalties</div>':'')
+      +'</div>'
+      +'<div class="scr-big" style="color:'+(s.isOP?'#e74c3c':'var(--accent)')+'">'+totalStr+'</div>'
+      +'<div style="font-size:.7rem;color:var(--muted);text-align:right">'+(''+( riderIdx+1))+'/'+entries.length+'</div>'
+      +'</div>'
+      // ── Body
+      +'<div class="scr-body">'
+      +'<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.4rem">'+tmplBtns+'</div>'
+      +mHtml+penHtml+opHtml+nrhaHtml+commHtml
+      +'<div style="height:1rem"></div>'
+      +'</div>'
+      // ── Footer
+      +'<div class="scr-foot">'
+      +'<button class="btn btn-accent" style="width:100%;padding:.6rem;font-size:.95rem;font-weight:700" onclick="scrPost()">✓ Post Score</button>'
+      +'</div>'
       +'</div>';
 
-    window._scrCls=cls;
-    window._scrEntries=entries;
-    window._scrKey=selKey;
-    window._scrPlaces=null;
+    // ── Event handlers (re-assigned each render)
+    window.scrSetM=function(mi,v){
+      var st=initState(ri); st.m[mi]=v; render();
+    };
+    window.scrPenInc=function(pv){
+      var st=initState(ri); st.pen[pv]=(st.pen[pv]||0)+1; render();
+    };
+    window.scrPenDec=function(pv){
+      var st=initState(ri); if(st.pen[pv]>0) st.pen[pv]--; render();
+    };
+    window.scrToggleOP=function(){
+      var st=initState(ri); st.isOP=!st.isOP; render();
+    };
+    window.scrSetNRHA=function(v){ initState(ri).nrha=parseFloat(v)||0; };
+    window.scrSetComments=function(v){ initState(ri).comments=v; };
+    window.scrSetRaw=function(v){ initState(ri).rawScore=parseFloat(v)||0; };
+    window.scrSelClass=function(key){ selKey=key; riderIdx=0; render(); };
+    window.scrSetTmpl=function(name){
+      tmplOverride[selKey]=name;
+      if(sheetData[selKey]) sheetData[selKey]={};
+      render();
+    };
+    window.scrPrev=function(){ if(riderIdx>0){riderIdx--;render();} };
+    window.scrNext=function(){ if(riderIdx<entries.length-1){riderIdx++;render();} };
+
+    window.scrPost=function(){
+      var st=initState(ri);
+      var tmplLocal=getTmpl();
+      var finalScore=0;
+      if(st.isOP){
+        finalScore=0;
+      } else if(tmplLocal){
+        finalScore=calcTotal(st,tmplLocal)||0;
+      } else {
+        finalScore=st.rawScore||0;
+      }
+      // Remove existing row for this rider/class then push new one
+      var clsRef=getCls();
+      G.results=G.results.filter(function(r){
+        return !(r.org===clsRef.org&&r.division===clsRef.division
+          &&r.discipline===clsRef.name&&r.rider===entry.name);
+      });
+      G.results.push({
+        showName: G.cfg.showName||G.showName||'',
+        org:      clsRef.org||'CoWN',
+        division: clsRef.division||'',
+        discipline:clsRef.name||'',
+        rawClass: (clsRef.num?clsRef.num+' ':'')+clsRef.name,
+        entries:  entries.length,
+        score:    finalScore,
+        place:    0,
+        horse:    entry.horse||'',
+        rider:    entry.name||'',
+        riderNum: entry.memberNum||'',
+        pts:0, money:0, addedMoney:0, goRound:'',
+        isOP:     st.isOP||false,
+        _manual:  true
+      });
+      saveResultsToStorage();
+
+      // Flash score
+      var fl=document.createElement('div');
+      fl.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);'
+        +'background:var(--accent);color:#000;padding:.7rem 1.5rem;border-radius:12px;'
+        +'font-family:Oswald;font-size:1.4rem;font-weight:700;z-index:400;pointer-events:none';
+      fl.textContent=(st.isOP?'OP':finalScore.toFixed(1));
+      document.body.appendChild(fl);
+      setTimeout(function(){fl.remove();},700);
+
+      if(riderIdx<entries.length-1) riderIdx++;
+      render();
+    };
   }
 
-  window.scrSelClass=function(key){
-    selKey=key;
-    window._scrState={};
-    renderScribe();
-  };
-
-  window.scrInput=function(ri, val){
-    var v=parseFloat(val);
-    window._scrState[ri]=isNaN(v)?undefined:v;
-    window._scrPlaces=null;
-    var inp=document.querySelector('input[data-scri="'+ri+'"]');
-    if(inp) inp.style.borderColor=(v>0)?'var(--accent)':'var(--border2)';
-    // update count
-    var entries=window._scrEntries||[];
-    var done=entries.filter(function(e){ var v=window._scrState[e.rowIndex]; return v!==undefined&&v>0; }).length;
-    var lbl=document.querySelector('[data-scr-count]');
-    if(lbl) lbl.textContent=entries.length+' going · '+done+' scored';
-  };
-
-  window.scrAutoPlace=function(){
-    var entries=window._scrEntries||[];
-    var scored=entries.map(function(e){ return {rowIndex:e.rowIndex,score:window._scrState[e.rowIndex]||0}; });
-    window._scrPlaces=computePlacements(scored);
-    entries.forEach(function(e){
-      var p=window._scrPlaces[e.rowIndex]||0;
-      var inp=document.querySelector('input[data-scri="'+e.rowIndex+'"]');
-      if(!inp) return;
-      var row=inp.closest('.scribe-row');
-      var lbl=row.querySelector('.scr-place-lbl');
-      if(!lbl){ lbl=document.createElement('span'); lbl.className='scr-place-lbl';
-        lbl.style.cssText='width:32px;text-align:center;font-size:.85rem;font-weight:700;color:var(--accent)';
-        row.appendChild(lbl);
-      }
-      lbl.textContent=p?ordinal(p):'DQ';
-    });
-  };
-
-  window.scrSave=function(){
-    var cls=window._scrCls;
-    var entries=window._scrEntries||[];
-    var scored=entries.map(function(e){ return {rowIndex:e.rowIndex,score:window._scrState[e.rowIndex]||0}; });
-    var pm=window._scrPlaces||computePlacements(scored);
-    var scoresFull={};
-    entries.forEach(function(e){
-      scoresFull[e.rowIndex]={score:window._scrState[e.rowIndex]||0, place:pm[e.rowIndex]||0};
-    });
-    commitScores(cls, entries, scoresFull);
-    // Show confirmation then refresh
-    var cnt=entries.filter(function(e){ var v=scoresFull[e.rowIndex]; return v&&v.score>0; }).length;
-    var notice=document.createElement('div');
-    notice.textContent='&#10003; '+cnt+' scores posted for '+cls.name+' ('+cls.division+')';
-    notice.style.cssText='position:fixed;top:5rem;left:50%;transform:translateX(-50%);'
-      +'background:var(--accent);color:#000;padding:.5rem 1.25rem;border-radius:8px;'
-      +'font-weight:700;font-size:.9rem;z-index:400;white-space:nowrap';
-    document.body.appendChild(notice);
-    setTimeout(function(){ notice.remove(); },2200);
-    window._scrState={};
-    renderScribe();
-  };
-
-  window.closeScribeMode=function(){
-    mr.innerHTML='';
-    window._scrState=null;
-  };
-
-  window._scrState={};
-  renderScribe();
+  window.closeScribeMode=function(){ mr.innerHTML=''; };
+  render();
 };
 
 // ═══════════════════════ PAGE: TABS ═══════════════════════
