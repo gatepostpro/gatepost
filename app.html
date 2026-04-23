@@ -339,8 +339,11 @@ var G = {
   resultsFile: '',
   scoreLinks: {},    // "org|div|disc" → URL for score sheet PDF
   aaMoney: {},       // "org|div" → scalar added money total (payout split computed dynamically)
+  scratchpad: {},    // persisted scribe in-progress data: {classKey: {rowIndex: state}}
   cfg: {
     showName:'', showDate:'', location:'', secretary:'', email:'',
+    scribePin: '',         // PIN required to open scribe mode (empty = no PIN)
+    resultsVisible: false, // false = hidden from public; secretary can toggle
     fees:{
       stall1:40, stall2:80, stall3:120, stallCircuit:150,
       shavings:12, rv1:40, rv2:80, rvCircuit:110,
@@ -958,6 +961,7 @@ function saveResultsToStorage(){
     localStorage.setItem('gp_resultsfile_'+G.showId, G.resultsFile||'');
     localStorage.setItem('gp_scorelinks_'+G.showId, JSON.stringify(G.scoreLinks||{}));
     localStorage.setItem('gp_aamoney_'+G.showId, JSON.stringify(G.aaMoney||{}));
+    localStorage.setItem('gp_scratch_'+G.showId, JSON.stringify(G.scratchpad||{}));
   } catch(ex){ console.warn('Results save failed:', ex); }
 }
 
@@ -1961,7 +1965,42 @@ function getTemplateForDisc(name){
 }
 
 // ─── Scribe Mode — guided one-maneuver-at-a-time ──────────────
+var _scrPinUnlocked=false; // persists for the browser session
+
 window.openScribeMode=function(initialKey){
+  // PIN gate — if a PIN is set and not yet entered this session, show prompt
+  if(G.cfg.scribePin && !_scrPinUnlocked){
+    var mr0=document.getElementById('modal-root');
+    mr0.innerHTML=
+      '<div style="position:fixed;inset:0;background:var(--bg);z-index:260;display:flex;align-items:center;justify-content:center">'
+      +'<div style="background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:2rem 2rem 1.5rem;text-align:center;width:240px">'
+      +'<div style="font-family:Oswald;font-size:1.2rem;color:var(--accent);margin-bottom:.25rem">Scribe Access</div>'
+      +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">Enter PIN to continue</div>'
+      +'<input id="scr-pin-inp" type="password" inputmode="numeric" maxlength="8" placeholder="••••" '
+      +'style="width:100%;text-align:center;font-size:1.4rem;letter-spacing:.25em;background:var(--bg);border:2px solid var(--border2);border-radius:8px;color:var(--text);padding:.5rem;margin-bottom:.75rem">'
+      +'<div id="scr-pin-err" style="color:#e74c3c;font-size:.75rem;min-height:1rem;margin-bottom:.5rem"></div>'
+      +'<div style="display:flex;gap:.5rem">'
+      +'<button class="btn btn-dark" style="flex:1" onclick="document.getElementById(\'modal-root\').innerHTML=\'\'">Cancel</button>'
+      +'<button class="btn btn-accent" style="flex:1" onclick="scrCheckPin(\''+initialKey+'\')">Enter</button>'
+      +'</div></div></div>';
+    document.getElementById('scr-pin-inp').focus();
+    window.scrCheckPin=function(key){
+      var val=document.getElementById('scr-pin-inp').value;
+      if(val===String(G.cfg.scribePin)){
+        _scrPinUnlocked=true;
+        window.openScribeMode(key);
+      } else {
+        document.getElementById('scr-pin-err').textContent='Incorrect PIN';
+        document.getElementById('scr-pin-inp').value='';
+        document.getElementById('scr-pin-inp').focus();
+      }
+    };
+    // Allow Enter key
+    document.getElementById('scr-pin-inp').addEventListener('keydown',function(e){
+      if(e.key==='Enter') window.scrCheckPin(initialKey);
+    });
+    return;
+  }
   var classMap={};
   G.entries.forEach(function(e){
     e.classes.forEach(function(cls){
@@ -1976,9 +2015,9 @@ window.openScribeMode=function(initialKey){
 
   var selKey=initialKey||classList[0].key;
   var riderIdx=0;
-  var mvrIdx=0;        // which maneuver column we're on
-  var sheetData={};    // key -> {rowIndex -> state}
-  var tmplOverride={}; // key -> template name override
+  var mvrIdx=0;
+  var sheetData=G.scratchpad;  // reference — writes persist automatically
+  var tmplOverride={};
 
   var mr=document.getElementById('modal-root');
   var MVALS=[-1.5,-1,-0.5,0,0.5,1,1.5];
@@ -2269,13 +2308,14 @@ window.openScribeMode=function(initialKey){
     if(hs) hs.scrollLeft=savedScroll;
 
     // ── Handlers ───────────────────────────────────────────────
-    window.scrSetM=function(mi,v){ initState(ri).m[mi].score=v; render(); };
-    window.scrMPenAdd=function(mi,pv){ var st=initState(ri); st.m[mi].pen=Math.round((st.m[mi].pen+pv)*10)/10; render(); };
-    window.scrMPenClr=function(mi){ initState(ri).m[mi].pen=0; render(); };
-    window.scrToggleOP=function(){ var st=initState(ri); st.isOP=!st.isOP; if(st.isOP)st.isDQ=false; render(); };
-    window.scrToggleDQ=function(){ var st=initState(ri); st.isDQ=!st.isDQ; if(st.isDQ)st.isOP=false; render(); };
-    window.scrSetNRHA=function(v){ initState(ri).nrha=parseFloat(v)||0; };
-    window.scrSetComments=function(v){ initState(ri).comments=v; };
+    function saveScratch(){ saveResultsToStorage(); }
+    window.scrSetM=function(mi,v){ initState(ri).m[mi].score=v; saveScratch(); render(); };
+    window.scrMPenAdd=function(mi,pv){ var st=initState(ri); st.m[mi].pen=Math.round((st.m[mi].pen+pv)*10)/10; saveScratch(); render(); };
+    window.scrMPenClr=function(mi){ initState(ri).m[mi].pen=0; saveScratch(); render(); };
+    window.scrToggleOP=function(){ var st=initState(ri); st.isOP=!st.isOP; if(st.isOP)st.isDQ=false; saveScratch(); render(); };
+    window.scrToggleDQ=function(){ var st=initState(ri); st.isDQ=!st.isDQ; if(st.isDQ)st.isOP=false; saveScratch(); render(); };
+    window.scrSetNRHA=function(v){ initState(ri).nrha=parseFloat(v)||0; saveScratch(); };
+    window.scrSetComments=function(v){ initState(ri).comments=v; saveScratch(); };
     window.scrSetRaw=function(v){ initState(ri).rawScore=parseFloat(v)||0; };
     window.scrSelClass=function(key){ selKey=key; riderIdx=0; mvrIdx=0; render(); };
     window.scrSetTmpl=function(name){ tmplOverride[selKey]=name; sheetData[selKey]={}; mvrIdx=0; render(); };
@@ -2285,25 +2325,61 @@ window.openScribeMode=function(initialKey){
     window.scrNextMvr=function(){ if(mvrIdx<mvrCount-1){ mvrIdx++; render(); } };
     window.scrJumpMvr=function(mi){ mvrIdx=mi; render(); };
 
+    function recomputeManualPlacements(org, division, discipline, totalEntries){
+      var rows=G.results.filter(function(r){
+        return r._manual&&r.org===org&&r.division===division&&r.discipline===discipline;
+      });
+      var scored=rows.filter(function(r){ return !r.isOP&&!r.isDQ&&r.score; });
+      scored.sort(function(a,b){ return (b.score||0)-(a.score||0); });
+      var rank=1;
+      scored.forEach(function(r,i){
+        if(i>0&&scored[i-1].score===r.score) r.place=scored[i-1].place;
+        else r.place=rank;
+        rank=i+2;
+      });
+      var byPlace={};
+      scored.forEach(function(r){
+        if(!byPlace[r.place]) byPlace[r.place]=[];
+        byPlace[r.place].push(r);
+      });
+      Object.keys(byPlace).forEach(function(pl){
+        pl=parseInt(pl);
+        var grp=byPlace[pl]; var sum=0;
+        for(var k=0;k<grp.length;k++) sum+=Math.max(0,totalEntries-(pl+k-1));
+        var avg=Math.round(sum/grp.length*1000)/1000;
+        grp.forEach(function(r){ r.pts=avg; });
+      });
+      rows.filter(function(r){ return r.isOP||r.isDQ; }).forEach(function(r){ r.place=0; r.pts=0; });
+    }
+
     window.scrPost=function(){
       var st=initState(ri);
       var tmplLocal=getTmpl();
+      var tmplName=getTmplName();
       var finalScore=calcTotal(st,tmplLocal);
       if(finalScore===null) finalScore=0;
       var clsRef=getCls();
+      // Use normalized discipline name so Results page can match it
+      var discName=tmplName||clsRef.name;
       G.results=G.results.filter(function(r){
-        return !(r.org===clsRef.org&&r.division===clsRef.division
-          &&r.discipline===clsRef.name&&r.rider===entry.name);
+        return !(r._manual&&r.org===clsRef.org&&r.division===clsRef.division
+          &&r.discipline===discName&&r.rider===entry.name);
       });
       G.results.push({
         showName:G.cfg.showName||G.showName||'', org:clsRef.org||'CoWN',
-        division:clsRef.division||'', discipline:clsRef.name||'',
+        division:clsRef.division||'', discipline:discName,
         rawClass:(clsRef.num?clsRef.num+' ':'')+clsRef.name,
         entries:entries.length, score:finalScore, place:0,
         horse:entry.horse||'', rider:entry.name||'', riderNum:entry.memberNum||'',
         pts:0, money:0, addedMoney:0, goRound:'',
-        isOP:st.isOP||false, isDQ:st.isDQ||false, _manual:true
+        isOP:st.isOP||false, isDQ:st.isDQ||false, _manual:true,
+        _scoreDetail:tmplLocal?{
+          maneuvers:tmplLocal.maneuvers,
+          m:st.m.map(function(x){ return {score:x.score,pen:x.pen}; }),
+          nrha:st.nrha||0, comments:st.comments||''
+        }:null
       });
+      recomputeManualPlacements(clsRef.org||'CoWN', clsRef.division||'', discName, entries.length);
       saveResultsToStorage();
       var fl=document.createElement('div');
       fl.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);'
@@ -2450,6 +2526,11 @@ window.resSelShow=function(s){ _resSelShow=s; _resSelOrg=''; _resSelDiv=''; _res
 window.resSelOrg=function(o){ _resSelOrg=o; _resSelDiv=''; _resSelClass=''; _resSortCol='place'; _resSortDir=1; pgResults(); };
 window.resSelDiv=function(d){ _resSelDiv=d; _resSelClass=''; _resSortCol='place'; _resSortDir=1; pgResults(); };
 window.resSelClass=function(c){ _resSelClass=c; _resSortCol='place'; _resSortDir=1; pgResults(); };
+window.toggleResultsVisible=function(){
+  G.cfg.resultsVisible=!G.cfg.resultsVisible;
+  try{ localStorage.setItem('gatepost_cfg',JSON.stringify(G.cfg)); } catch(e){}
+  pgResults();
+};
 window.resSort=function(c){
   if(_resSortCol===c){ _resSortDir*=-1; }
   else{ _resSortCol=c; _resSortDir=(c==='score'||c==='pts'||c==='money')?-1:1; }
@@ -2525,7 +2606,19 @@ function pgResults(){
     +'<div class="stat c-purple"><div class="n">'+divs.length+'</div><div class="l">Divisions</div></div>'
     +'</div>';
 
+  // Visibility toggle state
+  var vis=G.cfg.resultsVisible||false;
+
   html+='<div class="card">';
+  // Visibility banner
+  html+='<div style="display:flex;align-items:center;gap:.65rem;padding:.45rem .65rem;margin-bottom:.5rem;border-radius:8px;'
+    +(vis?'background:rgba(39,174,96,.1);border:1px solid rgba(39,174,96,.3)':'background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.2)')+'">'
+    +'<span style="font-size:.75rem;font-weight:700;color:'+(vis?'var(--green)':'#e74c3c')+'">'
+    +(vis?'&#9679; Results are PUBLIC':'&#9679; Results are HIDDEN from public')+'</span>'
+    +'<button class="btn btn-sm '+(vis?'btn-dark':'btn-accent')+'" style="margin-left:auto" onclick="toggleResultsVisible()">'
+    +(vis?'Hide from Public':'Make Public')+'</button>'
+    +'</div>';
+
   html+='<div class="card-title res-card-head"><span>'+esc(G.resultsFile)+'</span>'
     +'<div class="res-search-row" style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">'
     +'<input type="text" placeholder="Search rider or horse..." value="'+esc(_resSearch)+'" '
@@ -2768,8 +2861,8 @@ function pgResults(){
       var orgPtsSys=(ORG_CLASSES[_resSelOrg]||{}).pointsSystem||'entries';
       var byCalcPlace={};
       clsRows.forEach(function(r){
-        var isDQ=!r.place&&!r.score&&!r.pts;
-        if(isDQ){ calcPtsMap[r.rider+'|'+r.horse]=0; return; }
+        var isDQ=r.isDQ||((!r._manual)&&!r.place&&!r.score&&!r.pts&&!r.isOP);
+        if(isDQ||r.isOP){ calcPtsMap[r.rider+'|'+r.horse]=0; return; }
         var cp=calcPlaceMap[r.rider+'|'+r.horse]||r.place;
         if(!byCalcPlace[cp]) byCalcPlace[cp]=[];
         byCalcPlace[cp].push(r.rider+'|'+r.horse);
@@ -2798,12 +2891,13 @@ function pgResults(){
         });
       }
 
-      // Count discrepancies
+      // Count discrepancies — skip manual rows (placements computed by us, not Funnware)
       // For AQHA orgs: Funnware often exports 0 for pts (AQHA tracks points centrally).
-      // So pts mismatch only counts when Funnware actually exported a non-zero value.
       var isAqhaOrg=(orgPtsSys==='aqha');
+      var allManual=clsRows.every(function(r){ return r._manual; });
       var placeErrs=0, ptsErrs=0;
       clsRows.forEach(function(r){
+        if(r._manual||r.isOP||r.isDQ) return; // skip manual and status rows
         var isDQ=!r.place&&!r.score&&!r.pts;
         if(isDQ) return;
         var key=r.rider+'|'+r.horse;
@@ -2811,10 +2905,9 @@ function pgResults(){
         var cpts=calcPtsMap[key];
         if(cp&&r.place&&cp!==r.place) placeErrs++;
         if(!isAqhaOrg && cpts!==undefined&&r.pts!==undefined&&Math.abs((cpts||0)-(r.pts||0))>0.05) ptsErrs++;
-        // For AQHA: only flag if Funnware exported a non-zero value that doesn't match
         if(isAqhaOrg && r.pts>0 && cpts!==undefined && Math.abs((cpts||0)-(r.pts||0))>0.05) ptsErrs++;
       });
-      var hasErrors=entryMismatch||placeErrs>0||ptsErrs>0;
+      var hasErrors=(!allManual&&entryMismatch)||placeErrs>0||ptsErrs>0;
       // Always show calculated pts column for AQHA orgs (as a reference, not just on error)
       var showCalcCols=hasErrors||isAqhaOrg;
 
@@ -2868,13 +2961,17 @@ function pgResults(){
         +(showCalcCols?'<th style="text-align:right;color:'+(isAqhaOrg?'var(--accent)':'var(--muted)')+';font-size:.75rem">'+calcPtsLabel+'</th>':'')
         +sTh('money','Money','right')
         +'</tr></thead><tbody>';
-      clsRows.forEach(function(r){
-        var isDQ=!r.place&&!r.score&&!r.pts;
+      clsRows.forEach(function(r,ri2){
+        // Explicit flags take priority; fall back to legacy SHTX zero-row heuristic for non-manual rows
+        var isDQ=r.isDQ||((!r._manual)&&!r.place&&!r.score&&!r.pts&&!r.isOP);
+        var isOP=r.isOP||false;
         var isTied=rowIsTied(r);
         var plColor=r.place===1?'var(--accent)':r.place===2?'#aaa':r.place===3?'#cd7f32':'var(--muted)';
         var plCell;
         if(isDQ){
           plCell='<span style="font-size:.68rem;font-weight:700;background:rgba(231,76,60,.2);color:var(--red);padding:1px 5px;border-radius:3px">DQ</span>';
+        } else if(isOP){
+          plCell='<span style="font-size:.68rem;font-weight:700;background:rgba(224,124,0,.2);color:#e07c00;padding:1px 5px;border-radius:3px">OP</span>';
         } else if(isTied){
           plCell='<span style="font-weight:600;color:'+plColor+'">T-'+r.place+'</span>';
         } else {
@@ -2883,17 +2980,25 @@ function pgResults(){
         var key=r.rider+'|'+r.horse;
         var cp=calcPlaceMap[key];
         var cpts=calcPtsMap[key];
-        var plMismatch=!isDQ&&cp&&r.place&&cp!==r.place;
-        var ptsMismatch=!isDQ&&cpts!==undefined&&(isAqhaOrg?r.pts>0:true)&&Math.abs((cpts||0)-(r.pts||0))>0.05;
-        html+='<tr'+(isDQ?' style="opacity:.55"':'')+(plMismatch||ptsMismatch?' style="background:rgba(231,76,60,.05)"':'')+'>'
+        var noVerify=isDQ||isOP;
+        var plMismatch=!noVerify&&cp&&r.place&&cp!==r.place;
+        var ptsMismatch=!noVerify&&cpts!==undefined&&(isAqhaOrg?r.pts>0:true)&&Math.abs((cpts||0)-(r.pts||0))>0.05;
+        // Score display: manual rows may have detail
+        var scoreDisp=isOP?'<span style="color:#e07c00;font-size:.75rem;font-weight:700">OP</span>'
+          :isDQ?'<span style="color:var(--red);font-size:.75rem;font-weight:700">DQ</span>'
+          :(!r.score?'&mdash;':r.score.toFixed(3));
+        // Detail button for manually entered scores
+        var detailBtn=r._manual&&r._scoreDetail
+          ?'<button onclick="showScoreDetail('+ri2+')" style="margin-left:.35rem;background:transparent;border:1px solid var(--border2);border-radius:3px;padding:1px 4px;font-size:.65rem;cursor:pointer;color:var(--muted)" title="View score sheet">≡</button>'
+          :'';
+        html+='<tr'+(noVerify?' style="opacity:.55"':'')+(plMismatch||ptsMismatch?' style="background:rgba(231,76,60,.05)"':'')+'>'
           +'<td>'+(plMismatch?'<span style="color:var(--red)" title="Calc: '+cp+'">'+plCell+' &#9888;</span>':plCell)+'</td>'
-          +'<td>'+esc(r.rider)+'</td>'
+          +'<td>'+esc(r.rider)+(r._manual?'<span style="font-size:.6rem;color:var(--muted);margin-left:.3rem">✎</span>':'')+'</td>'
           +'<td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>'
-          +'<td class="score-cell" data-ridx="'+r._idx+'" style="text-align:right;cursor:pointer" title="Click to edit score">'
-          +(!r.score?'&mdash;':r.score.toFixed(3))+'</td>'
+          +'<td style="text-align:right">'+scoreDisp+detailBtn+'</td>'
           +(showCalcCols?'<td style="text-align:right;color:var(--muted);font-size:.78rem">'+(cp||'&mdash;')+'</td>':'')
-          +'<td style="text-align:right;color:'+(ptsMismatch?'var(--red)':'var(--accent)')+'">'+(isDQ?'&mdash;':(r.pts||0).toFixed(1))+'</td>'
-          +(showCalcCols?'<td style="text-align:right;color:'+(isAqhaOrg?'var(--accent)':'var(--muted)')+';font-size:.78rem">'+(isDQ?'&mdash;':cpts!==undefined?cpts.toFixed(1):'&mdash;')+'</td>':'')
+          +'<td style="text-align:right;color:'+(ptsMismatch?'var(--red)':'var(--accent)')+'">'+(noVerify?'&mdash;':(r.pts||0).toFixed(1))+'</td>'
+          +(showCalcCols?'<td style="text-align:right;color:'+(isAqhaOrg?'var(--accent)':'var(--muted)')+';font-size:.78rem">'+(noVerify?'&mdash;':cpts!==undefined?cpts.toFixed(1):'&mdash;')+'</td>':'')
           +'<td style="text-align:right;color:var(--green)">'+(r.money?'$'+r.money.toFixed(0):'&mdash;')+'</td>'
           +'</tr>';
       });
@@ -2969,6 +3074,48 @@ function pgResults(){
     });
     sheetsBtn.addEventListener('click',function(e){ e.stopPropagation(); sheetsInp.click(); });
   }
+
+  // ── Score detail modal (manually entered scores) ─────────────
+  window.showScoreDetail=function(ri2){
+    var r=clsRows[ri2];
+    if(!r||!r._scoreDetail) return;
+    var sd=r._scoreDetail;
+    var rows=sd.maneuvers.map(function(name,i){
+      var m=sd.m[i]||{score:0,pen:0};
+      var sc=m.score; var pen=m.pen;
+      var scStr=sc===0?'0':(sc>0?'+'+sc:''+sc);
+      var scColor=sc>0?'#2ecc71':sc<0?'#e74c3c':'var(--muted)';
+      return '<tr>'
+        +'<td style="color:var(--muted);font-size:.82rem">'+esc(name)+'</td>'
+        +'<td style="text-align:right;font-weight:700;color:'+scColor+'">'+scStr+'</td>'
+        +'<td style="text-align:right;color:'+(pen>0?'#e74c3c':'var(--muted)')+'">'+(pen>0?'−'+pen:'—')+'</td>'
+        +'<td style="text-align:right;font-size:.8rem;color:var(--accent)">'+(Math.round((70/(sd.maneuvers.length||1)+sc-pen)*1000)/1000)+'</td>'
+        +'</tr>';
+    }).join('');
+    var ms=sd.m.reduce(function(a,x){return a+x.score;},0);
+    var ps=sd.m.reduce(function(a,x){return a+x.pen;},0);
+    var total=Math.round((70+ms-ps)*1000)/1000;
+    var detail=(sd.nrha?'<div style="font-size:.8rem;color:var(--muted);margin-top:.5rem">NRHA: '+(sd.nrha>0?'+':'')+sd.nrha+'</div>':'')
+      +(sd.comments?'<div style="font-size:.8rem;color:var(--muted)">'+esc(sd.comments)+'</div>':'');
+    var mr2=document.getElementById('modal-root');
+    mr2.innerHTML='<div class="modal-overlay" onclick="closeModal()">'
+      +'<div class="modal" onclick="event.stopPropagation()" style="max-width:420px">'
+      +'<div class="modal-head"><span style="font-family:Oswald;font-size:1rem;color:var(--accent)">'+esc(r.rider)+' — '+esc(r.discipline)+'</span>'
+      +'<button class="modal-x" onclick="closeModal()">✕</button></div>'
+      +'<div class="modal-body">'
+      +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem">'+esc(r.horse)+'</div>'
+      +'<div class="tbl-wrap"><table><thead><tr>'
+      +'<th>Maneuver</th><th style="text-align:right">Score</th><th style="text-align:right">Penalty</th><th style="text-align:right">Net</th>'
+      +'</tr></thead><tbody>'+rows+'</tbody>'
+      +'<tfoot><tr style="border-top:2px solid var(--accent)">'
+      +'<td style="font-weight:700">Total</td>'
+      +'<td style="text-align:right;color:'+(ms>=0?'#2ecc71':'#e74c3c')+';font-weight:700">'+(ms>0?'+':'')+ms+'</td>'
+      +'<td style="text-align:right;color:'+(ps>0?'#e74c3c':'var(--muted)')+'">'+( ps>0?'−'+ps:'—')+'</td>'
+      +'<td style="text-align:right;font-family:Oswald;font-size:1.1rem;color:var(--accent);font-weight:700">'+total.toFixed(3)+'</td>'
+      +'</tr></tfoot></table></div>'
+      +detail
+      +'</div></div></div>';
+  };
 
   // ── Inline score editing ──────────────────────────────────────
   pg.addEventListener('click', function(ev){
@@ -3065,6 +3212,36 @@ function pgSetup(){
   +'<button class="btn btn-dark btn-sm" onclick="showPage(\'stalls\')">&#127968; Stall Assignments</button>'
   +'<button class="btn btn-dark btn-sm" onclick="showPage(\'results\')">&#127942; Results</button>'
   +'<button class="btn btn-dark btn-sm" onclick="showPage(\'publish\')">&#8679; Publish</button>'
+  +'</div></div>'
+
+  // ── Scribe Settings ──
+  +'<div class="card"><div class="card-title">Scribe Settings</div>'
+  +'<div style="display:flex;flex-direction:column;gap:.85rem">'
+
+  // Results visibility
+  +'<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">'
+  +'<div style="flex:1;min-width:180px">'
+  +'<div style="font-size:.85rem;font-weight:600">Public Results</div>'
+  +'<div style="font-size:.75rem;color:var(--muted)">Make results visible outside the show office</div>'
+  +'</div>'
+  +'<button class="btn btn-sm '+(s.resultsVisible?'btn-accent':'btn-dark')+'" onclick="toggleResultsVisible()">'
+  +(s.resultsVisible?'&#9679; Visible':'&#9675; Hidden')+'</button>'
+  +'</div>'
+
+  // PIN
+  +'<div style="border-top:1px solid var(--border);padding-top:.75rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">'
+  +'<div style="flex:1;min-width:180px">'
+  +'<div style="font-size:.85rem;font-weight:600">Scribe PIN</div>'
+  +'<div style="font-size:.75rem;color:var(--muted)">Scribes enter this to access score entry. Leave blank for no PIN.</div>'
+  +'</div>'
+  +'<div style="display:flex;gap:.4rem;align-items:center">'
+  +'<input id="scribe-pin-input" type="text" inputmode="numeric" maxlength="8" placeholder="No PIN" '
+  +'value="'+esc(s.scribePin||'')+'" '
+  +'style="width:90px;text-align:center;letter-spacing:.15em;font-size:.95rem;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.32rem .5rem">'
+  +'<button class="btn btn-dark btn-sm" onclick="saveScribePin()">Save</button>'
+  +'</div>'
+  +'</div>'
+
   +'</div></div>';
 
   function checkRow(done, label, hint, page){
@@ -3081,6 +3258,15 @@ function pgSetup(){
       +'</div>';
   }
 }
+
+window.saveScribePin=function(){
+  var val=(document.getElementById('scribe-pin-input').value||'').trim();
+  G.cfg.scribePin=val;
+  _scrPinUnlocked=false; // reset session unlock when PIN changes
+  try{ localStorage.setItem('gatepost_cfg',JSON.stringify(G.cfg)); } catch(e){}
+  var btn=document.querySelector('#scribe-pin-input+button');
+  if(btn){ btn.textContent='Saved ✓'; setTimeout(function(){ btn.textContent='Save'; },1500); }
+};
 
 // ═══════════════════════ PAGE: PUBLISH ═══════════════════════
 function pgPublish(){
@@ -5730,6 +5916,8 @@ async function boot(){
       if(cachedLinks) G.scoreLinks=JSON.parse(cachedLinks);
       var cachedAA=localStorage.getItem('gp_aamoney_'+showId);
       if(cachedAA) G.aaMoney=JSON.parse(cachedAA);
+      var cachedScratch=localStorage.getItem('gp_scratch_'+showId);
+      if(cachedScratch) G.scratchpad=JSON.parse(cachedScratch);
     } catch(ex){ console.warn('Results cache load failed:', ex); }
 
     // Step 3b: Only load from DB if cache was empty
