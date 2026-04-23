@@ -1583,7 +1583,7 @@ function pgClasses(){
 
   pg.innerHTML='<div class="btn-row no-print">'
     +'<button class="btn btn-accent btn-sm" onclick="printGoSheets()">&#128424; Print Go Sheets</button>'
-    +'<button class="btn btn-dark btn-sm" onclick="openScribeMode()" style="margin-left:auto">&#9999;&#65039; Scribe View</button>'
+    +'<a class="btn btn-dark btn-sm" href="scribe.html?show='+esc(G.showId||'')+'" target="_blank" style="margin-left:auto;text-decoration:none">&#9999;&#65039; Open Scribe</a>'
     +'</div>'
     +'<div class="pills no-print" id="org-pills"></div>'
     +'<div id="cl-content"></div>';
@@ -1965,42 +1965,7 @@ function getTemplateForDisc(name){
 }
 
 // ─── Scribe Mode — guided one-maneuver-at-a-time ──────────────
-var _scrPinUnlocked=false; // persists for the browser session
-
 window.openScribeMode=function(initialKey){
-  // PIN gate — if a PIN is set and not yet entered this session, show prompt
-  if(G.cfg.scribePin && !_scrPinUnlocked){
-    var mr0=document.getElementById('modal-root');
-    mr0.innerHTML=
-      '<div style="position:fixed;inset:0;background:var(--bg);z-index:260;display:flex;align-items:center;justify-content:center">'
-      +'<div style="background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:2rem 2rem 1.5rem;text-align:center;width:240px">'
-      +'<div style="font-family:Oswald;font-size:1.2rem;color:var(--accent);margin-bottom:.25rem">Scribe Access</div>'
-      +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">Enter PIN to continue</div>'
-      +'<input id="scr-pin-inp" type="password" inputmode="numeric" maxlength="8" placeholder="••••" '
-      +'style="width:100%;text-align:center;font-size:1.4rem;letter-spacing:.25em;background:var(--bg);border:2px solid var(--border2);border-radius:8px;color:var(--text);padding:.5rem;margin-bottom:.75rem">'
-      +'<div id="scr-pin-err" style="color:#e74c3c;font-size:.75rem;min-height:1rem;margin-bottom:.5rem"></div>'
-      +'<div style="display:flex;gap:.5rem">'
-      +'<button class="btn btn-dark" style="flex:1" onclick="document.getElementById(\'modal-root\').innerHTML=\'\'">Cancel</button>'
-      +'<button class="btn btn-accent" style="flex:1" onclick="scrCheckPin(\''+initialKey+'\')">Enter</button>'
-      +'</div></div></div>';
-    document.getElementById('scr-pin-inp').focus();
-    window.scrCheckPin=function(key){
-      var val=document.getElementById('scr-pin-inp').value;
-      if(val===String(G.cfg.scribePin)){
-        _scrPinUnlocked=true;
-        window.openScribeMode(key);
-      } else {
-        document.getElementById('scr-pin-err').textContent='Incorrect PIN';
-        document.getElementById('scr-pin-inp').value='';
-        document.getElementById('scr-pin-inp').focus();
-      }
-    };
-    // Allow Enter key
-    document.getElementById('scr-pin-inp').addEventListener('keydown',function(e){
-      if(e.key==='Enter') window.scrCheckPin(initialKey);
-    });
-    return;
-  }
   var classMap={};
   G.entries.forEach(function(e){
     e.classes.forEach(function(cls){
@@ -3262,7 +3227,6 @@ function pgSetup(){
 window.saveScribePin=function(){
   var val=(document.getElementById('scribe-pin-input').value||'').trim();
   G.cfg.scribePin=val;
-  _scrPinUnlocked=false; // reset session unlock when PIN changes
   try{ localStorage.setItem('gatepost_cfg',JSON.stringify(G.cfg)); } catch(e){}
   var btn=document.querySelector('#scribe-pin-input+button');
   if(btn){ btn.textContent='Saved ✓'; setTimeout(function(){ btn.textContent='Save'; },1500); }

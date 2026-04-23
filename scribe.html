@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Gatepost — Scribe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f0f0f;--card:#1a1a1a;--card2:#222;
+  --text:#e8e8e8;--muted:#888;
+  --accent:#b8862a;--accent2:rgba(184,134,42,.12);
+  --border:#2a2a2a;--border2:#333;
+  --topbar:#141414;
+  --green:#2ecc71;--red:#e74c3c;--orange:#e07c00;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:'Inter',sans-serif;font-size:16px;-webkit-font-smoothing:antialiased}
+
+button{font-family:inherit;cursor:pointer;border:none;outline:none;background:transparent;color:inherit}
+input,select,textarea{font-family:inherit;font-size:inherit}
+select option{background:var(--card)}
+
+/* ── App shell ───────────────────────────────── */
+#app{display:flex;flex-direction:column;height:100vh;max-width:640px;margin:0 auto}
+
+/* ── Head bar ───────────────────────────────── */
+#scr-head{
+  background:var(--topbar);border-bottom:1px solid var(--border2);
+  padding:.45rem .65rem;display:flex;align-items:center;gap:.5rem;flex-shrink:0
+}
+#scr-head .show-name{font-family:Oswald;font-size:.9rem;color:var(--accent);white-space:nowrap}
+#cls-select{
+  flex:1;background:var(--card);border:1px solid var(--border2);border-radius:5px;
+  color:var(--text);padding:.28rem .4rem;font-size:.78rem;min-width:0
+}
+
+/* ── Rider bar ───────────────────────────────── */
+#scr-rider{
+  background:var(--card2);border-bottom:1px solid var(--border);
+  padding:.38rem .65rem;display:flex;align-items:center;gap:.4rem;flex-shrink:0
+}
+.r-nav{
+  padding:.35rem .55rem;border-radius:6px;border:1px solid var(--border2);
+  background:var(--card);color:var(--text);font-size:.95rem;flex-shrink:0
+}
+.r-nav:disabled{opacity:.3;cursor:default}
+.r-name{font-weight:700;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.r-horse{font-size:.72rem;color:var(--muted)}
+.r-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;margin:1px}
+
+/* ── Total bar ───────────────────────────────── */
+#scr-total{
+  background:var(--card);border-bottom:2px solid var(--accent);
+  padding:.32rem .65rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0
+}
+.total-big{font-family:Oswald;font-size:1.9rem;font-weight:700;line-height:1}
+.total-detail{font-size:.68rem;color:var(--muted);line-height:1.5}
+
+/* ── Body ────────────────────────────────────── */
+#scr-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:.4rem 0}
+
+/* ── Template pills ──────────────────────────── */
+.tmpl-pills{display:flex;flex-wrap:wrap;gap:.25rem;padding:0 .65rem .4rem}
+.tmpl-pill{
+  padding:.18rem .45rem;border-radius:4px;border:1px solid var(--border2);
+  font-size:.68rem;font-weight:700;background:var(--card2);color:var(--muted);cursor:pointer
+}
+.tmpl-pill.active{background:var(--accent);color:#000;border-color:var(--accent)}
+
+/* ── Horizontal scroll ───────────────────────── */
+.hscroll{
+  display:flex;gap:10px;overflow-x:auto;
+  padding:.5rem .65rem .75rem;
+  scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch
+}
+.hscroll::-webkit-scrollbar{height:4px}
+.hscroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* ── Maneuver card ───────────────────────────── */
+.mcard{
+  flex-shrink:0;width:215px;scroll-snap-align:start;
+  background:var(--card);border:2px solid var(--border2);border-radius:10px;
+  padding:.65rem .7rem
+}
+.mcard.touched{border-color:rgba(184,134,42,.55)}
+.mcard.dq-on{border-color:var(--red);background:rgba(231,76,60,.08)}
+.mcard.op-on{border-color:var(--orange);background:rgba(224,124,0,.06)}
+.mc-name{
+  font-family:Oswald;font-size:.95rem;color:var(--accent);
+  margin-bottom:.12rem;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.mc-vals{font-size:.72rem;min-height:.9rem;margin-bottom:.28rem}
+.mc-status-badge{
+  font-size:.6rem;font-weight:800;padding:.1rem .35rem;border-radius:3px;
+  display:inline-block;margin-bottom:.18rem
+}
+.mc-status-badge.dq{background:var(--red);color:#fff}
+.mc-status-badge.op{background:var(--orange);color:#fff}
+
+/* Score grid — 3 cols: negatives row, positives row, zero full-width */
+.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-bottom:.3rem}
+.mb{
+  padding:.58rem 0;font-size:.95rem;font-weight:800;
+  border:1px solid var(--border2);border-radius:5px;
+  cursor:pointer;background:var(--card2);line-height:1;text-align:center;min-height:44px
+}
+.mb.neg{color:var(--red);border-color:rgba(231,76,60,.3)}
+.mb.zero{color:var(--muted);grid-column:1/-1;min-height:34px;padding:.4rem 0;font-size:.8rem}
+.mb.pos{color:var(--green);border-color:rgba(46,204,113,.3)}
+.mb.sel{background:var(--accent);color:#000;border-color:var(--accent)}
+
+/* Penalty */
+.pen-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:.22rem}
+.pbtns{display:flex;gap:2px;margin-bottom:.2rem}
+.padd{
+  flex:1;padding:.4rem 0;font-size:.8rem;font-weight:700;
+  border:1px solid rgba(231,76,60,.4);border-radius:5px;
+  cursor:pointer;background:rgba(231,76,60,.07);color:var(--red);
+  min-height:34px;text-align:center
+}
+.padd:active{background:rgba(231,76,60,.22)}
+.pclr{
+  padding:.18rem .45rem;font-size:.7rem;
+  border:1px solid var(--border2);border-radius:4px;
+  cursor:pointer;background:transparent;color:var(--muted);margin-bottom:.25rem
+}
+
+/* ── NRHA / comments ─────────────────────────── */
+.extras{padding:0 .65rem}
+
+/* ── Status buttons ──────────────────────────── */
+.status-row{display:flex;gap:.4rem;margin-top:.5rem}
+.status-btn{
+  flex:1;padding:.45rem;border:1px solid var(--border2);
+  border-radius:7px;background:transparent;color:var(--text);font-size:.82rem;font-weight:600
+}
+.status-btn.on.op{background:rgba(224,124,0,.15);border-color:var(--orange);color:var(--orange)}
+.status-btn.on.dq{background:var(--red);border-color:var(--red);color:#fff}
+
+/* ── Footer ──────────────────────────────────── */
+#scr-foot{
+  background:var(--card2);border-top:1px solid var(--border2);
+  padding:.45rem .65rem;flex-shrink:0
+}
+.post-btn{
+  width:100%;padding:.62rem;font-size:1rem;font-weight:700;
+  background:var(--accent);color:#000;border-radius:8px;font-family:Oswald;letter-spacing:.04em
+}
+.post-btn:active{background:#9a6e1f}
+
+/* ── Overlay screens ─────────────────────────── */
+.overlay{
+  position:fixed;inset:0;background:var(--bg);z-index:100;
+  display:flex;align-items:center;justify-content:center
+}
+.overlay-card{
+  background:var(--card);border:1px solid var(--border2);border-radius:14px;
+  padding:2rem;text-align:center;width:260px;max-width:90vw
+}
+.overlay-title{font-family:Oswald;font-size:1.3rem;color:var(--accent);margin-bottom:.3rem}
+.overlay-sub{font-size:.8rem;color:var(--muted);margin-bottom:1.2rem}
+.pin-input{
+  width:100%;text-align:center;font-size:1.6rem;letter-spacing:.3em;
+  background:var(--bg);border:2px solid var(--border2);border-radius:8px;
+  color:var(--text);padding:.55rem;margin-bottom:.5rem
+}
+.pin-input:focus{border-color:var(--accent);outline:none}
+.pin-err{color:var(--red);font-size:.75rem;min-height:1.1rem;margin-bottom:.4rem}
+.btn-row{display:flex;gap:.5rem}
+.btn{padding:.45rem .9rem;border-radius:7px;font-size:.85rem;font-weight:600;cursor:pointer}
+.btn-dark{background:var(--card2);border:1px solid var(--border2);color:var(--text)}
+.btn-accent{background:var(--accent);border:1px solid var(--accent);color:#000}
+
+/* ── Flash toast ─────────────────────────────── */
+.flash{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:var(--accent);color:#000;padding:.6rem 1.6rem;border-radius:12px;
+  font-family:Oswald;font-size:1.4rem;font-weight:700;z-index:200;pointer-events:none
+}
+</style>
+</head>
+<body>
+
+<!-- PIN Gate -->
+<div class="overlay" id="pin-gate" style="display:none">
+  <div class="overlay-card">
+    <div class="overlay-title">Scribe Access</div>
+    <div class="overlay-sub">Enter your PIN to continue</div>
+    <input class="pin-input" id="pin-inp" type="password" inputmode="numeric" maxlength="8" placeholder="••••">
+    <div class="pin-err" id="pin-err"></div>
+    <div class="btn-row">
+      <button class="btn btn-dark" style="flex:1" onclick="goBack()">← Back</button>
+      <button class="btn btn-accent" style="flex:1" onclick="checkPin()">Enter</button>
+    </div>
+  </div>
+</div>
+
+<!-- No Data -->
+<div class="overlay" id="no-data" style="display:none">
+  <div class="overlay-card">
+    <div class="overlay-title" style="color:var(--muted)">Nothing Here</div>
+    <div class="overlay-sub" id="no-data-msg">No show data found.</div>
+    <button class="btn btn-dark" onclick="goBack()">← Back</button>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app" style="display:none">
+  <div id="scr-head">
+    <span class="show-name" id="show-name-lbl">Gatepost</span>
+    <select id="cls-select" onchange="selectClass(this.value)"></select>
+  </div>
+  <div id="scr-rider">
+    <button class="r-nav" id="btn-prev-rider" onclick="prevRider()">◀</button>
+    <div style="flex:1;min-width:0;text-align:center">
+      <div class="r-name" id="rider-name">—</div>
+      <div class="r-horse" id="rider-horse"></div>
+      <div id="rider-dots" style="display:flex;gap:2px;justify-content:center;margin-top:.12rem;flex-wrap:wrap"></div>
+    </div>
+    <button class="r-nav" id="btn-next-rider" onclick="nextRider()">▶</button>
+  </div>
+  <div id="scr-total">
+    <div class="total-detail" id="total-detail"></div>
+    <div class="total-big" id="total-big">70.0</div>
+    <div style="font-size:.68rem;color:var(--muted);text-align:right" id="rider-counter"></div>
+  </div>
+  <div id="scr-body">
+    <div class="tmpl-pills" id="tmpl-pills"></div>
+    <div id="cards-area"></div>
+    <div class="extras" id="extras-area"></div>
+  </div>
+  <div id="scr-foot">
+    <button class="post-btn" onclick="postScore()">✓ Post Score</button>
+  </div>
+</div>
+
+<script>
+// ─── Constants ────────────────────────────────────────────────
+var MVALS=[-1.5,-1,-0.5,0,0.5,1,1.5];
+var MLABELS=['−1½','−1','−½','0','+½','+1','+1½'];
+
+var SCORE_TEMPLATES={
+  'Reining':{
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
+    penValues:[0.5,1,2,5],hasNRHA:true
+  },
+  'Trail':{
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
+    penValues:[1,3,5],hasNRHA:true
+  },
+  'Pleasure':{
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
+    penValues:[1,3,5],hasNRHA:true
+  },
+  'Cow Work':{
+    maneuvers:['Boxing','Rating','Fence Turn L','Fence Turn R','Circling L','Circling R','Track & Rate','Stop & Hold','Position & Control','Degree of Diff.','Eye Appeal'],
+    penValues:[1,2,3,5]
+  },
+  'BDBD Cow Work':{
+    maneuvers:['Boxing','Drive (Run & Rate)','Boxing 2','Drive 2 (Run & Rate)','Position & Control','Degree of Difficulty','Eye Appeal','Courage'],
+    penValues:[3,5]
+  },
+  'Novice Cow Work':{
+    maneuvers:['Position & Control','Degree of Difficulty','Eye Appeal','Courage','Time Worked'],
+    penValues:[1,3,5],hasComments:true
+  }
+};
+
+// ─── State ────────────────────────────────────────────────────
+var showId=null;
+var G={
+  entries:[],results:[],scratchpad:{},
+  backNums:{},classOrder:{},scratches:{},fullScratches:[],
+  cfg:{scribePin:'',resultsVisible:false,showName:'',showDate:'',location:''}
+};
+var classList=[];
+var classMap={};
+var selKey='';
+var riderIdx=0;
+var tmplOverride={};
+
+// ─── Helpers ─────────────────────────────────────────────────
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function clsKey(cls){ return (cls.num||'')+'|'+(cls.name||''); }
+
+function getTemplateForDisc(name){
+  if(!name) return null;
+  if(SCORE_TEMPLATES[name]) return name;
+  var n=name.toLowerCase();
+  if(n.indexOf('novice')>=0&&n.indexOf('cow')>=0) return 'Novice Cow Work';
+  if(n.indexOf('bdbd')>=0) return 'BDBD Cow Work';
+  if(n.indexOf('cow')>=0) return 'Cow Work';
+  if(n.indexOf('rein')>=0) return 'Reining';
+  if(n.indexOf('trail')>=0) return 'Trail';
+  if(n.indexOf('pleasure')>=0) return 'Pleasure';
+  return null;
+}
+
+function getTmplName(){ return tmplOverride[selKey]||getTemplateForDisc((classMap[selKey]||{}).name)||null; }
+function getTmpl(){ var n=getTmplName(); return n?SCORE_TEMPLATES[n]:null; }
+
+function getGoEntries(key){
+  var cls=classMap[key]; if(!cls) return [];
+  var allActive=G.entries.filter(function(e){
+    if(G.fullScratches.indexOf(e.rowIndex)>=0) return false;
+    var sc=G.scratches[key]||[];
+    if(sc.indexOf(e.rowIndex)>=0) return false;
+    return e.classes&&e.classes.some(function(c){ return clsKey(c)===key; });
+  });
+  var order=G.classOrder[key];
+  if(order&&order.length){
+    var byRI={};
+    allActive.forEach(function(e){ byRI[e.rowIndex]=e; });
+    var ordered=order.map(function(ri){ return byRI[ri]; }).filter(Boolean);
+    var inOrder={};
+    order.forEach(function(ri){ inOrder[ri]=1; });
+    allActive.forEach(function(e){ if(!inOrder[e.rowIndex]) ordered.push(e); });
+    return ordered;
+  }
+  return allActive;
+}
+
+function initState(ri){
+  var tmpl=getTmpl();
+  if(!G.scratchpad[selKey]) G.scratchpad[selKey]={};
+  if(!G.scratchpad[selKey][ri]){
+    G.scratchpad[selKey][ri]={
+      m:tmpl?tmpl.maneuvers.map(function(){ return {score:0,pen:0}; }):[],
+      isOP:false,isDQ:false,nrha:0,comments:'',rawScore:0
+    };
+  }
+  return G.scratchpad[selKey][ri];
+}
+
+function calcTotal(s,tmpl){
+  if(s.isDQ) return 0;
+  if(s.isOP) return null;
+  if(!tmpl) return s.rawScore||0;
+  var ms=s.m.reduce(function(a,x){ return a+x.score; },0);
+  var ps=s.m.reduce(function(a,x){ return a+x.pen; },0);
+  return Math.round((70+ms-ps)*1000)/1000;
+}
+
+function isDone(ri){
+  if(!G.scratchpad[selKey]||!G.scratchpad[selKey][ri]) return false;
+  var s=G.scratchpad[selKey][ri];
+  return s.isDQ||s.isOP||s.rawScore>0||s.m.some(function(x){ return x.score!==0||x.pen>0; });
+}
+
+function saveData(){
+  if(!showId) return;
+  try{
+    localStorage.setItem('gp_scratch_'+showId,JSON.stringify(G.scratchpad));
+    localStorage.setItem('gp_results_'+showId,JSON.stringify(G.results));
+  } catch(e){ console.warn('Save failed',e); }
+}
+
+// ─── Placement recalculation (CoWN formula) ──────────────────
+function recomputeManualPlacements(org,division,discipline,totalEntries){
+  var rows=G.results.filter(function(r){
+    return r._manual&&r.org===org&&r.division===division&&r.discipline===discipline;
+  });
+  var scored=rows.filter(function(r){ return !r.isOP&&!r.isDQ&&r.score; });
+  scored.sort(function(a,b){ return (b.score||0)-(a.score||0); });
+  var rank=1;
+  scored.forEach(function(r,i){
+    if(i>0&&scored[i-1].score===r.score) r.place=scored[i-1].place;
+    else r.place=rank;
+    rank=i+2;
+  });
+  var byPlace={};
+  scored.forEach(function(r){
+    if(!byPlace[r.place]) byPlace[r.place]=[];
+    byPlace[r.place].push(r);
+  });
+  Object.keys(byPlace).forEach(function(pl){
+    pl=parseInt(pl);
+    var grp=byPlace[pl]; var sum=0;
+    for(var k=0;k<grp.length;k++) sum+=Math.max(0,totalEntries-(pl+k-1));
+    var avg=Math.round(sum/grp.length*1000)/1000;
+    grp.forEach(function(r){ r.pts=avg; });
+  });
+  rows.filter(function(r){ return r.isOP||r.isDQ; }).forEach(function(r){ r.place=0; r.pts=0; });
+}
+
+// ─── Render ───────────────────────────────────────────────────
+function render(){
+  var prevScroll=(document.querySelector('.hscroll')||{scrollLeft:0}).scrollLeft;
+  var entries=getGoEntries(selKey);
+  var cls=classMap[selKey];
+  if(!entries.length||!cls){
+    document.getElementById('cards-area').innerHTML=
+      '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:.85rem">No active entries for this class.</div>';
+    return;
+  }
+  if(riderIdx<0) riderIdx=0;
+  if(riderIdx>=entries.length) riderIdx=entries.length-1;
+
+  var entry=entries[riderIdx];
+  var ri=entry.rowIndex;
+  var s=initState(ri);
+  var tmpl=getTmpl();
+  var tmplName=getTmplName();
+  var total=calcTotal(s,tmpl);
+  var totalStr=s.isDQ?'DQ':s.isOP?'OP':(total!==null?total.toFixed(1):'—');
+  var totalColor=s.isDQ?'var(--red)':s.isOP?'var(--orange)':'var(--accent)';
+  var manSum=s.m.reduce(function(a,x){ return a+x.score; },0);
+  var penSum=s.m.reduce(function(a,x){ return a+x.pen; },0);
+
+  // Rider bar
+  document.getElementById('rider-name').innerHTML=
+    '<span style="color:var(--accent);margin-right:.3rem">#'+(G.backNums[ri]||'—')+'</span>'+esc(entry.name||'');
+  document.getElementById('rider-horse').textContent=entry.horse||'';
+  document.getElementById('rider-counter').textContent='Rider '+(riderIdx+1)+'/'+entries.length;
+  document.getElementById('btn-prev-rider').disabled=(riderIdx===0);
+  document.getElementById('btn-next-rider').disabled=(riderIdx>=entries.length-1);
+
+  // Progress dots
+  document.getElementById('rider-dots').innerHTML=entries.map(function(e,i){
+    return '<span class="r-dot" title="'+esc(e.name)+'" style="background:'
+      +(i===riderIdx?'var(--accent)':(isDone(e.rowIndex)?'rgba(184,134,42,.5)':'var(--border2)'))+'""></span>';
+  }).join('');
+
+  // Total bar
+  var detailHtml='<div>Base 70</div>';
+  if(manSum!==0) detailHtml+='<div style="color:'+(manSum>=0?'var(--green)':'var(--red)')+'">'+(manSum>=0?'+':'')+manSum.toFixed(1)+'</div>';
+  if(penSum>0) detailHtml+='<div style="color:var(--red)">−'+penSum.toFixed(1)+' pen</div>';
+  document.getElementById('total-detail').innerHTML=detailHtml;
+  document.getElementById('total-big').style.color=totalColor;
+  document.getElementById('total-big').textContent=totalStr;
+
+  // Template pills
+  var pillsHtml=Object.keys(SCORE_TEMPLATES).map(function(t){
+    return '<button class="tmpl-pill'+(t===tmplName?' active':'')+'" onclick="setTmpl(\''+t.replace(/'/g,"\\'")+'\')">'
+      +esc(t)+'</button>';
+  }).join('');
+  document.getElementById('tmpl-pills').innerHTML=pillsHtml;
+
+  // Cards
+  var statusCardCls=s.isDQ?' dq-on':s.isOP?' op-on':'';
+  var statusBadge=s.isDQ?'<span class="mc-status-badge dq">DQ</span>'
+    :s.isOP?'<span class="mc-status-badge op">OP</span>':'';
+  var cardsHtml='';
+
+  if(tmpl){
+    cardsHtml='<div class="hscroll">';
+    tmpl.maneuvers.forEach(function(mname,mi){
+      var cm=s.m[mi]||{score:0,pen:0};
+      var penVals=tmpl.penValues||[];
+      var touched=cm.score!==0||cm.pen>0;
+
+      var negBtns=[[-1.5,'−1½'],[-1,'−1'],[-0.5,'−½']].map(function(p){
+        return '<button class="mb neg'+(cm.score===p[0]?' sel':'')+'" onclick="setScore('+mi+','+p[0]+')">'+p[1]+'</button>';
+      }).join('');
+      var posBtns=[[0.5,'+½'],[1,'+1'],[1.5,'+1½']].map(function(p){
+        return '<button class="mb pos'+(cm.score===p[0]?' sel':'')+'" onclick="setScore('+mi+','+p[0]+')">'+p[1]+'</button>';
+      }).join('');
+      var zeroBtn='<button class="mb zero'+(cm.score===0?' sel':'')+'" onclick="setScore('+mi+',0)">0</button>';
+
+      var penBtns=penVals.map(function(pv){
+        return '<button class="padd" onclick="addPen('+mi+','+pv+')">'+(pv===0.5?'½':pv)+' pen</button>';
+      }).join('');
+
+      var scoreDisp=cm.score!==0
+        ?(cm.score>0?'<span style="color:var(--green);font-weight:700">+'+cm.score+'</span>'
+          :'<span style="color:var(--red);font-weight:700">'+cm.score+'</span>')
+        :'<span style="color:var(--muted)">0</span>';
+      var penDisp=cm.pen>0?'<span style="color:var(--red);font-weight:700;margin-left:.35rem">−'+cm.pen+' pen</span>':'';
+
+      cardsHtml+='<div class="mcard'+(touched?' touched':'')+statusCardCls+'">'
+        +statusBadge
+        +'<div class="mc-name">'+esc(mname)+'</div>'
+        +'<div class="mc-vals">'+scoreDisp+penDisp+'</div>'
+        +(penVals.length
+          ?'<div class="pen-lbl">Penalty</div>'
+           +'<div class="pbtns">'+penBtns+'</div>'
+           +(cm.pen>0?'<button class="pclr" onclick="clrPen('+mi+')">✕ clear penalty</button>':'')
+          :'')
+        +'<div class="pen-lbl">Score</div>'
+        +'<div class="sgrid">'+negBtns+posBtns+zeroBtn+'</div>'
+        +'</div>';
+    });
+    cardsHtml+='</div>';
+  } else {
+    // No template — raw score input
+    cardsHtml='<div style="padding:.4rem .65rem">'
+      +'<div class="mcard" style="width:auto">'
+      +'<div class="pen-lbl" style="margin-bottom:.4rem">Final Score</div>'
+      +'<input type="number" inputmode="decimal" step="0.001" min="0" max="300" placeholder="70.000" '
+      +'value="'+(s.rawScore||'')+'" oninput="setRaw(this.value)" '
+      +'style="width:150px;background:var(--bg);border:2px solid var(--accent);border-radius:8px;'
+      +'color:var(--text);padding:.5rem .7rem;font-size:1.2rem;font-weight:700;text-align:center;display:block">'
+      +'</div></div>';
+  }
+  document.getElementById('cards-area').innerHTML=cardsHtml;
+
+  // Extras (NRHA, comments, OP/DQ)
+  var extrasHtml='';
+  if(tmpl&&tmpl.hasNRHA){
+    extrasHtml+='<div style="display:flex;align-items:center;gap:.5rem;margin:.4rem 0">'
+      +'<span style="font-size:.8rem;flex:1">Natural Ranch Horse Appearance</span>'
+      +'<input type="number" step="0.5" min="-5" max="5" placeholder="0" value="'+(s.nrha||'')+'" '
+      +'oninput="setNRHA(this.value)" '
+      +'style="width:60px;background:var(--bg);border:1px solid var(--border2);border-radius:5px;'
+      +'color:var(--text);padding:.25rem .35rem;text-align:center;font-size:.9rem">'
+      +'</div>';
+  }
+  if(tmpl&&tmpl.hasComments){
+    extrasHtml+='<div class="pen-lbl" style="margin:.4rem 0 .2rem">Comments</div>'
+      +'<textarea rows="2" placeholder="Comments..." oninput="setComments(this.value)" '
+      +'style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;'
+      +'color:var(--text);padding:.3rem .45rem;font-size:.82rem;resize:none">'
+      +esc(s.comments||'')+'</textarea>';
+  }
+  extrasHtml+='<div class="status-row">'
+    +'<button class="status-btn op'+(s.isOP?' on':'')+'" onclick="toggleOP()">'+(s.isOP?'✓ ':'')+'Off Pattern</button>'
+    +'<button class="status-btn dq'+(s.isDQ?' on':'')+'" onclick="toggleDQ()">'+(s.isDQ?'✓ ':'')+'Disqualified</button>'
+    +'</div>';
+  document.getElementById('extras-area').innerHTML=extrasHtml;
+
+  // Restore scroll position
+  var hs=document.querySelector('.hscroll');
+  if(hs) hs.scrollLeft=prevScroll;
+}
+
+// ─── Handlers ─────────────────────────────────────────────────
+function curRi(){
+  var entries=getGoEntries(selKey);
+  if(!entries.length) return null;
+  return entries[Math.min(riderIdx,entries.length-1)].rowIndex;
+}
+function save(){ saveData(); }
+
+window.setScore=function(mi,v){ var ri=curRi(); if(ri===null) return; initState(ri).m[mi].score=v; save(); render(); };
+window.addPen=function(mi,pv){ var ri=curRi(); if(ri===null) return; var st=initState(ri); st.m[mi].pen=Math.round((st.m[mi].pen+pv)*10)/10; save(); render(); };
+window.clrPen=function(mi){ var ri=curRi(); if(ri===null) return; initState(ri).m[mi].pen=0; save(); render(); };
+window.toggleOP=function(){ var ri=curRi(); if(ri===null) return; var st=initState(ri); st.isOP=!st.isOP; if(st.isOP)st.isDQ=false; save(); render(); };
+window.toggleDQ=function(){ var ri=curRi(); if(ri===null) return; var st=initState(ri); st.isDQ=!st.isDQ; if(st.isDQ)st.isOP=false; save(); render(); };
+window.setNRHA=function(v){ var ri=curRi(); if(ri===null) return; initState(ri).nrha=parseFloat(v)||0; save(); };
+window.setComments=function(v){ var ri=curRi(); if(ri===null) return; initState(ri).comments=v; save(); };
+window.setRaw=function(v){ var ri=curRi(); if(ri===null) return; initState(ri).rawScore=parseFloat(v)||0; save(); };
+window.setTmpl=function(name){ tmplOverride[selKey]=name; if(G.scratchpad[selKey]) delete G.scratchpad[selKey]; render(); };
+
+function prevRider(){ if(riderIdx>0){ riderIdx--; render(); } }
+function nextRider(){ var entries=getGoEntries(selKey); if(riderIdx<entries.length-1){ riderIdx++; render(); } }
+
+function selectClass(key){
+  selKey=key; riderIdx=0;
+  render();
+}
+
+function postScore(){
+  var entries=getGoEntries(selKey);
+  if(!entries.length) return;
+  var entry=entries[Math.min(riderIdx,entries.length-1)];
+  var ri=entry.rowIndex;
+  var st=initState(ri);
+  var tmpl=getTmpl();
+  var tmplName=getTmplName();
+  var finalScore=calcTotal(st,tmpl);
+  if(finalScore===null) finalScore=0;
+  var cls=classMap[selKey];
+  var discName=tmplName||cls.name;
+  var org=cls.org||'CoWN';
+  var division=cls.division||'';
+
+  // Remove any existing manual score for this rider in this class
+  G.results=G.results.filter(function(r){
+    return !(r._manual&&r.org===org&&r.division===division&&r.discipline===discName&&r.rider===entry.name);
+  });
+  G.results.push({
+    showName:G.cfg.showName||'',org:org,division:division,discipline:discName,
+    rawClass:(cls.num?cls.num+' ':'')+cls.name,
+    entries:entries.length,score:finalScore,place:0,
+    horse:entry.horse||'',rider:entry.name||'',riderNum:entry.memberNum||'',
+    pts:0,money:0,addedMoney:0,goRound:'',
+    isOP:st.isOP||false,isDQ:st.isDQ||false,_manual:true,
+    _scoreDetail:tmpl?{
+      maneuvers:tmpl.maneuvers,
+      m:st.m.map(function(x){ return {score:x.score,pen:x.pen}; }),
+      nrha:st.nrha||0,comments:st.comments||''
+    }:null
+  });
+  recomputeManualPlacements(org,division,discName,entries.length);
+  saveData();
+
+  // Flash confirmation
+  var fl=document.createElement('div');
+  fl.className='flash';
+  fl.textContent=st.isDQ?'DQ':st.isOP?'OP':finalScore.toFixed(1);
+  document.body.appendChild(fl);
+  setTimeout(function(){ fl.remove(); },700);
+
+  // Advance to next rider
+  if(riderIdx<entries.length-1){ riderIdx++; }
+  render();
+}
+
+// ─── Class list builder ───────────────────────────────────────
+function buildClassList(){
+  classMap={};
+  G.entries.forEach(function(e){
+    (e.classes||[]).forEach(function(cls){
+      var k=clsKey(cls);
+      if(!classMap[k]) classMap[k]={key:k,num:cls.num,name:cls.name,division:cls.division,org:cls.org||'CoWN'};
+    });
+  });
+  classList=Object.values(classMap).sort(function(a,b){
+    return (parseInt(a.num)||999)-(parseInt(b.num)||999);
+  });
+  var sel=document.getElementById('cls-select');
+  sel.innerHTML=classList.map(function(c){
+    return '<option value="'+esc(c.key)+'">Class '+esc(c.num||'?')+' — '+esc(c.name)+' ('+esc(c.division||'')+')</option>';
+  }).join('');
+  if(classList.length){
+    selKey=classList[0].key;
+    sel.value=selKey;
+  }
+}
+
+// ─── Boot ─────────────────────────────────────────────────────
+function goBack(){ window.history.back(); }
+
+function showNoData(msg){
+  document.getElementById('no-data-msg').textContent=msg;
+  document.getElementById('no-data').style.display='flex';
+}
+
+function loadAndRender(){
+  try{
+    var e=localStorage.getItem('gp_entries_'+showId); if(e) G.entries=JSON.parse(e);
+    var r=localStorage.getItem('gp_results_'+showId); if(r) G.results=JSON.parse(r);
+    var sc=localStorage.getItem('gp_scratch_'+showId); if(sc) G.scratchpad=JSON.parse(sc);
+    var bn=localStorage.getItem('gp_backnums_'+showId); if(bn) G.backNums=JSON.parse(bn);
+    var co=localStorage.getItem('gp_classorder_'+showId); if(co) G.classOrder=JSON.parse(co);
+    var sk=localStorage.getItem('gp_scratches_'+showId); if(sk) G.scratches=JSON.parse(sk);
+    var fs=localStorage.getItem('gp_fullscratches_'+showId); if(fs) G.fullScratches=JSON.parse(fs);
+  } catch(ex){ console.warn('Load failed',ex); }
+
+  if(!G.entries.length){
+    showNoData('No entries found for this show. Import entries in the secretary app first.');
+    return;
+  }
+
+  document.getElementById('show-name-lbl').textContent=G.cfg.showName||'Show';
+  buildClassList();
+
+  if(!classList.length){
+    showNoData('No classes found. Configure classes in the secretary app.');
+    return;
+  }
+
+  document.getElementById('app').style.display='flex';
+  render();
+}
+
+function checkPin(){
+  var val=document.getElementById('pin-inp').value;
+  if(val===String(G.cfg.scribePin)){
+    document.getElementById('pin-gate').style.display='none';
+    loadAndRender();
+  } else {
+    document.getElementById('pin-err').textContent='Incorrect PIN — try again';
+    document.getElementById('pin-inp').value='';
+    document.getElementById('pin-inp').focus();
+  }
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+  var params=new URLSearchParams(window.location.search);
+  showId=params.get('show');
+  if(!showId){
+    showNoData('No show ID in URL. Open this page from the secretary app.');
+    return;
+  }
+
+  // Load config (PIN, show name, etc.)
+  try{ var cfg=localStorage.getItem('gatepost_cfg'); if(cfg) G.cfg=JSON.parse(cfg); } catch(e){}
+
+  if(G.cfg.scribePin){
+    document.getElementById('pin-gate').style.display='flex';
+    document.getElementById('pin-inp').focus();
+    document.getElementById('pin-inp').addEventListener('keydown',function(e){
+      if(e.key==='Enter') checkPin();
+    });
+  } else {
+    loadAndRender();
+  }
+});
+</script>
+</body>
+</html>
