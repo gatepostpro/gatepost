@@ -9116,7 +9116,7 @@ function renderFeeSchedule(){
   }
   el.innerHTML = sched.map(function(f,i){
     return '<div class="fee-sched-row">'
-      +'<input class="fee-sched-label" value="'+escHtml(f.label||'')+'" placeholder="Fee name" '
+      +'<input class="fee-sched-label" value="'+esc(f.label||'')+'" placeholder="Fee name" '
       +'onchange="updateScheduleFee('+i+',\'label\',this.value)">'
       +'<div style="display:flex;align-items:center;gap:.3rem">'
       +'<span style="color:var(--muted);font-size:.9rem">$</span>'
