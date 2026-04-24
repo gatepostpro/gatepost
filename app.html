@@ -19,10 +19,17 @@
 <style>
 
 :root{
-  --bg:#3a3228;--card:#46403a;--card2:#524c44;
-  --accent:#d4a04a;--accent2:#b8863a;--accent-dim:rgba(212,160,74,.12);
+  --bg:#1a1612;--card:#231e17;--card2:#2c261e;
+  --accent:#d4a04a;--accent2:#b8863a;--accent-dim:rgba(212,160,74,.1);
   --green:#27ae60;--red:#e74c3c;--blue:#4a9edd;--purple:#9b59b6;
-  --text:#f2ece0;--muted:#b8a898;--border:#605850;--border2:#706860
+  --text:#ede8de;--muted:#9a8f7e;--border:#3c342a;--border2:#4e4236
+}
+
+[data-theme="light"]{
+  --bg:#f5f0e8;--card:#ffffff;--card2:#f0ebe0;
+  --accent:#b87820;--accent2:#9a6618;--accent-dim:rgba(184,120,32,.1);
+  --green:#1e8a4a;--red:#c0392b;--blue:#2176ae;--purple:#7d3c98;
+  --text:#241c10;--muted:#7a6a58;--border:#ddd0bc;--border2:#c8b89e
 }
 
 *{margin:0;padding:0;box-sizing:border-box}
@@ -262,6 +269,9 @@ tr:hover td{background:rgba(255,255,255,.03)}
 
 .hidden{display:none!important}
 
+.theme-toggle{background:none;border:1px solid var(--border2);border-radius:6px;color:var(--muted);cursor:pointer;font-size:.88rem;padding:.28rem .55rem;transition:all .15s;line-height:1}
+.theme-toggle:hover{color:var(--text);border-color:var(--accent)}
+
 .sel-row{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.9rem}
 
 .entry-card{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:.8rem;margin-bottom:.55rem;cursor:pointer;transition:border-color .15s}
@@ -429,7 +439,9 @@ tr:hover td{background:rgba(255,255,255,.03)}
 
       <span class="topbar-title" id="page-title">Import Entries</span>
 
-      <div class="topbar-right" id="topbar-right"></div>
+      <div class="topbar-right" id="topbar-right">
+      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark">&#9788;</button>
+    </div>
 
     </div>
 
@@ -12507,6 +12519,21 @@ saveConfig = function(){
 
 
 boot();
+
+// ── Theme toggle ──
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  var btn = document.getElementById('theme-toggle');
+  if(btn) btn.innerHTML = theme==='light' ? '&#9790;' : '&#9788;';
+  try{ localStorage.setItem('gatepost_theme', theme); } catch(e){}
+}
+function toggleTheme(){
+  applyTheme(document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light');
+}
+(function(){
+  var saved=''; try{ saved=localStorage.getItem('gatepost_theme')||''; }catch(e){}
+  applyTheme(saved==='light'?'light':'dark');
+})();
 
 
 
