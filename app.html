@@ -1145,9 +1145,9 @@ function buildTabLines(entry){
       var key=clsKey(cls);
       if(isScratched(key, entry.rowIndex)) return;
       var cfgCls = G.cfg.classes.find(function(c){ return c.num === cls.num; });
-      var base = (cfgCls && cfgCls.baseFee !== null) ? cfgCls.baseFee : f.classBase;
+      var base = (cfgCls && cfgCls.baseFee != null) ? cfgCls.baseFee : (f.classBase||0);
       var isCow = cfgCls ? cfgCls.isCow : COW_WORDS.some(function(k){ return (cls.name||'').toLowerCase().indexOf(k)>-1; });
-      var cowFee = isCow ? ((cfgCls && cfgCls.cowFee !== null) ? cfgCls.cowFee : f.cowSurcharge) : 0;
+      var cowFee = isCow ? ((cfgCls && cfgCls.cowFee != null) ? cfgCls.cowFee : (f.cowSurcharge||0)) : 0;
       var jp = (cfgCls && cfgCls.jackpot) ? cfgCls.jackpot : 0;
       var desc = 'Class '+(cls.num||'?')+' \u2014 '+cls.name;
       if(cls.org && cls.org !== 'CoWN') desc += ' ['+cls.org+']';
@@ -3434,7 +3434,7 @@ function pgSettings(){
     +'</div>'
 
     // ── FINANCES ──
-    +'<div class="ssec active" id="ss-finances">'
+    +'<div class="ssec active" id="ss-finances"><div style="max-width:800px">'
     +'<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;font-size:.82rem;color:var(--muted)">'
     +'&#9432; Show name, date, and secretary are configured on the '
     +'<button class="btn btn-dark btn-sm" onclick="showPage(\'setup\')" style="font-size:.8rem">Setup</button> tab.'
@@ -3458,6 +3458,7 @@ function pgSettings(){
     +'</div>'
 
     // ── CLASSES ──
+    +'</div></div>'
     +'<div class="ssec" id="ss-classes">'
     +'<div class="card"><div class="card-title">Load Classes from Cognito File <small>Drop your entry file to auto-populate</small></div>'
     +'<div class="drop-zone" id="cls-dz"><div class="dz-ico">&#128190;</div><h3>Drop Cognito Export Here</h3><p>Classes extracted automatically from all division columns</p><input type="file" id="cls-fi" accept=".xlsx,.xls" style="display:none"></div>'
@@ -4688,10 +4689,48 @@ function showEntryModal(rowIdx){
 
     var stallSplitHTML = '';
     if(!housingItems.length){
-      stallSplitHTML = '<div class="empty-state" style="padding:1.5rem;text-align:center">'
-        +'<div style="color:var(--muted);font-size:.85rem">No stalling or RV on this entry.</div>'
-        +'<div style="font-size:.78rem;color:var(--muted);margin-top:.5rem">Add stalls via the Fees &amp; Tab tab using "+ Add Fee"</div>'
-        +'</div>';
+      // Show any existing splits where this rider IS the guest (orgFees with splitFromKey)
+      var guestSplits = (entry.orgFees||[]).filter(function(of){ return of.splitFromKey; });
+      stallSplitHTML = '<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem">Shared Housing Costs</div>';
+      if(guestSplits.length){
+        guestSplits.forEach(function(of){
+          stallSplitHTML += '<div class="tab-line" style="margin-bottom:.3rem">'
+            +'<span>'+esc(of.desc)+'</span>'
+            +'<span style="display:flex;align-items:center;gap:.5rem">'+fmt$(of.amt)
+            +'<button class="btn btn-red btn-sm guest-remove-btn" data-rowidx="'+rowIdx+'" data-splitkey="'+esc(of.splitFromKey)+'">&#10005;</button>'
+            +'</span></div>';
+        });
+      } else {
+        stallSplitHTML += '<div style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">No shared housing on this entry yet.</div>';
+      }
+      // UI to join another rider's stall
+      var stallHolders = G.entries.filter(function(en){
+        return (en.stall1qty>0||en.stall2qty>0||en.shavings>0||en.rv1qty>0||en.rv2qty>0||en.rvCircuit>0) && en.rowIndex!==rowIdx;
+      });
+      if(stallHolders.length){
+        stallSplitHTML += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-top:.75rem">';
+        stallSplitHTML += '<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Split housing with another rider&#39;s stall</div>';
+        stallSplitHTML += '<div style="display:grid;grid-template-columns:1fr 1fr 60px auto;gap:.4rem;align-items:flex-end">';
+        var holderOpts = '<option value="">— Stall holder —</option>'
+          + stallHolders.map(function(en){ return '<option value="'+en.rowIndex+'">'+esc(en.name)+' / '+esc(en.horse)+'</option>'; }).join('');
+        stallSplitHTML += '<select id="guest-split-holder" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.3rem .5rem;font-size:.78rem">'+holderOpts+'</select>';
+        // Item key dropdown — will be populated by holder selection; start with first holder's items
+        var firstHolder = stallHolders[0];
+        var f2 = G.cfg.fees;
+        var firstItems = [];
+        if(firstHolder.stall1qty>0) firstItems.push({key:'s1',label:'Stall 1-night'});
+        if(firstHolder.stall2qty>0) firstItems.push({key:'s2',label:'Stall 2-nights'});
+        if(firstHolder.shavings>0)  firstItems.push({key:'sh',label:'Shavings'});
+        if(firstHolder.rv1qty>0)    firstItems.push({key:'r1',label:'RV 1-night'});
+        if(firstHolder.rv2qty>0)    firstItems.push({key:'r2',label:'RV 2-nights'});
+        if(firstHolder.rvCircuit>0) firstItems.push({key:'rc',label:'RV Circuit'});
+        var itemOpts = firstItems.map(function(it){ return '<option value="'+it.key+'">'+it.label+'</option>'; }).join('');
+        stallSplitHTML += '<select id="guest-split-item" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.3rem .5rem;font-size:.78rem">'+itemOpts+'</select>';
+        stallSplitHTML += '<input type="number" id="guest-split-pct" value="50" min="1" max="99" '
+          +'style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.3rem .4rem;font-size:.78rem;text-align:center">';
+        stallSplitHTML += '<button class="btn btn-accent btn-sm" onclick="addSplitAsGuest('+rowIdx+')">Add</button>';
+        stallSplitHTML += '</div></div>';
+      }
     } else {
       // Initialize splits per housing item if not set
       if(!entry.stallSplits) entry.stallSplits = {};
@@ -4766,10 +4805,10 @@ function showEntryModal(rowIdx){
       +'</div>'
       // Tab buttons
       +'<div class="tab-row">'
-      +'<button class="tab-btn active gp-modal-tab" data-tab="classes">Classes</button>'
-      +'<button class="tab-btn gp-modal-tab" data-tab="riders">Riders</button>'
-      +'<button class="tab-btn gp-modal-tab" data-tab="fees">Fees &amp; Tab</button>'
-      +'<button class="tab-btn gp-modal-tab" data-tab="stall">Stall Split</button>'
+      +'<button id="tbtn-classes" class="tab-btn active gp-modal-tab" data-tab="classes">Classes</button>'
+      +'<button id="tbtn-riders" class="tab-btn gp-modal-tab" data-tab="riders">Riders</button>'
+      +'<button id="tbtn-fees" class="tab-btn gp-modal-tab" data-tab="fees">Fees &amp; Tab</button>'
+      +'<button id="tbtn-stall" class="tab-btn gp-modal-tab" data-tab="stall">Stall Split</button>'
       +'</div>'
       // Tab panels
       +'<div id="mpanel-classes">'+classHTML+'</div>'
@@ -4858,6 +4897,13 @@ function showEntryModal(rowIdx){
 
         saveEntriesToCache();
         if(G._rebuildEntryModal) G._rebuildEntryModal();
+      });
+    });
+
+    // Wire guest-remove buttons (for non-stall entries sharing another's stall)
+    root.querySelectorAll('.guest-remove-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        removeGuestSplit(parseInt(btn.dataset.rowidx), btn.dataset.splitkey);
       });
     });
   }
@@ -5361,6 +5407,63 @@ function addSplitPerson(rowIdx){
 };
 
 
+
+window.addSplitAsGuest=function(myRowIdx){
+  var holderSel=document.getElementById('guest-split-holder');
+  var itemSel=document.getElementById('guest-split-item');
+  var pctInp=document.getElementById('guest-split-pct');
+  if(!holderSel||!holderSel.value){ toast('Select a stall holder',true); return; }
+  var holderEntry=G.entries.find(function(e){ return e.rowIndex===parseInt(holderSel.value); });
+  var myEntry=G.entries.find(function(e){ return e.rowIndex===myRowIdx; });
+  if(!holderEntry||!myEntry){ toast('Entry not found',true); return; }
+  var itemKey=itemSel?itemSel.value:'s1';
+  var pct=parseInt((pctInp&&pctInp.value)||50)||50;
+  var f=G.cfg.fees;
+  var items={
+    s1:{label:'Stall 1-night',qty:holderEntry.stall1qty,unitCost:f.stall1||40},
+    s2:{label:'Stall 2-nights',qty:holderEntry.stall2qty,unitCost:f.stall2||80},
+    sh:{label:'Shavings',qty:holderEntry.shavings,unitCost:f.shavings||12},
+    r1:{label:'RV 1-night',qty:holderEntry.rv1qty,unitCost:f.rv1||40},
+    r2:{label:'RV 2-nights',qty:holderEntry.rv2qty,unitCost:f.rv2||80},
+    rc:{label:'RV Circuit',qty:holderEntry.rvCircuit,unitCost:f.rvCircuit||110}
+  };
+  var item=items[itemKey];
+  if(!item||!item.qty){ toast('That item has no quantity on the holder\'s entry',true); return; }
+  // Update holder's stallSplits
+  if(!holderEntry.stallSplits) holderEntry.stallSplits={};
+  if(!holderEntry.stallSplits[itemKey]) holderEntry.stallSplits[itemKey]=[{name:holderEntry.name,pct:100}];
+  var splits=holderEntry.stallSplits[itemKey];
+  var alreadyIn=splits.some(function(s){ return s.name===myEntry.name; });
+  if(alreadyIn){ toast(myEntry.name+' is already in this split',true); return; }
+  if(splits.length===1) splits[0].pct=100-pct;
+  splits.push({name:myEntry.name,pct:pct});
+  // Add/update orgFee on my entry
+  var splitKey=holderEntry.rowIndex+'_'+itemKey;
+  if(!myEntry.orgFees) myEntry.orgFees=[];
+  myEntry.orgFees=myEntry.orgFees.filter(function(of){ return of.splitFromKey!==splitKey; });
+  var shareAmt=item.qty*item.unitCost*pct/100;
+  myEntry.orgFees.push({org:'Stall Split',desc:'Share of '+item.label+' from '+holderEntry.name+'/'+holderEntry.horse,amt:shareAmt,splitFromKey:splitKey});
+  saveEntriesToStorage();
+  toast('Added '+pct+'% share of '+item.label+' ('+fmt$(shareAmt)+') to tab');
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
+window.removeGuestSplit=function(myRowIdx, splitKey){
+  var myEntry=G.entries.find(function(e){ return e.rowIndex===myRowIdx; });
+  if(!myEntry) return;
+  myEntry.orgFees=(myEntry.orgFees||[]).filter(function(of){ return of.splitFromKey!==splitKey; });
+  // Also remove from holder's stallSplits
+  var parts=splitKey.split('_');
+  var holderRowIdx=parseInt(parts[0]); var itemKey=parts.slice(1).join('_');
+  var holder=G.entries.find(function(e){ return e.rowIndex===holderRowIdx; });
+  if(holder&&holder.stallSplits&&holder.stallSplits[itemKey]){
+    holder.stallSplits[itemKey]=holder.stallSplits[itemKey].filter(function(s){ return s.name!==myEntry.name; });
+    if(holder.stallSplits[itemKey].length===1) holder.stallSplits[itemKey][0].pct=100;
+  }
+  saveEntriesToStorage();
+  toast('Split removed');
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
 
 function showTabModalByIdx(refRowIdx){ var ref=G.entries.find(function(e){ return e.rowIndex===refRowIdx; }); if(ref) showTabModal(ref.name); };
 function showTabModal(name){
@@ -5910,8 +6013,10 @@ async function boot(){
     G.cfg.location   = show.location     || G.cfg.location;
     G.cfg.showStatus = show.status       || '';
     G.cfg.showId     = showId;
-    if(show.fee_config && Object.keys(show.fee_config).length){
-      G.cfg.fees = Object.assign({}, G.cfg.fees, show.fee_config);
+    if(show.fee_config){
+      Object.keys(show.fee_config).forEach(function(k){
+        if(show.fee_config[k]!==null&&show.fee_config[k]!==undefined) G.cfg.fees[k]=show.fee_config[k];
+      });
     }
 
     // Update sidebar
