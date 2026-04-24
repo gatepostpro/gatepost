@@ -144,6 +144,7 @@ tr:hover td{background:rgba(255,255,255,.03)}
 
 .btn:disabled{opacity:.4;cursor:default}
 
+.fee-cat-section{margin-bottom:1rem}.fee-cat-head{display:flex;align-items:baseline;gap:.6rem;margin-bottom:.4rem;padding-bottom:.3rem;border-bottom:1px solid var(--border)}.fee-cat-label{font-family:Oswald;font-size:.85rem;color:var(--accent);white-space:nowrap}.fee-cat-note{font-size:.7rem;color:var(--muted);line-height:1.3}
 .fee-sched-row{display:grid;grid-template-columns:1fr 120px 32px;gap:.5rem;align-items:center;padding:.4rem 0;border-bottom:1px solid var(--border)}
 .fee-sched-row:last-child{border-bottom:none}
 .fee-sched-label{background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.3rem .5rem;font-size:.83rem;font-family:inherit;width:100%}
@@ -6899,9 +6900,7 @@ function pgSettings(){
 
     +'<div class="btn-row" style="margin-top:.75rem">'
 
-    +'<button class="btn btn-accent btn-sm" onclick="addScheduleFee()">+ Add Fee</button>'
-
-    +'<button class="btn btn-dark btn-sm" style="margin-left:.25rem" onclick="saveFeeSchedule()">&#128190; Save</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="saveFeeSchedule()">&#128190; Save All Fees</button>'
 
     +'</div></div>'
 
@@ -9063,26 +9062,35 @@ function populateFeesFromCfg(){
 
 
 var DEFAULT_FEE_SCHEDULE = [
-  {key:'stall1',         label:'Stall — 1 Night',           amt:40},
-  {key:'stall2',         label:'Stall — 2 Nights',          amt:80},
-  {key:'stall3',         label:'Stall — 3 Nights',          amt:120},
-  {key:'stallCircuit',   label:'Stall — Circuit',           amt:150},
-  {key:'shavings',       label:'Shavings (per bag)',             amt:12},
-  {key:'rv1',            label:'RV — 1 Night',              amt:40},
-  {key:'rv2',            label:'RV — 2 Nights',             amt:80},
-  {key:'rvCircuit',      label:'RV — Circuit',              amt:110},
-  {key:'office',         label:'Office Fee (per entry)',          amt:0},
-  {key:'membership1yr',  label:'Membership — 1 Year',       amt:60},
-  {key:'membership3yr',  label:'Membership — 3 Years',      amt:150},
-  {key:'membershipLife', label:'Membership — Lifetime',     amt:200},
-  {key:'dayLicense',     label:'Day License',                    amt:25},
-  {key:'late',           label:'Late Entry Fee',                 amt:0},
-  {key:'horseLicense',   label:'Horse License',                  amt:20},
-  {key:'classBase',      label:'Base Class Fee',                 amt:30},
-  {key:'cowSurcharge',   label:'Cow Class Surcharge',            amt:15},
-  {key:'jackpot',        label:'Jackpot Fee',                    amt:0},
-  {key:'addedMoney',     label:'Added Money (per class)',        amt:0}
+  {key:'classBase',     label:'Base Class Fee',          amt:30,  cat:'class'},
+  {key:'cowSurcharge',  label:'Cow Class Surcharge',     amt:15,  cat:'class'},
+  {key:'jackpot',       label:'Jackpot Fee',             amt:0,   cat:'class'},
+  {key:'addedMoney',    label:'Added Money (per class)', amt:0,   cat:'class'},
+  {key:'stall1',        label:'Stall — 1 Night',    amt:40,  cat:'stall'},
+  {key:'stall2',        label:'Stall — 2 Nights',   amt:80,  cat:'stall'},
+  {key:'stall3',        label:'Stall — 3 Nights',   amt:120, cat:'stall'},
+  {key:'stallCircuit',  label:'Stall — Circuit',    amt:150, cat:'stall'},
+  {key:'shavings',      label:'Shavings (per bag)',      amt:12,  cat:'stall'},
+  {key:'rv1',           label:'RV — 1 Night',       amt:40,  cat:'rv'},
+  {key:'rv2',           label:'RV — 2 Nights',      amt:80,  cat:'rv'},
+  {key:'rvCircuit',     label:'RV — Circuit',       amt:110, cat:'rv'},
+  {key:'office',        label:'Office Fee (per entry)',  amt:0,   cat:'office'},
+  {key:'late',          label:'Late Entry Fee',          amt:0,   cat:'office'},
+  {key:'membership1yr', label:'Membership — 1 Year',   amt:60,  cat:'member'},
+  {key:'membership3yr', label:'Membership — 3 Years',  amt:150, cat:'member'},
+  {key:'membershipLife',label:'Membership — Lifetime', amt:200, cat:'member'},
+  {key:'dayLicense',    label:'Day License',             amt:25,  cat:'member'},
+  {key:'horseLicense',  label:'Horse License',           amt:20,  cat:'member'}
 ];
+
+var FEE_CATS = {
+  class:  {label:'Class Fees',            note:'Charged per class entry. Cow surcharge added for cow/cutting classes. Per-class overrides in the Classes tab.'},
+  stall:  {label:'Stalling',              note:'Charged per stall. Shavings per bag.'},
+  rv:     {label:'RV Hookups',            note:'Charged per RV spot.'},
+  office: {label:'Office & Admin',        note:'Office fee charged per entry. Late fee applied manually per entry.'},
+  member: {label:'Membership & Licenses', note:'Charged per rider based on membership type on the entry.'},
+  custom: {label:'Custom / Additional',   note:'Charged to every entry at this show.'}
+};
 
 function feeLabel(key){
   var sched = G.cfg.feeSchedule;
@@ -9098,10 +9106,10 @@ function initFeeSchedule(){
   if(G.cfg.feeSchedule) return;
   G.cfg.feeSchedule = DEFAULT_FEE_SCHEDULE.map(function(f){
     var amt = (G.cfg.fees && G.cfg.fees[f.key]!==undefined) ? G.cfg.fees[f.key] : f.amt;
-    return {key:f.key, label:f.label, amt:amt};
+    return {key:f.key, label:f.label, amt:amt, cat:f.cat};
   });
   (G.cfg.extraFees||[]).forEach(function(ef){
-    G.cfg.feeSchedule.push({key:null, label:ef.label, amt:ef.amt||0});
+    G.cfg.feeSchedule.push({key:null, label:ef.label, amt:ef.amt||0, cat:'custom'});
   });
 }
 
@@ -9110,24 +9118,47 @@ function renderFeeSchedule(){
   var el = document.getElementById('fee-schedule-list');
   if(!el) return;
   var sched = G.cfg.feeSchedule;
-  if(!sched.length){
-    el.innerHTML = '<div class="empty">No fees defined. Click + Add Fee.</div>';
-    return;
-  }
-  el.innerHTML = sched.map(function(f,i){
-    return '<div class="fee-sched-row">'
-      +'<input class="fee-sched-label" value="'+esc(f.label||'')+'" placeholder="Fee name" '
-      +'onchange="updateScheduleFee('+i+',\'label\',this.value)">'
-      +'<div style="display:flex;align-items:center;gap:.3rem">'
-      +'<span style="color:var(--muted);font-size:.9rem">$</span>'
-      +'<input class="fee-sched-amt" type="number" value="'+f.amt+'" step="0.01" min="0" '
-      +'onchange="updateScheduleFee('+i+',\'amt\',this.value)">'
-      +'</div>'
-      +'<button onclick="removeScheduleFee('+i+')" title="Remove fee" '
-      +'style="background:transparent;border:1px solid rgba(231,76,60,.3);color:var(--red);'
-      +'border-radius:4px;cursor:pointer;padding:.15rem .45rem;font-size:.9rem;line-height:1">&times;</button>'
+
+  var catOrder = ['class','stall','rv','office','member','custom'];
+  var html = '';
+
+  catOrder.forEach(function(cat){
+    var fees = sched.filter(function(f){ return (f.cat||'custom')===cat; });
+    if(!fees.length && cat!=='custom') return;
+    var info = FEE_CATS[cat];
+    html += '<div class="fee-cat-section">'
+      +'<div class="fee-cat-head">'
+      +'<span class="fee-cat-label">'+info.label+'</span>'
+      +'<span class="fee-cat-note">'+info.note+'</span>'
       +'</div>';
-  }).join('');
+    if(fees.length){
+      fees.forEach(function(f){
+        var i = sched.indexOf(f);
+        html += '<div class="fee-sched-row">'
+          +'<input class="fee-sched-label" value="'+esc(f.label||'')+'" placeholder="Fee name" '
+          +'onchange="updateScheduleFee('+i+',\'label\',this.value)">'
+          +'<div style="display:flex;align-items:center;gap:.3rem">'
+          +'<span style="color:var(--muted);font-size:.9rem">$</span>'
+          +'<input class="fee-sched-amt" type="number" value="'+f.amt+'" step="0.01" min="0" '
+          +'onchange="updateScheduleFee('+i+',\'amt\',this.value)">'
+          +'</div>'
+          +'<button onclick="removeScheduleFee('+i+')" title="Remove this fee" '
+          +'style="background:transparent;border:1px solid rgba(231,76,60,.3);color:var(--red);'
+          +'border-radius:4px;cursor:pointer;padding:.15rem .45rem;font-size:.9rem;line-height:1">&times;</button>'
+          +'</div>';
+      });
+    } else {
+      html += '<div style="font-size:.78rem;color:var(--muted);padding:.4rem .2rem">No custom fees yet.</div>';
+    }
+    if(cat==='custom'){
+      html += '<div style="margin-top:.4rem">'
+        +'<button class="btn btn-accent btn-sm" onclick="addScheduleFee()">+ Add Fee</button>'
+        +'</div>';
+    }
+    html += '</div>';
+  });
+
+  el.innerHTML = html;
 }
 
 window.updateScheduleFee = function(idx, field, val){
@@ -9143,10 +9174,10 @@ window.removeScheduleFee = function(idx){
 
 window.addScheduleFee = function(){
   initFeeSchedule();
-  G.cfg.feeSchedule.push({key:null, label:'New Fee', amt:0});
+  G.cfg.feeSchedule.push({key:null, label:'New Fee', amt:0, cat:'custom'});
   renderFeeSchedule();
-  var rows = document.querySelectorAll('.fee-sched-row');
-  if(rows.length) rows[rows.length-1].querySelector('.fee-sched-label').focus();
+  var rows = document.querySelectorAll('.fee-sched-label');
+  if(rows.length) rows[rows.length-1].select();
 };
 
 window.saveFeeSchedule = function(){
@@ -9163,6 +9194,7 @@ window.saveFeeSchedule = function(){
   });
   G.cfg.extraFees = extras;
   saveConfig();
+  if(typeof renderCfgClassTable === 'function' && G.cfg.classes && G.cfg.classes.length) renderCfgClassTable();
 };
 
 function saveConfig(){
@@ -12343,7 +12375,21 @@ async function boot(){
 
     if(show.fee_config){
       Object.keys(show.fee_config).forEach(function(k){
-        if(k==='_schedule'){ G.cfg.feeSchedule = show.fee_config[k]; return; }
+        if(k==='_schedule'){
+          var saved = show.fee_config[k];
+          if(saved && Array.isArray(saved)){
+            // backfill cat from defaults for any entry missing it
+            saved.forEach(function(f){
+              if(!f.cat && f.key){
+                var def = DEFAULT_FEE_SCHEDULE.find(function(d){ return d.key===f.key; });
+                if(def) f.cat = def.cat;
+              }
+              if(!f.cat) f.cat = 'custom';
+            });
+          }
+          G.cfg.feeSchedule = saved;
+          return;
+        }
         if(k==='_extraFees'){ G.cfg.extraFees = show.fee_config[k]||[]; return; }
         if(show.fee_config[k]!==null&&show.fee_config[k]!==undefined) G.cfg.fees[k]=show.fee_config[k];
       });
