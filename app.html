@@ -19,17 +19,17 @@
 <style>
 
 :root{
-  --bg:#1a1612;--card:#231e17;--card2:#2c261e;
+  --bg:#141e28;--card:#1c2a38;--card2:#243244;
   --accent:#d4a04a;--accent2:#b8863a;--accent-dim:rgba(212,160,74,.1);
   --green:#27ae60;--red:#e74c3c;--blue:#4a9edd;--purple:#9b59b6;
-  --text:#ede8de;--muted:#9a8f7e;--border:#3c342a;--border2:#4e4236
+  --text:#e8e4d8;--muted:#8ea8c0;--border:#2c3e52;--border2:#3a5068
 }
 
 [data-theme="light"]{
-  --bg:#f5f0e8;--card:#ffffff;--card2:#f0ebe0;
-  --accent:#b87820;--accent2:#9a6618;--accent-dim:rgba(184,120,32,.1);
-  --green:#1e8a4a;--red:#c0392b;--blue:#2176ae;--purple:#7d3c98;
-  --text:#241c10;--muted:#7a6a58;--border:#ddd0bc;--border2:#c8b89e
+  --bg:#f0f2f5;--card:#ffffff;--card2:#e8ecf0;
+  --accent:#a06820;--accent2:#8a5818;--accent-dim:rgba(160,104,32,.1);
+  --green:#1a7a40;--red:#c0392b;--blue:#1a6faa;--purple:#6c3483;
+  --text:#1a2030;--muted:#607080;--border:#ccd4dc;--border2:#b0bcc8
 }
 
 *{margin:0;padding:0;box-sizing:border-box}
@@ -2286,6 +2286,13 @@ function showPage(p){
   var tr = document.getElementById('topbar-right');
 
   tr.innerHTML = '';
+
+  // Theme toggle — always present
+  var ttBtn = mk('button','theme-toggle'); ttBtn.id='theme-toggle';
+  ttBtn.title='Toggle light/dark';
+  ttBtn.innerHTML = document.documentElement.getAttribute('data-theme')==='light' ? '&#9790;' : '&#9788;';
+  ttBtn.onclick = toggleTheme;
+  tr.appendChild(ttBtn);
 
   // Always show back to shows button
 
