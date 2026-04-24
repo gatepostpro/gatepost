@@ -12,7 +12,12 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(grep -n \"function clsKey\\\\|function fmt\\\\$\\\\|function fmtI\\\\|function esc\\\\b\\\\|function divBadge\\\\|function paidBadge\" \"h:/My Drive/gatepost/app.html\")",
+      "Bash(python3 \"h:/My Drive/gatepost/fix_entries.py\")",
+      "Bash(python3 fix_entries.py)",
+      "Bash(python3 fix_table.py)",
+      "Bash(python3 fix_dedup.py)"
     ]
   }
 }
