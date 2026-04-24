@@ -287,7 +287,7 @@ tr:hover td{background:rgba(255,255,255,.03)}
     </div>
     <nav class="nav">
       <div class="nav-section">Secretary Tools</div>
-      <div class="nav-item active" data-page="setup"><span class="ico">&#9881;</span> Setup</div>
+      <div class="nav-item active" data-page="setup"><span class="ico">&#128202;</span> Overview</div>
       <div class="nav-item" data-page="entries"><span class="ico">&#9776;</span> Entries</div>
       <div class="nav-item" data-page="classes"><span class="ico">&#127891;</span> Classes</div>
       <div class="nav-item" data-page="tabs"><span class="ico">&#36;</span> Tabs &amp; Payments</div>
@@ -296,7 +296,7 @@ tr:hover td{background:rgba(255,255,255,.03)}
       <div class="nav-item" data-page="results"><span class="ico">&#127942;</span> Results</div>
       <div class="nav-item" data-page="publish"><span class="ico">&#8679;</span> Publish</div>
       <div class="nav-section">Admin</div>
-      <div class="nav-item" data-page="settings"><span class="ico">&#128736;</span> Settings</div>
+      <div class="nav-item" data-page="settings"><span class="ico">&#128736;</span> Show Setup</div>
       <div class="nav-section">Hub</div>
       <div class="nav-item" onclick="window.open('season.html','_blank')" style="cursor:pointer"><span class="ico">&#127942;</span> Season Hub &#8599;</div>
     </nav>
@@ -357,7 +357,8 @@ var G = {
     mapHeaders:[],   // saved column headers for entries mapper
     resColMap:{},    // colIndex -> role string for SHTX results mapper
     resMapHeaders:[], // saved column headers for results mapper
-    orgs:['CoWN']    // associations this show runs
+    orgs:['CoWN'],   // associations this show runs
+    extraFees:[]     // [{label, amt, perEntry:true}] custom show-wide fees
   }
 };
 
@@ -1154,6 +1155,11 @@ function buildTabLines(entry){
       lines.push({desc:desc, amt:base+cowFee+jp, type:'class', isCow:isCow});
     });
   }
+
+  // Show-wide custom fees (applied to every entry)
+  (G.cfg.extraFees||[]).forEach(function(ef){
+    if(ef.label && ef.amt) lines.push({desc:ef.label, amt:ef.amt, type:'extra'});
+  });
 
   // Stalling
   if(entry.stall1qty > 0) lines.push({desc:'Stall \u2014 1 night \xd7 '+entry.stall1qty, amt:f.stall1*entry.stall1qty, type:'stall'});
@@ -3221,7 +3227,7 @@ function pgSetup(){
   +'</div>'
   +'<div style="display:flex;align-items:center;gap:.5rem">'
   +statusBadge(s.showStatus||'setup')
-  +'<button class="btn btn-dark btn-sm" onclick="showPage(\'settings\')">&#9998; Edit</button>'
+  +'<button class="btn btn-dark btn-sm" onclick="showPage(\'settings\')">&#128736; Show Setup</button>'
   +'</div>'
   +'</div>'
   +'</div>'
@@ -3455,6 +3461,12 @@ function pgSettings(){
       +'<div class="fee-chip"><div class="fc-l">With jackpot</div><div class="fc-v" id="fs-jp">$30</div></div>'
       +'</div>'
     )
+    +'<div class="card">'
+    +'<div class="card-title">Additional Fees <small>Charged to every entry — e.g. arena fee, drug test, show program</small></div>'
+    +'<div id="extra-fees-list"></div>'
+    +'<div class="btn-row" style="margin-top:.5rem">'
+    +'<button class="btn btn-accent btn-sm" onclick="addExtraFee()">+ Add Fee</button>'
+    +'</div></div>'
     +'</div>'
 
     // ── CLASSES ──
@@ -3531,6 +3543,7 @@ function pgSettings(){
   setupMapDrop();
   setupResMapDrop();
   setupFeeListeners();
+  renderExtraFees();
   if(G.cfg.classes.length) renderCfgClassTable();
 }
 
@@ -4098,6 +4111,50 @@ function orgRow(id,name,hasDrug){
     +(hasDrug?'<span class="badge b-blue" style="margin-left:auto">Drug testing available</span>':'')
     +'</div>';
 }
+
+function renderExtraFees(){
+  var el = document.getElementById('extra-fees-list');
+  if(!el) return;
+  var fees = G.cfg.extraFees||[];
+  if(!fees.length){
+    el.innerHTML = '<div style="font-size:.83rem;color:var(--muted);padding:.25rem 0 .5rem">No additional fees configured.</div>';
+    return;
+  }
+  el.innerHTML = fees.map(function(fee, i){
+    return '<div style="display:flex;align-items:center;gap:.6rem;padding:.4rem 0;border-bottom:1px solid var(--border)">'
+      +'<input type="text" value="'+esc(fee.label)+'" data-fi="'+i+'" data-field="label" '
+      +'style="flex:1;background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.32rem .55rem;font-size:.83rem" '
+      +'onchange="updateExtraFee('+i+',\'label\',this.value)" placeholder="Fee name">'
+      +'<div style="position:relative;width:100px;flex-shrink:0"><span style="position:absolute;left:.45rem;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.8rem">$</span>'
+      +'<input type="number" value="'+fee.amt+'" step="0.01" '
+      +'style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.32rem .55rem .32rem 1.2rem;font-size:.83rem" '
+      +'onchange="updateExtraFee('+i+',\'amt\',parseFloat(this.value)||0)" placeholder="0"></div>'
+      +'<button class="btn btn-red btn-sm" onclick="removeExtraFee('+i+')">&#10005;</button>'
+      +'</div>';
+  }).join('');
+}
+
+window.addExtraFee = function(){
+  if(!G.cfg.extraFees) G.cfg.extraFees = [];
+  G.cfg.extraFees.push({label:'', amt:0});
+  renderExtraFees();
+  // Focus the new label input
+  var inputs = document.querySelectorAll('#extra-fees-list input[type="text"]');
+  if(inputs.length) inputs[inputs.length-1].focus();
+};
+
+window.updateExtraFee = function(i, field, val){
+  if(!G.cfg.extraFees||!G.cfg.extraFees[i]) return;
+  G.cfg.extraFees[i][field] = val;
+  localStorage.setItem('gatepost_cfg', JSON.stringify(G.cfg));
+};
+
+window.removeExtraFee = function(i){
+  if(!G.cfg.extraFees) return;
+  G.cfg.extraFees.splice(i, 1);
+  localStorage.setItem('gatepost_cfg', JSON.stringify(G.cfg));
+  renderExtraFees();
+};
 
 function setupFeeListeners(){
   // All fee fields — update strip + class totals on any change
