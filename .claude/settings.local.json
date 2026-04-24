@@ -17,7 +17,9 @@
       "Bash(python3 \"h:/My Drive/gatepost/fix_entries.py\")",
       "Bash(python3 fix_entries.py)",
       "Bash(python3 fix_table.py)",
-      "Bash(python3 fix_dedup.py)"
+      "Bash(python3 fix_dedup.py)",
+      "Bash(node --check \"C:/Users/ABBIE~1.FER/AppData/Local/Temp/gp_test.js\")",
+      "Bash(python3 -)"
     ]
   }
 }
