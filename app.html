@@ -4622,22 +4622,6 @@ function showEntryModal(rowIdx){
     // Fees tab content
     var feesHTML = '';
 
-    // Org fees
-    var orgFees = entry.orgFees||[];
-    feesHTML += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem">'
-      +'<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Association Fees</div>'
-      +'<button class="btn btn-dark btn-sm" onclick="showAddOrgFee('+rowIdx+')">+ Add Fee</button>'
-      +'</div>';
-    if(orgFees.length){
-      orgFees.forEach(function(f, fi){
-        feesHTML += '<div class="tab-line"><span><span class="badge b-blue" style="margin-right:5px">'+esc(f.org)+'</span>'+esc(f.desc)+'</span>'
-          +'<span style="display:flex;align-items:center;gap:.5rem">'+fmt$(f.amt)
-          +'<button class="btn btn-red btn-sm" onclick="removeOrgFee('+rowIdx+','+fi+')">&#10005;</button></span></div>';
-      });
-    } else {
-      feesHTML += '<div style="font-size:.82rem;color:var(--muted);padding:.3rem 0 .6rem">None added</div>';
-    }
-
     // Membership
     var memLines = lines.filter(function(l){ return l.type==='membership'; });
     if(memLines.length){
@@ -4648,8 +4632,19 @@ function showEntryModal(rowIdx){
     // Classes
     var classLines = lines.filter(function(l){ return l.type==='class'; });
     if(classLines.length){
-      feesHTML += '<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:.6rem 0 .25rem">Classes</div>';
-      classLines.forEach(function(l){ feesHTML += '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; });
+      feesHTML += '<div style="display:flex;align-items:center;justify-content:space-between;margin:.6rem 0 .25rem">'
+        +'<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Classes</div>'
+        +'<span style="font-size:.7rem;color:var(--muted)">click amt to waive</span></div>';
+      classLines.forEach(function(l){
+        feesHTML += '<div class="tab-line"><span>'+esc(l.desc)+'</span>'
+          +'<span style="display:flex;align-items:center;gap:.35rem">'
+          +'<span class="waive-amt" style="cursor:pointer;color:var(--text);padding:1px 4px;border-radius:3px;border:1px solid transparent" '
+          +'data-rowidx="'+rowIdx+'" data-desc="'+esc(l.desc)+'" data-amt="'+l.amt+'" '
+          +'title="Click to add a waiver or override for this class" '
+          +'onmouseenter="this.style.borderColor=\'var(--border2)\'" onmouseleave="this.style.borderColor=\'transparent\'">'
+          +fmt$(l.amt)+'</span>'
+          +'</span></div>';
+      });
     } else {
       feesHTML += '<div style="font-size:.82rem;color:var(--muted);padding:.3rem 0">No classes entered</div>';
     }
@@ -4661,7 +4656,20 @@ function showEntryModal(rowIdx){
       stallLines.forEach(function(l){ feesHTML += '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; });
     }
 
-    feesHTML += '<div class="tab-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
+    // Org fees with adjusted display
+    var adjLines = (entry.orgFees||[]).filter(function(of){ return !of.splitFromKey; });
+    if(adjLines.length){
+      feesHTML += '<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:.6rem 0 .25rem">Adjustments</div>';
+      adjLines.forEach(function(of, fi){
+        feesHTML += '<div class="tab-line"><span style="color:'+(of.amt<0?'var(--green)':'var(--text)')+'">'+esc(of.desc)+'</span>'
+          +'<span style="display:flex;align-items:center;gap:.5rem;color:'+(of.amt<0?'var(--green)':'var(--text)')+'">'+fmt$(of.amt)
+          +'<button class="btn btn-red btn-sm" onclick="removeOrgFee('+rowIdx+','+fi+')">&#10005;</button></span></div>';
+      });
+    }
+
+    feesHTML += '<div style="margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border)">'
+      +'<button class="btn btn-dark btn-sm" onclick="showAddOrgFee('+rowIdx+')">+ Add Fee / Discount</button></div>'
+      +'<div class="tab-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
       +'<div class="pay-status">'
       +'<div style="flex:1"><div class="small">Paid</div><div class="bold" style="color:var(--green)">'+fmt$(paid)+'</div></div>'
       +'<div style="flex:1"><div class="small">Balance</div><div class="bold" style="color:'+(bal<=0?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</div></div>'
@@ -4904,6 +4912,21 @@ function showEntryModal(rowIdx){
     root.querySelectorAll('.guest-remove-btn').forEach(function(btn){
       btn.addEventListener('click', function(){
         removeGuestSplit(parseInt(btn.dataset.rowidx), btn.dataset.splitkey);
+      });
+    });
+
+    // Wire waive-amt clicks — open Add Fee dialog pre-filled with a matching discount
+    root.querySelectorAll('.waive-amt').forEach(function(el){
+      el.addEventListener('click', function(){
+        var ri = parseInt(el.dataset.rowidx);
+        var desc = 'Waiver: '+el.dataset.desc;
+        var negAmt = -(parseFloat(el.dataset.amt)||0);
+        showAddOrgFee(ri, desc, negAmt);
+        // Switch to Discount / Credit in the dialog after it renders
+        setTimeout(function(){
+          var sel = document.getElementById('of-type');
+          if(sel){ sel.value = 'Discount / Credit'; orgFeeTypeChange(ri); }
+        }, 30);
       });
     });
   }
@@ -5248,7 +5271,7 @@ function removeRider(rowIdx, riderIdx){
   if(G._rebuildEntryModal) G._rebuildEntryModal();
 };
 
-function showAddOrgFee(rowIdx){
+function showAddOrgFee(rowIdx, prefillDesc, prefillAmt){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
   var f = G.cfg.fees;
@@ -5256,7 +5279,7 @@ function showAddOrgFee(rowIdx){
   var feeTypes=[
     'Office Fee',
     'Drug Test Fee',
-    'Administration Fee', 
+    'Administration Fee',
     'Late Fee',
     'Horse License',
     'Day License',
@@ -5272,23 +5295,42 @@ function showAddOrgFee(rowIdx){
     'RV — 1 Night ('+(f.rv1||40)+'/night)',
     'RV — 2 Nights ('+(f.rv2||80)+')',
     'RV — Circuit ('+(f.rvCircuit||110)+')',
+    '--- Adjustments ---',
+    'Custom Fee',
+    'Discount / Credit',
   ];
+  var isCustom = prefillDesc ? true : false;
   var html='<div class="modal-bg" id="orgfee-modal" onclick="if(event.target===this){closeModal();showEntryModal('+rowIdx+')}">'
-    +'<div class="modal" style="max-width:400px"><h2>Add Fee</h2>'
+    +'<div class="modal" style="max-width:420px"><h2>Add Fee or Adjustment</h2>'
+    +'<div class="form-group" style="margin-bottom:.65rem"><label>Type</label>'
+    +'<select id="of-type" onchange="orgFeeTypeChange('+rowIdx+')" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%">'
+    +feeTypes.map(function(ft){ return '<option'+(prefillDesc&&(ft==='Custom Fee'||ft==='Discount / Credit')?' selected':'')+'>'+ft+'</option>'; }).join('')+'</select></div>'
+    +'<div id="of-custom-wrap" class="form-group" style="margin-bottom:.65rem;'+(isCustom?'':'display:none')+'"><label>Description</label>'
+    +'<input type="text" id="of-custom-desc" value="'+(prefillDesc?esc(prefillDesc):'')+'" placeholder="e.g. Fee waiver, discount, correction..." style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
     +'<div class="form-group" style="margin-bottom:.65rem"><label>Association</label>'
     +'<select id="of-org" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%">'
     +orgs.map(function(o){ return '<option>'+o+'</option>'; }).join('')+'</select></div>'
-    +'<div class="form-group" style="margin-bottom:.65rem"><label>Fee Type</label>'
-    +'<select id="of-type" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%">'
-    +feeTypes.map(function(f){ return '<option>'+f+'</option>'; }).join('')+'</select></div>'
-    +'<div class="form-group" style="margin-bottom:.75rem"><label>Amount</label>'
+    +'<div class="form-group" style="margin-bottom:.75rem"><label>Amount <span style="color:var(--muted);font-size:.74rem">(negative = discount/credit)</span></label>'
     +'<div style="position:relative"><span style="position:absolute;left:.55rem;top:50%;transform:translateY(-50%);color:var(--muted)">$</span>'
-    +'<input type="number" id="of-amt" value="0" min="0" step="1" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem .42rem 1.3rem;font-size:.84rem;width:100%"></div></div>'
+    +'<input type="number" id="of-amt" value="'+(prefillAmt!==undefined?prefillAmt:0)+'" step="0.01" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem .42rem 1.3rem;font-size:.84rem;width:100%"></div></div>'
     +'<div class="btn-row">'
-    +'<button class="btn btn-accent" onclick="saveOrgFee('+rowIdx+')">Add Fee</button>'
+    +'<button class="btn btn-accent" onclick="saveOrgFee('+rowIdx+')">Add</button>'
     +'<button class="btn btn-dark" onclick="closeModal();showEntryModal('+rowIdx+')">Cancel</button>'
     +'</div></div></div>';
   document.getElementById('modal-root').innerHTML=html;
+};
+
+window.orgFeeTypeChange=function(rowIdx){
+  var sel=document.getElementById('of-type');
+  var wrap=document.getElementById('of-custom-wrap');
+  var amtEl=document.getElementById('of-amt');
+  var isCustom=sel.value==='Custom Fee'||sel.value==='Discount / Credit';
+  var isSep=sel.value.indexOf('---')===0;
+  if(isSep){ sel.value=sel.options[sel.selectedIndex-1]?sel.options[sel.selectedIndex-1].value:'Office Fee'; }
+  wrap.style.display=isCustom?'flex':'none';
+  if(sel.value==='Discount / Credit'){ if(parseFloat(amtEl.value)>=0) amtEl.value='-0'; }
+  else if(sel.value==='Custom Fee'){ if(!amtEl.value||amtEl.value==='0') amtEl.value='0'; }
+  else { autoFillFeeAmt(sel.value); }
 };
 
 
@@ -5316,23 +5358,32 @@ function saveOrgFee(rowIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
   var org  = document.getElementById('of-org').value;
-  var desc = document.getElementById('of-type').value;
+  var type = document.getElementById('of-type').value;
   var amt  = parseFloat(document.getElementById('of-amt').value)||0;
-  if(desc.indexOf('---') === 0){ toast('Please select a fee type', true); return; }
+  if(type.indexOf('---') === 0){ toast('Please select a fee type', true); return; }
+  // For custom/discount, use the free-text description
+  var desc = type;
+  if(type === 'Custom Fee' || type === 'Discount / Credit'){
+    var customEl = document.getElementById('of-custom-desc');
+    desc = (customEl&&customEl.value.trim()) || type;
+    if(!desc){ toast('Please enter a description', true); return; }
+  } else {
+    desc = type.split('(')[0].trim();
+  }
   if(!e.orgFees) e.orgFees=[];
   // For stall/RV fees, also update the entry quantities for tab calculation
   var f = G.cfg.fees;
-  if(desc.indexOf('Stall — 1 Night') === 0){ e.stall1qty = (e.stall1qty||0)+1; amt = f.stall1||40; }
-  else if(desc.indexOf('Stall — 2 Nights') === 0){ e.stall2qty = (e.stall2qty||0)+1; amt = f.stall2||80; }
-  else if(desc.indexOf('Stall — 3 Nights') === 0){ e.stall1qty = (e.stall1qty||0)+3; amt = f.stall3||120; }
-  else if(desc.indexOf('Stall — Circuit') === 0){ e.stall1qty = (e.stall1qty||0)+1; amt = f.stallCircuit||150; }
-  else if(desc.indexOf('Shavings') === 0){ e.shavings = (e.shavings||0)+1; amt = f.shavings||12; }
-  else if(desc.indexOf('RV — 1 Night') === 0){ e.rv1qty = (e.rv1qty||0)+1; amt = f.rv1||40; }
-  else if(desc.indexOf('RV — 2 Nights') === 0){ e.rv2qty = (e.rv2qty||0)+1; amt = f.rv2||80; }
-  else if(desc.indexOf('RV — Circuit') === 0){ e.rvCircuit = (e.rvCircuit||0)+1; amt = f.rvCircuit||110; }
-  e.orgFees.push({org:org, desc:desc.split('(')[0].trim(), amt:amt});
+  if(type.indexOf('Stall — 1 Night') === 0){ e.stall1qty = (e.stall1qty||0)+1; amt = f.stall1||40; }
+  else if(type.indexOf('Stall — 2 Nights') === 0){ e.stall2qty = (e.stall2qty||0)+1; amt = f.stall2||80; }
+  else if(type.indexOf('Stall — 3 Nights') === 0){ e.stall1qty = (e.stall1qty||0)+3; amt = f.stall3||120; }
+  else if(type.indexOf('Stall — Circuit') === 0){ e.stall1qty = (e.stall1qty||0)+1; amt = f.stallCircuit||150; }
+  else if(type.indexOf('Shavings') === 0){ e.shavings = (e.shavings||0)+1; amt = f.shavings||12; }
+  else if(type.indexOf('RV — 1 Night') === 0){ e.rv1qty = (e.rv1qty||0)+1; amt = f.rv1||40; }
+  else if(type.indexOf('RV — 2 Nights') === 0){ e.rv2qty = (e.rv2qty||0)+1; amt = f.rv2||80; }
+  else if(type.indexOf('RV — Circuit') === 0){ e.rvCircuit = (e.rvCircuit||0)+1; amt = f.rvCircuit||110; }
+  e.orgFees.push({org:org, desc:desc, amt:amt});
   saveEntriesToCache();
-  toast('Added: '+desc.split('(')[0].trim()+' '+fmt$(amt));
+  toast((amt<0?'Discount':'Fee')+' added: '+desc+' '+fmt$(amt));
   closeModal();
   showEntryModal(rowIdx);
 };
@@ -5487,7 +5538,8 @@ function showTabModal(name){
     +'</div>'
     +'<div class="btn-row" style="margin-top:1rem;margin-bottom:0">'
     +'<button class="btn btn-dark" onclick="closeModal()">Close</button>'
-    +'<button class="btn btn-accent btn-sm no-print" onclick="window.print()">&#128424; Print Receipt</button>'
+    +'<button class="btn btn-accent btn-sm" onclick="closeModal();showEntryModal('+refIdx+');setTimeout(function(){switchModalTab("fees")},50)">&#9998; Edit Fees</button>'
+    +'<button class="btn btn-dark btn-sm no-print" onclick="window.print()">&#128424; Print</button>'
     +'</div></div></div>';
   document.getElementById('modal-root').innerHTML=html;
 }
