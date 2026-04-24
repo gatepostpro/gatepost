@@ -3,94 +3,139 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gatepost</title>
+<title>Gatepost Pro</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0f1923;--card:#1a2733;--card2:#1e2f3d;--accent:#D4A04A;--accent2:#b8863a;
-  --green:#27ae60;--red:#e74c3c;--blue:#2980b9;--text:#e8dcc8;--muted:#8a9aad;
-  --border:#2a3a4a;--border2:#354a5e
+  --bg:#0f0f0f;--card:#1a1a1a;--card2:#222;
+  --text:#e8e8e8;--muted:#888;
+  --accent:#b8862a;--accent-dim:rgba(184,134,42,.12);
+  --border:#2a2a2a;--border2:#333;
+  --green:#2ecc71;--red:#e74c3c;--blue:#3498db;
 }
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Source Sans 3',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}
-.hero{text-align:center;margin-bottom:2.5rem}
-.hero h1{font-family:'Oswald',sans-serif;font-size:3rem;font-weight:700;color:var(--accent);letter-spacing:.05em}
-.hero h1 span{display:block;font-size:1rem;font-weight:400;color:var(--muted);letter-spacing:.15em;margin-top:.4rem}
-.divider{width:60px;height:3px;background:var(--accent);margin:1.25rem auto;border-radius:2px}
-.hero p{color:var(--muted);font-size:.95rem;max-width:400px;margin:0 auto}
-.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.25rem;margin-bottom:.75rem;max-width:560px;width:100%}
-.card-title{font-family:'Oswald',sans-serif;color:var(--accent);font-size:1rem;margin-bottom:.85rem;display:flex;align-items:center;justify-content:space-between}
-.show-grid{display:grid;gap:.5rem}
-.show-row{background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .15s}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
+body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 3rem}
+
+/* ── Wordmark ───────────────────────────────── */
+.wordmark{text-align:center;margin-bottom:2.5rem;margin-top:1rem}
+.wordmark h1{font-family:Oswald;font-size:2.6rem;font-weight:700;color:var(--accent);letter-spacing:.06em;line-height:1}
+.wordmark p{font-size:.75rem;color:var(--muted);letter-spacing:.2em;text-transform:uppercase;margin-top:.35rem}
+.wordmark-bar{width:48px;height:3px;background:var(--accent);border-radius:2px;margin:.9rem auto}
+
+/* ── Card shell ─────────────────────────────── */
+.panel{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:1.25rem;width:100%;max-width:520px;margin-bottom:.75rem}
+.panel-title{font-family:Oswald;font-size:1rem;color:var(--accent);margin-bottom:.85rem;display:flex;align-items:center;justify-content:space-between}
+
+/* ── DB status ──────────────────────────────── */
+.db-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:.4rem;background:var(--red)}
+.db-dot.ok{background:var(--green)}
+.db-dot.spin{background:var(--accent);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+
+/* ── Show list ──────────────────────────────── */
+.show-list{display:flex;flex-direction:column;gap:.45rem}
+.show-row{
+  background:var(--card2);border:1px solid var(--border2);border-radius:8px;
+  padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;
+  cursor:pointer;transition:border-color .15s
+}
 .show-row:hover{border-color:var(--accent)}
-.show-row .sr-name{font-family:'Oswald',sans-serif;font-size:.95rem;color:var(--text)}
-.show-row .sr-meta{font-size:.75rem;color:var(--muted);margin-top:2px}
-.show-row .sr-status{font-size:.7rem;font-weight:600;padding:2px 8px;border-radius:10px}
-.s-setup{background:rgba(138,154,173,.1);color:var(--muted)}
-.s-entries_open{background:rgba(39,174,96,.15);color:#2ecc71}
-.s-entries_closed{background:rgba(212,160,74,.15);color:var(--accent)}
-.s-running{background:rgba(231,76,60,.2);color:#e74c3c}
-.s-complete{background:rgba(41,128,185,.15);color:#5dade2}
-.btn{display:inline-flex;align-items:center;gap:.35rem;padding:.45rem .9rem;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;font-family:'Source Sans 3',sans-serif;transition:all .15s}
-.btn-accent{background:var(--accent);color:#1a1a1a}.btn-accent:hover{background:var(--accent2)}
-.btn-dark{background:var(--card2);color:var(--text);border:1px solid var(--border2)}.btn-dark:hover{border-color:var(--accent);color:var(--accent)}
-.btn-sm{padding:.28rem .6rem;font-size:.75rem}
-.form-group{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.65rem}
-.form-group label{font-size:.75rem;color:var(--muted)}
-.form-group input,.form-group select{background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.45rem .65rem;font-size:.85rem;font-family:'Source Sans 3',sans-serif}
-.form-group input:focus,.form-group select:focus{outline:none;border-color:var(--accent)}
-.form-group select option{background:var(--card)}
-.btn-row{display:flex;gap:.5rem;margin-top:.75rem}
-.empty{color:var(--muted);font-size:.85rem;text-align:center;padding:1.5rem}
-.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:.4rem}
-.status-dot.red{background:var(--red)}
-.status-dot.amber{background:var(--accent)}
-#new-show-form{display:none;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)}
-.err{color:var(--red);font-size:.8rem;margin-top:.35rem}
+.show-row:active{background:#2a2a2a}
+.sr-name{font-family:Oswald;font-size:.95rem}
+.sr-meta{font-size:.72rem;color:var(--muted);margin-top:2px}
+.sr-badge{font-size:.68rem;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap}
+.s-setup{background:rgba(136,136,136,.12);color:var(--muted)}
+.s-entries_open{background:rgba(46,204,113,.15);color:var(--green)}
+.s-entries_closed{background:rgba(184,134,42,.15);color:var(--accent)}
+.s-running{background:rgba(231,76,60,.2);color:var(--red)}
+.s-complete{background:rgba(52,152,219,.15);color:var(--blue)}
+
+/* ── Role selector ──────────────────────────── */
+#role-panel{display:none}
+.back-btn{
+  background:transparent;border:none;color:var(--muted);font-size:.8rem;
+  cursor:pointer;padding:0;display:flex;align-items:center;gap:.3rem;font-family:inherit
+}
+.back-btn:hover{color:var(--text)}
+.selected-show{
+  background:var(--accent-dim);border:1px solid rgba(184,134,42,.25);border-radius:8px;
+  padding:.6rem .9rem;margin-bottom:1.1rem
+}
+.selected-show .ss-name{font-family:Oswald;font-size:1rem;color:var(--accent)}
+.selected-show .ss-meta{font-size:.72rem;color:var(--muted);margin-top:2px}
+.roles{display:flex;flex-direction:column;gap:.6rem}
+.role-card{
+  display:flex;align-items:center;gap:1rem;
+  background:var(--card2);border:1.5px solid var(--border2);border-radius:10px;
+  padding:.9rem 1rem;cursor:pointer;transition:all .15s;text-decoration:none;color:var(--text)
+}
+.role-card:hover{border-color:var(--accent);background:#252525}
+.role-card:active{background:#2a2a2a}
+.role-icon{font-size:1.6rem;flex-shrink:0;width:2.4rem;text-align:center}
+.role-info .role-name{font-family:Oswald;font-size:1rem;color:var(--text)}
+.role-info .role-desc{font-size:.75rem;color:var(--muted);margin-top:.1rem}
+.role-card.secretary{border-color:rgba(184,134,42,.3)}
+.role-card.secretary:hover{border-color:var(--accent)}
+.role-card.scribe{border-color:rgba(52,152,219,.25)}
+.role-card.scribe:hover{border-color:var(--blue)}
+.role-card.participant{border-color:rgba(46,204,113,.2)}
+.role-card.participant:hover{border-color:var(--green)}
+
+/* ── New show form ──────────────────────────── */
+#new-form{display:none;margin-top:.85rem;padding-top:.85rem;border-top:1px solid var(--border)}
+.fg{display:flex;flex-direction:column;gap:.28rem;margin-bottom:.6rem}
+.fg label{font-size:.72rem;color:var(--muted)}
+.fg input,.fg select{
+  background:var(--bg);border:1px solid var(--border2);border-radius:6px;
+  color:var(--text);padding:.42rem .6rem;font-size:.85rem;font-family:inherit
+}
+.fg input:focus,.fg select:focus{outline:none;border-color:var(--accent)}
+.fg select option{background:var(--card)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.btn{display:inline-flex;align-items:center;gap:.3rem;padding:.42rem .85rem;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;font-family:inherit;transition:all .15s}
+.btn-accent{background:var(--accent);color:#000}.btn-accent:hover{opacity:.9}
+.btn-dark{background:var(--card2);color:var(--text);border:1px solid var(--border2)}.btn-dark:hover{border-color:var(--accent)}
+.btn-sm{padding:.26rem .6rem;font-size:.74rem}
+.btn-row{display:flex;gap:.5rem;margin-top:.65rem}
+.err{color:var(--red);font-size:.78rem;margin-top:.3rem}
+.empty{color:var(--muted);font-size:.84rem;text-align:center;padding:1.5rem 0}
+
+/* ── Footer ─────────────────────────────────── */
+.footer{font-size:.72rem;color:var(--muted);text-align:center;margin-top:.5rem}
+.footer a{color:var(--accent);text-decoration:none}
 </style>
 </head>
 <body>
 
-<div class="hero">
-  <h1>GATEPOST<span>SHOW MANAGEMENT</span></h1>
-  <div class="divider"></div>
-  <p>Select a show to manage, or create a new one</p>
+<div class="wordmark">
+  <h1>GATEPOST</h1>
+  <div class="wordmark-bar"></div>
+  <p>Show Management</p>
 </div>
 
-<div class="card">
-  <div class="card-title">
-    <span id="db-status"><span class="status-dot red" id="dot"></span>Connecting...</span>
+<!-- Show list panel -->
+<div class="panel" id="shows-panel">
+  <div class="panel-title">
+    <span><span class="db-dot spin" id="dot"></span><span id="db-label">Connecting…</span></span>
     <span style="font-size:.72rem;color:var(--muted)" id="assoc-name"></span>
   </div>
-  <div id="shows-list"><div class="empty">Loading shows...</div></div>
+  <div id="shows-list"><div class="empty">Loading shows…</div></div>
   <div style="margin-top:.75rem">
-    <button class="btn btn-accent btn-sm" onclick="toggleNewShow()">+ New Show</button>
+    <button class="btn btn-accent btn-sm" onclick="toggleNew()">+ New Show</button>
   </div>
-
-  <div id="new-show-form">
-    <div class="form-group">
-      <label>Show Name</label>
-      <input type="text" id="ns-name" placeholder="e.g. CoWN Summerfest 2026">
+  <div id="new-form">
+    <div class="fg"><label>Show Name</label><input id="ns-name" placeholder="e.g. CoWN Summerfest 2026"></div>
+    <div class="grid2">
+      <div class="fg"><label>Show Date</label><input type="date" id="ns-date"></div>
+      <div class="fg"><label>Entry Deadline</label><input type="date" id="ns-deadline"></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem">
-      <div class="form-group">
-        <label>Show Date</label>
-        <input type="date" id="ns-date">
-      </div>
-      <div class="form-group">
-        <label>Entry Deadline</label>
-        <input type="date" id="ns-deadline">
-      </div>
-    </div>
-    <div class="form-group">
-      <label>Location</label>
-      <input type="text" id="ns-location" placeholder="e.g. Estes Park Fairgrounds">
-    </div>
-    <div class="form-group">
+    <div class="fg"><label>Location</label><input id="ns-location" placeholder="e.g. Estes Park Fairgrounds"></div>
+    <div class="fg">
       <label>Status</label>
       <select id="ns-status">
-        <option value="setup">Setup (not open yet)</option>
+        <option value="setup">Setup</option>
         <option value="entries_open">Entries Open</option>
         <option value="entries_closed">Entries Closed</option>
         <option value="running">Running Now</option>
@@ -99,80 +144,138 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--bg);color:var(--tex
     <div id="ns-err" class="err"></div>
     <div class="btn-row">
       <button class="btn btn-accent btn-sm" onclick="createShow()">Create Show</button>
-      <button class="btn btn-dark btn-sm" onclick="toggleNewShow()">Cancel</button>
+      <button class="btn btn-dark btn-sm" onclick="toggleNew()">Cancel</button>
     </div>
   </div>
 </div>
 
-<div class="card" style="text-align:center;padding:.85rem">
-  <span style="font-size:.75rem;color:var(--muted)">Gatepost v0.2 &mdash; <a href="https://github.com/gatepostpro/gatepost" target="_blank" style="color:var(--accent);text-decoration:none">GitHub</a></span>
+<!-- Role selector panel -->
+<div class="panel" id="role-panel">
+  <div class="panel-title">
+    <span>Select Your Role</span>
+    <button class="back-btn" onclick="backToShows()">← Shows</button>
+  </div>
+  <div class="selected-show" id="selected-show-info">
+    <div class="ss-name" id="sel-name">—</div>
+    <div class="ss-meta" id="sel-meta"></div>
+  </div>
+  <div class="roles">
+    <a class="role-card secretary" id="role-secretary" href="#">
+      <div class="role-icon">🖥️</div>
+      <div class="role-info">
+        <div class="role-name">Secretary</div>
+        <div class="role-desc">Full show management — entries, classes, tabs, results</div>
+      </div>
+    </a>
+    <a class="role-card scribe" id="role-scribe" href="#">
+      <div class="role-icon">✏️</div>
+      <div class="role-info">
+        <div class="role-name">Scribe</div>
+        <div class="role-desc">Score entry for your assigned class</div>
+      </div>
+    </a>
+    <a class="role-card participant" id="role-participant" href="#">
+      <div class="role-icon">🏆</div>
+      <div class="role-info">
+        <div class="role-name">Participant</div>
+        <div class="role-desc">View results and standings</div>
+      </div>
+    </a>
+  </div>
 </div>
+
+<div class="footer">Gatepost Pro &mdash; <a href="https://github.com/gatepostpro/gatepost" target="_blank">GitHub</a></div>
 
 <script>
 var SUPABASE_URL  = 'https://tpurkcxtkvwpywxnuzwe.supabase.co';
 var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwdXJrY3h0a3Z3cHl3eG51endlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MDUwMzYsImV4cCI6MjA5MjI4MTAzNn0.j1fPBjBsbIoXXosM96YtywdGiVVLWnd-YrXZ1634alU';
 
 var ASSOC = null;
+var allShows = [];
 
 async function sbFetch(path, opts){
-  var res = await fetch(SUPABASE_URL + '/rest/v1/' + path, Object.assign({
+  var res = await fetch(SUPABASE_URL+'/rest/v1/'+path, Object.assign({
     headers:{
-      'apikey': SUPABASE_ANON,
-      'Authorization': 'Bearer ' + SUPABASE_ANON,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=representation'
+      'apikey':SUPABASE_ANON,'Authorization':'Bearer '+SUPABASE_ANON,
+      'Content-Type':'application/json','Prefer':'return=representation'
     }
   }, opts||{}));
   if(!res.ok){ var e=await res.text(); throw new Error(e); }
-  var text = await res.text();
-  return text ? JSON.parse(text) : null;
+  var t=await res.text(); return t?JSON.parse(t):null;
 }
+
+function fmtDate(d){
+  if(!d) return '';
+  return new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+function statusLabel(s){ return (s||'').replace(/_/g,' '); }
 
 async function init(){
   try{
     var rows = await sbFetch('associations?abbreviation=eq.CoWN&select=*');
     ASSOC = rows && rows[0];
     if(!ASSOC) throw new Error('Association not found');
-    document.getElementById('dot').className = 'status-dot';
-    document.getElementById('db-status').innerHTML = '<span class="status-dot"></span>Connected';
-    document.getElementById('assoc-name').textContent = ASSOC.abbreviation;
+    document.getElementById('dot').className='db-dot ok';
+    document.getElementById('db-label').textContent='Connected';
+    document.getElementById('assoc-name').textContent=ASSOC.abbreviation;
     await loadShows();
   } catch(err){
-    document.getElementById('db-status').innerHTML = '<span class="status-dot red"></span>Connection failed';
-    document.getElementById('shows-list').innerHTML = '<div class="empty" style="color:var(--red)">Could not connect to database: ' + err.message + '</div>';
-    console.error(err);
+    document.getElementById('dot').className='db-dot';
+    document.getElementById('db-label').textContent='Connection failed';
+    document.getElementById('shows-list').innerHTML=
+      '<div class="empty" style="color:var(--red)">'+err.message+'</div>';
   }
 }
 
 async function loadShows(){
   var shows = await sbFetch('shows?association_id=eq.'+ASSOC.id+'&order=show_date.desc&select=*');
+  allShows = shows||[];
   var el = document.getElementById('shows-list');
-  if(!shows || !shows.length){
-    el.innerHTML = '<div class="empty">No shows yet. Create your first one below.</div>';
+  if(!allShows.length){
+    el.innerHTML='<div class="empty">No shows yet. Create your first one.</div>';
     return;
   }
-  el.innerHTML = '<div class="show-grid">'
-    + shows.map(function(s){
-        var d = s.show_date ? new Date(s.show_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
-        return '<div class="show-row" data-showid="'+s.id+'">'+'<div>'
-          +'<div class="sr-name">'+s.name+'</div>'
-          +'<div class="sr-meta">'+d+(s.location?' &middot; '+s.location:'')+'</div>'
-          +'</div><span class="sr-status s-'+s.status+'">'+s.status.replace(/_/g,' ')+'</span></div>';
-      }).join('')
-    + '</div>';
-  // Wire click handlers via delegation
-  el.querySelectorAll('[data-showid]').forEach(function(row){
-    row.addEventListener('click', function(){ openShow(row.dataset.showid); });
+  el.innerHTML='<div class="show-list">'
+    +allShows.map(function(s){
+      return '<div class="show-row" data-id="'+s.id+'">'
+        +'<div>'
+        +'<div class="sr-name">'+s.name+'</div>'
+        +'<div class="sr-meta">'+fmtDate(s.show_date)+(s.location?' &middot; '+s.location:'')+'</div>'
+        +'</div>'
+        +'<span class="sr-badge s-'+s.status+'">'+statusLabel(s.status)+'</span>'
+        +'</div>';
+    }).join('')
+    +'</div>';
+  el.querySelectorAll('[data-id]').forEach(function(row){
+    row.addEventListener('click', function(){ selectShow(row.dataset.id); });
   });
 }
 
-window.openShow = function(id){
-  window.location.href = 'app.html?show=' + id;
-};
+function selectShow(id){
+  var show = allShows.find(function(s){ return s.id==id; });
+  if(!show) return;
 
-window.toggleNewShow = function(){
-  var f = document.getElementById('new-show-form');
-  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('sel-name').textContent = show.name;
+  document.getElementById('sel-meta').textContent =
+    [fmtDate(show.show_date), show.location].filter(Boolean).join(' · ');
+
+  document.getElementById('role-secretary').href  = 'app.html?show='+id;
+  document.getElementById('role-scribe').href     = 'scribe.html?show='+id;
+  document.getElementById('role-participant').href = 'results.html?show='+id;
+
+  document.getElementById('shows-panel').style.display='none';
+  document.getElementById('role-panel').style.display='block';
+}
+
+function backToShows(){
+  document.getElementById('role-panel').style.display='none';
+  document.getElementById('shows-panel').style.display='block';
+}
+
+window.toggleNew = function(){
+  var f=document.getElementById('new-form');
+  f.style.display = f.style.display==='none'?'block':'none';
 };
 
 window.createShow = async function(){
@@ -182,31 +285,24 @@ window.createShow = async function(){
   var location = document.getElementById('ns-location').value.trim();
   var status   = document.getElementById('ns-status').value;
   var errEl    = document.getElementById('ns-err');
-  errEl.textContent = '';
-
+  errEl.textContent='';
   if(!name){ errEl.textContent='Show name is required'; return; }
   if(!date){ errEl.textContent='Show date is required'; return; }
-  if(!ASSOC){ errEl.textContent='Not connected to database'; return; }
-
+  if(!ASSOC){ errEl.textContent='Not connected'; return; }
   try{
-    var shows = await sbFetch('shows', {
+    var shows = await sbFetch('shows',{
       method:'POST',
-      body: JSON.stringify({
-        association_id: ASSOC.id,
-        name: name,
-        location: location||null,
-        show_date: date,
-        entry_deadline: deadline||null,
-        status: status,
-        fee_config: ASSOC.fee_defaults||{}
+      body:JSON.stringify({
+        association_id:ASSOC.id, name:name, location:location||null,
+        show_date:date, entry_deadline:deadline||null,
+        status:status, fee_config:ASSOC.fee_defaults||{}
       })
     });
-    var show = shows && shows[0];
+    var show = shows&&shows[0];
     if(!show) throw new Error('No show returned');
-    window.location.href = 'app.html?show=' + show.id;
+    selectShow(show.id);
   } catch(err){
-    errEl.textContent = 'Error: ' + err.message;
-    console.error(err);
+    errEl.textContent='Error: '+err.message;
   }
 };
 
