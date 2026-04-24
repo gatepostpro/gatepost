@@ -3543,6 +3543,7 @@ function pgSettings(){
   setupMapDrop();
   setupResMapDrop();
   setupFeeListeners();
+  populateFeesFromCfg();
   renderExtraFees();
   if(G.cfg.classes.length) renderCfgClassTable();
 }
@@ -4521,17 +4522,29 @@ function saveMapping(){
 };
 
 // ═══════════════════════ SAVE / EXPORT / IMPORT CONFIG ═══════════════════════
+var FEE_ID_MAP = {
+  stall1:'fee-stall1', stall2:'fee-stall2', stall3:'fee-stall3', stallCircuit:'fee-stall-circuit',
+  shavings:'fee-shavings', rv1:'fee-rv1', rv2:'fee-rv2', rvCircuit:'fee-rv-circuit',
+  office:'fee-office', membership1yr:'fee-membership-1yr', membership3yr:'fee-membership-3yr',
+  membershipLife:'fee-membership-life', dayLicense:'fee-day-license',
+  late:'fee-late', horseLicense:'fee-horse-license',
+  classBase:'fee-class-base', cowSurcharge:'fee-cow-surcharge', jackpot:'fee-jackpot', addedMoney:'fee-added-money',
+  aqhaDrug:'fee-aqha-drug', aqhaOffice:'fee-aqha-office', aqhaVrh:'fee-aqha-vrh'
+};
+
 function readFeesFromUI(){
-  var ids={stall1:'fee-stall1',stall2:'fee-stall2',stall3:'fee-stall3',stallCircuit:'fee-stall-circuit',
-    shavings:'fee-shavings',rv1:'fee-rv1',rv2:'fee-rv2',rvCircuit:'fee-rv-circuit',
-    office:'fee-office',membership1yr:'fee-membership-1yr',membership3yr:'fee-membership-3yr',
-    membershipLife:'fee-membership-life',dayLicense:'fee-day-license',
-    late:'fee-late',horseLicense:'fee-horse-license',
-    classBase:'fee-class-base',cowSurcharge:'fee-cow-surcharge',jackpot:'fee-jackpot',addedMoney:'fee-added-money',
-    aqhaDrug:'fee-aqha-drug',aqhaOffice:'fee-aqha-office',aqhaVrh:'fee-aqha-vrh'};
   var f={};
-  Object.keys(ids).forEach(function(k){ var el=document.getElementById(ids[k]); f[k]=el?parseFloat(el.value)||0:G.cfg.fees[k]||0; });
+  Object.keys(FEE_ID_MAP).forEach(function(k){ var el=document.getElementById(FEE_ID_MAP[k]); f[k]=el?parseFloat(el.value)||0:G.cfg.fees[k]||0; });
   return f;
+}
+
+function populateFeesFromCfg(){
+  var f = G.cfg.fees || {};
+  Object.keys(FEE_ID_MAP).forEach(function(k){
+    var el = document.getElementById(FEE_ID_MAP[k]);
+    if(el && f[k] !== undefined) el.value = f[k];
+  });
+  updateFeeStrip();
 }
 
 function saveConfig(){
