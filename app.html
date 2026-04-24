@@ -1165,6 +1165,8 @@ var SHTX_DISCS = [
 
   [/\bworking\s+cow(?:\s+\d+)?$/i, 'Cow Work'],
 
+  [/\branch\s+cow\s+work$/i, 'Cow Work'],
+
   [/\bcow\s+work$/i, 'Cow Work'],
 
   [/^cow$/i, 'Cow Work'],
@@ -1281,6 +1283,10 @@ var SHTX_DIV = {
 
   'collegiate limited':'Collegiate Limited',
 
+  'collegiate ltd non pro':'Collegiate Limited','collegiate ltd non-pro':'Collegiate Limited',
+
+  'collegiate ltd':'Collegiate Limited',
+
   'collegiate novice':'Collegiate Novice',
 
   'collegiate':'Collegiate Non-Pro',
@@ -1291,11 +1297,12 @@ var SHTX_DIV = {
 
   // ── VRH / AQHA Ranch ──────────────────────────────────────
 
-  'amateur':'Amateur',
+  'amateur':'Amateur','amt':'Amateur',
 
   'ltd am':'LTD Am','ltd amateur':'LTD Am','limited amateur':'LTD Am','limited am':'LTD Am',
+  'limited amt':'LTD Am',
 
-  'rookie am':'Rookie Am','rookie amateur':'Rookie Am',
+  'rookie am':'Rookie Am','rookie amateur':'Rookie Am','rookie amt':'Rookie Am',
 
   'ltd youth':'LTD Youth','limited youth':'LTD Youth',
 
@@ -1439,9 +1446,9 @@ function parseClassDivStr(raw){
 
     org='APHA'; rest=n.replace(/^apha\s*/i,'').trim();
 
-  } else if(/\bWHSR\b|wyoming\s+high\s+school|wyo\s+hs\b/i.test(s)){
+  } else if(/\bWHSR\b|wyoming\s+high\s+school|wyo\s+hs\b|\bhigh\s+school\b/i.test(s)){
 
-    org='WHSR'; rest=n.replace(/\b(?:WHSR|Wyoming\s+High\s+School\s+Rodeo|Wyo\s+HS)\b/gi,'').replace(/\s+/g,' ').trim();
+    org='WHSR'; rest=n.replace(/\b(?:WHSR|Wyoming\s+High\s+School\s+Rodeo|Wyo\s+HS|High\s+School)\b/gi,'').replace(/\s+/g,' ').trim();
 
     forcedDiv='';
 
@@ -1493,6 +1500,16 @@ function parseClassDivStr(raw){
 
     if(m){ disc=SHTX_DISCS[i][1]; divPart=rest.slice(0,m.index).trim(); break; }
 
+  }
+
+  // Jackpot-specific: "CUTTING YOUTH" format (discipline word comes first after jackpot strip)
+  if(!disc && org==='Jackpot'){
+    var spaceIdx=rest.search(/\s/);
+    if(spaceIdx>0){
+      var discMap={cutting:'Cutting',reining:'Reining',trail:'Trail',pleasure:'Pleasure','ranch riding':'Ranch Riding','ranch trail':'Ranch Trail'};
+      var firstWord=rest.slice(0,spaceIdx).toLowerCase();
+      if(discMap[firstWord]){ disc=discMap[firstWord]; divPart=rest.slice(spaceIdx+1).trim(); }
+    }
   }
 
 
@@ -1587,9 +1604,10 @@ function parseClassDivStr(raw){
 
 
 
-    // Signal 3: "Ranch" as a standalone keyword in the raw string (not already handled)
+    // Signal 3: "Ranch" keyword + discipline is specifically an AQHA Ranch discipline
+    // (Avoid false positive: "Ranch Pleasure" has "Ranch" but isn't AQHA Ranch)
 
-    if(org==='CoWN' && /\branch\b/i.test(s) && disc && cownDiscs.indexOf(disc)<0){
+    if(org==='CoWN' && /\branch\b/i.test(s) && disc && ORG_CLASSES['AQHA Ranch'].disciplines.indexOf(disc)>=0){
 
       org='AQHA Ranch';
 
@@ -1615,7 +1633,9 @@ function parseClassDivStr(raw){
 
 
 
-  return {org:org, division:div, discipline:disc||rest};
+  // Don't use rest as discipline if it's just a division name (e.g. "Amateur" after stripping "Versatility Ranch Horse")
+  var discFinal = disc || (SHTX_DIV.hasOwnProperty(rest.toLowerCase()) ? '' : rest);
+  return {org:org, division:div, discipline:discFinal};
 
 }
 
