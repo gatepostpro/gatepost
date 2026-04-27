@@ -1954,19 +1954,35 @@ function findEntryForRider(riderName, horseName){
   var rNorm=normForMatch(riderName);
   var rFL=firstLast(rNorm);
   var hNorm=(horseName||'').toUpperCase().replace(/\s+/g,' ').trim();
-  var fuzzyMatch=null;
-  for(var i=0;i<G.entries.length;i++){
-    var e=G.entries[i];
-    var eNorm=normForMatch(e.name||'');
-    var eFL=firstLast(eNorm);
-    var eHorse=(e.horse||'').toUpperCase().replace(/\s+/g,' ').trim();
-    if(eNorm===rNorm) return {entry:e,idx:i,type:'exact'};
-    if(!fuzzyMatch&&eFL===rFL){
-      // Also check horse as tiebreaker if both are present
-      fuzzyMatch={entry:e,idx:i,type:(hNorm&&eHorse&&hNorm===eHorse?'exact':'fuzzy')};
+  // Pass 1: exact rider name + exact horse name (when both are known)
+  if(hNorm){
+    for(var i=0;i<G.entries.length;i++){
+      var e=G.entries[i];
+      var eHorse=(e.horse||'').toUpperCase().replace(/\s+/g,' ').trim();
+      if(normForMatch(e.name||'')===rNorm && eHorse===hNorm) return {entry:e,idx:i,type:'exact'};
     }
   }
-  return fuzzyMatch;
+  // Pass 2: fuzzy rider name + horse name match (when both are known)
+  if(hNorm){
+    for(var i=0;i<G.entries.length;i++){
+      var e=G.entries[i];
+      var eHorse=(e.horse||'').toUpperCase().replace(/\s+/g,' ').trim();
+      if(firstLast(normForMatch(e.name||''))===rFL && eHorse===hNorm) return {entry:e,idx:i,type:'fuzzy'};
+    }
+  }
+  // Pass 3: name-only match — only use if this entry has no horse or the result has no horse
+  // (avoids merging two different horses under the same rider)
+  var nameOnlyMatch=null;
+  for(var i=0;i<G.entries.length;i++){
+    var e=G.entries[i];
+    var eHorse=(e.horse||'').toUpperCase().replace(/\s+/g,' ').trim();
+    var nameMatch=normForMatch(e.name||'')===rNorm || firstLast(normForMatch(e.name||''))===rFL;
+    if(!nameMatch) continue;
+    // If both sides have a horse and they differ, skip — different entry
+    if(hNorm && eHorse && hNorm!==eHorse) continue;
+    if(!nameOnlyMatch) nameOnlyMatch={entry:e,idx:i,type:'fuzzy'};
+  }
+  return nameOnlyMatch;
 }
 
 function reconcileResultsToEntries(){
@@ -5270,8 +5286,16 @@ window.resCreateEntryFromIdx=function(resultIdx){
 };
 
 window.resCreateEntry=function(riderName, horseName){
-  // Collect all result rows for this rider
-  var rows=G.results.filter(function(r){ return r.rider===riderName; });
+  // Scope to this specific rider+horse combination — one entry per horse
+  var hKey=(horseName||'').toUpperCase().replace(/\s+/g,' ').trim();
+  var rows=G.results.filter(function(r){
+    if(r.rider!==riderName) return false;
+    if(hKey){
+      var rh=(r.horse||'').toUpperCase().replace(/\s+/g,' ').trim();
+      return rh===hKey;
+    }
+    return true;
+  });
   if(!rows.length) return;
   var ref=rows[0];
   // Build classes from unique org/division/discipline combos
@@ -5305,7 +5329,7 @@ window.resCreateEntry=function(riderName, horseName){
   saveEntriesToStorage();
   reconcileResultsToEntries();
   saveResultsToStorage();
-  toast(riderName+' added to entries');
+  toast(riderName+(horseName?' / '+horseName:'')+' added to entries');
   pgResults();
 };
 
