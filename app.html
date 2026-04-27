@@ -5936,15 +5936,17 @@ function pgResults(){
 
           if(!r.rider) return;
 
-          if(!aaMap[r.rider]) aaMap[r.rider]={rider:r.rider,horse:r.horse,total:0,byDisc:{},scoreByDisc:{}};
+          if(!aaMap[r.rider]) aaMap[r.rider]={rider:r.rider,horse:r.horse,total:0,byDisc:{},scoreByDisc:{},placeByDisc:{}};
 
           aaMap[r.rider].total+=(r.pts||0);
 
           aaMap[r.rider].byDisc[r.discipline]=(aaMap[r.rider].byDisc[r.discipline]||0)+(r.pts||0);
 
           if(!aaMap[r.rider].scoreByDisc[r.discipline]||(r.score||0)>(aaMap[r.rider].scoreByDisc[r.discipline]||0))
-
             aaMap[r.rider].scoreByDisc[r.discipline]=r.score||0;
+
+          if(r.place&&(!aaMap[r.rider].placeByDisc[r.discipline]||r.place<aaMap[r.rider].placeByDisc[r.discipline]))
+            aaMap[r.rider].placeByDisc[r.discipline]=r.place;
 
         });
 
@@ -6086,7 +6088,16 @@ function pgResults(){
           +'<td>'+esc(r.rider)+'</td><td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>';
         scoringDiscs.forEach(function(c){
           var pts=r.byDisc[c]||0;
-          html+='<td style="text-align:right">'+(pts?pts.toFixed(1):'&mdash;')+'</td>';
+          var pl=(r.placeByDisc||{})[c]||0;
+          var plSuffix=pl===1?'st':pl===2?'nd':pl===3?'rd':'th';
+          if(!pts){
+            html+='<td style="text-align:right;color:var(--muted)">&mdash;</td>';
+          } else {
+            html+='<td style="text-align:right;vertical-align:middle">'
+              +(pl?'<span style="font-size:.68rem;color:var(--muted);margin-right:.2rem">'+pl+plSuffix+'</span>':'')
+              +'<span style="font-weight:600">'+pts.toFixed(1)+'</span>'
+              +'</td>';
+          }
         });
         html+='<td style="text-align:right;font-weight:700;color:var(--accent);background:rgba(212,160,74,.06)">'+r.total.toFixed(1)+'</td>';
         if(hasMoney) html+='<td style="text-align:right;color:var(--green)">'+(prize?'$'+prize:'&mdash;')+'</td>';
