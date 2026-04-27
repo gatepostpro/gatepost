@@ -2524,6 +2524,16 @@ function showPage(p){
 
     var ab = mk('button','btn btn-accent btn-sm'); ab.innerHTML='+ Add Entry'; ab.onclick=showAddEntryModal; tr.appendChild(ab);
 
+    var rb = mk('button','btn btn-dark btn-sm'); rb.innerHTML='&#8635; Reload from DB'; rb.title='Clear local cache and reload entries from Supabase';
+    rb.onclick=function(){
+      if(!confirm('Reload entries from the database?\n\nThis clears your local cache and reloads entries from Supabase. Any unsaved local-only changes will be lost.')) return;
+      localStorage.removeItem('gp_entries_'+G.showId);
+      localStorage.removeItem('gp_payments_'+G.showId);
+      localStorage.removeItem('gp_backnums_'+G.showId);
+      location.reload();
+    };
+    tr.appendChild(rb);
+
   }
 
   if(p === 'settings'){
@@ -5842,22 +5852,16 @@ function pgResults(){
 
   if(_resSelOrg&&_resSelDiv){
 
-    var divRows=orgRows.filter(function(r){ return r.division===_resSelDiv; });
+    var allDivRows=orgRows.filter(function(r){ return r.division===_resSelDiv; });
 
+    var divRows=allDivRows;
 
-
-    // Apply search
-
+    // Apply search filter for display only — aaMap always uses allDivRows
     if(_resSearch){
-
       var sq=_resSearch.toLowerCase();
-
-      divRows=divRows.filter(function(r){
-
+      divRows=allDivRows.filter(function(r){
         return (r.rider||'').toLowerCase().indexOf(sq)>=0||(r.horse||'').toLowerCase().indexOf(sq)>=0;
-
       });
-
     }
 
 
@@ -5926,11 +5930,10 @@ function pgResults(){
 
 
 
-      // Build per-rider totals
-
+      // Build per-rider totals from unfiltered rows so search doesn't drop riders
       var aaMap={};
 
-      divRows.filter(function(r){ return r.discipline&&r.discipline!=='All Around'&&r.discipline!=='VRH All Around'; })
+      allDivRows.filter(function(r){ return r.discipline&&r.discipline!=='All Around'&&r.discipline!=='VRH All Around'; })
 
         .forEach(function(r){
 
@@ -6176,6 +6179,36 @@ function pgResults(){
         }
       }
 
+      // ── Division mismatch diagnostic ──
+      // Riders in orgRows with AA disciplines but stored under a different division string
+      var aaRidersKnown={};
+      allDivRows.forEach(function(r){ if(r.rider) aaRidersKnown[r.rider]=1; });
+      var aaOrgDiscsCheck=(ORG_CLASSES[_resSelOrg]||{}).disciplines||[];
+      var divMismatches=[];
+      orgRows.forEach(function(r){
+        if(!r.rider||!r.division||r.division===_resSelDiv) return;
+        if(aaRidersKnown[r.rider]) return;
+        if(aaOrgDiscsCheck.indexOf(r.discipline)<0) return;
+        divMismatches.push({rider:r.rider,horse:r.horse,division:r.division,discipline:r.discipline});
+      });
+      if(divMismatches.length){
+        // deduplicate by rider
+        var dmSeen={};
+        var dmUniq=[];
+        divMismatches.forEach(function(m){
+          if(!dmSeen[m.rider]){ dmSeen[m.rider]=1; dmUniq.push(m); }
+        });
+        html+='<div style="margin-top:.85rem;border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:.6rem .8rem;background:rgba(231,76,60,.05)">'
+          +'<div style="font-size:.78rem;font-weight:600;color:var(--red);margin-bottom:.4rem">&#9888; Division name mismatch — '+dmUniq.length+' rider'+(dmUniq.length===1?'':'s')+' found under a different division</div>'
+          +'<div style="font-size:.73rem;color:var(--muted);margin-bottom:.45rem">These riders have results stored under a division string that doesn\'t exactly match "'+esc(_resSelDiv)+'". Fix their division name in the imported data, or check for extra spaces/typos.</div>'
+          +'<div class="tbl-wrap"><table><thead><tr><th>Rider</th><th>Horse</th><th>Stored Division</th><th>Discipline</th></tr></thead><tbody>';
+        dmUniq.forEach(function(m){
+          html+='<tr><td>'+esc(m.rider)+'</td><td style="color:var(--muted);font-size:.8rem">'+esc(m.horse)+'</td>'
+            +'<td style="color:var(--red);font-size:.8rem">'+esc(m.division)+'</td>'
+            +'<td style="font-size:.8rem">'+esc(m.discipline)+'</td></tr>';
+        });
+        html+='</tbody></table></div></div>';
+      }
 
 
     } else if(_resSelClass){
