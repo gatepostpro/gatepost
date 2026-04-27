@@ -12725,7 +12725,7 @@ window.deleteEntry = async function(rowIdx){
     }
     G.entries = G.entries.filter(function(x){ return x.rowIndex!==rowIdx; });
     delete G.payments[rowIdx];
-    saveEntriesToCache();
+    saveEntriesToStorage();
     toast('Entry deleted: '+label);
     showPage('entries');
   } catch(err){
@@ -12753,13 +12753,22 @@ window.clearAllEntries = async function(){
       for(var i=0;i<existing.length;i++){
         await sbDelete('entry_classes?entry_id=eq.'+existing[i].id);
       }
-      var delCount = await sbDelete('entries?show_id=eq.'+G.showId);
-      toast('Cleared '+(delCount||existing.length)+' entries from database.');
+      await sbDelete('entries?show_id=eq.'+G.showId);
+      // Verify — re-query to confirm entries are gone
+      var remaining = await sbFetch('entries?show_id=eq.'+G.showId+'&select=id');
+      if(remaining && remaining.length){
+        alert('Warning: '+remaining.length+' entries still exist in the database after delete attempt.\n\n'
+          +'This usually means the Supabase "entries" table is missing a DELETE policy for the anon role.\n\n'
+          +'Go to Supabase → Table Editor → entries → RLS Policies and add a DELETE policy, '
+          +'or disable RLS on this table for local use.');
+      } else {
+        toast('All entries cleared from database and local cache.');
+      }
     } else {
-      toast('No entries found in database — local cache cleared.');
+      toast('Local cache cleared. No entries found in database.');
     }
   } catch(err){
-    alert('Local cache cleared, but database delete failed: '+err.message+'\n\nCheck Supabase RLS policies — the anon key may not have DELETE permission on the entries table.');
+    alert('Local cache cleared, but database delete failed: '+err.message);
     console.error(err);
   }
 
