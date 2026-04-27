@@ -1860,6 +1860,7 @@ window.saveAaMoney=function(key){
 
 
 var _resSelOrg='', _resSelDiv='', _resSelClass='', _resSearch='', _resSortCol='place', _resSortDir=1, _resSelShow='';
+var _resEditIdx=-1;
 
 
 
@@ -5024,6 +5025,46 @@ window.resSort=function(c){
 
 };
 
+window.resEdit=function(idx){
+  _resEditIdx=(_resEditIdx===idx)?-1:idx;
+  pgResults();
+};
+
+window.resCancelEdit=function(){
+  _resEditIdx=-1;
+  pgResults();
+};
+
+window.resSaveEdit=function(){
+  var r=G.results[_resEditIdx];
+  if(!r) return;
+  r.rider=(document.getElementById('re-rider').value||'').trim();
+  r.horse=(document.getElementById('re-horse').value||'').trim();
+  r.score=parseFloat(document.getElementById('re-score').value)||0;
+  r.place=parseInt(document.getElementById('re-place').value,10)||0;
+  r.pts=parseFloat(document.getElementById('re-pts').value)||0;
+  r.entries=parseInt(document.getElementById('re-entries').value,10)||0;
+  r.org=(document.getElementById('re-org').value||'').trim()||'CoWN';
+  r.division=(document.getElementById('re-div').value||'').trim();
+  r.discipline=(document.getElementById('re-disc').value||'').trim();
+  r.isDQ=document.getElementById('re-dq').checked;
+  r._manual=true;
+  _resEditIdx=-1;
+  saveResultsToStorage();
+  toast('Result updated');
+  pgResults();
+};
+
+window.resDeleteRow=function(idx){
+  if(!confirm('Delete this result row? This cannot be undone.')) return;
+  G.results.splice(idx,1);
+  G.results.forEach(function(r,i){ r._idx=i; });
+  _resEditIdx=-1;
+  saveResultsToStorage();
+  toast('Row deleted');
+  pgResults();
+};
+
 
 
 function pgResults(){
@@ -5874,6 +5915,8 @@ function pgResults(){
 
         +sTh('money','Money','right')
 
+        +'<th></th>'
+
         +'</tr></thead><tbody>';
 
       clsRows.forEach(function(r,ri2){
@@ -5954,11 +5997,43 @@ function pgResults(){
 
           +'<td style="text-align:right;color:var(--green)">'+(r.money?'$'+r.money.toFixed(0):'&mdash;')+'</td>'
 
+          +'<td style="text-align:right;padding-right:.3rem"><button onclick="resEdit('+r._idx+')" title="Edit row" style="background:none;border:1px solid var(--border2);border-radius:4px;color:var(--muted);cursor:pointer;font-size:.75rem;padding:1px 5px;line-height:1">&#9998;</button></td>'
+
           +'</tr>';
 
       });
 
       html+='</tbody></table></div>';
+
+      // ── Inline edit panel ──
+      if(_resEditIdx>=0 && G.results[_resEditIdx]){
+        var er=G.results[_resEditIdx];
+        html+='<div id="res-edit-panel" style="margin-top:.85rem;padding:1rem;background:var(--card2);border:1px solid var(--accent);border-radius:8px">'
+          +'<div style="font-family:Oswald;font-size:.95rem;color:var(--accent);margin-bottom:.75rem">Edit Result</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem .75rem">'
+          +'<div class="fg"><label>Rider</label><input id="re-rider" value="'+esc(er.rider||'')+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;font-family:inherit;width:100%"></div>'
+          +'<div class="fg"><label>Horse</label><input id="re-horse" value="'+esc(er.horse||'')+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;font-family:inherit;width:100%"></div>'
+          +'<div class="fg"><label>Score</label><input id="re-score" type="number" step="0.001" value="'+(er.score||0)+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;font-family:inherit;width:100%"></div>'
+          +'<div class="fg"><label>Place</label><input id="re-place" type="number" step="1" value="'+(er.place||0)+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;font-family:inherit;width:100%"></div>'
+          +'<div class="fg"><label>Points</label><input id="re-pts" type="number" step="0.1" value="'+(er.pts||0)+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;font-family:inherit;width:100%"></div>'
+          +'<div class="fg"><label>Entries in Class</label><input id="re-entries" type="number" step="1" value="'+(er.entries||0)+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;font-family:inherit;width:100%"></div>'
+          +'</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem .75rem;margin-top:.5rem">'
+          +'<div class="fg"><label>Org</label><input id="re-org" value="'+esc(er.org||'')+'" placeholder="CoWN, VRH, AQHA Ranch…" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;font-family:inherit;width:100%"></div>'
+          +'<div class="fg"><label>Division</label><input id="re-div" value="'+esc(er.division||'')+'" placeholder="Open, Non-Pro…" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;font-family:inherit;width:100%"></div>'
+          +'<div class="fg"><label>Discipline</label><input id="re-disc" value="'+esc(er.discipline||'')+'" placeholder="Cow Work, Reining…" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;font-family:inherit;width:100%"></div>'
+          +'</div>'
+          +'<div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem">'
+          +'<label style="display:flex;align-items:center;gap:.3rem;font-size:.82rem;color:var(--muted);cursor:pointer">'
+          +'<input type="checkbox" id="re-dq"'+(er.isDQ?' checked':'')+' style="cursor:pointer"> Mark as DQ</label>'
+          +'</div>'
+          +'<div style="display:flex;gap:.5rem;margin-top:.75rem">'
+          +'<button class="btn btn-accent btn-sm" onclick="resSaveEdit()">Save</button>'
+          +'<button class="btn btn-dark btn-sm" onclick="resCancelEdit()">Cancel</button>'
+          +'<button class="btn btn-sm" style="margin-left:auto;background:rgba(231,76,60,.15);color:var(--red);border:1px solid rgba(231,76,60,.3)" onclick="resDeleteRow('+er._idx+')">&#128465; Delete Row</button>'
+          +'</div>'
+          +'</div>';
+      }
 
     } else {
 
