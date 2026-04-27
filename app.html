@@ -2342,7 +2342,26 @@ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function fmt$(n){ return '$'+Number(n||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
 
 // Split a single-column address string (comma-separated) into parts.
-// Handles: "123 Main St, Denver, CO 80201" or "123 Main St, Denver, CO" or newline-separated.
+// Handles: "123 Main St, Denver, CO 80201" or "123 Main St, Denver, Colorado 80201"
+var _US_STATES={
+  'alabama':'AL','alaska':'AK','arizona':'AZ','arkansas':'AR','california':'CA',
+  'colorado':'CO','connecticut':'CT','delaware':'DE','florida':'FL','georgia':'GA',
+  'hawaii':'HI','idaho':'ID','illinois':'IL','indiana':'IN','iowa':'IA',
+  'kansas':'KS','kentucky':'KY','louisiana':'LA','maine':'ME','maryland':'MD',
+  'massachusetts':'MA','michigan':'MI','minnesota':'MN','mississippi':'MS',
+  'missouri':'MO','montana':'MT','nebraska':'NE','nevada':'NV','new hampshire':'NH',
+  'new jersey':'NJ','new mexico':'NM','new york':'NY','north carolina':'NC',
+  'north dakota':'ND','ohio':'OH','oklahoma':'OK','oregon':'OR','pennsylvania':'PA',
+  'rhode island':'RI','south carolina':'SC','south dakota':'SD','tennessee':'TN',
+  'texas':'TX','utah':'UT','vermont':'VT','virginia':'VA','washington':'WA',
+  'west virginia':'WV','wisconsin':'WI','wyoming':'WY','district of columbia':'DC'
+};
+function _abbrevState(s){
+  if(!s) return '';
+  var t=s.trim();
+  if(/^[A-Za-z]{2}$/.test(t)) return t.toUpperCase();
+  return _US_STATES[t.toLowerCase()]||t.toUpperCase().slice(0,2);
+}
 function parseUSAddress(raw){
   if(!raw) return {street:'',city:'',state:'',zip:''};
   var s=String(raw).replace(/\r?\n/g,',').replace(/\xa0/g,' ');
@@ -2352,23 +2371,29 @@ function parseUSAddress(raw){
 
   var state='', zip='';
 
-  // Last part: "CO 80201" or "CO" or "80201"
+  // Last part may be: "CO 80201", "Colorado 80201", "CO", "Colorado", "80201"
   var last=parts[parts.length-1];
-  var szM=last.match(/^([A-Za-z]{2})\s*(\d{5}(?:-\d{4})?)?$/);
-  if(szM){ state=szM[1].toUpperCase(); zip=szM[2]||''; parts=parts.slice(0,-1); }
-  else {
-    // Maybe state and zip are separate parts
+  // "State ZIP" — state can be 2-letter abbrev or full name (1-2 words)
+  var szM=last.match(/^([A-Za-z][A-Za-z\s]{0,18}?)\s+(\d{5}(?:-\d{4})?)$/);
+  if(szM){ state=_abbrevState(szM[1]); zip=szM[2]; parts=parts.slice(0,-1); }
+  else if(/^[A-Za-z\s]{2,25}$/.test(last)){
+    // Just a state name/abbrev
+    var ab=_abbrevState(last);
+    if(ab){ state=ab; parts=parts.slice(0,-1); }
+  } else {
     var zipOnly=last.match(/^(\d{5}(?:-\d{4})?)$/);
-    if(zipOnly){ zip=zipOnly[1]; parts=parts.slice(0,-1);
-      var newLast=parts[parts.length-1];
-      if(newLast&&/^[A-Za-z]{2}$/.test(newLast)){ state=newLast.toUpperCase(); parts=parts.slice(0,-1); }
+    if(zipOnly){
+      zip=zipOnly[1]; parts=parts.slice(0,-1);
+      var maybeState=parts[parts.length-1];
+      if(maybeState&&/^[A-Za-z\s]{2,25}$/.test(maybeState)){
+        var ab2=_abbrevState(maybeState);
+        if(ab2){ state=ab2; parts=parts.slice(0,-1); }
+      }
     }
   }
 
-  // Whatever is left: last part = city, rest = street
-  var city = parts.length>1 ? parts[parts.length-1] : (parts[0]&&!state ? parts[0] : '');
-  var street = parts.length>1 ? parts.slice(0,-1).join(', ') : (state||zip ? parts[0]||'' : '');
-  if(!street && parts.length===1 && (state||city)) street=parts[0];
+  var city = parts.length>1 ? parts[parts.length-1] : (parts[0]&&(state||zip) ? parts[0] : '');
+  var street = parts.length>1 ? parts.slice(0,-1).join(', ') : (state||zip||city ? parts[0]||'' : parts[0]||'');
 
   return {street:street, city:city, state:state, zip:zip};
 }
@@ -5380,8 +5405,12 @@ function recomputeClassPts(org, division, discipline){
     pl+=j-i+1; i=j+1;
   }
 
-  // OPs: placed after normal rows in score order
-  opRows.sort(function(a,b){ return (b.score||0)-(a.score||0); });
+  // OPs: OP1 places above OP2 above OP3; within same opCount, higher score places higher
+  opRows.sort(function(a,b){
+    var oc=(a.opCount||1)-(b.opCount||1);
+    if(oc!==0) return oc;
+    return (b.score||0)-(a.score||0);
+  });
   var opStart=normalRows.length+1;
   opRows.forEach(function(r,i){ r.place=opStart+i; });
 
