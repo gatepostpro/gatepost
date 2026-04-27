@@ -1995,7 +1995,10 @@ function reconcileResultsToEntries(){
     if(cache[key]===undefined){
       var m=findEntryForRider(r.rider, r.horse);
       if(m){
-        cache[key]={type:m.type, rider:m.entry.name, horse:m.entry.horse, email:m.entry.email||''};
+        var eHorse=(m.entry.horse||'').toUpperCase().replace(/\s+/g,' ').trim();
+        var rHorse=(r.horse||'').toUpperCase().replace(/\s+/g,' ').trim();
+        var horseMismatch=!!(rHorse && eHorse && rHorse!==eHorse);
+        cache[key]={type:m.type, rider:m.entry.name, horse:m.entry.horse, email:m.entry.email||'', horseMismatch:horseMismatch};
       } else {
         cache[key]=null;
       }
@@ -2003,10 +2006,12 @@ function reconcileResultsToEntries(){
     var hit=cache[key];
     if(hit){
       r._matchType=hit.type;
+      r._horseMismatch=hit.horseMismatch||false;
       r._canonical={rider:hit.rider, horse:hit.horse, email:hit.email};
       matched++;
     } else {
       r._matchType='none';
+      r._horseMismatch=false;
       delete r._canonical;
       skipped++;
     }
@@ -5676,7 +5681,7 @@ function pgResults(){
     activeResults.forEach(function(r){
       if(!r.rider||seenRider[r.rider+'|||'+(r.horse||'')]) return;
       seenRider[r.rider+'|||'+(r.horse||'')]=1;
-      if(r._matchType&&r._matchType!=='none'){ matchedCount++; }
+      if(r._matchType&&r._matchType!=='none'&&!r._horseMismatch){ matchedCount++; }
       else { unmatchedCount++; unmatchedRiders.push(r); }
     });
     var totalRiders=matchedCount+unmatchedCount;
@@ -5702,7 +5707,9 @@ function pgResults(){
         });
         html+='<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:.4rem;align-items:center;padding:.35rem 0;border-bottom:1px solid var(--border)">'
           +'<div style="font-size:.82rem"><span style="color:var(--text)">'+esc(r.rider)+'</span>'
-          +'<span style="color:var(--muted);font-size:.72rem;margin-left:.4rem">'+esc(r.horse||'')+'</span></div>'
+          +'<span style="color:var(--muted);font-size:.72rem;margin-left:.4rem">'+esc(r.horse||'')+'</span>'
+          +(r._horseMismatch?'<span style="font-size:.68rem;color:var(--red);margin-left:.35rem" title="Matched to an entry with a different horse">&#9888; wrong horse</span>':'')
+          +'</div>'
           +'<select onchange="resSetMatch('+r._idx+',parseInt(this.value))" '
           +'style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.28rem .45rem;font-size:.78rem;font-family:inherit;width:100%">'
           +entryOpts+'</select>'
@@ -5717,7 +5724,15 @@ function pgResults(){
   // ── Rider profile panel ──
   if(_resViewRider){
     var profileRows=activeResults.filter(function(r){
-      return (r._canonical?r._canonical.rider:r.rider)===_resViewRider;
+      var rName=r._canonical?r._canonical.rider:r.rider;
+      if(rName!==_resViewRider) return false;
+      // Filter by horse if one was specified — one horse at a time
+      if(_resViewHorse){
+        var rHorse=r._canonical?r._canonical.horse:r.horse;
+        return (rHorse||'').toUpperCase().replace(/\s+/g,' ').trim()===
+               _resViewHorse.toUpperCase().replace(/\s+/g,' ').trim();
+      }
+      return true;
     }).sort(function(a,b){
       var o=(a.org||'').localeCompare(b.org||''); if(o) return o;
       var d=(a.division||'').localeCompare(b.division||''); if(d) return d;
@@ -6578,6 +6593,7 @@ function pgResults(){
 
           +'<td style="text-align:right;padding-right:.3rem;white-space:nowrap">'
           +(r._matchType==='none'?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Create entry from this row" style="background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);border-radius:4px;color:var(--green);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">+</button>':'')
+          +(r._horseMismatch?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Matched to wrong horse — click to create correct entry" style="background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);border-radius:4px;color:var(--red);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">&#9888;+</button>':'')
           +(function(){
             var oc=r.opCount||0;
             var lbl=oc>0?(oc>1?'OP'+oc:'OP'):'OP';
