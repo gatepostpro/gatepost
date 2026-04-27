@@ -831,6 +831,9 @@ function normalizePersonName(s){
 
   if(!s) return s;
 
+  // Strip Unicode smart quotes, zero-width spaces, BOM that SHTX sometimes embeds
+  s = s.replace(/[​‌‍﻿“”„‟‘’‚‛"]/g, '');
+
   s = s.trim();
 
   // "LAST,FIRST" or "LAST, FIRST" → "FIRST LAST"
@@ -5965,16 +5968,23 @@ function pgResults(){
         clsRows.filter(function(r){ return r.place>0; }).forEach(function(r){ calcPtsMap[r.rider+'|'+r.horse]=0; });
       }
 
-      // Per-row informational anomalies (not errors — just visual hints)
-      var sortedScores=clsRows.filter(function(r){ return r.score>0; }).map(function(r){ return r.score; }).sort(function(a,b){ return b-a; });
-      var medianScore=sortedScores.length?sortedScores[Math.floor(sortedScores.length/2)]:0;
-      var bottomHalfStart=Math.ceil(actualRows/2)+1;
+      // Per-row anomaly hints (not errors — informational badges only)
+      // DQ?: score > 0 but pts = 0 — score was earned but placement voided
+      // OP?: scored higher than someone who received more points — their place was
+      //      penalized regardless of score (off-pattern). Works for any class size.
       var possibleOPMap={}, possibleDQMap={};
+      var scoredActive=clsRows.filter(function(r){ return !r.isDQ&&!r.isOP&&!r._manual&&r.score>0&&r.pts>0; });
       clsRows.forEach(function(r){
         if(r.isDQ||r.isOP||r._manual) return;
         var key=r.rider+'|'+r.horse;
-        if(r.score>0&&r.pts===0&&r.place>0) possibleDQMap[key]=true;
-        if(sortedScores.length>=4&&r.score>0&&r.score>=medianScore&&r.place>=bottomHalfStart) possibleOPMap[key]=true;
+        if(r.score>0&&r.pts===0){ possibleDQMap[key]=true; return; }
+        if(r.score>0&&r.pts>0){
+          // Someone scored lower but got more points → r was penalized (OP)
+          var lowerScoreMorePts=scoredActive.filter(function(o){
+            return o!==r && o.score<r.score && o.pts>r.pts;
+          });
+          if(lowerScoreMorePts.length>0) possibleOPMap[key]=true;
+        }
       });
 
       // Flag points mismatches (real errors)
@@ -6199,7 +6209,9 @@ function pgResults(){
 
           +'<td style="text-align:right;color:var(--green)">'+(r.money?'$'+r.money.toFixed(0):'&mdash;')+'</td>'
 
-          +'<td style="text-align:right;padding-right:.3rem"><button onclick="resEdit('+r._idx+')" title="Edit row" style="background:none;border:1px solid var(--border2);border-radius:4px;color:var(--muted);cursor:pointer;font-size:.75rem;padding:1px 5px;line-height:1">&#9998;</button></td>'
+          +'<td style="text-align:right;padding-right:.3rem;white-space:nowrap">'
+          +(r._matchType==='none'?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Create entry from this row" style="background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);border-radius:4px;color:var(--green);cursor:pointer;font-size:.75rem;padding:1px 5px;line-height:1;margin-right:.25rem">+</button>':'')
+          +'<button onclick="resEdit('+r._idx+')" title="Edit row" style="background:none;border:1px solid var(--border2);border-radius:4px;color:var(--muted);cursor:pointer;font-size:.75rem;padding:1px 5px;line-height:1">&#9998;</button></td>'
 
           +'</tr>';
 
