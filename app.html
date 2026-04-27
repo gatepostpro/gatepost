@@ -1711,7 +1711,15 @@ function parseSTHXRows(rawRows, headerOverride){
 
       pts:        parseFloat(col('shtxpts'))||0,
 
-      money:      parseFloat(col('money'))||0
+      money:      parseFloat(col('money'))||0,
+
+      riderCity:  (col('ridercity')||'').trim(),
+
+      riderState: (col('riderstate')||'').trim(),
+
+      horseReg:   (col('breed')||'').trim(),
+
+      horseOrg:   (col('registration')||'').trim()
 
     };
 
@@ -2728,7 +2736,7 @@ function pgEntries(){
 
           +'<div style="flex:1">'
 
-          +'<div style="font-weight:700;font-size:.95rem">'+esc(e.name)+(isFS?' <span class="badge b-red" style="font-size:.6rem">Full Scratch</span>':'')+'</div>'
+          +'<div style="font-weight:700;font-size:.95rem">'+esc(e.name)+(isFS?' <span class="badge b-red" style="font-size:.6rem">Full Scratch</span>':'')+(e.addedAtShow?' <span class="badge" style="font-size:.6rem;background:rgba(52,152,219,.18);color:var(--blue)">Added at Show</span>':'')+'</div>'
 
           +'<div style="font-size:.78rem;color:var(--muted)">'+esc(e.horse)+(e.memberNum?' &middot; '+esc(e.memberNum):'')+'</div>'
 
@@ -2782,7 +2790,7 @@ function pgEntries(){
 
           +'</td>'
 
-          +'<td><div class="bold">'+esc(e.name)+(isFS?' <span class="badge b-red" style="font-size:.65rem">Scratched</span>':'')+'</div><div class="small">'+esc(e.memberNum||'No # on file')+'</div></td>'
+          +'<td><div class="bold">'+esc(e.name)+(isFS?' <span class="badge b-red" style="font-size:.65rem">Scratched</span>':'')+(e.addedAtShow?' <span class="badge" style="font-size:.62rem;background:rgba(52,152,219,.18);color:var(--blue)">Added at Show</span>':'')+'</div><div class="small">'+esc(e.memberNum||'No # on file')+'</div></td>'
 
           +'<td><div>'+esc(e.horse)+'</div><div class="small">'+esc(e.horseGender)+'</div></td>'
 
@@ -5125,6 +5133,56 @@ window.resClearMatch=function(resultIdx){
   pgResults();
 };
 
+window.resCreateEntryFromIdx=function(resultIdx){
+  var r=G.results[resultIdx];
+  if(r) window.resCreateEntry(r.rider, r.horse||'');
+};
+
+window.resCreateEntry=function(riderName, horseName){
+  // Collect all result rows for this rider
+  var rows=G.results.filter(function(r){ return r.rider===riderName; });
+  if(!rows.length) return;
+  var ref=rows[0];
+  // Build classes from unique org/division/discipline combos
+  var classSet={}, classKeys=[];
+  rows.forEach(function(r){
+    var k=(r.org||'')+'|'+(r.division||'')+'|'+(r.discipline||'');
+    if(!classSet[k]){ classSet[k]={name:(r.discipline||r.division||r.org||''), num:'', org:r.org, division:r.division, discipline:r.discipline}; classKeys.push(k); }
+  });
+  var classes=classKeys.map(function(k){ return classSet[k]; });
+  var newIdx=G.entries.length;
+  var entry={
+    name: riderName,
+    horse: ref.horse||horseName||'',
+    memberNum:'',
+    email:'',
+    phone:'',
+    riderCity: ref.riderCity||'',
+    riderState: ref.riderState||'',
+    horseReg: ref.horseReg||'',
+    horseOrg: ref.horseOrg||'',
+    division: (rows.map(function(r){ return r.division; }).filter(Boolean)[0])||'',
+    assocRaw: ref.org||'',
+    classes: classes,
+    addedAtShow: true,
+    rowIndex: newIdx
+  };
+  G.entries.push(entry);
+  saveEntriesToStorage();
+  reconcileResultsToEntries();
+  saveResultsToStorage();
+  toast(riderName+' added to entries');
+  pgResults();
+};
+
+window.resAckClass=function(classKey, ack){
+  if(!G.cfg.acknowledgedClasses) G.cfg.acknowledgedClasses={};
+  if(ack) G.cfg.acknowledgedClasses[classKey]=true;
+  else delete G.cfg.acknowledgedClasses[classKey];
+  try{ localStorage.setItem('gatepost_cfg',JSON.stringify(G.cfg)); } catch(e){}
+  pgResults();
+};
+
 // ── Helpers: unique orgs/divs/discs from loaded results (canonical order) ──
 function getResultsOrgs(){
   var seen={};
@@ -5383,18 +5441,21 @@ function pgResults(){
     // ── Mismatch fix panel ──
     if(_resShowMismatches && unmatchedRiders.length){
       html+='<div style="margin-bottom:.75rem;padding:.65rem .75rem;background:var(--card2);border:1px solid var(--border2);border-radius:8px">'
-        +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.55rem">Select the matching entry for each unmatched rider, or leave blank to skip.</div>';
+        +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.55rem">Link to an existing entry or create a new one (pulled from SHTX — marks as "Added at Show").</div>';
       unmatchedRiders.forEach(function(r){
         var entryOpts='<option value="">— no match —</option>';
         G.entries.forEach(function(e,ei){
           entryOpts+='<option value="'+ei+'">'+esc(e.name)+' / '+esc(e.horse||'')+'</option>';
         });
-        html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;align-items:center;padding:.35rem 0;border-bottom:1px solid var(--border)">'
+        html+='<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:.4rem;align-items:center;padding:.35rem 0;border-bottom:1px solid var(--border)">'
           +'<div style="font-size:.82rem"><span style="color:var(--text)">'+esc(r.rider)+'</span>'
           +'<span style="color:var(--muted);font-size:.72rem;margin-left:.4rem">'+esc(r.horse||'')+'</span></div>'
           +'<select onchange="resSetMatch('+r._idx+',parseInt(this.value))" '
           +'style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.28rem .45rem;font-size:.78rem;font-family:inherit;width:100%">'
-          +entryOpts+'</select></div>';
+          +entryOpts+'</select>'
+          +'<button class="btn btn-sm" onclick="resCreateEntryFromIdx('+r._idx+')" '
+          +'style="background:rgba(46,204,113,.12);color:var(--green);border:1px solid rgba(46,204,113,.25);font-size:.7rem;white-space:nowrap">+ Add Entry</button>'
+          +'</div>';
       });
       html+='</div>';
     }
@@ -5862,139 +5923,72 @@ function pgResults(){
 
 
 
-      // ── Verification: recalculate placings & points, compare to Funnware ──
+      // ── Verification ──
+      // We trust the judge's placements — OPs are placed at the bottom regardless of score.
+      // We only verify: (1) do the points given match the place given? (2) is anyone missing?
 
       var fwEntries = clsRows.length>0 ? (clsRows[0].entries||clsRows.length) : clsRows.length;
 
       var actualRows = clsRows.length;
 
-      var entryMismatch = fwEntries !== actualRows;
-
-
-
-      // Calculate placings from score
-
-      var scoredRows = clsRows.filter(function(r){ return r.score&&!(!r.place&&!r.score&&!r.pts); });
-
-      var sortedByScore = scoredRows.slice().sort(function(a,b){ return (b.score||0)-(a.score||0); });
-
-      var calcPlaceMap = {};
-
-      var cRank=1;
-
-      sortedByScore.forEach(function(r,i){
-
-        if(i>0&&sortedByScore[i-1].score===r.score) calcPlaceMap[r.rider+'|'+r.horse]=calcPlaceMap[sortedByScore[i-1].rider+'|'+sortedByScore[i-1].horse];
-
-        else calcPlaceMap[r.rider+'|'+r.horse]=cRank;
-
-        cRank=i+2;
-
-      });
-
-
-
-      // Calculate points using the org's points system on calculated placings
-
-      var calcPtsMap = {};
+      var entryMismatch = fwEntries > actualRows; // more expected than rows = missing riders
 
       var orgPtsSys=(ORG_CLASSES[_resSelOrg]||{}).pointsSystem||'entries';
-
-      var byCalcPlace={};
-
-      clsRows.forEach(function(r){
-
-        var isDQ=r.isDQ||((!r._manual)&&!r.place&&!r.score&&!r.pts&&!r.isOP);
-
-        if(isDQ||r.isOP){ calcPtsMap[r.rider+'|'+r.horse]=0; return; }
-
-        var cp=calcPlaceMap[r.rider+'|'+r.horse]||r.place;
-
-        if(!byCalcPlace[cp]) byCalcPlace[cp]=[];
-
-        byCalcPlace[cp].push(r.rider+'|'+r.horse);
-
-      });
-
-      if(orgPtsSys==='entries'){
-
-        // CoWN: 1st=N … last=1, ties split
-
-        Object.keys(byCalcPlace).forEach(function(pl){
-
-          var keys=byCalcPlace[pl]; pl=parseInt(pl);
-
-          var sum=0;
-
-          for(var k=0;k<keys.length;k++) sum+=Math.max(0, actualRows-(pl+k)+1);
-
-          var avg=sum/keys.length;
-
-          keys.forEach(function(k){ calcPtsMap[k]=avg; });
-
-        });
-
-      } else if(orgPtsSys==='aqha'){
-
-        // AQHA: tier=floor(entries/5); 1st=tier … tier-th=1, tier+1=0.5
-
-        var tier=Math.floor(actualRows/5);
-
-        Object.keys(byCalcPlace).forEach(function(pl){
-
-          var keys=byCalcPlace[pl]; pl=parseInt(pl);
-
-          var pts=tier<1?0:(pl<=tier?(tier-pl+1):(pl===tier+1?0.5:0));
-
-          keys.forEach(function(k){ calcPtsMap[k]=pts; });
-
-        });
-
-      } else {
-
-        // none or unknown — no calculated points
-
-        Object.keys(byCalcPlace).forEach(function(pl){
-
-          byCalcPlace[pl].forEach(function(k){ calcPtsMap[k]=0; });
-
-        });
-
-      }
-
-
-
-      // Count discrepancies — skip manual rows (placements computed by us, not Funnware)
-
-      // For AQHA orgs: Funnware often exports 0 for pts (AQHA tracks points centrally).
 
       var isAqhaOrg=(orgPtsSys==='aqha');
 
       var allManual=clsRows.every(function(r){ return r._manual; });
 
-      var placeErrs=0, ptsErrs=0;
-
-      clsRows.forEach(function(r){
-
-        if(r._manual||r.isOP||r.isDQ) return; // skip manual and status rows
-
-        var isDQ=!r.place&&!r.score&&!r.pts;
-
-        if(isDQ) return;
-
-        var key=r.rider+'|'+r.horse;
-
-        var cp=calcPlaceMap[key];
-
-        var cpts=calcPtsMap[key];
-
-        if(cp&&r.place&&cp!==r.place) placeErrs++;
-
-        if(!isAqhaOrg && cpts!==undefined&&r.pts!==undefined&&Math.abs((cpts||0)-(r.pts||0))>0.05) ptsErrs++;
-
-        if(isAqhaOrg && r.pts>0 && cpts!==undefined && Math.abs((cpts||0)-(r.pts||0))>0.05) ptsErrs++;
-
+      // Build expected-pts map from SHTX place (groups tied places)
+      var calcPtsMap={};
+      var byPlace={};
+      clsRows.filter(function(r){ return r.place>0; }).forEach(function(r){
+        if(!byPlace[r.place]) byPlace[r.place]=[];
+        byPlace[r.place].push(r);
       });
+      if(orgPtsSys==='entries'){
+        Object.keys(byPlace).forEach(function(pl){
+          var rows=byPlace[pl]; pl=parseInt(pl);
+          var sum=0;
+          for(var k=0;k<rows.length;k++) sum+=Math.max(0, actualRows-(pl+k)+1);
+          var avg=sum/rows.length;
+          rows.forEach(function(r){ calcPtsMap[r.rider+'|'+r.horse]=avg; });
+        });
+      } else if(orgPtsSys==='aqha'){
+        var tier=Math.floor(actualRows/5);
+        Object.keys(byPlace).forEach(function(pl){
+          var rows=byPlace[pl]; pl=parseInt(pl);
+          var pts=tier<1?0:(pl<=tier?(tier-pl+1):(pl===tier+1?0.5:0));
+          rows.forEach(function(r){ calcPtsMap[r.rider+'|'+r.horse]=pts; });
+        });
+      } else {
+        clsRows.filter(function(r){ return r.place>0; }).forEach(function(r){ calcPtsMap[r.rider+'|'+r.horse]=0; });
+      }
+
+      // Per-row informational anomalies (not errors — just visual hints)
+      var sortedScores=clsRows.filter(function(r){ return r.score>0; }).map(function(r){ return r.score; }).sort(function(a,b){ return b-a; });
+      var medianScore=sortedScores.length?sortedScores[Math.floor(sortedScores.length/2)]:0;
+      var bottomHalfStart=Math.ceil(actualRows/2)+1;
+      var possibleOPMap={}, possibleDQMap={};
+      clsRows.forEach(function(r){
+        if(r.isDQ||r.isOP||r._manual) return;
+        var key=r.rider+'|'+r.horse;
+        if(r.score>0&&r.pts===0&&r.place>0) possibleDQMap[key]=true;
+        if(sortedScores.length>=4&&r.score>0&&r.score>=medianScore&&r.place>=bottomHalfStart) possibleOPMap[key]=true;
+      });
+
+      // Flag points mismatches (real errors)
+      var placeErrDetails=[], ptsErrDetails=[];
+      clsRows.forEach(function(r){
+        if(r._manual||r.isDQ||r.isOP) return;
+        if(!r.place) return;
+        var key=r.rider+'|'+r.horse;
+        var cpts=calcPtsMap[key];
+        if(cpts===undefined) return;
+        var tol=orgPtsSys==='entries'?0.15:0.05;
+        if(Math.abs((cpts||0)-(r.pts||0))>tol) ptsErrDetails.push({rider:r.rider, horse:r.horse, place:r.place, score:r.score, fwPts:r.pts, calcPts:cpts});
+      });
+      var placeErrs=0, ptsErrs=ptsErrDetails.length;
 
       var hasErrors=(!allManual&&entryMismatch)||placeErrs>0||ptsErrs>0;
 
@@ -6006,29 +6000,45 @@ function pgResults(){
 
       // ── Audit bar ──
 
+      var ackKey=_resSelOrg+'|'+_resSelDiv+'|'+_resSelClass;
+      var acknowledged=(G.cfg.acknowledgedClasses||{})[ackKey]||false;
+      var effectiveError=hasErrors&&!acknowledged;
+
       html+='<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.6rem;padding:.5rem .6rem;'
+        +'background:'+(effectiveError?'rgba(231,76,60,.08)':acknowledged?'rgba(136,136,136,.06)':'rgba(39,174,96,.07)')
+        +';border-radius:6px;border:1px solid '+(effectiveError?'rgba(231,76,60,.25)':acknowledged?'rgba(136,136,136,.2)':'rgba(39,174,96,.2)')+'">';
 
-        +'background:'+(hasErrors?'rgba(231,76,60,.08)':'rgba(39,174,96,.07)')+';border-radius:6px;border:1px solid '+(hasErrors?'rgba(231,76,60,.25)':'rgba(39,174,96,.2)')+'">';
-
-      if(hasErrors){
+      if(effectiveError){
 
         html+='<span style="font-size:.78rem;font-weight:600;color:var(--red)">&#9888; Verification issues:</span>';
 
-        if(entryMismatch) html+='<span style="font-size:.75rem;color:var(--red)">Funnware says '+fwEntries+' entries, found '+actualRows+' rows</span>';
+        if(entryMismatch) html+='<span style="font-size:.75rem;color:var(--red)">SHTX says '+fwEntries+' entries, found '+actualRows+' rows — '+(fwEntries-actualRows)+' rider(s) missing</span>';
 
-        if(placeErrs) html+='<span style="font-size:.75rem;color:var(--red)">'+placeErrs+' placing discrepanc'+(placeErrs===1?'y':'ies')+'</span>';
+        if(ptsErrs){
+          var ptsTitle=ptsErrDetails.map(function(d){ return d.rider+(d.horse?' / '+d.horse:'')+': place='+d.place+', SHTX pts='+d.fwPts+', expected='+d.calcPts.toFixed(1); }).join('\n');
+          var ptsFirst=ptsErrDetails[0];
+          html+='<span style="font-size:.75rem;color:var(--red);cursor:help" title="'+ptsTitle.replace(/"/g,'&quot;')+'">'
+            +ptsErrs+' points discrepanc'+(ptsErrs===1?'y':'ies')+': '
+            +esc(ptsFirst.rider)+' place='+ptsFirst.place+' (SHTX='+ptsFirst.fwPts+', expected='+ptsFirst.calcPts.toFixed(1)+')'
+            +(ptsErrs>1?' +'+( ptsErrs-1)+' more &#9432;':'')+'</span>';
+        }
 
-        if(ptsErrs) html+='<span style="font-size:.75rem;color:var(--red)">'+ptsErrs+' points discrepanc'+(ptsErrs===1?'y':'ies')+'</span>';
+        html+='<button class="btn btn-sm" onclick="resAckClass(\''+ackKey.replace(/'/g,"\\'")+'\',true)" '
+          +'style="margin-left:auto;font-size:.72rem;background:rgba(136,136,136,.12);color:var(--muted);border:1px solid var(--border2)">&#10003; Acknowledge</button>';
+
+      } else if(acknowledged){
+
+        html+='<span style="font-size:.78rem;color:var(--muted)">&#10003; Verified by secretary</span>';
+        html+='<button class="btn btn-sm btn-dark" onclick="resAckClass(\''+ackKey.replace(/'/g,"\\'")+'\',false)" style="font-size:.72rem;margin-left:auto">Undo</button>';
 
       } else if(isAqhaOrg){
 
-        html+='<span style="font-size:.78rem;color:var(--green)">&#10003; Placings verified — '+actualRows+' entries</span>'
-
+        html+='<span style="font-size:.78rem;color:var(--green)">&#10003; Points match — '+actualRows+' entries</span>'
           +'<span style="font-size:.75rem;color:var(--muted)">AQHA pts calculated (submitted to AQHA separately)</span>';
 
       } else {
 
-        html+='<span style="font-size:.78rem;color:var(--green)">&#10003; Verified — '+actualRows+' entries, placings and points match</span>';
+        html+='<span style="font-size:.78rem;color:var(--green)">&#10003; Verified — '+actualRows+' entries, points match</span>';
 
       }
 
@@ -6094,8 +6104,6 @@ function pgResults(){
 
         +sTh('score','Score','right')
 
-        +(showCalcCols?'<th style="text-align:right;color:var(--muted);font-size:.75rem">Calc Pl</th>':'')
-
         +sTh('pts',isAqhaOrg?'FW Pts':'Pts','right')
 
         +(showCalcCols?'<th style="text-align:right;color:'+(isAqhaOrg?'var(--accent)':'var(--muted)')+';font-size:.75rem">'+calcPtsLabel+'</th>':'')
@@ -6140,15 +6148,19 @@ function pgResults(){
 
         var key=r.rider+'|'+r.horse;
 
-        var cp=calcPlaceMap[key];
-
         var cpts=calcPtsMap[key];
 
         var noVerify=isDQ||isOP;
 
-        var plMismatch=!noVerify&&cp&&r.place&&cp!==r.place;
+        var plMismatch=false; // place is judge-assigned; not flagged as error
 
-        var ptsMismatch=!noVerify&&cpts!==undefined&&(isAqhaOrg?r.pts>0:true)&&Math.abs((cpts||0)-(r.pts||0))>0.05;
+        var tol=orgPtsSys==='entries'?0.15:0.05;
+
+        var ptsMismatch=!noVerify&&cpts!==undefined&&(isAqhaOrg?r.pts>0:true)&&Math.abs((cpts||0)-(r.pts||0))>tol;
+
+        var hintOP=!noVerify&&!r._manual&&possibleOPMap[key];
+
+        var hintDQ=!noVerify&&!r._manual&&possibleDQMap[key];
 
         // Score display: manual rows may have detail
 
@@ -6166,19 +6178,20 @@ function pgResults(){
 
           :'';
 
-        html+='<tr'+(noVerify?' style="opacity:.55"':'')+(plMismatch||ptsMismatch?' style="background:rgba(231,76,60,.05)"':'')+'>'
+        html+='<tr'+(noVerify?' style="opacity:.55"':'')+(ptsMismatch?' style="background:rgba(231,76,60,.05)"':'')+'>'
 
-          +'<td>'+(plMismatch?'<span style="color:var(--red)" title="Calc: '+cp+'">'+plCell+' &#9888;</span>':plCell)+'</td>'
+          +'<td>'+plCell+'</td>'
 
           +'<td>'+esc(r._canonical?r._canonical.rider:r.rider)
           +(r._canonical&&r._canonical.rider!==r.rider?'<span style="font-size:.62rem;color:var(--muted);margin-left:.3rem" title="SHTX name: '+esc(r.rider)+'">&#8597;</span>':'')
-          +(r._manual?'<span style="font-size:.6rem;color:var(--muted);margin-left:.3rem">✎</span>':'')+'</td>'
+          +(r._manual?'<span style="font-size:.6rem;color:var(--muted);margin-left:.3rem">✎</span>':'')
+          +(hintOP?'<span style="font-size:.6rem;color:#e07c00;margin-left:.35rem;cursor:help" title="High score at bottom — possible off-pattern?">OP?</span>':'')
+          +(hintDQ?'<span style="font-size:.6rem;color:var(--red);margin-left:.35rem;cursor:help" title="Has score but 0 points — possible DQ?">DQ?</span>':'')
+          +'</td>'
 
           +'<td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>'
 
           +'<td style="text-align:right">'+scoreDisp+detailBtn+'</td>'
-
-          +(showCalcCols?'<td style="text-align:right;color:var(--muted);font-size:.78rem">'+(cp||'&mdash;')+'</td>':'')
 
           +'<td style="text-align:right;color:'+(ptsMismatch?'var(--red)':'var(--accent)')+'">'+(noVerify?'&mdash;':(r.pts||0).toFixed(1))+'</td>'
 
