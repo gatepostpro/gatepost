@@ -5256,9 +5256,8 @@ window.resSaveEdit=function(){
   r.opCount=parseInt(document.getElementById('re-op').value)||0;
   r.isOP=r.opCount>0;
   if(r.isOP) r.isDQ=false;
-  if(r.isDQ){ r.isOP=false; r.opCount=0; r.pts=0; r.place=0; }
+  if(r.isDQ){ r.isOP=false; r.opCount=0; }
   r._manual=true;
-  recomputeClassPts(r.org,r.division,r.discipline);
   _resEditIdx=-1;
   saveResultsToStorage();
   toast('Result updated');
@@ -5325,16 +5324,23 @@ function recomputeClassPts(org, division, discipline){
   }
 }
 
+window.resRerank=function(org, division, discipline, btn){
+  var clsLabel=org+(division?' · '+division:'')+(discipline?' · '+discipline:'');
+  if(!confirm('Re-rank "'+clsLabel+'"?\n\nThis will apply OP/DQ labels to placements and recalculate points using the configured formula. SHTX original values will be overwritten.\n\nContinue?')) return;
+  recomputeClassPts(org, division, discipline);
+  saveResultsToStorage();
+  toast('Re-ranked: '+clsLabel);
+  pgResults();
+};
+
 window.resMarkOP=function(idx){
   var r=G.results[idx];
   if(!r) return;
-  // Cycle: 0 (none) → 1 (OP) → 2 (OP2) → 3 (OP3) → 0
+  // Cycle label: 0 (none) → 1 (OP) → 2 (OP2) → 3 (OP3) → 0
+  // SHTX pts and place are untouched — this is a note only
   r.opCount=((r.opCount||0)+1)%4;
   r.isOP=r.opCount>0;
   if(r.isOP) r.isDQ=false;
-  r._manual=true;
-  // Recompute class pts using configured association formula
-  recomputeClassPts(r.org,r.division,r.discipline);
   saveResultsToStorage();
   pgResults();
 };
@@ -5342,17 +5348,9 @@ window.resMarkOP=function(idx){
 window.resMarkDQ=function(idx){
   var r=G.results[idx];
   if(!r) return;
-  if(!r.isDQ){
-    // Save originals so we can restore on un-DQ
-    r._origPts=r.pts; r._origPlace=r.place;
-    r.isDQ=true; r.isOP=false; r.opCount=0;
-    r.pts=0; r.place=0;
-  } else {
-    r.isDQ=false;
-    if(r._origPts!==undefined) r.pts=r._origPts;
-    if(r._origPlace!==undefined) r.place=r._origPlace;
-  }
-  r._manual=true;
+  // Toggle DQ label — SHTX pts and place are untouched until Re-rank is used
+  r.isDQ=!r.isDQ;
+  if(r.isDQ){ r.isOP=false; r.opCount=0; }
   saveResultsToStorage();
   pgResults();
 };
@@ -6242,6 +6240,12 @@ function pgResults(){
 
       }
 
+      html+='<button class="btn btn-sm" '
+        +'onclick="resRerank(\''+(_resSelOrg).replace(/'/g,"\\'")+'\',\''+(_resSelDiv).replace(/'/g,"\\'")+'\',\''+(_resSelClass).replace(/'/g,"\\'")+'\',this)" '
+        +'style="margin-left:auto;background:rgba(184,134,42,.12);color:var(--accent);border:1px solid rgba(184,134,42,.3);font-size:.73rem" '
+        +'title="Apply OP/DQ labels to placements and repoint using configured formula">'
+        +'&#8635; Re-rank Class</button>';
+
       html+='</div>';
 
 
@@ -6285,49 +6289,27 @@ function pgResults(){
 
         var plColor=r.place===1?'var(--accent)':r.place===2?'#aaa':r.place===3?'#cd7f32':'var(--muted)';
 
-        var plCell;
+        var placeNum=r.place?'<span style="font-weight:600;color:'+plColor+'">'+(isTied?'T-':'')+r.place+'</span>':'<span style="color:var(--muted)">—</span>';
 
-        if(isDQ){
-
-          plCell='<span style="font-size:.68rem;font-weight:700;background:rgba(231,76,60,.2);color:var(--red);padding:1px 5px;border-radius:3px">DQ</span>';
-
-        } else if(isOP){
-
-          plCell='<span style="font-size:.68rem;font-weight:700;background:rgba(224,124,0,.2);color:#e07c00;padding:1px 5px;border-radius:3px">'+opLabel+'</span>';
-
-        } else if(isTied){
-
-          plCell='<span style="font-weight:600;color:'+plColor+'">T-'+r.place+'</span>';
-
-        } else {
-
-          plCell='<span style="font-weight:600;color:'+plColor+'">'+r.place+'</span>';
-
-        }
+        var plCell=placeNum
+          +(isDQ?' <span style="font-size:.62rem;font-weight:700;background:rgba(231,76,60,.18);color:var(--red);padding:1px 4px;border-radius:3px">DQ</span>':'')
+          +(isOP?' <span style="font-size:.62rem;font-weight:700;background:rgba(224,124,0,.15);color:#e07c00;padding:1px 4px;border-radius:3px">'+opLabel+'</span>':'');
 
         var key=r.rider+'|'+r.horse;
 
         var cpts=calcPtsMap[key];
 
-        var noVerify=isDQ||isOP;
-
-        var plMismatch=false; // place is judge-assigned; not flagged as error
-
         var tol=orgPtsSys==='entries'?0.15:0.05;
 
-        var ptsMismatch=!noVerify&&cpts!==undefined&&(isAqhaOrg?r.pts>0:true)&&Math.abs((cpts||0)-(r.pts||0))>tol;
+        var ptsMismatch=!r._manual&&!(isOP||isDQ)&&cpts!==undefined&&(isAqhaOrg?r.pts>0:true)&&Math.abs((cpts||0)-(r.pts||0))>tol;
 
-        var hintOP=!noVerify&&!r._manual&&possibleOPMap[key];
+        var hintOP=!isOP&&!isDQ&&!r._manual&&possibleOPMap[key];
 
-        var hintDQ=!noVerify&&!r._manual&&possibleDQMap[key];
+        var hintDQ=!isOP&&!isDQ&&!r._manual&&possibleDQMap[key];
 
-        // Score display: manual rows may have detail
+        // Always show actual score — OP/DQ are labels, not replacements
 
-        var scoreDisp=isOP?'<span style="color:#e07c00;font-size:.75rem;font-weight:700">OP</span>'
-
-          :isDQ?'<span style="color:var(--red);font-size:.75rem;font-weight:700">DQ</span>'
-
-          :(!r.score?'&mdash;':r.score.toFixed(3));
+        var scoreDisp=!r.score?'&mdash;':r.score.toFixed(3);
 
         // Detail button for manually entered scores
 
@@ -6337,7 +6319,7 @@ function pgResults(){
 
           :'';
 
-        html+='<tr'+(noVerify?' style="opacity:.55"':'')+(ptsMismatch?' style="background:rgba(231,76,60,.05)"':'')+'>'
+        html+='<tr'+(ptsMismatch?' style="background:rgba(231,76,60,.05)"':'')+'>'
 
           +'<td>'+plCell+'</td>'
 
@@ -6360,9 +6342,9 @@ function pgResults(){
 
           +'<td style="text-align:right">'+scoreDisp+detailBtn+'</td>'
 
-          +'<td style="text-align:right;color:'+(ptsMismatch?'var(--red)':'var(--accent)')+'">'+(noVerify?'&mdash;':(r.pts||0).toFixed(1))+'</td>'
+          +'<td style="text-align:right;color:'+(ptsMismatch?'var(--red)':'var(--accent)')+';font-weight:600">'+(r.pts||0).toFixed(1)+'</td>'
 
-          +(showCalcCols?'<td style="text-align:right;color:'+(isAqhaOrg?'var(--accent)':'var(--muted)')+';font-size:.78rem">'+(noVerify?'&mdash;':cpts!==undefined?cpts.toFixed(1):'&mdash;')+'</td>':'')
+          +(showCalcCols?'<td style="text-align:right;color:'+(isAqhaOrg?'var(--accent)':'var(--muted)')+';font-size:.78rem">'+(cpts!==undefined?cpts.toFixed(1):'&mdash;')+'</td>':'')
 
           +'<td style="text-align:right;color:var(--green)">'+(r.money?'$'+r.money.toFixed(0):'&mdash;')+'</td>'
 
@@ -10188,6 +10170,46 @@ function showEntryModal(rowIdx){
 
 
 
+    // ── Details tab ──
+    var inp='background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .6rem;font-size:.84rem;font-family:inherit;width:100%';
+    var detailsHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem .85rem">';
+
+    // Rider section
+    detailsHTML+='<div style="grid-column:1/-1;font-size:.72rem;color:var(--accent);font-family:Oswald;letter-spacing:.08em;text-transform:uppercase;margin-top:.25rem">Rider</div>';
+    detailsHTML+='<div class="fg"><label>Name</label><input id="ei-name" value="'+esc(entry.name||'')+'" style="'+inp+'"></div>';
+    detailsHTML+='<div class="fg"><label>Member #</label>'
+      +'<div style="display:flex;gap:.35rem"><input id="ei-membernum" value="'+esc(entry.memberNum||'')+'" placeholder="CoWN #" style="'+inp+'">'
+      +'<button onclick="entryLookupMember('+rowIdx+')" title="Look up in member database (coming soon)" style="background:var(--card2);border:1px solid var(--border2);border-radius:6px;color:var(--muted);cursor:pointer;padding:.38rem .55rem;font-size:.85rem;white-space:nowrap" disabled>🔍</button>'
+      +'</div></div>';
+    detailsHTML+='<div class="fg"><label>Email</label><input id="ei-email" type="email" value="'+esc(entry.email||'')+'" style="'+inp+'"></div>';
+    detailsHTML+='<div class="fg"><label>Phone</label><input id="ei-phone" type="tel" value="'+esc(entry.phone||'')+'" style="'+inp+'"></div>';
+    detailsHTML+='<div class="fg" style="grid-column:1/-1"><label>Address</label><input id="ei-address" value="'+esc(entry.address||'')+'" placeholder="Street, City, State ZIP" style="'+inp+'"></div>';
+
+    // Horse section
+    detailsHTML+='<div style="grid-column:1/-1;font-size:.72rem;color:var(--accent);font-family:Oswald;letter-spacing:.08em;text-transform:uppercase;margin-top:.5rem">Horse</div>';
+    detailsHTML+='<div class="fg"><label>Horse Name</label><input id="ei-horse" value="'+esc(entry.horse||'')+'" style="'+inp+'"></div>';
+    detailsHTML+='<div class="fg"><label>Gender</label><select id="ei-horsegender" style="'+inp+'">'
+      +'<option value=""'+((!entry.horseGender||entry.horseGender==='')?' selected':'')+'>—</option>'
+      +'<option value="Gelding"'+(entry.horseGender==='Gelding'?' selected':'')+'>Gelding</option>'
+      +'<option value="Mare"'+(entry.horseGender==='Mare'?' selected':'')+'>Mare</option>'
+      +'<option value="Stallion"'+(entry.horseGender==='Stallion'?' selected':'')+'>Stallion</option>'
+      +'</select></div>';
+
+    // Show section
+    detailsHTML+='<div style="grid-column:1/-1;font-size:.72rem;color:var(--accent);font-family:Oswald;letter-spacing:.08em;text-transform:uppercase;margin-top:.5rem">Show Info</div>';
+    detailsHTML+='<div class="fg"><label>Division</label><input id="ei-division" value="'+esc(entry.division||'')+'" style="'+inp+'"></div>';
+    detailsHTML+='<div class="fg" style="display:flex;align-items:center;gap:.5rem;padding-top:1.4rem">'
+      +'<label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;color:var(--muted);cursor:pointer">'
+      +'<input type="checkbox" id="ei-addedatshow"'+(entry.addedAtShow?' checked':'')+' style="cursor:pointer"> Added at Show</label>'
+      +'</div>';
+    if(entry.submitted){
+      detailsHTML+='<div style="grid-column:1/-1;font-size:.75rem;color:var(--muted)">Submitted: '+new Date(entry.submitted).toLocaleString()+'</div>';
+    }
+    detailsHTML+='</div>';
+    detailsHTML+='<div style="display:flex;gap:.5rem;margin-top:.85rem">'
+      +'<button class="btn btn-accent btn-sm" onclick="saveEntryInfo('+rowIdx+')">Save Changes</button>'
+      +'</div>';
+
     // Build full modal
 
     var html = '<div class="modal-bg" id="em" onclick="if(event.target===this)closeModal()">'
@@ -10208,7 +10230,9 @@ function showEntryModal(rowIdx){
 
       +'<div class="tab-row">'
 
-      +'<button id="tbtn-classes" class="tab-btn active gp-modal-tab" data-tab="classes">Classes</button>'
+      +'<button id="tbtn-details" class="tab-btn active gp-modal-tab" data-tab="details">Details</button>'
+
+      +'<button id="tbtn-classes" class="tab-btn gp-modal-tab" data-tab="classes">Classes</button>'
 
       +'<button id="tbtn-riders" class="tab-btn gp-modal-tab" data-tab="riders">Riders</button>'
 
@@ -10220,7 +10244,9 @@ function showEntryModal(rowIdx){
 
       // Tab panels
 
-      +'<div id="mpanel-classes">'+classHTML+'</div>'
+      +'<div id="mpanel-details">'+detailsHTML+'</div>'
+
+      +'<div id="mpanel-classes" style="display:none">'+classHTML+'</div>'
 
       +'<div id="mpanel-riders" style="display:none">'+riderHTML+'</div>'
 
@@ -10454,7 +10480,7 @@ function showEntryModal(rowIdx){
 
 function switchModalTab(tab){
 
-  var tabs = ['classes','riders','fees','stall'];
+  var tabs = ['details','classes','riders','fees','stall'];
 
   tabs.forEach(function(t){
 
@@ -11123,6 +11149,41 @@ function removeRider(rowIdx, riderIdx){
 };
 
 
+
+function saveEntryInfo(rowIdx){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e) return;
+
+  var newName=(document.getElementById('ei-name').value||'').trim();
+  var oldName=e.name;
+
+  e.name       = newName||e.name;
+  e.memberNum  = (document.getElementById('ei-membernum').value||'').trim();
+  e.email      = (document.getElementById('ei-email').value||'').trim();
+  e.phone      = (document.getElementById('ei-phone').value||'').trim();
+  e.address    = (document.getElementById('ei-address').value||'').trim();
+  e.horse      = (document.getElementById('ei-horse').value||'').trim()||e.horse;
+  e.horseGender= document.getElementById('ei-horsegender').value;
+  e.division   = (document.getElementById('ei-division').value||'').trim();
+  e.addedAtShow= document.getElementById('ei-addedatshow').checked;
+
+  // If primary rider name changed, update riders array and class assignments
+  if(newName && newName!==oldName){
+    if(e.riders){
+      e.riders.forEach(function(r){ if(r.name===oldName) r.name=newName; });
+    }
+    e.classes.forEach(function(c){ if(c.rider===oldName) c.rider=newName; });
+  }
+
+  saveEntriesToStorage();
+  drawEntryTable();
+  toast('Entry updated');
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+}
+
+window.entryLookupMember=function(rowIdx){
+  toast('Member database integration coming soon');
+};
 
 function showAddOrgFee(rowIdx, prefillDesc, prefillAmt){
 
