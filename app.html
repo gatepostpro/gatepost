@@ -1873,6 +1873,7 @@ window.saveAaMoney=function(key){
 var _resSelOrg='', _resSelDiv='', _resSelClass='', _resSearch='', _resSortCol='place', _resSortDir=1, _resSelShow='';
 var _resEditIdx=-1;
 var _resShowMismatches=false;
+var _resViewRider='', _resViewHorse='';
 
 // ── Name normalisation for entry/result matching ──────────────────────────
 function normForMatch(s){
@@ -5178,6 +5179,12 @@ window.resCreateEntry=function(riderName, horseName){
   pgResults();
 };
 
+window.resViewRider=function(rider, horse){
+  if(_resViewRider===rider&&_resViewHorse===horse){ _resViewRider=''; _resViewHorse=''; }
+  else { _resViewRider=rider; _resViewHorse=horse||''; }
+  pgResults();
+};
+
 window.resAckClass=function(classKey, ack){
   if(!G.cfg.acknowledgedClasses) G.cfg.acknowledgedClasses={};
   if(ack) G.cfg.acknowledgedClasses[classKey]=true;
@@ -5246,9 +5253,10 @@ window.resSaveEdit=function(){
   r.division=(document.getElementById('re-div').value||'').trim();
   r.discipline=(document.getElementById('re-disc').value||'').trim();
   r.isDQ=document.getElementById('re-dq').checked;
-  r.isOP=document.getElementById('re-op').checked;
+  r.opCount=parseInt(document.getElementById('re-op').value)||0;
+  r.isOP=r.opCount>0;
   if(r.isOP) r.isDQ=false;
-  if(r.isDQ) r.isOP=false;
+  if(r.isDQ){ r.isOP=false; r.opCount=0; r.pts=0; r.place=0; }
   r._manual=true;
   recomputeClassPts(r.org,r.division,r.discipline);
   _resEditIdx=-1;
@@ -5271,8 +5279,8 @@ function recomputeClassPts(org, division, discipline){
   var clsRows=G.results.filter(function(r){ return r.org===org&&r.division===division&&r.discipline===discipline; });
   var total=clsRows.length;
   var dqRows=clsRows.filter(function(r){ return r.isDQ; });
-  var opRows=clsRows.filter(function(r){ return r.isOP&&!r.isDQ; });
-  var normalRows=clsRows.filter(function(r){ return !r.isOP&&!r.isDQ; });
+  var opRows=clsRows.filter(function(r){ return (r.opCount||0)>0&&!r.isDQ; });
+  var normalRows=clsRows.filter(function(r){ return !(r.opCount||0)&&!r.isDQ; });
 
   // Place normal rows by score (desc), ties share place
   normalRows.sort(function(a,b){ return (b.score||0)-(a.score||0); });
@@ -5320,9 +5328,12 @@ function recomputeClassPts(org, division, discipline){
 window.resMarkOP=function(idx){
   var r=G.results[idx];
   if(!r) return;
-  r.isOP=!r.isOP;
+  // Cycle: 0 (none) → 1 (OP) → 2 (OP2) → 3 (OP3) → 0
+  r.opCount=((r.opCount||0)+1)%4;
+  r.isOP=r.opCount>0;
   if(r.isOP) r.isDQ=false;
   r._manual=true;
+  // Recompute class pts using configured association formula
   recomputeClassPts(r.org,r.division,r.discipline);
   saveResultsToStorage();
   pgResults();
@@ -5331,10 +5342,17 @@ window.resMarkOP=function(idx){
 window.resMarkDQ=function(idx){
   var r=G.results[idx];
   if(!r) return;
-  r.isDQ=!r.isDQ;
-  if(r.isDQ) r.isOP=false;
+  if(!r.isDQ){
+    // Save originals so we can restore on un-DQ
+    r._origPts=r.pts; r._origPlace=r.place;
+    r.isDQ=true; r.isOP=false; r.opCount=0;
+    r.pts=0; r.place=0;
+  } else {
+    r.isDQ=false;
+    if(r._origPts!==undefined) r.pts=r._origPts;
+    if(r._origPlace!==undefined) r.place=r._origPlace;
+  }
   r._manual=true;
-  recomputeClassPts(r.org,r.division,r.discipline);
   saveResultsToStorage();
   pgResults();
 };
@@ -5538,6 +5556,54 @@ function pgResults(){
       });
       html+='</div>';
     }
+  }
+
+  // ── Rider profile panel ──
+  if(_resViewRider){
+    var profileRows=activeResults.filter(function(r){
+      return (r._canonical?r._canonical.rider:r.rider)===_resViewRider;
+    }).sort(function(a,b){
+      var o=(a.org||'').localeCompare(b.org||''); if(o) return o;
+      var d=(a.division||'').localeCompare(b.division||''); if(d) return d;
+      return (a.discipline||'').localeCompare(b.discipline||'');
+    });
+    var profileHorse=_resViewHorse;
+    var riderKey=_resViewRider.replace(/'/g,"\\'");
+    var horseKey=(profileHorse||'').replace(/'/g,"\\'");
+    html+='<div style="margin-bottom:.75rem;padding:.7rem .85rem;background:rgba(52,152,219,.06);border:1px solid rgba(52,152,219,.25);border-radius:8px">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
+      +'<div><span style="font-family:Oswald;font-size:1rem;color:var(--blue)">'+esc(_resViewRider)+'</span>'
+      +(profileHorse?'<span style="font-size:.78rem;color:var(--muted);margin-left:.5rem">/ '+esc(profileHorse)+'</span>':'')+'</div>'
+      +'<button onclick="resViewRider(\''+riderKey+'\',\''+horseKey+'\')" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:1rem;line-height:1;padding:0">&#10005;</button>'
+      +'</div>';
+    if(profileRows.length){
+      var profileTotal=0;
+      html+='<div class="tbl-wrap"><table><thead><tr>'
+        +'<th style="font-size:.72rem">Org</th><th style="font-size:.72rem">Division</th><th style="font-size:.72rem">Discipline</th>'
+        +'<th style="text-align:right;font-size:.72rem">Score</th><th style="text-align:right;font-size:.72rem">Place</th><th style="text-align:right;font-size:.72rem">Pts</th>'
+        +'</tr></thead><tbody>';
+      profileRows.forEach(function(r){
+        var oc=r.opCount||0; var opLbl=oc>1?'OP'+oc:'OP';
+        var plDisp=r.isDQ?'<span style="color:var(--red);font-size:.72rem;font-weight:700">DQ</span>'
+          :oc>0?'<span style="color:#e07c00;font-size:.72rem;font-weight:700">'+opLbl+'</span>'
+          :(r.place||'—');
+        profileTotal+=r.pts||0;
+        html+='<tr>'
+          +'<td style="font-size:.78rem">'+esc(r.org||'')+'</td>'
+          +'<td style="font-size:.78rem;color:var(--muted)">'+esc(r.division||'')+'</td>'
+          +'<td style="font-size:.78rem;font-weight:600">'+esc(r.discipline||'')+'</td>'
+          +'<td style="text-align:right;font-size:.78rem">'+(r.score?r.score.toFixed(3):'—')+'</td>'
+          +'<td style="text-align:right;font-size:.78rem">'+plDisp+'</td>'
+          +'<td style="text-align:right;font-size:.78rem;color:var(--accent);font-weight:600">'+(r.pts||0).toFixed(1)+'</td>'
+          +'</tr>';
+      });
+      html+='<tr><td colspan="5" style="text-align:right;font-size:.75rem;color:var(--muted);border-top:1px solid var(--border2);padding-top:.3rem">Total pts</td>'
+        +'<td style="text-align:right;font-weight:700;color:var(--accent);border-top:1px solid var(--border2);padding-top:.3rem">'+profileTotal.toFixed(1)+'</td></tr>';
+      html+='</tbody></table></div>';
+    } else {
+      html+='<div style="font-size:.8rem;color:var(--muted)">No results found.</div>';
+    }
+    html+='</div>';
   }
 
   // Visibility banner
@@ -6049,9 +6115,9 @@ function pgResults(){
       // OP?: scored higher than someone who received more points — their place was
       //      penalized regardless of score (off-pattern). Works for any class size.
       var possibleOPMap={}, possibleDQMap={};
-      var scoredActive=clsRows.filter(function(r){ return !r.isDQ&&!r.isOP&&!r._manual&&r.score>0&&r.pts>0; });
+      var scoredActive=clsRows.filter(function(r){ return !r.isDQ&&!(r.opCount>0)&&!r._manual&&r.score>0&&r.pts>0; });
       clsRows.forEach(function(r){
-        if(r.isDQ||r.isOP||r._manual) return;
+        if(r.isDQ||(r.opCount>0)||r._manual) return;
         var key=r.rider+'|'+r.horse;
         if(r.score>0&&r.pts===0){ possibleDQMap[key]=true; return; }
         if(r.score>0&&r.pts>0){
@@ -6068,7 +6134,7 @@ function pgResults(){
       var placeErrDetails=[], ptsErrDetails=[];
       if(isAqhaOrg){
         clsRows.forEach(function(r){
-          if(r._manual||r.isDQ||r.isOP) return;
+          if(r._manual||r.isDQ||(r.opCount>0)) return;
           if(!r.place) return;
           var key=r.rider+'|'+r.horse;
           var cpts=calcPtsMap[key];
@@ -6206,9 +6272,14 @@ function pgResults(){
 
         // Explicit flags take priority; fall back to legacy SHTX zero-row heuristic for non-manual rows
 
-        var isDQ=r.isDQ||((!r._manual)&&!r.place&&!r.score&&!r.pts&&!r.isOP);
+        // Normalize legacy boolean isOP to opCount
+        if(r.isOP && !r.opCount) r.opCount=1;
 
-        var isOP=r.isOP||false;
+        var isDQ=r.isDQ||((!r._manual)&&!r.place&&!r.score&&!r.pts&&!(r.opCount>0));
+
+        var isOP=(r.opCount||0)>0;
+
+        var opLabel=r.opCount>1?'OP'+r.opCount:'OP';
 
         var isTied=rowIsTied(r);
 
@@ -6222,7 +6293,7 @@ function pgResults(){
 
         } else if(isOP){
 
-          plCell='<span style="font-size:.68rem;font-weight:700;background:rgba(224,124,0,.2);color:#e07c00;padding:1px 5px;border-radius:3px">OP</span>';
+          plCell='<span style="font-size:.68rem;font-weight:700;background:rgba(224,124,0,.2);color:#e07c00;padding:1px 5px;border-radius:3px">'+opLabel+'</span>';
 
         } else if(isTied){
 
@@ -6270,12 +6341,20 @@ function pgResults(){
 
           +'<td>'+plCell+'</td>'
 
-          +'<td>'+esc(r._canonical?r._canonical.rider:r.rider)
-          +(r._canonical&&r._canonical.rider!==r.rider?'<span style="font-size:.62rem;color:var(--muted);margin-left:.3rem" title="SHTX name: '+esc(r.rider)+'">&#8597;</span>':'')
-          +(r._manual?'<span style="font-size:.6rem;color:var(--muted);margin-left:.3rem">✎</span>':'')
-          +(hintOP?'<span style="font-size:.6rem;color:#e07c00;margin-left:.35rem;cursor:help" title="High score at bottom — possible off-pattern?">OP?</span>':'')
-          +(hintDQ?'<span style="font-size:.6rem;color:var(--red);margin-left:.35rem;cursor:help" title="Has score but 0 points — possible DQ?">DQ?</span>':'')
-          +'</td>'
+          +(function(){
+            var displayName=r._canonical?r._canonical.rider:r.rider;
+            var displayHorse=r._canonical?r._canonical.horse:r.horse;
+            var isViewing=_resViewRider===displayName&&_resViewHorse===displayHorse;
+            var rk=displayName.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            var hk=(displayHorse||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            return '<td>'
+              +'<span onclick="resViewRider(\''+rk+'\',\''+hk+'\')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;'+(isViewing?'color:var(--blue)':'')+'">'+esc(displayName)+'</span>'
+              +(r._canonical&&r._canonical.rider!==r.rider?'<span style="font-size:.62rem;color:var(--muted);margin-left:.3rem" title="SHTX name: '+esc(r.rider)+'">&#8597;</span>':'')
+              +(r._manual?'<span style="font-size:.6rem;color:var(--muted);margin-left:.3rem">✎</span>':'')
+              +(hintOP?'<span style="font-size:.6rem;color:#e07c00;margin-left:.35rem;cursor:help" title="High score at bottom — possible off-pattern?">OP?</span>':'')
+              +(hintDQ?'<span style="font-size:.6rem;color:var(--red);margin-left:.35rem;cursor:help" title="Has score but 0 points — possible DQ?">DQ?</span>':'')
+              +'</td>';
+          }())
 
           +'<td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>'
 
@@ -6289,9 +6368,13 @@ function pgResults(){
 
           +'<td style="text-align:right;padding-right:.3rem;white-space:nowrap">'
           +(r._matchType==='none'?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Create entry from this row" style="background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);border-radius:4px;color:var(--green);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">+</button>':'')
-          +'<button onclick="resMarkOP('+r._idx+')" title="'+(r.isOP?'Remove Off-Pattern mark':'Mark as Off-Pattern')+'" style="'
-          +(r.isOP?'background:rgba(224,124,0,.25);border:1px solid #e07c00;color:#e07c00;':'background:transparent;border:1px solid rgba(224,124,0,.35);color:rgba(224,124,0,.7);')
-          +'border-radius:4px;cursor:pointer;font-size:.68rem;font-weight:700;padding:1px 4px;line-height:1;margin-right:.2rem">OP</button>'
+          +(function(){
+            var oc=r.opCount||0;
+            var lbl=oc>0?(oc>1?'OP'+oc:'OP'):'OP';
+            var title=oc===0?'Mark as Off-Pattern (click to cycle OP→OP2→OP3→clear)':'OP×'+oc+' — click to advance, cycles back to clear';
+            var sty=oc>0?'background:rgba(224,124,0,.25);border:1px solid #e07c00;color:#e07c00;':'background:transparent;border:1px solid rgba(224,124,0,.35);color:rgba(224,124,0,.55);';
+            return '<button onclick="resMarkOP('+r._idx+')" title="'+title+'" style="'+sty+'border-radius:4px;cursor:pointer;font-size:.68rem;font-weight:700;padding:1px 4px;line-height:1;margin-right:.2rem">'+lbl+'</button>';
+          }())
           +'<button onclick="resMarkDQ('+r._idx+')" title="'+(r.isDQ?'Remove DQ mark':'Mark as Disqualified')+'" style="'
           +(r.isDQ?'background:rgba(231,76,60,.2);border:1px solid var(--red);color:var(--red);':'background:transparent;border:1px solid rgba(231,76,60,.3);color:rgba(231,76,60,.6);')
           +'border-radius:4px;cursor:pointer;font-size:.68rem;font-weight:700;padding:1px 4px;line-height:1;margin-right:.2rem">DQ</button>'
@@ -6333,9 +6416,14 @@ function pgResults(){
           }())
           +'</div>'
           +'<div style="display:flex;align-items:center;gap:.9rem;margin-top:.25rem;flex-wrap:wrap">'
-          +'<label style="display:flex;align-items:center;gap:.3rem;font-size:.82rem;color:var(--muted);cursor:pointer">'
-          +'<input type="checkbox" id="re-op"'+(er.isOP?' checked':'')+' style="cursor:pointer"> Off-Pattern (OP)</label>'
-          +'<label style="display:flex;align-items:center;gap:.3rem;font-size:.82rem;color:var(--muted);cursor:pointer">'
+          +'<div class="fg" style="margin:0"><label style="font-size:.72rem;color:var(--muted)">Off-Pattern</label>'
+          +'<select id="re-op" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:#e07c00;padding:.32rem .5rem;font-size:.82rem;font-family:inherit">'
+          +'<option value="0"'+((!er.opCount||er.opCount===0)?' selected':'')+'>—</option>'
+          +'<option value="1"'+((er.opCount===1)?' selected':'')+'>OP (×1)</option>'
+          +'<option value="2"'+((er.opCount===2)?' selected':'')+'>OP2 (×2)</option>'
+          +'<option value="3"'+((er.opCount===3)?' selected':'')+'>OP3 (×3)</option>'
+          +'</select></div>'
+          +'<label style="display:flex;align-items:center;gap:.3rem;font-size:.82rem;color:var(--muted);cursor:pointer;margin-top:.9rem">'
           +'<input type="checkbox" id="re-dq"'+(er.isDQ?' checked':'')+' style="cursor:pointer"> Disqualified (DQ)</label>'
           +'</div>'
           +'<div style="display:flex;gap:.5rem;margin-top:.75rem">'
