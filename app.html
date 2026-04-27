@@ -6171,6 +6171,23 @@ function pgResults(){
 
       var clsRows=divRows.filter(function(r){ return r.discipline===_resSelClass; });
 
+      // ── All Around extra columns: show each rider's individual discipline placings ──
+      var isAAClass=_resSelClass==='All Around'||_resSelClass==='VRH All Around';
+      var aaExtraDiscs=[];  // ordered list of disciplines to show as extra columns
+      var aaDiscPlaceMap={}; // rider → {disc: place}
+      if(isAAClass){
+        var aaOrgDiscs=(ORG_CLASSES[_resSelOrg]||{}).disciplines||[];
+        aaExtraDiscs=aaOrgDiscs.filter(function(d){ return d!=='All Around'&&d!=='VRH All Around'; });
+        // Build lookup from all divRows (the non-AA rows)
+        divRows.forEach(function(r){
+          if(!r.rider||!r.discipline||r.discipline===_resSelClass) return;
+          if(aaExtraDiscs.indexOf(r.discipline)<0) return;
+          if(!aaDiscPlaceMap[r.rider]) aaDiscPlaceMap[r.rider]={};
+          if(r.place&&(!aaDiscPlaceMap[r.rider][r.discipline]||r.place<aaDiscPlaceMap[r.rider][r.discipline]))
+            aaDiscPlaceMap[r.rider][r.discipline]=r.place;
+        });
+      }
+
 
 
       function sTh(c,lbl,align){
@@ -6407,6 +6424,8 @@ function pgResults(){
 
         +sTh('money','Money','right')
 
+        +(isAAClass?aaExtraDiscs.map(function(d){ return '<th style="text-align:center;font-size:.75rem;color:var(--muted);border-left:1px solid var(--border)">'+esc(d)+'</th>'; }).join(''):'')
+
         +'<th></th>'
 
         +'</tr></thead><tbody>';
@@ -6500,6 +6519,17 @@ function pgResults(){
           +(r.isDQ?'background:rgba(231,76,60,.2);border:1px solid var(--red);color:var(--red);':'background:transparent;border:1px solid rgba(231,76,60,.3);color:rgba(231,76,60,.6);')
           +'border-radius:4px;cursor:pointer;font-size:.68rem;font-weight:700;padding:1px 4px;line-height:1;margin-right:.2rem">DQ</button>'
           +'<button onclick="resEdit('+r._idx+')" title="Edit row" style="background:none;border:1px solid var(--border2);border-radius:4px;color:var(--muted);cursor:pointer;font-size:.75rem;padding:1px 5px;line-height:1">&#9998;</button></td>'
+
+          +(isAAClass?(function(){
+            var riderPlaces=aaDiscPlaceMap[r.rider]||{};
+            return aaExtraDiscs.map(function(d){
+              var pl=riderPlaces[d]||0;
+              if(!pl) return '<td style="text-align:center;color:var(--muted);border-left:1px solid var(--border);font-size:.8rem">&mdash;</td>';
+              var suf=pl===1?'st':pl===2?'nd':pl===3?'rd':'th';
+              var col=pl===1?'var(--accent)':pl===2?'#aaa':pl===3?'#cd7f32':'var(--text)';
+              return '<td style="text-align:center;border-left:1px solid var(--border);font-weight:600;color:'+col+';font-size:.85rem">'+pl+'<span style="font-size:.65rem;font-weight:400">'+suf+'</span></td>';
+            }).join('');
+          })():'')
 
           +'</tr>';
 
