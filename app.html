@@ -740,17 +740,21 @@ function parseCognito(wb){
 
     var stallNote = r[53] ? String(r[53]) : '';
 
-
+    var _nameParts = String(r[4]||'').trim().split(/\s+/);
+    var _addr = parseUSAddress(String(r[5]||''));
 
     return {
 
       rowIndex:idx, entryNum:r[0], submitted:r[2],
 
-      name:String(r[4]||'').trim(),
-      firstName:String(r[4]||'').trim().split(/\s+/)[0]||'',
-      lastName:String(r[4]||'').trim().split(/\s+/).slice(1).join(' ')||'',
+      name:_nameParts.join(' '),
+      firstName:_nameParts[0]||'',
+      lastName:_nameParts.slice(1).join(' ')||'',
 
-      address:String(r[5]||'').trim(),
+      address:_addr.street,
+      city:_addr.city,
+      state:_addr.state,
+      zip:_addr.zip,
 
       phone:String(r[6]||'').trim(),
 
@@ -1580,7 +1584,12 @@ function parseClassDivStr(raw){
 
     var cownDiscs=ORG_CLASSES.CoWN.disciplines; // ['Cow Work','Reining','Trail','Pleasure']
 
-
+    // Normalize against CoWN BEFORE org inference so "Ranch Pleasure" → "Pleasure"
+    // prevents the class from being misassigned to another org
+    if(disc && cownDiscs.indexOf(disc)<0){
+      var _discCoWN=normalizeDiscName(disc,'CoWN');
+      if(cownDiscs.indexOf(_discCoWN)>=0) disc=_discCoWN;
+    }
 
     // Signal 1: discipline not in CoWN → find the right org
 
@@ -2331,6 +2340,38 @@ function isFullyPaid(entry){ return tabBalance(entry) <= 0; }
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function fmt$(n){ return '$'+Number(n||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+
+// Split a single-column address string (comma-separated) into parts.
+// Handles: "123 Main St, Denver, CO 80201" or "123 Main St, Denver, CO" or newline-separated.
+function parseUSAddress(raw){
+  if(!raw) return {street:'',city:'',state:'',zip:''};
+  var s=String(raw).replace(/\r?\n/g,',').replace(/\xa0/g,' ');
+  var parts=s.split(',').map(function(p){ return p.trim(); }).filter(Boolean);
+  if(!parts.length) return {street:'',city:'',state:'',zip:''};
+  if(parts.length===1) return {street:parts[0],city:'',state:'',zip:''};
+
+  var state='', zip='';
+
+  // Last part: "CO 80201" or "CO" or "80201"
+  var last=parts[parts.length-1];
+  var szM=last.match(/^([A-Za-z]{2})\s*(\d{5}(?:-\d{4})?)?$/);
+  if(szM){ state=szM[1].toUpperCase(); zip=szM[2]||''; parts=parts.slice(0,-1); }
+  else {
+    // Maybe state and zip are separate parts
+    var zipOnly=last.match(/^(\d{5}(?:-\d{4})?)$/);
+    if(zipOnly){ zip=zipOnly[1]; parts=parts.slice(0,-1);
+      var newLast=parts[parts.length-1];
+      if(newLast&&/^[A-Za-z]{2}$/.test(newLast)){ state=newLast.toUpperCase(); parts=parts.slice(0,-1); }
+    }
+  }
+
+  // Whatever is left: last part = city, rest = street
+  var city = parts.length>1 ? parts[parts.length-1] : (parts[0]&&!state ? parts[0] : '');
+  var street = parts.length>1 ? parts.slice(0,-1).join(', ') : (state||zip ? parts[0]||'' : '');
+  if(!street && parts.length===1 && (state||city)) street=parts[0];
+
+  return {street:street, city:city, state:state, zip:zip};
+}
 
 function fmtI(n){ return '$'+Math.round(n||0); }
 
@@ -10234,7 +10275,14 @@ function showEntryModal(rowIdx){
       +'</div></div>';
     detailsHTML+='<div class="fg"><label>Email</label><input id="ei-email" type="email" value="'+esc(entry.email||'')+'" style="'+inp+'"></div>';
     detailsHTML+='<div class="fg"><label>Phone</label><input id="ei-phone" type="tel" value="'+esc(entry.phone||'')+'" style="'+inp+'"></div>';
-    detailsHTML+='<div class="fg" style="grid-column:1/-1"><label>Address</label><input id="ei-address" value="'+esc(entry.address||'')+'" placeholder="Street, City, State ZIP" style="'+inp+'"></div>';
+    // Derive address parts — handle legacy entries that have everything in one field
+    var _ap=(entry.city||entry.state||entry.zip)?{street:entry.address||'',city:entry.city||'',state:entry.state||'',zip:entry.zip||''}:parseUSAddress(entry.address||'');
+    detailsHTML+='<div class="fg" style="grid-column:1/-1"><label>Street Address</label><input id="ei-street" value="'+esc(_ap.street)+'" style="'+inp+'"></div>';
+    detailsHTML+='<div style="grid-column:1/-1;display:grid;grid-template-columns:2fr 80px 110px;gap:.5rem">'
+      +'<div class="fg"><label>City</label><input id="ei-city" value="'+esc(_ap.city)+'" style="'+inp+'"></div>'
+      +'<div class="fg"><label>State</label><input id="ei-state" maxlength="2" value="'+esc(_ap.state)+'" placeholder="CO" style="'+inp+';text-transform:uppercase"></div>'
+      +'<div class="fg"><label>ZIP</label><input id="ei-zip" value="'+esc(_ap.zip)+'" placeholder="80521" style="'+inp+'"></div>'
+      +'</div>';
 
     // Horse section
     detailsHTML+='<div style="grid-column:1/-1;font-size:.72rem;color:var(--accent);font-family:Oswald;letter-spacing:.08em;text-transform:uppercase;margin-top:.5rem">Horse</div>';
@@ -11216,7 +11264,10 @@ function saveEntryInfo(rowIdx){
   e.memberNum  = (document.getElementById('ei-membernum').value||'').trim();
   e.email      = (document.getElementById('ei-email').value||'').trim();
   e.phone      = (document.getElementById('ei-phone').value||'').trim();
-  e.address    = (document.getElementById('ei-address').value||'').trim();
+  e.address    = (document.getElementById('ei-street').value||'').trim();
+  e.city       = (document.getElementById('ei-city').value||'').trim();
+  e.state      = (document.getElementById('ei-state').value||'').trim().toUpperCase().slice(0,2);
+  e.zip        = (document.getElementById('ei-zip').value||'').trim();
   e.horse      = (document.getElementById('ei-horse').value||'').trim()||e.horse;
   e.horseGender= document.getElementById('ei-horsegender').value;
   e.division   = (document.getElementById('ei-division').value||'').trim();
