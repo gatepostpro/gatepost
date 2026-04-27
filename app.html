@@ -5936,7 +5936,10 @@ function pgResults(){
 
           if(!r.rider) return;
 
-          if(!aaMap[r.rider]) aaMap[r.rider]={rider:r.rider,horse:r.horse,total:0,byDisc:{},scoreByDisc:{},placeByDisc:{}};
+          if(!aaMap[r.rider]) aaMap[r.rider]={rider:r.rider,horse:r.horse,total:0,byDisc:{},competesByDisc:{},scoreByDisc:{},placeByDisc:{}};
+
+          // Always mark as competed regardless of pts (OP/DQ riders count toward eligibility)
+          aaMap[r.rider].competesByDisc[r.discipline]=true;
 
           aaMap[r.rider].total+=(r.pts||0);
 
@@ -5958,7 +5961,8 @@ function pgResults(){
 
       allRiders.forEach(function(r){
 
-        var shown=Object.keys(r.byDisc);
+        // Use competesByDisc — OP and DQ riders count as having competed even when pts=0
+        var shown=Object.keys(r.competesByDisc);
 
         var meetsMin=shown.length>=aaMinCls;
 
@@ -6087,11 +6091,15 @@ function pgResults(){
         html+='<tr><td style="font-weight:600;color:'+plColor+'">'+rankLabel+'</td>'
           +'<td>'+esc(r.rider)+'</td><td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>';
         scoringDiscs.forEach(function(c){
+          var competed=!!r.competesByDisc[c];
           var pts=r.byDisc[c]||0;
           var pl=(r.placeByDisc||{})[c]||0;
           var plSuffix=pl===1?'st':pl===2?'nd':pl===3?'rd':'th';
-          if(!pts){
+          if(!competed){
             html+='<td style="text-align:right;color:var(--muted)">&mdash;</td>';
+          } else if(pts===0){
+            // Competed but DQ or 0 pts
+            html+='<td style="text-align:right;color:var(--muted);font-size:.78rem">DQ</td>';
           } else {
             html+='<td style="text-align:right;vertical-align:middle">'
               +(pl?'<span style="font-size:.68rem;color:var(--muted);margin-right:.2rem">'+pl+plSuffix+'</span>':'')
@@ -6141,17 +6149,22 @@ function pgResults(){
             +'</tr></thead><tbody>';
 
           ineligible.forEach(function(r){
-            var shown=Object.keys(r.byDisc);
-            var missing=scoringDiscs.filter(function(d){ return !r.byDisc[d]; });
+            // Missing = disciplines they didn't compete in at all (not even DQ)
+            var missing=scoringDiscs.filter(function(d){ return !r.competesByDisc[d]; });
             html+='<tr style="background:rgba(231,76,60,.04)">'
               +'<td>'+esc(r.rider)+'</td>'
               +'<td style="font-size:.8rem;color:var(--muted)">'+esc(r.horse)+'</td>';
             scoringDiscs.forEach(function(d){
+              var competed=!!r.competesByDisc[d];
               var pts=r.byDisc[d]||0;
-              if(pts){
-                html+='<td style="text-align:center;color:var(--accent);font-weight:600">'+pts.toFixed(1)+'</td>';
-              } else {
+              if(!competed){
+                // No result row at all — truly missing
                 html+='<td style="text-align:center;color:var(--red)" title="No result found">&#9888;</td>';
+              } else if(pts===0){
+                // Competed but DQ or 0 pts
+                html+='<td style="text-align:center;color:var(--muted);font-size:.75rem" title="Competed — DQ or 0 pts">DQ</td>';
+              } else {
+                html+='<td style="text-align:center;color:var(--accent);font-weight:600">'+pts.toFixed(1)+'</td>';
               }
             });
             html+='<td style="text-align:right;color:var(--muted)">'+r.total.toFixed(1)+'</td>'
