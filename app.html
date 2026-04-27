@@ -5246,7 +5246,11 @@ window.resSaveEdit=function(){
   r.division=(document.getElementById('re-div').value||'').trim();
   r.discipline=(document.getElementById('re-disc').value||'').trim();
   r.isDQ=document.getElementById('re-dq').checked;
+  r.isOP=document.getElementById('re-op').checked;
+  if(r.isOP) r.isDQ=false;
+  if(r.isDQ) r.isOP=false;
   r._manual=true;
+  recomputeClassPts(r.org,r.division,r.discipline);
   _resEditIdx=-1;
   saveResultsToStorage();
   toast('Result updated');
@@ -5260,6 +5264,78 @@ window.resDeleteRow=function(idx){
   _resEditIdx=-1;
   saveResultsToStorage();
   toast('Row deleted');
+  pgResults();
+};
+
+function recomputeClassPts(org, division, discipline){
+  var clsRows=G.results.filter(function(r){ return r.org===org&&r.division===division&&r.discipline===discipline; });
+  var total=clsRows.length;
+  var dqRows=clsRows.filter(function(r){ return r.isDQ; });
+  var opRows=clsRows.filter(function(r){ return r.isOP&&!r.isDQ; });
+  var normalRows=clsRows.filter(function(r){ return !r.isOP&&!r.isDQ; });
+
+  // Place normal rows by score (desc), ties share place
+  normalRows.sort(function(a,b){ return (b.score||0)-(a.score||0); });
+  var pl=1;
+  for(var i=0;i<normalRows.length;){
+    var j=i;
+    while(j<normalRows.length-1&&normalRows[j+1].score===normalRows[j].score) j++;
+    for(var k=i;k<=j;k++) normalRows[k].place=pl;
+    pl+=j-i+1; i=j+1;
+  }
+
+  // OPs: placed after normal rows in score order
+  opRows.sort(function(a,b){ return (b.score||0)-(a.score||0); });
+  var opStart=normalRows.length+1;
+  opRows.forEach(function(r,i){ r.place=opStart+i; });
+
+  // DQs: no place, no points
+  dqRows.forEach(function(r){ r.place=0; r.pts=0; });
+
+  // Points: CoWN entries-based (totalEntries includes OPs and DQs in the count)
+  var orgPtsSys=(ORG_CLASSES[org]||{}).pointsSystem||'entries';
+  var byPlace={};
+  normalRows.concat(opRows).forEach(function(r){
+    if(!byPlace[r.place]) byPlace[r.place]=[];
+    byPlace[r.place].push(r);
+  });
+  if(orgPtsSys==='entries'){
+    Object.keys(byPlace).forEach(function(p){
+      var rows=byPlace[p]; p=parseInt(p);
+      var sum=0;
+      for(var k=0;k<rows.length;k++) sum+=Math.max(0,total-(p+k)+1);
+      var avg=sum/rows.length;
+      rows.forEach(function(r){ r.pts=avg; });
+    });
+  } else if(orgPtsSys==='aqha'){
+    var tier=Math.floor(total/5);
+    Object.keys(byPlace).forEach(function(p){
+      var rows=byPlace[p]; p=parseInt(p);
+      var pts=tier<1?0:(p<=tier?(tier-p+1):(p===tier+1?0.5:0));
+      rows.forEach(function(r){ r.pts=pts; });
+    });
+  }
+}
+
+window.resMarkOP=function(idx){
+  var r=G.results[idx];
+  if(!r) return;
+  r.isOP=!r.isOP;
+  if(r.isOP) r.isDQ=false;
+  r._manual=true;
+  recomputeClassPts(r.org,r.division,r.discipline);
+  saveResultsToStorage();
+  pgResults();
+};
+
+window.resMarkDQ=function(idx){
+  var r=G.results[idx];
+  if(!r) return;
+  r.isDQ=!r.isDQ;
+  if(r.isDQ) r.isOP=false;
+  r._manual=true;
+  recomputeClassPts(r.org,r.division,r.discipline);
+  saveResultsToStorage();
   pgResults();
 };
 
@@ -6212,7 +6288,13 @@ function pgResults(){
           +'<td style="text-align:right;color:var(--green)">'+(r.money?'$'+r.money.toFixed(0):'&mdash;')+'</td>'
 
           +'<td style="text-align:right;padding-right:.3rem;white-space:nowrap">'
-          +(r._matchType==='none'?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Create entry from this row" style="background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);border-radius:4px;color:var(--green);cursor:pointer;font-size:.75rem;padding:1px 5px;line-height:1;margin-right:.25rem">+</button>':'')
+          +(r._matchType==='none'?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Create entry from this row" style="background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);border-radius:4px;color:var(--green);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">+</button>':'')
+          +'<button onclick="resMarkOP('+r._idx+')" title="'+(r.isOP?'Remove Off-Pattern mark':'Mark as Off-Pattern')+'" style="'
+          +(r.isOP?'background:rgba(224,124,0,.25);border:1px solid #e07c00;color:#e07c00;':'background:transparent;border:1px solid rgba(224,124,0,.35);color:rgba(224,124,0,.7);')
+          +'border-radius:4px;cursor:pointer;font-size:.68rem;font-weight:700;padding:1px 4px;line-height:1;margin-right:.2rem">OP</button>'
+          +'<button onclick="resMarkDQ('+r._idx+')" title="'+(r.isDQ?'Remove DQ mark':'Mark as Disqualified')+'" style="'
+          +(r.isDQ?'background:rgba(231,76,60,.2);border:1px solid var(--red);color:var(--red);':'background:transparent;border:1px solid rgba(231,76,60,.3);color:rgba(231,76,60,.6);')
+          +'border-radius:4px;cursor:pointer;font-size:.68rem;font-weight:700;padding:1px 4px;line-height:1;margin-right:.2rem">DQ</button>'
           +'<button onclick="resEdit('+r._idx+')" title="Edit row" style="background:none;border:1px solid var(--border2);border-radius:4px;color:var(--muted);cursor:pointer;font-size:.75rem;padding:1px 5px;line-height:1">&#9998;</button></td>'
 
           +'</tr>';
@@ -6250,9 +6332,11 @@ function pgResults(){
               +'<div class="fg"><label>Discipline</label><select id="re-disc" style="'+sel+'">'+opts(discs,er.discipline||'')+'</select></div>';
           }())
           +'</div>'
-          +'<div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem">'
+          +'<div style="display:flex;align-items:center;gap:.9rem;margin-top:.25rem;flex-wrap:wrap">'
           +'<label style="display:flex;align-items:center;gap:.3rem;font-size:.82rem;color:var(--muted);cursor:pointer">'
-          +'<input type="checkbox" id="re-dq"'+(er.isDQ?' checked':'')+' style="cursor:pointer"> Mark as DQ</label>'
+          +'<input type="checkbox" id="re-op"'+(er.isOP?' checked':'')+' style="cursor:pointer"> Off-Pattern (OP)</label>'
+          +'<label style="display:flex;align-items:center;gap:.3rem;font-size:.82rem;color:var(--muted);cursor:pointer">'
+          +'<input type="checkbox" id="re-dq"'+(er.isDQ?' checked':'')+' style="cursor:pointer"> Disqualified (DQ)</label>'
           +'</div>'
           +'<div style="display:flex;gap:.5rem;margin-top:.75rem">'
           +'<button class="btn btn-accent btn-sm" onclick="resSaveEdit()">Save</button>'
