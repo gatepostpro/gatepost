@@ -695,11 +695,12 @@ function parseCognito(wb){
 
         var m = cls.match(/^(\d+)[\s\-–]+(.+)$/);
 
+        var rawName = m ? m[2].trim() : cls;
         classes.push({
 
           num: m ? m[1].trim() : '',
 
-          name: m ? m[2].trim() : cls,
+          name: normalizeDiscName(rawName, cc.org) || rawName,
 
           division: cc.div,
 
@@ -746,6 +747,8 @@ function parseCognito(wb){
       rowIndex:idx, entryNum:r[0], submitted:r[2],
 
       name:String(r[4]||'').trim(),
+      firstName:String(r[4]||'').trim().split(/\s+/)[0]||'',
+      lastName:String(r[4]||'').trim().split(/\s+/).slice(1).join(' ')||'',
 
       address:String(r[5]||'').trim(),
 
@@ -1323,6 +1326,46 @@ var SHTX_DIV = {
 
 
 
+// Map a raw discipline string to the canonical name for a given org.
+// Handles SHTX quirks like "Ranch Pleasure" → "Pleasure" for CoWN.
+function normalizeDiscName(raw, org){
+  if(!raw) return raw;
+  var orgDiscs = (ORG_CLASSES[org] || {}).disciplines || [];
+  if(!orgDiscs.length) return raw;
+
+  // 1. Exact match
+  if(orgDiscs.indexOf(raw) >= 0) return raw;
+
+  // 2. Case-insensitive exact
+  var lower = raw.toLowerCase();
+  for(var i=0;i<orgDiscs.length;i++){
+    if(orgDiscs[i].toLowerCase()===lower) return orgDiscs[i];
+  }
+
+  // 3. Strip leading "Ranch " or "Working " from raw and retry
+  var stripped = raw.replace(/^ranch\s+/i,'').replace(/^working\s+/i,'').trim();
+  if(stripped !== raw){
+    for(var i=0;i<orgDiscs.length;i++){
+      var dLow=orgDiscs[i].toLowerCase();
+      var dStripped=dLow.replace(/^ranch\s+/,'').replace(/^working\s+/,'');
+      if(dLow===stripped.toLowerCase()||dStripped===stripped.toLowerCase()) return orgDiscs[i];
+    }
+  }
+
+  // 4. Best word-overlap (must share ≥50% of words)
+  var rawWords=lower.split(/\s+/);
+  var best=0, bestDisc='';
+  for(var i=0;i<orgDiscs.length;i++){
+    var dWords=orgDiscs[i].toLowerCase().split(/\s+/);
+    var overlap=rawWords.filter(function(w){ return dWords.indexOf(w)>=0; }).length;
+    var score=overlap/Math.max(rawWords.length,dWords.length);
+    if(score>best){ best=score; bestDisc=orgDiscs[i]; }
+  }
+  if(best>=0.5) return bestDisc;
+
+  return raw; // no match — keep original
+}
+
 // Parse Funnware ClassDivision compound string → {org, division, discipline}
 
 // Handles three distinct export formats:
@@ -1638,7 +1681,9 @@ function parseClassDivStr(raw){
 
   // Don't use rest as discipline if it's just a division name (e.g. "Amateur" after stripping "Versatility Ranch Horse")
   var discFinal = disc || (SHTX_DIV.hasOwnProperty(rest.toLowerCase()) ? '' : rest);
-  return {org:org, division:div, discipline:discFinal};
+  // Remap to the org's canonical discipline name (e.g. "Ranch Pleasure" → "Pleasure" for CoWN)
+  var discNorm = normalizeDiscName(discFinal, org);
+  return {org:org, division:div, discipline:discNorm};
 
 }
 
@@ -5155,8 +5200,11 @@ window.resCreateEntry=function(riderName, horseName){
   });
   var classes=classKeys.map(function(k){ return classSet[k]; });
   var newIdx=G.entries.length;
+  var _rParts=(riderName||'').trim().split(/\s+/);
   var entry={
     name: riderName,
+    firstName: _rParts[0]||'',
+    lastName: _rParts.slice(1).join(' ')||'',
     horse: ref.horse||horseName||'',
     memberNum:'',
     email:'',
@@ -10176,7 +10224,10 @@ function showEntryModal(rowIdx){
 
     // Rider section
     detailsHTML+='<div style="grid-column:1/-1;font-size:.72rem;color:var(--accent);font-family:Oswald;letter-spacing:.08em;text-transform:uppercase;margin-top:.25rem">Rider</div>';
-    detailsHTML+='<div class="fg"><label>Name</label><input id="ei-name" value="'+esc(entry.name||'')+'" style="'+inp+'"></div>';
+    var _fn=entry.firstName||(entry.name||'').split(/\s+/)[0]||'';
+    var _ln=entry.lastName||(entry.name||'').split(/\s+/).slice(1).join(' ')||'';
+    detailsHTML+='<div class="fg"><label>First Name</label><input id="ei-firstname" value="'+esc(_fn)+'" style="'+inp+'"></div>';
+    detailsHTML+='<div class="fg"><label>Last Name</label><input id="ei-lastname" value="'+esc(_ln)+'" style="'+inp+'"></div>';
     detailsHTML+='<div class="fg"><label>Member #</label>'
       +'<div style="display:flex;gap:.35rem"><input id="ei-membernum" value="'+esc(entry.memberNum||'')+'" placeholder="CoWN #" style="'+inp+'">'
       +'<button onclick="entryLookupMember('+rowIdx+')" title="Look up in member database (coming soon)" style="background:var(--card2);border:1px solid var(--border2);border-radius:6px;color:var(--muted);cursor:pointer;padding:.38rem .55rem;font-size:.85rem;white-space:nowrap" disabled>🔍</button>'
@@ -11154,9 +11205,13 @@ function saveEntryInfo(rowIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
 
-  var newName=(document.getElementById('ei-name').value||'').trim();
+  var newFirst=(document.getElementById('ei-firstname').value||'').trim();
+  var newLast =(document.getElementById('ei-lastname').value||'').trim();
+  var newName =(newFirst+' '+newLast).trim();
   var oldName=e.name;
 
+  if(newFirst) e.firstName=newFirst;
+  if(newLast)  e.lastName=newLast;
   e.name       = newName||e.name;
   e.memberNum  = (document.getElementById('ei-membernum').value||'').trim();
   e.email      = (document.getElementById('ei-email').value||'').trim();
@@ -11841,7 +11896,7 @@ function showAddEntryModal(){
 
     +'<datalist id="rider-first-list">'
 
-    +Array.from(new Set(G.entries.map(function(e){ return e.name.split(' ')[0]; }))).sort().map(function(n){ return '<option value="'+esc(n)+'">'; }).join('')
+    +Array.from(new Set(G.entries.map(function(e){ return e.firstName||(e.name||'').split(/\s+/)[0]||''; }).filter(Boolean))).sort().map(function(n){ return '<option value="'+esc(n)+'">'; }).join('')
 
     +'</datalist>'
 
@@ -11851,7 +11906,7 @@ function showAddEntryModal(){
 
     +'<datalist id="rider-last-list">'
 
-    +Array.from(new Set(G.entries.map(function(e){ return e.name.split(' ').slice(1).join(' '); }).filter(Boolean))).sort().map(function(n){ return '<option value="'+esc(n)+'">'; }).join('')
+    +Array.from(new Set(G.entries.map(function(e){ return e.lastName||(e.name||'').split(/\s+/).slice(1).join(' ')||''; }).filter(Boolean))).sort().map(function(n){ return '<option value="'+esc(n)+'">'; }).join('')
 
     +'</datalist>'
 
@@ -12025,7 +12080,7 @@ function saveManualEntry(){
 
     rowIndex:rowIndex, dbId:null,
 
-    name:first+' '+last, horse:horse,
+    name:first+' '+last, firstName:first, lastName:last, horse:horse,
 
     horseGender:gender, email:email, phone:phone,
 
