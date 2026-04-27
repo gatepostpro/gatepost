@@ -10433,6 +10433,8 @@ function showEntryModal(rowIdx){
     detailsHTML+='</div>';
     detailsHTML+='<div style="display:flex;gap:.5rem;margin-top:.85rem">'
       +'<button class="btn btn-accent btn-sm" onclick="saveEntryInfo('+rowIdx+')">Save Changes</button>'
+      +'<button class="btn btn-sm" style="margin-left:auto;background:rgba(231,76,60,.12);color:var(--red);border:1px solid rgba(231,76,60,.3)" '
+      +'onclick="deleteEntry('+rowIdx+')">&#128465; Delete Entry</button>'
       +'</div>';
 
     // Build full modal
@@ -12685,58 +12687,59 @@ async function syncEntriesToSupabase(){
 
 
 
+window.deleteEntry = async function(rowIdx){
+  var e = G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e){ e = G.entries[rowIdx]; }
+  if(!e){ toast('Entry not found', true); return; }
+  var label = (e.name||'Unknown') + (e.horse?' / '+e.horse:'');
+  if(!confirm('Delete entry for "'+label+'"?\n\nThis removes them from local cache and the database.')) return;
+  closeModal();
+  try{
+    if(e.dbId){
+      await sbDelete('entry_classes?entry_id=eq.'+e.dbId);
+      await sbDelete('entries?id=eq.'+e.dbId);
+    }
+    G.entries = G.entries.filter(function(x){ return x.rowIndex!==rowIdx; });
+    delete G.payments[rowIdx];
+    saveEntriesToCache();
+    toast('Entry deleted: '+label);
+    showPage('entries');
+  } catch(err){
+    alert('Delete failed: '+err.message);
+    console.error(err);
+  }
+};
+
 window.clearAllEntries = async function(){
 
   if(!confirm('Delete ALL entries for this show from local cache AND the database? This cannot be undone.')) return;
 
   // Clear localStorage
-
   localStorage.removeItem('gp_entries_'+G.showId);
-
   localStorage.removeItem('gp_payments_'+G.showId);
-
   localStorage.removeItem('gp_backnums_'+G.showId);
 
   // Clear in-memory state
-
   G.entries=[]; G.payments={}; G.backNums={};
 
   // Delete from Supabase: entry_classes first (FK constraint), then entries
-
   try{
-
-    // Get all entry IDs for this show
-
     var existing = await sbFetch('entries?show_id=eq.'+G.showId+'&select=id');
-
     if(existing && existing.length){
-
-      // Delete entry_classes for each entry
-
       for(var i=0;i<existing.length;i++){
-
-        await sbFetch('entry_classes?entry_id=eq.'+existing[i].id,{method:'DELETE'});
-
+        await sbDelete('entry_classes?entry_id=eq.'+existing[i].id);
       }
-
-      // Delete entries
-
-      await sbFetch('entries?show_id=eq.'+G.showId,{method:'DELETE'});
-
+      var delCount = await sbDelete('entries?show_id=eq.'+G.showId);
+      toast('Cleared '+(delCount||existing.length)+' entries from database.');
+    } else {
+      toast('No entries found in database — local cache cleared.');
     }
-
-    alert('All entries cleared. Re-import the correct Cognito export file.');
-
   } catch(err){
-
-    alert('Local cache cleared. Database delete failed: '+err.message+'\nYou may need to clear entries from Supabase manually.');
-
+    alert('Local cache cleared, but database delete failed: '+err.message+'\n\nCheck Supabase RLS policies — the anon key may not have DELETE permission on the entries table.');
     console.error(err);
-
   }
 
   showPage('entries');
-
 };
 
 
@@ -12750,6 +12753,24 @@ var SUPABASE_URL  = 'https://tpurkcxtkvwpywxnuzwe.supabase.co';
 var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwdXJrY3h0a3Z3cHl3eG51endlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MDUwMzYsImV4cCI6MjA5MjI4MTAzNn0.j1fPBjBsbIoXXosM96YtywdGiVVLWnd-YrXZ1634alU';
 
 
+
+// DELETE helper — uses return=minimal + count header so RLS failures surface as errors
+async function sbDelete(path){
+  var res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    method: 'DELETE',
+    headers: {
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + SUPABASE_ANON,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal,count=exact'
+    }
+  });
+  if(!res.ok){ var e=await res.text(); throw new Error(e); }
+  var ct = res.headers.get('content-range');
+  // content-range for DELETE looks like "*/3" — extract count
+  if(ct){ var m=ct.match(/\*\/(\d+)/); if(m) return parseInt(m[1]); }
+  return null;
+}
 
 async function sbFetch(path, opts){
 
