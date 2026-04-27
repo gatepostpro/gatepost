@@ -5987,24 +5987,26 @@ function pgResults(){
         }
       });
 
-      // Flag points mismatches (real errors)
+      // Points verification: AQHA only — SHTX exports 0 pts for AQHA (they're tracked centrally).
+      // For CoWN/SHTX classes the exported pts are authoritative; don't second-guess them.
       var placeErrDetails=[], ptsErrDetails=[];
-      clsRows.forEach(function(r){
-        if(r._manual||r.isDQ||r.isOP) return;
-        if(!r.place) return;
-        var key=r.rider+'|'+r.horse;
-        var cpts=calcPtsMap[key];
-        if(cpts===undefined) return;
-        var tol=orgPtsSys==='entries'?0.15:0.05;
-        if(Math.abs((cpts||0)-(r.pts||0))>tol) ptsErrDetails.push({rider:r.rider, horse:r.horse, place:r.place, score:r.score, fwPts:r.pts, calcPts:cpts});
-      });
+      if(isAqhaOrg){
+        clsRows.forEach(function(r){
+          if(r._manual||r.isDQ||r.isOP) return;
+          if(!r.place) return;
+          var key=r.rider+'|'+r.horse;
+          var cpts=calcPtsMap[key];
+          if(cpts===undefined) return;
+          if(Math.abs((cpts||0)-(r.pts||0))>0.05) ptsErrDetails.push({rider:r.rider, horse:r.horse, place:r.place, score:r.score, fwPts:r.pts, calcPts:cpts});
+        });
+      }
       var placeErrs=0, ptsErrs=ptsErrDetails.length;
 
-      var hasErrors=(!allManual&&entryMismatch)||placeErrs>0||ptsErrs>0;
+      var hasErrors=(!allManual&&entryMismatch)||ptsErrs>0;
 
-      // Always show calculated pts column for AQHA orgs (as a reference, not just on error)
+      // Calc Pts column only for AQHA — CoWN pts from SHTX are authoritative, no comparison needed
 
-      var showCalcCols=hasErrors||isAqhaOrg;
+      var showCalcCols=isAqhaOrg;
 
 
 
