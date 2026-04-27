@@ -5880,7 +5880,7 @@ function pgResults(){
 
     if(!_resSelClass&&classes.length) _resSelClass=classes[0];
 
-    if(_resSelClass&&!clsFound[_resSelClass]) _resSelClass=classes[0]||'';
+    if(_resSelClass&&_resSelClass!=='__aa__'&&!clsFound[_resSelClass]) _resSelClass=classes[0]||'';
 
 
 
@@ -6058,196 +6058,93 @@ function pgResults(){
 
 
 
-      // ── AA table ──
-
+      // ── AA standings table (eligible riders only) ──
       var hasMoney=prizes.some(function(p){ return p>0; });
+      var colCount=3+scoringDiscs.length+(hasMoney?2:1);
 
       html+='<div class="tbl-wrap"><table><thead><tr>'
-
         +'<th style="width:36px">Rank</th><th>Rider</th><th>Horse</th>';
-
       scoringDiscs.forEach(function(c){ html+='<th style="text-align:right;font-size:.8rem">'+esc(c)+'</th>'; });
-
       html+='<th style="text-align:right;background:rgba(212,160,74,.1);color:var(--accent)">Total</th>';
-
       if(hasMoney) html+='<th style="text-align:right;color:var(--green)">Prize</th>';
-
       html+='</tr></thead><tbody>';
 
-
-
-      // Eligible riders — ranked
+      if(!eligible.length){
+        html+='<tr><td colspan="'+colCount+'" style="color:var(--muted);font-size:.82rem;padding:.75rem .4rem;text-align:center">'
+          +'No riders qualify yet — need results in all '+(aaMinCls===scoringDiscs.length?scoringDiscs.length+' disciplines':''+aaMinCls+' of '+scoringDiscs.length+' disciplines')
+          +'</td></tr>';
+      }
 
       var rank=1;
-
       eligible.forEach(function(r,i){
-
         var isTie=i>0&&eligible[i-1].total===r.total&&tb.every(function(d){ return (eligible[i-1].scoreByDisc[d]||0)===(r.scoreByDisc[d]||0); });
-
         if(!isTie) rank=i+1;
-
         var plColor=rank===1?'var(--accent)':rank===2?'#aaa':rank===3?'#cd7f32':'var(--text)';
-
         var prize=prizes[rank-1]||0;
-
         var rankLabel=isTie?'T-'+rank:String(rank);
-
         html+='<tr><td style="font-weight:600;color:'+plColor+'">'+rankLabel+'</td>'
-
           +'<td>'+esc(r.rider)+'</td><td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>';
-
         scoringDiscs.forEach(function(c){
-
           var pts=r.byDisc[c]||0;
-
           html+='<td style="text-align:right">'+(pts?pts.toFixed(1):'&mdash;')+'</td>';
-
         });
-
         html+='<td style="text-align:right;font-weight:700;color:var(--accent);background:rgba(212,160,74,.06)">'+r.total.toFixed(1)+'</td>';
-
         if(hasMoney) html+='<td style="text-align:right;color:var(--green)">'+(prize?'$'+prize:'&mdash;')+'</td>';
-
         html+='</tr>';
-
       });
-
-
-
-      // Ineligible riders grayed out below
-
-      if(ineligible.length){
-
-        ineligible.sort(function(a,b){ return b.total-a.total; });
-
-        html+='<tr><td colspan="'+(3+scoringDiscs.length+(hasMoney?2:1))+'" style="font-size:.72rem;color:var(--muted);padding:.5rem .4rem;border-top:1px solid var(--border)">Not eligible for All Around:</td></tr>';
-
-        ineligible.forEach(function(r){
-
-          html+='<tr style="opacity:.45"><td style="color:var(--muted)">—</td>'
-
-            +'<td>'+esc(r.rider)+'</td><td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>';
-
-          scoringDiscs.forEach(function(c){
-
-            var pts=r.byDisc[c]||0;
-
-            html+='<td style="text-align:right">'+(pts?pts.toFixed(1):'&mdash;')+'</td>';
-
-          });
-
-          html+='<td style="text-align:right;color:var(--muted)">'+r.total.toFixed(1)+'</td>';
-
-          if(hasMoney) html+='<td></td>';
-
-          html+='</tr>';
-
-        });
-
-      }
 
       html+='</tbody></table></div>';
 
-      // ── Entry Cross-Check toggle ──
-      html+='<div style="margin-top:.85rem;border-top:1px solid var(--border);padding-top:.75rem">'
-        +'<button class="btn btn-sm '+ (_resAAXCheck?'btn-accent':'btn-dark')+'" onclick="resToggleAAXCheck()">'
-        +(_resAAXCheck?'&#9660;':'&#9658;')+' Entry Cross-Check</button>'
-        +'<span style="font-size:.74rem;color:var(--muted);margin-left:.6rem">Verify everyone entered in '+esc(_resSelOrg)+' '+esc(_resSelDiv)+' classes has results</span>'
-        +'</div>';
+      // ── Partial-results cross-check (toggle) ──
+      // Shows riders who have SOME disciplines but not enough to qualify —
+      // so secretary can spot if a result was accidentally missed.
+      if(ineligible.length){
+        ineligible.sort(function(a,b){ return b.total-a.total; });
+        html+='<div style="margin-top:.85rem;border-top:1px solid var(--border);padding-top:.6rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">'
+          +'<button class="btn btn-sm '+(_resAAXCheck?'btn-accent':'btn-dark')+'" onclick="resToggleAAXCheck()">'
+          +(_resAAXCheck?'&#9660;':'&#9658;')+' Check for missed results</button>'
+          +'<span style="font-size:.74rem;color:var(--muted)">'
+          +ineligible.length+' rider'+(ineligible.length===1?'':'s')+' have partial results — verify nothing was missed</span>'
+          +'</div>';
 
-      if(_resAAXCheck){
-        // Build cross-check: who is in entries for this org+div, what disciplines are they entered in,
-        // and do they have results? Flag missing results.
-
-        var aaDiscs=(ORG_CLASSES[_resSelOrg]||{}).disciplines||scoringDiscs;
-        // Only include disciplines that count toward AA (non-meta)
-        var aaScoreDiscs=aaDiscs.filter(function(d){ return d!=='All Around'&&d!=='VRH All Around'; });
-
-        // Find entries for this org+div. Match on division (or entry.division) + org.
-        // An entry is "in this org+div" if they have a class entry with matching org AND
-        // their division matches _resSelDiv (or the class division does).
-        var xEntries=G.entries.filter(function(e){
-          return e.classes&&e.classes.some(function(c){
-            var cOrg=c.org||'CoWN';
-            var cDiv=c.division||e.division||'';
-            var cDisc=normalizeDiscName(c.name,cOrg);
-            return cOrg===_resSelOrg && cDiv===_resSelDiv && aaScoreDiscs.indexOf(cDisc)>=0;
-          });
-        });
-
-        if(!xEntries.length){
-          html+='<div style="font-size:.82rem;color:var(--muted);padding:.5rem 0">No entries found for '+esc(_resSelOrg)+' '+esc(_resSelDiv)+'.<br>Import Cognito entries to use cross-check.</div>';
-        } else {
-          // For each entry, figure out which AA discs they're entered in and whether a result exists
-          var xRows=xEntries.map(function(e){
-            var enteredDiscs={};
-            e.classes.forEach(function(c){
-              var cOrg=c.org||'CoWN';
-              var cDiv=c.division||e.division||'';
-              var cDisc=normalizeDiscName(c.name,cOrg);
-              if(cOrg===_resSelOrg&&cDiv===_resSelDiv&&aaScoreDiscs.indexOf(cDisc)>=0)
-                enteredDiscs[cDisc]=true;
-            });
-            // Find result rows for this rider
-            var riderNorm=normForMatch(e.name||'');
-            var resultsByDisc={};
-            divRows.forEach(function(r){
-              if(aaScoreDiscs.indexOf(r.discipline)<0) return;
-              var rNorm=normForMatch(r.rider||'');
-              if(rNorm===riderNorm||firstLast(rNorm)===firstLast(riderNorm))
-                resultsByDisc[r.discipline]=(resultsByDisc[r.discipline]||0)+(r.pts||0);
-            });
-            var totalPts=Object.keys(resultsByDisc).reduce(function(s,d){ return s+(resultsByDisc[d]||0); },0);
-            var missingCount=Object.keys(enteredDiscs).filter(function(d){ return !resultsByDisc[d]; }).length;
-            return {name:e.name,horse:e.horse||'',enteredDiscs:enteredDiscs,resultsByDisc:resultsByDisc,totalPts:totalPts,missingCount:missingCount};
-          });
-
-          // Sort: missing results first, then by total pts desc
-          xRows.sort(function(a,b){
-            if(b.missingCount!==a.missingCount) return b.missingCount-a.missingCount;
-            return b.totalPts-a.totalPts;
-          });
-
-          var anyMissing=xRows.some(function(r){ return r.missingCount>0; });
-          var summaryColor=anyMissing?'var(--red)':'var(--green)';
-          var summaryMsg=anyMissing
-            ? xRows.filter(function(r){ return r.missingCount>0; }).length+' rider(s) have missing results'
-            : '&#10003; All entered riders have results';
-
-          html+='<div style="font-size:.78rem;color:'+summaryColor+';margin:.4rem 0 .6rem">'+summaryMsg+'</div>';
+        if(_resAAXCheck){
+          // Qualification rule description
+          var qualDesc='Must have results in ';
+          if(aaMinCls===scoringDiscs.length){
+            qualDesc+='all '+scoringDiscs.length+' disciplines';
+          } else {
+            qualDesc+=aaMinCls+' of '+scoringDiscs.length+' disciplines';
+          }
+          if(aaReqGroups.length){
+            qualDesc+=' including: '+aaReqGroups.map(function(g){ return g.join(' or '); }).join('; ');
+          }
+          html+='<div style="font-size:.74rem;color:var(--muted);margin:.35rem 0 .5rem">'+esc(qualDesc)+'</div>';
 
           html+='<div class="tbl-wrap"><table><thead><tr>'
             +'<th>Rider</th><th>Horse</th>';
-          aaScoreDiscs.forEach(function(d){ html+='<th style="text-align:right;font-size:.78rem">'+esc(d)+'</th>'; });
-          html+='<th style="text-align:right;color:var(--accent)">Total</th>'
-            +'<th style="text-align:center;font-size:.78rem">Status</th>'
+          scoringDiscs.forEach(function(d){
+            html+='<th style="text-align:center;font-size:.78rem">'+esc(d)+'</th>';
+          });
+          html+='<th style="text-align:right;font-size:.78rem">Partial Total</th>'
+            +'<th style="text-align:center;font-size:.78rem">Missing</th>'
             +'</tr></thead><tbody>';
 
-          xRows.forEach(function(r){
-            var rowStyle=r.missingCount>0?'background:rgba(231,76,60,.05)':'';
-            html+='<tr'+(rowStyle?' style="'+rowStyle+'"':'')+'>'
-              +'<td>'+esc(r.name)+'</td>'
+          ineligible.forEach(function(r){
+            var shown=Object.keys(r.byDisc);
+            var missing=scoringDiscs.filter(function(d){ return !r.byDisc[d]; });
+            html+='<tr style="background:rgba(231,76,60,.04)">'
+              +'<td>'+esc(r.rider)+'</td>'
               +'<td style="font-size:.8rem;color:var(--muted)">'+esc(r.horse)+'</td>';
-
-            aaScoreDiscs.forEach(function(d){
-              var isEntered=!!r.enteredDiscs[d];
-              var pts=r.resultsByDisc[d]||0;
-              if(!isEntered){
-                html+='<td style="text-align:right;color:var(--border2)">—</td>';
-              } else if(pts){
-                html+='<td style="text-align:right;color:var(--accent);font-weight:600">'+pts.toFixed(1)+'</td>';
+            scoringDiscs.forEach(function(d){
+              var pts=r.byDisc[d]||0;
+              if(pts){
+                html+='<td style="text-align:center;color:var(--accent);font-weight:600">'+pts.toFixed(1)+'</td>';
               } else {
-                html+='<td style="text-align:right;color:var(--red);font-weight:600" title="Entered but no result found">⚠</td>';
+                html+='<td style="text-align:center;color:var(--red)" title="No result found">&#9888;</td>';
               }
             });
-
-            var totalDisp=r.totalPts>0?r.totalPts.toFixed(1):'—';
-            html+='<td style="text-align:right;font-weight:700;color:var(--accent)">'+totalDisp+'</td>';
-
-            var statusCell=r.missingCount>0
-              ? '<span style="color:var(--red);font-size:.75rem">Missing '+r.missingCount+'</span>'
-              : '<span style="color:var(--green);font-size:.75rem">&#10003;</span>';
-            html+='<td style="text-align:center">'+statusCell+'</td>'
+            html+='<td style="text-align:right;color:var(--muted)">'+r.total.toFixed(1)+'</td>'
+              +'<td style="text-align:center;font-size:.78rem;color:var(--red)">'+esc(missing.join(', '))+'</td>'
               +'</tr>';
           });
 
