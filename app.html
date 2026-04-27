@@ -5202,6 +5202,8 @@ function pgResults(){
 
     +'padding:.28rem .6rem;font-size:.78rem;width:185px">'
 
+    +'<button class="btn btn-accent btn-sm" id="res-reimport-btn" title="Import or replace results file">&#8593; Import Results</button>'
+
     +'<button class="btn btn-dark btn-sm" id="res-load-sheets-btn" title="Select score sheet PDFs from the same folder">&#128196; Score Sheets</button>'
 
     +'<button class="btn btn-dark btn-sm" onclick="window.print()">&#128424;</button>'
@@ -5973,6 +5975,17 @@ function pgResults(){
   pg.innerHTML=html;
 
 
+
+  // Wire up reimport button
+  var reimportBtn=document.getElementById('res-reimport-btn');
+  if(reimportBtn){
+    var reimportInp=document.createElement('input');
+    reimportInp.type='file'; reimportInp.accept='.xlsx,.xls,.txt,.csv';
+    reimportInp.addEventListener('change',function(e){
+      var f=e.target.files[0]; if(f) handleResultsFile(f);
+    });
+    reimportBtn.addEventListener('click',function(){ reimportInp.click(); });
+  }
 
   // Wire up score sheet multi-file loader
 
