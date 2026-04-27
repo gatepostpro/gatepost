@@ -1861,6 +1861,75 @@ window.saveAaMoney=function(key){
 
 var _resSelOrg='', _resSelDiv='', _resSelClass='', _resSearch='', _resSortCol='place', _resSortDir=1, _resSelShow='';
 var _resEditIdx=-1;
+var _resShowMismatches=false;
+
+// ── Name normalisation for entry/result matching ──────────────────────────
+function normForMatch(s){
+  if(!s) return '';
+  s=s.trim();
+  // "LAST,FIRST" or "LAST, FIRST" → "FIRST LAST"
+  var cm=s.match(/^([^,]+),\s*(.+)$/);
+  if(cm) s=cm[2].trim()+' '+cm[1].trim();
+  s=s.toUpperCase().replace(/\s+/g,' ').trim();
+  // Remove single-letter middle initials (e.g. "TRACY S DILL" → "TRACY DILL")
+  s=s.replace(/(^|\s)[A-Z](\s|$)/g,'$2').replace(/\s+/g,' ').trim();
+  return s;
+}
+
+// Returns first + last word only (ignores middle names like "JOSEPHINE NICOLE GURLEY" → "JOSEPHINE GURLEY")
+function firstLast(s){
+  var p=s.split(' ');
+  return p.length<2?s:p[0]+' '+p[p.length-1];
+}
+
+function findEntryForRider(riderName, horseName){
+  if(!G.entries||!G.entries.length) return null;
+  var rNorm=normForMatch(riderName);
+  var rFL=firstLast(rNorm);
+  var hNorm=(horseName||'').toUpperCase().replace(/\s+/g,' ').trim();
+  var fuzzyMatch=null;
+  for(var i=0;i<G.entries.length;i++){
+    var e=G.entries[i];
+    var eNorm=normForMatch(e.name||'');
+    var eFL=firstLast(eNorm);
+    var eHorse=(e.horse||'').toUpperCase().replace(/\s+/g,' ').trim();
+    if(eNorm===rNorm) return {entry:e,idx:i,type:'exact'};
+    if(!fuzzyMatch&&eFL===rFL){
+      // Also check horse as tiebreaker if both are present
+      fuzzyMatch={entry:e,idx:i,type:(hNorm&&eHorse&&hNorm===eHorse?'exact':'fuzzy')};
+    }
+  }
+  return fuzzyMatch;
+}
+
+function reconcileResultsToEntries(){
+  var matched=0, skipped=0;
+  // Group results by rider to avoid re-matching the same person repeatedly
+  var cache={};
+  G.results.forEach(function(r){
+    if(!r.rider){ r._matchType='none'; return; }
+    var key=r.rider+'|||'+(r.horse||'');
+    if(cache[key]===undefined){
+      var m=findEntryForRider(r.rider, r.horse);
+      if(m){
+        cache[key]={type:m.type, rider:m.entry.name, horse:m.entry.horse, email:m.entry.email||''};
+      } else {
+        cache[key]=null;
+      }
+    }
+    var hit=cache[key];
+    if(hit){
+      r._matchType=hit.type;
+      r._canonical={rider:hit.rider, horse:hit.horse, email:hit.email};
+      matched++;
+    } else {
+      r._matchType='none';
+      delete r._canonical;
+      skipped++;
+    }
+  });
+  return {matched:matched, unmatched:skipped};
+}
 
 
 
@@ -1948,7 +2017,7 @@ async function loadResultsFile(file){
 
           _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1; _resSelShow='';
 
-          saveResultsToStorage(); resolve(G.results.length);
+          reconcileResultsToEntries(); saveResultsToStorage(); resolve(G.results.length);
 
         } catch(ex){ reject(ex); }
 
@@ -1990,7 +2059,7 @@ async function loadResultsFile(file){
 
           _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1; _resSelShow='';
 
-          saveResultsToStorage(); resolve(G.results.length);
+          reconcileResultsToEntries(); saveResultsToStorage(); resolve(G.results.length);
 
         } catch(ex){ reject(ex); }
 
@@ -5025,6 +5094,74 @@ window.resSort=function(c){
 
 };
 
+window.resReReconcile=function(){
+  reconcileResultsToEntries();
+  saveResultsToStorage();
+  toast('Reconciliation updated');
+  pgResults();
+};
+
+window.resToggleMismatches=function(){
+  _resShowMismatches=!_resShowMismatches;
+  pgResults();
+};
+
+window.resSetMatch=function(resultIdx, entryIdx){
+  var r=G.results[resultIdx];
+  var e=G.entries[entryIdx];
+  if(!r||!e) return;
+  r._matchType='manual';
+  r._canonical={rider:e.name, horse:e.horse, email:e.email||''};
+  saveResultsToStorage();
+  pgResults();
+};
+
+window.resClearMatch=function(resultIdx){
+  var r=G.results[resultIdx];
+  if(!r) return;
+  r._matchType='none';
+  delete r._canonical;
+  saveResultsToStorage();
+  pgResults();
+};
+
+// ── Helpers: unique orgs/divs/discs from loaded results (canonical order) ──
+function getResultsOrgs(){
+  var seen={};
+  G.results.forEach(function(r){ if(r.org) seen[r.org]=1; });
+  return ORG_ORDER.filter(function(o){ return seen[o]; })
+    .concat(Object.keys(seen).filter(function(o){ return ORG_ORDER.indexOf(o)<0; }));
+}
+function getResultsDivs(org){
+  var seen={};
+  G.results.forEach(function(r){ if(r.org===org&&r.division!==undefined) seen[r.division]=1; });
+  var order=DIV_ORDER_BY_ORG[org]||DIV_ORDER_BY_ORG['CoWN'];
+  return order.filter(function(d){ return seen[d]; })
+    .concat(Object.keys(seen).filter(function(d){ return order.indexOf(d)<0; }));
+}
+function getResultsDiscs(org,div){
+  var seen={};
+  G.results.forEach(function(r){ if(r.org===org&&r.division===div&&r.discipline) seen[r.discipline]=1; });
+  var order=(ORG_CLASSES[org]||ORG_CLASSES['CoWN']).disciplines||[];
+  return order.filter(function(d){ return seen[d]; })
+    .concat(Object.keys(seen).filter(function(d){ return order.indexOf(d)<0; }));
+}
+
+window.resEditOrgChange=function(){
+  var org=document.getElementById('re-org').value;
+  var divSel=document.getElementById('re-div');
+  var divs=getResultsDivs(org);
+  divSel.innerHTML=divs.map(function(d){ return '<option value="'+esc(d)+'">'+esc(d)+'</option>'; }).join('');
+  window.resEditDivChange();
+};
+window.resEditDivChange=function(){
+  var org=document.getElementById('re-org').value;
+  var div=document.getElementById('re-div').value;
+  var discSel=document.getElementById('re-disc');
+  var discs=getResultsDiscs(org,div);
+  discSel.innerHTML=discs.map(function(d){ return '<option value="'+esc(d)+'">'+esc(d)+'</option>'; }).join('');
+};
+
 window.resEdit=function(idx){
   _resEditIdx=(_resEditIdx===idx)?-1:idx;
   pgResults();
@@ -5212,6 +5349,56 @@ function pgResults(){
 
 
   html+='<div class="card">';
+
+  // ── Two-show warning ──
+  if(!G.entries||!G.entries.length){
+    html+='<div style="display:flex;align-items:flex-start;gap:.55rem;padding:.6rem .75rem;margin-bottom:.65rem;'
+      +'background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.25);border-radius:8px">'
+      +'<span style="color:var(--red);font-size:1rem;flex-shrink:0">&#9888;</span>'
+      +'<div><div style="font-size:.8rem;font-weight:700;color:var(--red);margin-bottom:.15rem">No entries loaded for this show</div>'
+      +'<div style="font-size:.75rem;color:var(--muted)">Results can&#39;t be linked to riders or emails. Make sure you&#39;re viewing the same show where entries were imported — open it from the show list and import results there.</div>'
+      +'</div></div>';
+  } else {
+    // ── Reconciliation status ──
+    var matchedCount=0, unmatchedCount=0, unmatchedRiders=[];
+    var seenRider={};
+    activeResults.forEach(function(r){
+      if(!r.rider||seenRider[r.rider+'|||'+(r.horse||'')]) return;
+      seenRider[r.rider+'|||'+(r.horse||'')]=1;
+      if(r._matchType&&r._matchType!=='none'){ matchedCount++; }
+      else { unmatchedCount++; unmatchedRiders.push(r); }
+    });
+    var totalRiders=matchedCount+unmatchedCount;
+    var allMatched=unmatchedCount===0;
+    html+='<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;padding:.45rem .65rem;margin-bottom:.5rem;border-radius:8px;'
+      +(allMatched?'background:rgba(39,174,96,.07);border:1px solid rgba(39,174,96,.2)':'background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.2)')+'">'
+      +'<span style="font-size:.78rem;font-weight:600;color:'+(allMatched?'var(--green)':'var(--red)')+'">'
+      +(allMatched?'&#10003; All '+totalRiders+' riders matched to entries':'&#9888; '+unmatchedCount+' of '+totalRiders+' riders unmatched')+'</span>'
+      +'<button class="btn btn-dark btn-sm" onclick="resReReconcile()" style="font-size:.72rem">&#8635; Re-run</button>'
+      +(unmatchedCount?'<button class="btn btn-sm" onclick="resToggleMismatches()" style="font-size:.72rem;'
+        +'background:rgba(231,76,60,.12);color:var(--red);border:1px solid rgba(231,76,60,.3)">'
+        +(_resShowMismatches?'&#9650; Hide':'&#9660; Fix '+unmatchedCount+' Mismatches')+'</button>':'')
+      +'</div>';
+
+    // ── Mismatch fix panel ──
+    if(_resShowMismatches && unmatchedRiders.length){
+      html+='<div style="margin-bottom:.75rem;padding:.65rem .75rem;background:var(--card2);border:1px solid var(--border2);border-radius:8px">'
+        +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.55rem">Select the matching entry for each unmatched rider, or leave blank to skip.</div>';
+      unmatchedRiders.forEach(function(r){
+        var entryOpts='<option value="">— no match —</option>';
+        G.entries.forEach(function(e,ei){
+          entryOpts+='<option value="'+ei+'">'+esc(e.name)+' / '+esc(e.horse||'')+'</option>';
+        });
+        html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;align-items:center;padding:.35rem 0;border-bottom:1px solid var(--border)">'
+          +'<div style="font-size:.82rem"><span style="color:var(--text)">'+esc(r.rider)+'</span>'
+          +'<span style="color:var(--muted);font-size:.72rem;margin-left:.4rem">'+esc(r.horse||'')+'</span></div>'
+          +'<select onchange="resSetMatch('+r._idx+',parseInt(this.value))" '
+          +'style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.28rem .45rem;font-size:.78rem;font-family:inherit;width:100%">'
+          +entryOpts+'</select></div>';
+      });
+      html+='</div>';
+    }
+  }
 
   // Visibility banner
 
@@ -5983,7 +6170,9 @@ function pgResults(){
 
           +'<td>'+(plMismatch?'<span style="color:var(--red)" title="Calc: '+cp+'">'+plCell+' &#9888;</span>':plCell)+'</td>'
 
-          +'<td>'+esc(r.rider)+(r._manual?'<span style="font-size:.6rem;color:var(--muted);margin-left:.3rem">✎</span>':'')+'</td>'
+          +'<td>'+esc(r._canonical?r._canonical.rider:r.rider)
+          +(r._canonical&&r._canonical.rider!==r.rider?'<span style="font-size:.62rem;color:var(--muted);margin-left:.3rem" title="SHTX name: '+esc(r.rider)+'">&#8597;</span>':'')
+          +(r._manual?'<span style="font-size:.6rem;color:var(--muted);margin-left:.3rem">✎</span>':'')+'</td>'
 
           +'<td style="color:var(--muted);font-size:.8rem">'+esc(r.horse)+'</td>'
 
@@ -6019,9 +6208,20 @@ function pgResults(){
           +'<div class="fg"><label>Entries in Class</label><input id="re-entries" type="number" step="1" value="'+(er.entries||0)+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;font-family:inherit;width:100%"></div>'
           +'</div>'
           +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem .75rem;margin-top:.5rem">'
-          +'<div class="fg"><label>Org</label><input id="re-org" value="'+esc(er.org||'')+'" placeholder="CoWN, VRH, AQHA Ranch…" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;font-family:inherit;width:100%"></div>'
-          +'<div class="fg"><label>Division</label><input id="re-div" value="'+esc(er.division||'')+'" placeholder="Open, Non-Pro…" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;font-family:inherit;width:100%"></div>'
-          +'<div class="fg"><label>Discipline</label><input id="re-disc" value="'+esc(er.discipline||'')+'" placeholder="Cow Work, Reining…" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;font-family:inherit;width:100%"></div>'
+          +(function(){
+            var sel='background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;font-family:inherit;width:100%';
+            var orgs=getResultsOrgs();
+            var divs=getResultsDivs(er.org||'CoWN');
+            var discs=getResultsDiscs(er.org||'CoWN',er.division||'');
+            // ensure current values appear even if not in loaded results
+            if(orgs.indexOf(er.org||'')<0&&er.org) orgs.unshift(er.org);
+            if(divs.indexOf(er.division||'')<0&&er.division) divs.unshift(er.division);
+            if(discs.indexOf(er.discipline||'')<0&&er.discipline) discs.unshift(er.discipline);
+            function opts(list,cur){ return list.map(function(v){ return '<option value="'+esc(v)+'"'+(v===cur?' selected':'')+'>'+esc(v)+'</option>'; }).join(''); }
+            return '<div class="fg"><label>Org</label><select id="re-org" onchange="resEditOrgChange()" style="'+sel+'">'+opts(orgs,er.org||'CoWN')+'</select></div>'
+              +'<div class="fg"><label>Division</label><select id="re-div" onchange="resEditDivChange()" style="'+sel+'">'+opts(divs,er.division||'')+'</select></div>'
+              +'<div class="fg"><label>Discipline</label><select id="re-disc" style="'+sel+'">'+opts(discs,er.discipline||'')+'</select></div>';
+          }())
           +'</div>'
           +'<div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem">'
           +'<label style="display:flex;align-items:center;gap:.3rem;font-size:.82rem;color:var(--muted);cursor:pointer">'
