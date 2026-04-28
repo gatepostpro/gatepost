@@ -299,10 +299,14 @@ window.createShow = async function(){
       })
     });
     var show = shows&&shows[0];
-    if(!show) throw new Error('No show returned');
+    if(!show) throw new Error('No show returned — check that the "shows" table has an INSERT policy for the anon role in Supabase.');
     selectShow(show.id);
   } catch(err){
-    errEl.textContent='Error: '+err.message;
+    var msg='Error creating show: '+err.message;
+    errEl.textContent=msg;
+    errEl.style.cssText='color:var(--red);font-size:.78rem;margin-top:.5rem;padding:.4rem .6rem;background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.25);border-radius:5px';
+    console.error('createShow failed:', err);
+    if(!err.message||err.message.length<5) alert(msg);
   }
 };
 
