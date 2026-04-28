@@ -5487,6 +5487,27 @@ function recomputeClassPts(org, division, discipline){
   }
 }
 
+window.resAddRow=function(org, division, discipline){
+  // Find total entries in this class to set a sensible default place
+  var clsRows=G.results.filter(function(r){ return r.org===org&&r.division===division&&r.discipline===discipline; });
+  var nextPlace=clsRows.length+1;
+  var newIdx=G.results.length;
+  var newRow={
+    _idx:newIdx, _manual:true,
+    org:org, division:division, discipline:discipline,
+    rider:'', horse:'', score:0, place:nextPlace, pts:0,
+    entries:clsRows.length+1,
+    isDQ:false, isOP:false, opCount:0, _matchType:'none'
+  };
+  G.results.push(newRow);
+  saveResultsToStorage();
+  // Open edit panel on the new row immediately
+  _resEditIdx=newIdx;
+  pgResults();
+  // Scroll to edit panel
+  setTimeout(function(){ var el=document.getElementById('res-edit-panel'); if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 80);
+};
+
 window.resRerank=function(org, division, discipline, btn){
   var clsLabel=org+(division?' · '+division:'')+(discipline?' · '+discipline:'');
   if(!confirm('Re-rank "'+clsLabel+'"?\n\nThis will apply OP/DQ labels to placements and recalculate points using the configured formula. SHTX original values will be overwritten.\n\nContinue?')) return;
@@ -6218,14 +6239,20 @@ function pgResults(){
         }
       }
 
-      // ── Division mismatch diagnostic ──
-      // Riders in orgRows with AA disciplines but stored under a different division string
+      // ── Division name near-match diagnostic ──
+      // Only flags riders whose stored division string is the same as _resSelDiv when
+      // normalized (trimmed, lowercased) but differs exactly — spacing/case typos only.
+      // Does NOT flag riders legitimately in a different division.
+      var _divNorm=function(s){ return (s||'').toLowerCase().replace(/\s+/g,' ').trim(); };
+      var _selDivNorm=_divNorm(_resSelDiv);
       var aaRidersKnown={};
       allDivRows.forEach(function(r){ if(r.rider) aaRidersKnown[r.rider]=1; });
       var aaOrgDiscsCheck=(ORG_CLASSES[_resSelOrg]||{}).disciplines||[];
       var divMismatches=[];
       orgRows.forEach(function(r){
         if(!r.rider||!r.division||r.division===_resSelDiv) return;
+        // Only flag if normalizing makes them equal — actual different divisions are skipped
+        if(_divNorm(r.division)!==_selDivNorm) return;
         if(aaRidersKnown[r.rider]) return;
         if(aaOrgDiscsCheck.indexOf(r.discipline)<0) return;
         divMismatches.push({rider:r.rider,horse:r.horse,division:r.division,discipline:r.discipline});
@@ -6238,12 +6265,12 @@ function pgResults(){
           if(!dmSeen[m.rider]){ dmSeen[m.rider]=1; dmUniq.push(m); }
         });
         html+='<div style="margin-top:.85rem;border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:.6rem .8rem;background:rgba(231,76,60,.05)">'
-          +'<div style="font-size:.78rem;font-weight:600;color:var(--red);margin-bottom:.4rem">&#9888; Division name mismatch — '+dmUniq.length+' rider'+(dmUniq.length===1?'':'s')+' found under a different division</div>'
-          +'<div style="font-size:.73rem;color:var(--muted);margin-bottom:.45rem">These riders have results stored under a division string that doesn\'t exactly match "'+esc(_resSelDiv)+'". Fix their division name in the imported data, or check for extra spaces/typos.</div>'
-          +'<div class="tbl-wrap"><table><thead><tr><th>Rider</th><th>Horse</th><th>Stored Division</th><th>Discipline</th></tr></thead><tbody>';
+          +'<div style="font-size:.78rem;font-weight:600;color:var(--red);margin-bottom:.4rem">&#9888; Division spacing/case mismatch — '+dmUniq.length+' rider'+(dmUniq.length===1?'':'s')+' missing from standings</div>'
+          +'<div style="font-size:.73rem;color:var(--muted);margin-bottom:.45rem">These riders\' division matches "'+esc(_resSelDiv)+'" when normalized but differs exactly — likely a trailing space or capitalization difference in the SHTX file. Their rows are shown in quotes so you can spot the difference.</div>'
+          +'<div class="tbl-wrap"><table><thead><tr><th>Rider</th><th>Horse</th><th>Stored As (quoted)</th><th>Discipline</th></tr></thead><tbody>';
         dmUniq.forEach(function(m){
           html+='<tr><td>'+esc(m.rider)+'</td><td style="color:var(--muted);font-size:.8rem">'+esc(m.horse)+'</td>'
-            +'<td style="color:var(--red);font-size:.8rem">'+esc(m.division)+'</td>'
+            +'<td style="color:var(--red);font-size:.8rem;font-family:monospace">"'+esc(m.division)+'"</td>'
             +'<td style="font-size:.8rem">'+esc(m.discipline)+'</td></tr>';
         });
         html+='</tbody></table></div></div>';
@@ -6259,17 +6286,21 @@ function pgResults(){
       // ── All Around extra columns: show each rider's individual discipline placings ──
       var isAAClass=_resSelClass==='All Around'||_resSelClass==='VRH All Around';
       var aaExtraDiscs=[];  // ordered list of disciplines to show as extra columns
-      var aaDiscPlaceMap={}; // rider → {disc: place}
+      var aaDiscPlaceMap={}, aaDiscPtsMap={}, aaDiscScoreMap={};
       if(isAAClass){
         var aaOrgDiscs=(ORG_CLASSES[_resSelOrg]||{}).disciplines||[];
         aaExtraDiscs=aaOrgDiscs.filter(function(d){ return d!=='All Around'&&d!=='VRH All Around'; });
-        // Build lookup from all divRows (the non-AA rows)
         divRows.forEach(function(r){
           if(!r.rider||!r.discipline||r.discipline===_resSelClass) return;
           if(aaExtraDiscs.indexOf(r.discipline)<0) return;
           if(!aaDiscPlaceMap[r.rider]) aaDiscPlaceMap[r.rider]={};
-          if(r.place&&(!aaDiscPlaceMap[r.rider][r.discipline]||r.place<aaDiscPlaceMap[r.rider][r.discipline]))
+          if(!aaDiscPtsMap[r.rider])   aaDiscPtsMap[r.rider]={};
+          if(!aaDiscScoreMap[r.rider]) aaDiscScoreMap[r.rider]={};
+          if(r.place&&(!aaDiscPlaceMap[r.rider][r.discipline]||r.place<aaDiscPlaceMap[r.rider][r.discipline])){
             aaDiscPlaceMap[r.rider][r.discipline]=r.place;
+            aaDiscPtsMap[r.rider][r.discipline]=r.pts||0;
+            aaDiscScoreMap[r.rider][r.discipline]=r.score||0;
+          }
         });
       }
 
@@ -6481,11 +6512,16 @@ function pgResults(){
 
       }
 
-      html+='<button class="btn btn-sm" '
-        +'onclick="resRerank(\''+(_resSelOrg).replace(/'/g,"\\'")+'\',\''+(_resSelDiv).replace(/'/g,"\\'")+'\',\''+(_resSelClass).replace(/'/g,"\\'")+'\',this)" '
-        +'style="margin-left:auto;background:rgba(184,134,42,.12);color:var(--accent);border:1px solid rgba(184,134,42,.3);font-size:.73rem" '
-        +'title="Apply OP/DQ labels to placements and repoint using configured formula">'
-        +'&#8635; Re-rank Class</button>';
+      if(!isAAClass){
+        html+='<button class="btn btn-sm" '
+          +'onclick="resRerank(\''+(_resSelOrg).replace(/'/g,"\\'")+'\',\''+(_resSelDiv).replace(/'/g,"\\'")+'\',\''+(_resSelClass).replace(/'/g,"\\'")+'\',this)" '
+          +'style="background:rgba(184,134,42,.12);color:var(--accent);border:1px solid rgba(184,134,42,.3);font-size:.73rem" '
+          +'title="Apply OP/DQ labels to placements and repoint using configured formula">'
+          +'&#8635; Re-rank Class</button>';
+      }
+
+      html+='<button class="btn btn-sm btn-dark" style="margin-left:auto;font-size:.73rem" '
+        +'onclick="resAddRow(\''+(_resSelOrg).replace(/'/g,"\\'")+'\',\''+(_resSelDiv).replace(/'/g,"\\'")+'\',\''+(_resSelClass).replace(/'/g,"\\'")+'\')">+ Add Row</button>';
 
       html+='</div>';
 
@@ -6594,26 +6630,31 @@ function pgResults(){
           +'<td style="text-align:right;padding-right:.3rem;white-space:nowrap">'
           +(r._matchType==='none'?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Create entry from this row" style="background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);border-radius:4px;color:var(--green);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">+</button>':'')
           +(r._horseMismatch?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Matched to wrong horse — click to create correct entry" style="background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);border-radius:4px;color:var(--red);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">&#9888;+</button>':'')
-          +(function(){
+          +(!isAAClass?(function(){
             var oc=r.opCount||0;
             var lbl=oc>0?(oc>1?'OP'+oc:'OP'):'OP';
             var title=oc===0?'Mark as Off-Pattern (click to cycle OP→OP2→OP3→clear)':'OP×'+oc+' — click to advance, cycles back to clear';
             var sty=oc>0?'background:rgba(224,124,0,.25);border:1px solid #e07c00;color:#e07c00;':'background:transparent;border:1px solid rgba(224,124,0,.35);color:rgba(224,124,0,.55);';
             return '<button onclick="resMarkOP('+r._idx+')" title="'+title+'" style="'+sty+'border-radius:4px;cursor:pointer;font-size:.68rem;font-weight:700;padding:1px 4px;line-height:1;margin-right:.2rem">'+lbl+'</button>';
-          }())
-          +'<button onclick="resMarkDQ('+r._idx+')" title="'+(r.isDQ?'Remove DQ mark':'Mark as Disqualified')+'" style="'
+          }()):'')
+          +(!isAAClass?'<button onclick="resMarkDQ('+r._idx+')" title="'+(r.isDQ?'Remove DQ mark':'Mark as Disqualified')+'" style="'
           +(r.isDQ?'background:rgba(231,76,60,.2);border:1px solid var(--red);color:var(--red);':'background:transparent;border:1px solid rgba(231,76,60,.3);color:rgba(231,76,60,.6);')
-          +'border-radius:4px;cursor:pointer;font-size:.68rem;font-weight:700;padding:1px 4px;line-height:1;margin-right:.2rem">DQ</button>'
+          +'border-radius:4px;cursor:pointer;font-size:.68rem;font-weight:700;padding:1px 4px;line-height:1;margin-right:.2rem">DQ</button>':'')
           +'<button onclick="resEdit('+r._idx+')" title="Edit row" style="background:none;border:1px solid var(--border2);border-radius:4px;color:var(--muted);cursor:pointer;font-size:.75rem;padding:1px 5px;line-height:1">&#9998;</button></td>'
 
           +(isAAClass?(function(){
             var riderPlaces=aaDiscPlaceMap[r.rider]||{};
+            var riderPts=aaDiscPtsMap[r.rider]||{};
             return aaExtraDiscs.map(function(d){
               var pl=riderPlaces[d]||0;
-              if(!pl) return '<td style="text-align:center;color:var(--muted);border-left:1px solid var(--border);font-size:.8rem">&mdash;</td>';
+              var pts=riderPts[d]||0;
+              if(!pl&&!pts) return '<td style="text-align:center;color:var(--muted);border-left:1px solid var(--border);font-size:.8rem">&mdash;</td>';
               var suf=pl===1?'st':pl===2?'nd':pl===3?'rd':'th';
               var col=pl===1?'var(--accent)':pl===2?'#aaa':pl===3?'#cd7f32':'var(--text)';
-              return '<td style="text-align:center;border-left:1px solid var(--border);font-weight:600;color:'+col+';font-size:.85rem">'+pl+'<span style="font-size:.65rem;font-weight:400">'+suf+'</span></td>';
+              return '<td style="text-align:center;border-left:1px solid var(--border);vertical-align:middle">'
+                +(pl?'<div style="font-size:.72rem;color:var(--muted);line-height:1">'+pl+'<span style="font-size:.6rem">'+suf+'</span></div>':'')
+                +'<div style="font-weight:700;color:'+col+';font-size:.88rem;line-height:1.2">'+pts.toFixed(1)+'</div>'
+                +'</td>';
             }).join('');
           })():'')
 
