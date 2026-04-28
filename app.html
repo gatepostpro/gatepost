@@ -5991,9 +5991,17 @@ function pgResults(){
 
 
       // Build per-rider totals from unfiltered rows so search doesn't drop riders
+      // Use org's configured discipline list as an allowlist when available — prevents spurious
+      // SHTX-exported "All Around" summary rows (named "AA", "All-Around", etc.) from inflating totals.
+      var orgKnownDiscs=(ORG_CLASSES[_resSelOrg]||{}).disciplines||[];
+
       var aaMap={};
 
-      allDivRows.filter(function(r){ return r.discipline&&r.discipline!=='All Around'&&r.discipline!=='VRH All Around'; })
+      allDivRows.filter(function(r){
+        if(!r.discipline) return false;
+        if(orgKnownDiscs.length) return orgKnownDiscs.indexOf(r.discipline)>=0 && r.discipline!=='All Around' && r.discipline!=='VRH All Around';
+        return r.discipline!=='All Around'&&r.discipline!=='VRH All Around';
+      })
 
         .forEach(function(r){
 
