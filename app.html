@@ -2047,6 +2047,8 @@ function reconcileResultsToEntries(){
   // Group results by rider to avoid re-matching the same person repeatedly
   var cache={};
   G.results.forEach(function(r){
+    // Never overwrite a manual match — user explicitly set it
+    if(r._matchType==='manual'){ matched++; return; }
     if(!r.rider){ r._matchType='none'; return; }
     var key=r.rider+'|||'+(r.horse||'');
     if(cache[key]===undefined){
@@ -5327,8 +5329,15 @@ window.resSetMatch=function(resultIdx, entryIdx){
   var r=G.results[resultIdx];
   var e=G.entries[entryIdx];
   if(!r||!e) return;
-  r._matchType='manual';
-  r._canonical={rider:e.name, horse:e.horse, email:e.email||''};
+  // Apply match to every row for this same SHTX rider+horse (all their classes)
+  var rName=r.rider, rHorse=(r.horse||'');
+  var canonical={rider:e.name, horse:e.horse, email:e.email||''};
+  G.results.forEach(function(row){
+    if(row.rider===rName && (row.horse||'')=== rHorse){
+      row._matchType='manual';
+      row._canonical=Object.assign({},canonical);
+    }
+  });
   saveResultsToStorage();
   pgResults();
 };
@@ -5778,9 +5787,14 @@ function pgResults(){
     if(_resShowMismatches && unmatchedRiders.length){
       html+='<div style="margin-bottom:.75rem;padding:.65rem .75rem;background:var(--card2);border:1px solid var(--border2);border-radius:8px">'
         +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.55rem">Link to an existing entry or create a new one (pulled from SHTX — marks as "Added at Show").</div>';
+      // Deduplicate: show each SHTX rider+horse combo only once (first row is enough for matching)
+      var seenKeys={};
+      var dedupedRiders=unmatchedRiders.filter(function(r){
+        var k=r.rider+'|||'+(r.horse||''); if(seenKeys[k]) return false; seenKeys[k]=true; return true;
+      });
       // Sort entries alphabetically for the dropdown
       var sortedEntries=G.entries.slice().sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
-      unmatchedRiders.forEach(function(r){
+      dedupedRiders.forEach(function(r){
         // Fuzzy suggestions: tokenize SHTX name and find entries sharing name tokens
         var rTokens=r.rider.toLowerCase().replace(/[^a-z\s]/g,'').split(/\s+/).filter(Boolean);
         var rHorseNorm=(r.horse||'').toLowerCase().replace(/[^a-z\s]/g,'').trim();
@@ -11643,7 +11657,7 @@ function saveEntryInfo(rowIdx){
   }
 
   saveEntriesToStorage();
-  drawEntryTable();
+  if(typeof drawEntryTable === 'function') drawEntryTable();
   toast('Entry updated');
   if(G._rebuildEntryModal) G._rebuildEntryModal();
 }
