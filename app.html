@@ -5990,37 +5990,38 @@ function pgResults(){
 
 
 
-      // Build per-rider totals from unfiltered rows so search doesn't drop riders
-      // Use org's configured discipline list as an allowlist when available — prevents spurious
-      // SHTX-exported "All Around" summary rows (named "AA", "All-Around", etc.) from inflating totals.
-      var orgKnownDiscs=(ORG_CLASSES[_resSelOrg]||{}).disciplines||[];
-
+      // Build per-rider-per-horse totals from unfiltered rows so search doesn't drop anyone.
+      // Key by canonical rider+horse so: (a) name spelling variations across disciplines resolve
+      // to the same entry, and (b) a rider on two horses gets two separate AA standings entries.
       var aaMap={};
 
       allDivRows.filter(function(r){
-        if(!r.discipline) return false;
-        if(orgKnownDiscs.length) return orgKnownDiscs.indexOf(r.discipline)>=0 && r.discipline!=='All Around' && r.discipline!=='VRH All Around';
-        return r.discipline!=='All Around'&&r.discipline!=='VRH All Around';
+        return r.discipline&&r.discipline!=='All Around'&&r.discipline!=='VRH All Around';
       })
 
         .forEach(function(r){
 
           if(!r.rider) return;
 
-          if(!aaMap[r.rider]) aaMap[r.rider]={rider:r.rider,horse:r.horse,total:0,byDisc:{},competesByDisc:{},scoreByDisc:{},placeByDisc:{}};
+          // Use canonical (reconciled) name when available so "J. Smith" and "John Smith" merge
+          var canonRider=(r._canonical&&r._canonical.rider)||r.rider;
+          var canonHorse=(r._canonical&&r._canonical.horse)||r.horse||'';
+          var aaKey=canonRider+'|'+canonHorse;
+
+          if(!aaMap[aaKey]) aaMap[aaKey]={rider:canonRider,horse:canonHorse,total:0,byDisc:{},competesByDisc:{},scoreByDisc:{},placeByDisc:{}};
 
           // Always mark as competed regardless of pts (OP/DQ riders count toward eligibility)
-          aaMap[r.rider].competesByDisc[r.discipline]=true;
+          aaMap[aaKey].competesByDisc[r.discipline]=true;
 
-          aaMap[r.rider].total+=(r.pts||0);
+          aaMap[aaKey].total+=(r.pts||0);
 
-          aaMap[r.rider].byDisc[r.discipline]=(aaMap[r.rider].byDisc[r.discipline]||0)+(r.pts||0);
+          aaMap[aaKey].byDisc[r.discipline]=(aaMap[aaKey].byDisc[r.discipline]||0)+(r.pts||0);
 
-          if(!aaMap[r.rider].scoreByDisc[r.discipline]||(r.score||0)>(aaMap[r.rider].scoreByDisc[r.discipline]||0))
-            aaMap[r.rider].scoreByDisc[r.discipline]=r.score||0;
+          if(!aaMap[aaKey].scoreByDisc[r.discipline]||(r.score||0)>(aaMap[aaKey].scoreByDisc[r.discipline]||0))
+            aaMap[aaKey].scoreByDisc[r.discipline]=r.score||0;
 
-          if(r.place&&(!aaMap[r.rider].placeByDisc[r.discipline]||r.place<aaMap[r.rider].placeByDisc[r.discipline]))
-            aaMap[r.rider].placeByDisc[r.discipline]=r.place;
+          if(r.place&&(!aaMap[aaKey].placeByDisc[r.discipline]||r.place<aaMap[aaKey].placeByDisc[r.discipline]))
+            aaMap[aaKey].placeByDisc[r.discipline]=r.place;
 
         });
 
