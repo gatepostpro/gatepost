@@ -6355,7 +6355,7 @@ function pgResults(){
 
       var actualRows = clsRows.length;
 
-      var entryMismatch = fwEntries > actualRows; // more expected than rows = missing riders
+      var entryMismatch = !isAqhaOrg && fwEntries > actualRows; // suppress for AQHA — export structure differs
 
       var orgPtsSys=(ORG_CLASSES[_resSelOrg]||{}).pointsSystem||'entries';
 
@@ -6389,69 +6389,50 @@ function pgResults(){
         clsRows.filter(function(r){ return r.place>0; }).forEach(function(r){ calcPtsMap[r.rider+'|'+r.horse]=0; });
       }
 
-      // Per-row anomaly hints (not errors — informational badges only)
-      // DQ?: score > 0 but pts = 0 — score was earned but placement voided
-      // OP heuristics — two independent detectors, either can flag a row:
-      // 1. Score paradox: scored higher than someone with more pts (classic OP signal)
-      // 2. Pts duplicate: same pts as another rider with a DIFFERENT place — SHTX assigns
-      //    pts by score-rank so OP riders "inherit" another rider's pts value, creating
-      //    duplicates. The lower-placed duplicate is flagged.
+      // Per-row anomaly hints — CoWN only. AQHA has its own rules and tracks points centrally;
+      // OP/DQ detection based on pts patterns is meaningless for AQHA classes.
       var possibleOPMap={}, possibleDQMap={};
-      var scoredActive=clsRows.filter(function(r){ return !r.isDQ&&!(r.opCount>0)&&!r._manual&&r.score>0&&r.pts>0; });
+      if(!isAqhaOrg){
+        var scoredActive=clsRows.filter(function(r){ return !r.isDQ&&!(r.opCount>0)&&!r._manual&&r.score>0&&r.pts>0; });
 
-      // Detector 1: score paradox
-      clsRows.forEach(function(r){
-        if(r.isDQ||(r.opCount>0)||r._manual) return;
-        var key=r.rider+'|'+r.horse;
-        if(r.score>0&&r.pts===0){ possibleDQMap[key]=true; return; }
-        if(r.score>0&&r.pts>0){
-          var lowerScoreMorePts=scoredActive.filter(function(o){
-            return o!==r && o.score<r.score && o.pts>r.pts;
-          });
-          if(lowerScoreMorePts.length>0) possibleOPMap[key]=true;
-        }
-      });
-
-      // Detector 2: duplicate pts with different place → likely SHTX OP artifact
-      // Group active (non-OP, non-DQ) rows by pts value
-      var ptsBuckets={};
-      scoredActive.forEach(function(r){
-        var pk=r.pts.toFixed(2);
-        if(!ptsBuckets[pk]) ptsBuckets[pk]=[];
-        ptsBuckets[pk].push(r);
-      });
-      Object.keys(ptsBuckets).forEach(function(pk){
-        var bucket=ptsBuckets[pk];
-        if(bucket.length<2) return;
-        // Check if all share the same place (legitimate tie) or not
-        var places=bucket.map(function(r){ return r.place; });
-        var allSamePlace=places.every(function(p){ return p===places[0]; });
-        if(!allSamePlace){
-          // Pts duplicate with different places: flag the lower-placed row(s)
-          var minPlace=Math.min.apply(null,places);
-          bucket.forEach(function(r){
-            if(r.place!==minPlace){
-              var key=r.rider+'|'+r.horse;
-              possibleOPMap[key]=true;
-            }
-          });
-        }
-      });
-
-      // Points verification: AQHA only — SHTX exports 0 pts for AQHA (they're tracked centrally).
-      // For CoWN/SHTX classes the exported pts are authoritative; don't second-guess them.
-      var placeErrDetails=[], ptsErrDetails=[];
-      if(isAqhaOrg){
+        // Detector 1: score paradox
         clsRows.forEach(function(r){
-          if(r._manual||r.isDQ||(r.opCount>0)) return;
-          if(!r.place) return;
+          if(r.isDQ||(r.opCount>0)||r._manual) return;
           var key=r.rider+'|'+r.horse;
-          var cpts=calcPtsMap[key];
-          if(cpts===undefined) return;
-          if(Math.abs((cpts||0)-(r.pts||0))>0.05) ptsErrDetails.push({rider:r.rider, horse:r.horse, place:r.place, score:r.score, fwPts:r.pts, calcPts:cpts});
+          if(r.score>0&&r.pts===0){ possibleDQMap[key]=true; return; }
+          if(r.score>0&&r.pts>0){
+            var lowerScoreMorePts=scoredActive.filter(function(o){
+              return o!==r && o.score<r.score && o.pts>r.pts;
+            });
+            if(lowerScoreMorePts.length>0) possibleOPMap[key]=true;
+          }
+        });
+
+        // Detector 2: duplicate pts with different place → likely SHTX OP artifact
+        var ptsBuckets={};
+        scoredActive.forEach(function(r){
+          var pk=r.pts.toFixed(2);
+          if(!ptsBuckets[pk]) ptsBuckets[pk]=[];
+          ptsBuckets[pk].push(r);
+        });
+        Object.keys(ptsBuckets).forEach(function(pk){
+          var bucket=ptsBuckets[pk];
+          if(bucket.length<2) return;
+          var places=bucket.map(function(r){ return r.place; });
+          var allSamePlace=places.every(function(p){ return p===places[0]; });
+          if(!allSamePlace){
+            var minPlace=Math.min.apply(null,places);
+            bucket.forEach(function(r){
+              if(r.place!==minPlace){ possibleOPMap[r.rider+'|'+r.horse]=true; }
+            });
+          }
         });
       }
-      var placeErrs=0, ptsErrs=ptsErrDetails.length;
+
+      // Points verification: not applicable to AQHA — their formula differs and points are
+      // tracked centrally by AQHA, not by Thorofare. Don't flag discrepancies for AQHA classes.
+      var placeErrDetails=[], ptsErrDetails=[];
+      var placeErrs=0, ptsErrs=0;
 
       // Count duplicate-pts rows (possible unflagged OPs) for CoWN classes
       var dupPtsRiders=Object.keys(possibleOPMap).filter(function(k){
@@ -6575,7 +6556,7 @@ function pgResults(){
 
       }
 
-      if(!isAAClass){
+      if(!isAAClass&&!isAqhaOrg){
         html+='<button class="btn btn-sm" '
           +'onclick="resRerank(\''+(_resSelOrg).replace(/'/g,"\\'")+'\',\''+(_resSelDiv).replace(/'/g,"\\'")+'\',\''+(_resSelClass).replace(/'/g,"\\'")+'\',this)" '
           +'style="background:rgba(200,146,42,.12);color:var(--accent);border:1px solid rgba(200,146,42,.3);font-size:.73rem" '
@@ -6693,14 +6674,14 @@ function pgResults(){
           +'<td style="text-align:right;padding-right:.3rem;white-space:nowrap">'
           +(r._matchType==='none'?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Create entry from this row" style="background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);border-radius:4px;color:var(--green);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">+</button>':'')
           +(r._horseMismatch?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Matched to wrong horse — click to create correct entry" style="background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);border-radius:4px;color:var(--red);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">&#9888;+</button>':'')
-          +(!isAAClass?(function(){
+          +(!isAAClass&&!isAqhaOrg?(function(){
             var oc=r.opCount||0;
             var lbl=oc>0?(oc>1?'OP'+oc:'OP'):'OP';
             var title=oc===0?'Mark as Off-Pattern (click to cycle OP→OP2→OP3→clear)':'OP×'+oc+' — click to advance, cycles back to clear';
             var sty=oc>0?'background:rgba(224,124,0,.25);border:1px solid #e07c00;color:#e07c00;':'background:transparent;border:1px solid rgba(224,124,0,.35);color:rgba(224,124,0,.55);';
             return '<button onclick="resMarkOP('+r._idx+')" title="'+title+'" style="'+sty+'border-radius:4px;cursor:pointer;font-size:.68rem;font-weight:700;padding:1px 4px;line-height:1;margin-right:.2rem">'+lbl+'</button>';
           }()):'')
-          +(!isAAClass?'<button onclick="resMarkDQ('+r._idx+')" title="'+(r.isDQ?'Remove DQ mark':'Mark as Disqualified')+'" style="'
+          +(!isAAClass&&!isAqhaOrg?'<button onclick="resMarkDQ('+r._idx+')" title="'+(r.isDQ?'Remove DQ mark':'Mark as Disqualified')+'" style="'
           +(r.isDQ?'background:rgba(231,76,60,.2);border:1px solid var(--red);color:var(--red);':'background:transparent;border:1px solid rgba(231,76,60,.3);color:rgba(231,76,60,.6);')
           +'border-radius:4px;cursor:pointer;font-size:.68rem;font-weight:700;padding:1px 4px;line-height:1;margin-right:.2rem">DQ</button>':'')
           +'<button onclick="resEdit('+r._idx+')" title="Edit row" style="background:none;border:1px solid var(--border2);border-radius:4px;color:var(--muted);cursor:pointer;font-size:.75rem;padding:1px 5px;line-height:1">&#9998;</button></td>'
