@@ -18,91 +18,95 @@
 html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
 body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 3rem}
 
-/* ── Wordmark ───────────────────────────────── */
+/* ── Wordmark ── */
 .wordmark{text-align:center;margin-bottom:2.5rem;margin-top:1rem}
 .wordmark h1{font-family:Oswald;font-size:2.6rem;font-weight:700;color:var(--accent);letter-spacing:.06em;line-height:1}
 .wordmark p{font-size:.75rem;color:var(--muted);letter-spacing:.2em;text-transform:uppercase;margin-top:.35rem}
 .wordmark-bar{width:48px;height:3px;background:var(--accent);border-radius:2px;margin:.9rem auto}
+.wordmark-assoc{font-family:Oswald;font-size:1rem;color:var(--text);letter-spacing:.08em;margin-top:.2rem;min-height:1.2rem}
 
-/* ── Card shell ─────────────────────────────── */
-.panel{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:1.25rem;width:100%;max-width:520px;margin-bottom:.75rem}
+/* ── Card shell ── */
+.panel{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:1.25rem;width:100%;max-width:540px;margin-bottom:.75rem}
 .panel-title{font-family:Oswald;font-size:1rem;color:var(--accent);margin-bottom:.85rem;display:flex;align-items:center;justify-content:space-between}
 
-/* ── DB status ──────────────────────────────── */
+/* ── DB status ── */
 .db-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:.4rem;background:var(--red)}
 .db-dot.ok{background:var(--green)}
 .db-dot.spin{background:var(--accent);animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
 
-/* ── Show list ──────────────────────────────── */
+/* ── Year group ── */
+.year-group{margin-bottom:.65rem}
+.year-hdr{font-family:Oswald;font-size:.78rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;padding:.2rem 0 .4rem;border-bottom:1px solid var(--border);margin-bottom:.4rem}
+
+/* ── Show list ── */
 .show-list{display:flex;flex-direction:column;gap:.45rem}
 .show-row{
   background:var(--card2);border:1px solid var(--border2);border-radius:8px;
-  padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;
-  cursor:pointer;transition:border-color .15s
+  padding:.65rem 1rem;display:flex;align-items:center;justify-content:space-between;
+  gap:.5rem;transition:border-color .15s
 }
 .show-row:hover{border-color:var(--accent)}
-.show-row:active{background:#2a2a2a}
-.sr-name{font-family:Oswald;font-size:.95rem}
+.show-row-main{flex:1;cursor:pointer;min-width:0}
+.sr-name{font-family:Oswald;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sr-meta{font-size:.72rem;color:var(--muted);margin-top:2px}
+.sr-right{display:flex;align-items:center;gap:.5rem;flex-shrink:0}
 .sr-badge{font-size:.68rem;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap}
 .s-setup{background:rgba(136,136,136,.12);color:var(--muted)}
 .s-entries_open{background:rgba(46,204,113,.15);color:var(--green)}
-.s-entries_closed{background:rgba(184,134,42,.15);color:var(--accent)}
+.s-entries_closed{background:rgba(200,146,42,.15);color:var(--accent)}
 .s-running{background:rgba(231,76,60,.2);color:var(--red)}
 .s-complete{background:rgba(52,152,219,.15);color:var(--blue)}
+.del-btn{
+  background:none;border:1px solid rgba(231,76,60,.25);border-radius:5px;
+  color:rgba(231,76,60,.5);cursor:pointer;font-size:.72rem;padding:2px 6px;
+  line-height:1.4;flex-shrink:0;transition:all .15s
+}
+.del-btn:hover{border-color:var(--red);color:var(--red);background:rgba(231,76,60,.08)}
 
-/* ── Role selector ──────────────────────────── */
+/* ── Sort/filter bar ── */
+.sort-bar{display:flex;align-items:center;gap:.5rem;margin-bottom:.65rem;flex-wrap:wrap}
+.sort-bar label{font-size:.72rem;color:var(--muted)}
+.sort-bar select{background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.2rem .45rem;font-size:.75rem;font-family:inherit}
+
+/* ── Role selector ── */
 #role-panel{display:none}
-.back-btn{
-  background:transparent;border:none;color:var(--muted);font-size:.8rem;
-  cursor:pointer;padding:0;display:flex;align-items:center;gap:.3rem;font-family:inherit
-}
+.back-btn{background:transparent;border:none;color:var(--muted);font-size:.8rem;cursor:pointer;padding:0;display:flex;align-items:center;gap:.3rem;font-family:inherit}
 .back-btn:hover{color:var(--text)}
-.selected-show{
-  background:var(--accent-dim);border:1px solid rgba(184,134,42,.25);border-radius:8px;
-  padding:.6rem .9rem;margin-bottom:1.1rem
-}
+.selected-show{background:var(--accent-dim);border:1px solid rgba(200,146,42,.25);border-radius:8px;padding:.6rem .9rem;margin-bottom:1.1rem}
 .selected-show .ss-name{font-family:Oswald;font-size:1rem;color:var(--accent)}
 .selected-show .ss-meta{font-size:.72rem;color:var(--muted);margin-top:2px}
 .roles{display:flex;flex-direction:column;gap:.6rem}
-.role-card{
-  display:flex;align-items:center;gap:1rem;
-  background:var(--card2);border:1.5px solid var(--border2);border-radius:10px;
-  padding:.9rem 1rem;cursor:pointer;transition:all .15s;text-decoration:none;color:var(--text)
-}
-.role-card:hover{border-color:var(--accent);background:#252525}
-.role-card:active{background:#2a2a2a}
+.role-card{display:flex;align-items:center;gap:1rem;background:var(--card2);border:1.5px solid var(--border2);border-radius:10px;padding:.9rem 1rem;cursor:pointer;transition:all .15s;text-decoration:none;color:var(--text)}
+.role-card:hover{border-color:var(--accent);background:#1a2c1c}
 .role-icon{font-size:1.6rem;flex-shrink:0;width:2.4rem;text-align:center}
 .role-info .role-name{font-family:Oswald;font-size:1rem;color:var(--text)}
 .role-info .role-desc{font-size:.75rem;color:var(--muted);margin-top:.1rem}
-.role-card.secretary{border-color:rgba(184,134,42,.3)}
+.role-card.secretary{border-color:rgba(200,146,42,.3)}
 .role-card.secretary:hover{border-color:var(--accent)}
 .role-card.scribe{border-color:rgba(52,152,219,.25)}
 .role-card.scribe:hover{border-color:var(--blue)}
 .role-card.participant{border-color:rgba(46,204,113,.2)}
 .role-card.participant:hover{border-color:var(--green)}
 
-/* ── New show form ──────────────────────────── */
+/* ── New show form ── */
 #new-form{display:none;margin-top:.85rem;padding-top:.85rem;border-top:1px solid var(--border)}
 .fg{display:flex;flex-direction:column;gap:.28rem;margin-bottom:.6rem}
 .fg label{font-size:.72rem;color:var(--muted)}
-.fg input,.fg select{
-  background:var(--bg);border:1px solid var(--border2);border-radius:6px;
-  color:var(--text);padding:.42rem .6rem;font-size:.85rem;font-family:inherit
-}
+.fg input,.fg select{background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .6rem;font-size:.85rem;font-family:inherit}
 .fg input:focus,.fg select:focus{outline:none;border-color:var(--accent)}
 .fg select option{background:var(--card)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.status-hint{font-size:.69rem;color:var(--muted);margin-top:.25rem;line-height:1.4}
 .btn{display:inline-flex;align-items:center;gap:.3rem;padding:.42rem .85rem;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;font-family:inherit;transition:all .15s}
 .btn-accent{background:var(--accent);color:#000}.btn-accent:hover{opacity:.9}
 .btn-dark{background:var(--card2);color:var(--text);border:1px solid var(--border2)}.btn-dark:hover{border-color:var(--accent)}
 .btn-sm{padding:.26rem .6rem;font-size:.74rem}
 .btn-row{display:flex;gap:.5rem;margin-top:.65rem}
-.err{color:var(--red);font-size:.78rem;margin-top:.3rem}
+.err{font-size:.78rem;margin-top:.3rem}
 .empty{color:var(--muted);font-size:.84rem;text-align:center;padding:1.5rem 0}
 
-/* ── Footer ─────────────────────────────────── */
+/* ── Footer ── */
 .footer{font-size:.72rem;color:var(--muted);text-align:center;margin-top:.5rem}
 .footer a{color:var(--accent);text-decoration:none}
 </style>
@@ -113,13 +117,22 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 3re
   <h1>THOROFARE</h1>
   <div class="wordmark-bar"></div>
   <p>by TwoTop</p>
+  <div class="wordmark-assoc" id="assoc-display"></div>
 </div>
 
 <!-- Show list panel -->
 <div class="panel" id="shows-panel">
   <div class="panel-title">
     <span><span class="db-dot spin" id="dot"></span><span id="db-label">Connecting…</span></span>
-    <span style="font-size:.72rem;color:var(--muted)" id="assoc-name"></span>
+    <div class="sort-bar" style="margin-bottom:0">
+      <label>Sort</label>
+      <select id="sort-sel" onchange="renderShows()">
+        <option value="date-desc">Newest first</option>
+        <option value="date-asc">Oldest first</option>
+        <option value="status">By status</option>
+        <option value="name">By name</option>
+      </select>
+    </div>
   </div>
   <div id="shows-list"><div class="empty">Loading shows…</div></div>
   <div style="margin-top:.75rem">
@@ -134,12 +147,14 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 3re
     <div class="fg"><label>Location</label><input id="ns-location" placeholder="e.g. Estes Park Fairgrounds"></div>
     <div class="fg">
       <label>Status</label>
-      <select id="ns-status">
+      <select id="ns-status" onchange="updateStatusHint()">
         <option value="setup">Setup</option>
         <option value="entries_open">Entries Open</option>
         <option value="entries_closed">Entries Closed</option>
         <option value="running">Running Now</option>
+        <option value="complete">Complete</option>
       </select>
+      <div class="status-hint" id="status-hint">Being configured — not yet visible to members.</div>
     </div>
     <div id="ns-err" class="err"></div>
     <div class="btn-row">
@@ -184,7 +199,7 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 3re
   </div>
 </div>
 
-<div class="footer">Thorofare &mdash; <a href="https://github.com/gatepostpro/gatepost" target="_blank">GitHub</a></div>
+<div class="footer">Thorofare &mdash; by TwoTop</div>
 
 <script>
 var SUPABASE_URL  = 'https://tpurkcxtkvwpywxnuzwe.supabase.co';
@@ -192,6 +207,19 @@ var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 var ASSOC = null;
 var allShows = [];
+
+// Read org from URL: ?org=CoWN  — falls back to CoWN if not set
+var ORG_PARAM = (new URLSearchParams(window.location.search)).get('org') || 'CoWN';
+
+var STATUS_HINTS = {
+  setup:          'Being configured — not yet visible to members.',
+  entries_open:   'Entry form is live — members can submit entries.',
+  entries_closed: 'Entry deadline passed — list is locked, secretary preps tabs and class lists.',
+  running:        'Show day — live scoring active, scribe view enabled.',
+  complete:       'Show finished — results finalized, ready to push to season standings.'
+};
+
+var STATUS_ORDER = ['running','entries_open','entries_closed','setup','complete'];
 
 async function sbFetch(path, opts){
   var res = await fetch(SUPABASE_URL+'/rest/v1/'+path, Object.assign({
@@ -204,21 +232,44 @@ async function sbFetch(path, opts){
   var t=await res.text(); return t?JSON.parse(t):null;
 }
 
+async function sbDelete(path){
+  var res = await fetch(SUPABASE_URL+'/rest/v1/'+path, {
+    method:'DELETE',
+    headers:{
+      'apikey':SUPABASE_ANON,'Authorization':'Bearer '+SUPABASE_ANON,
+      'Content-Type':'application/json','Prefer':'return=minimal,count=exact'
+    }
+  });
+  if(!res.ok){ var e=await res.text(); throw new Error(e); }
+  return true;
+}
+
 function fmtDate(d){
   if(!d) return '';
   return new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 }
 
-function statusLabel(s){ return (s||'').replace(/_/g,' '); }
+function showYear(d){ return d ? new Date(d+'T00:00:00').getFullYear() : '—'; }
+
+function statusLabel(s){
+  var labels={setup:'Setup',entries_open:'Entries Open',entries_closed:'Entries Closed',running:'Running Now',complete:'Complete'};
+  return labels[s]||(s||'').replace(/_/g,' ');
+}
+
+function updateStatusHint(){
+  var v=document.getElementById('ns-status').value;
+  document.getElementById('status-hint').textContent=STATUS_HINTS[v]||'';
+}
 
 async function init(){
   try{
-    var rows = await sbFetch('associations?abbreviation=eq.CoWN&select=*');
+    var rows = await sbFetch('associations?abbreviation=eq.'+encodeURIComponent(ORG_PARAM)+'&select=*');
     ASSOC = rows && rows[0];
-    if(!ASSOC) throw new Error('Association not found');
+    if(!ASSOC) throw new Error('Association "'+ORG_PARAM+'" not found');
     document.getElementById('dot').className='db-dot ok';
     document.getElementById('db-label').textContent='Connected';
-    document.getElementById('assoc-name').textContent=ASSOC.abbreviation;
+    document.getElementById('assoc-display').textContent=ASSOC.name||ASSOC.abbreviation;
+    document.title='Thorofare — '+( ASSOC.abbreviation||ORG_PARAM);
     await loadShows();
   } catch(err){
     document.getElementById('dot').className='db-dot';
@@ -231,25 +282,68 @@ async function init(){
 async function loadShows(){
   var shows = await sbFetch('shows?association_id=eq.'+ASSOC.id+'&order=show_date.desc&select=*');
   allShows = shows||[];
+  renderShows();
+}
+
+function renderShows(){
   var el = document.getElementById('shows-list');
   if(!allShows.length){
     el.innerHTML='<div class="empty">No shows yet. Create your first one.</div>';
     return;
   }
-  el.innerHTML='<div class="show-list">'
-    +allShows.map(function(s){
-      return '<div class="show-row" data-id="'+s.id+'">'
-        +'<div>'
-        +'<div class="sr-name">'+s.name+'</div>'
-        +'<div class="sr-meta">'+fmtDate(s.show_date)+(s.location?' &middot; '+s.location:'')+'</div>'
-        +'</div>'
-        +'<span class="sr-badge s-'+s.status+'">'+statusLabel(s.status)+'</span>'
-        +'</div>';
-    }).join('')
-    +'</div>';
+
+  var sort = document.getElementById('sort-sel') ? document.getElementById('sort-sel').value : 'date-desc';
+  var sorted = allShows.slice();
+
+  if(sort==='date-desc')  sorted.sort(function(a,b){ return (b.show_date||'').localeCompare(a.show_date||''); });
+  if(sort==='date-asc')   sorted.sort(function(a,b){ return (a.show_date||'').localeCompare(b.show_date||''); });
+  if(sort==='name')       sorted.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+  if(sort==='status')     sorted.sort(function(a,b){ return STATUS_ORDER.indexOf(a.status)-STATUS_ORDER.indexOf(b.status); });
+
+  // Group by year for date sorts; flat list for others
+  var useYearGroups = sort==='date-desc'||sort==='date-asc';
+
+  var html='';
+
+  if(useYearGroups){
+    var years={};
+    sorted.forEach(function(s){
+      var y=showYear(s.show_date);
+      if(!years[y]) years[y]=[];
+      years[y].push(s);
+    });
+    var yearKeys=Object.keys(years).sort(function(a,b){ return sort==='date-asc'?a-b:b-a; });
+    yearKeys.forEach(function(y){
+      html+='<div class="year-group"><div class="year-hdr">'+y+'</div><div class="show-list">';
+      years[y].forEach(function(s){ html+=showRowHTML(s); });
+      html+='</div></div>';
+    });
+  } else {
+    html='<div class="show-list">'+sorted.map(showRowHTML).join('')+'</div>';
+  }
+
+  el.innerHTML=html;
+
   el.querySelectorAll('[data-id]').forEach(function(row){
-    row.addEventListener('click', function(){ selectShow(row.dataset.id); });
+    row.querySelector('.show-row-main').addEventListener('click', function(){ selectShow(row.dataset.id); });
+    row.querySelector('.del-btn').addEventListener('click', function(e){
+      e.stopPropagation();
+      deleteShow(row.dataset.id);
+    });
   });
+}
+
+function showRowHTML(s){
+  return '<div class="show-row" data-id="'+s.id+'">'
+    +'<div class="show-row-main">'
+    +'<div class="sr-name">'+s.name+'</div>'
+    +'<div class="sr-meta">'+fmtDate(s.show_date)+(s.location?' &middot; '+s.location:'')+'</div>'
+    +'</div>'
+    +'<div class="sr-right">'
+    +'<span class="sr-badge s-'+s.status+'">'+statusLabel(s.status)+'</span>'
+    +'<button class="del-btn" title="Delete this show">&#10005;</button>'
+    +'</div>'
+    +'</div>';
 }
 
 function selectShow(id){
@@ -260,9 +354,10 @@ function selectShow(id){
   document.getElementById('sel-meta').textContent =
     [fmtDate(show.show_date), show.location].filter(Boolean).join(' · ');
 
-  document.getElementById('role-secretary').href  = 'app.html?show='+id;
-  document.getElementById('role-scribe').href     = 'scribe.html?show='+id;
-  document.getElementById('role-participant').href = 'results.html?show='+id;
+  var q='?show='+id+'&org='+encodeURIComponent(ORG_PARAM);
+  document.getElementById('role-secretary').href  = 'app.html'+q;
+  document.getElementById('role-scribe').href     = 'scribe.html'+q;
+  document.getElementById('role-participant').href = 'results.html'+q;
 
   document.getElementById('shows-panel').style.display='none';
   document.getElementById('role-panel').style.display='block';
@@ -273,9 +368,24 @@ function backToShows(){
   document.getElementById('shows-panel').style.display='block';
 }
 
+async function deleteShow(id){
+  var show = allShows.find(function(s){ return s.id==id; });
+  if(!show) return;
+  if(!confirm('Delete "'+show.name+'"?\n\nThis will permanently remove the show from the database. Entries and results stored locally in the secretary\'s browser will remain until manually cleared.\n\nThis cannot be undone.')) return;
+  try{
+    await sbDelete('shows?id=eq.'+id);
+    allShows = allShows.filter(function(s){ return s.id!=id; });
+    renderShows();
+  } catch(err){
+    alert('Delete failed: '+err.message+'\n\nCheck that the "shows" table has a DELETE policy for the anon role in Supabase.');
+  }
+}
+
 window.toggleNew = function(){
   var f=document.getElementById('new-form');
-  f.style.display = f.style.display==='none'?'block':'none';
+  var open=f.style.display!=='block';
+  f.style.display=open?'block':'none';
+  if(open) updateStatusHint();
 };
 
 window.createShow = async function(){
@@ -286,6 +396,7 @@ window.createShow = async function(){
   var status   = document.getElementById('ns-status').value;
   var errEl    = document.getElementById('ns-err');
   errEl.textContent='';
+  errEl.style.cssText='';
   if(!name){ errEl.textContent='Show name is required'; return; }
   if(!date){ errEl.textContent='Show date is required'; return; }
   if(!ASSOC){ errEl.textContent='Not connected'; return; }
@@ -300,13 +411,19 @@ window.createShow = async function(){
     });
     var show = shows&&shows[0];
     if(!show) throw new Error('No show returned — check that the "shows" table has an INSERT policy for the anon role in Supabase.');
+    allShows.unshift(show);
+    document.getElementById('new-form').style.display='none';
+    document.getElementById('ns-name').value='';
+    document.getElementById('ns-date').value='';
+    document.getElementById('ns-deadline').value='';
+    document.getElementById('ns-location').value='';
+    renderShows();
     selectShow(show.id);
   } catch(err){
-    var msg='Error creating show: '+err.message;
+    var msg='Error: '+err.message;
     errEl.textContent=msg;
     errEl.style.cssText='color:var(--red);font-size:.78rem;margin-top:.5rem;padding:.4rem .6rem;background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.25);border-radius:5px';
     console.error('createShow failed:', err);
-    if(!err.message||err.message.length<5) alert(msg);
   }
 };
 
