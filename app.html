@@ -417,6 +417,14 @@ tr:hover td{background:rgba(255,255,255,.03)}
 .wiz-review-item{font-size:.84rem;color:var(--text);padding:.18rem 0;border-bottom:1px solid var(--border)}
 .wiz-review-item:last-child{border:none}
 .wiz-launch-area{background:var(--accent-dim);border:1px solid var(--accent);border-radius:10px;padding:1.1rem;text-align:center;margin-top:.75rem}
+input[type="date"]{color-scheme:dark}
+[data-theme="light"] input[type="date"]{color-scheme:light}
+.wiz-fee-cat{margin-bottom:1rem}
+.wiz-fee-cat-head{font-family:'Oswald',sans-serif;font-size:.82rem;color:var(--accent);letter-spacing:.05em;text-transform:uppercase;margin-bottom:.35rem;padding-bottom:.3rem;border-bottom:1px solid var(--border)}
+.wiz-fee-sched-row{display:grid;grid-template-columns:24px 1fr 100px;gap:.4rem;align-items:center;padding:.28rem 0}
+.cls-org-tabs{display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem}
+.cls-org-tab{background:var(--bg);border:1px solid var(--border2);border-radius:20px;padding:.22rem .7rem;font-size:.78rem;cursor:pointer;color:var(--muted);transition:all .12s}
+.cls-org-tab:hover{color:var(--text)}.cls-org-tab.active{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
 </style>
 
 </head>
@@ -7641,6 +7649,8 @@ function pgSettings(){
 
     +'</div>'
 
+    +'<div class="cls-org-tabs" id="cls-org-tabs" style="padding:.55rem 1.25rem 0"></div>'
+
     +'<div style="overflow-x:auto"><table class="cfg-tbl"><thead><tr>'
 
     +'<th style="width:65px">Class #</th><th>Class Name</th><th style="width:120px">Division</th>'
@@ -7649,13 +7659,13 @@ function pgSettings(){
 
     +'<th style="width:75px">Base Fee</th><th style="width:75px">Cow Fee</th>'
 
-    +'<th style="width:75px">Jackpot</th><th style="width:75px">Added $</th>'
+    +'<th style="width:75px">Jackpot</th>'
 
     +'<th style="width:55px;text-align:center">Total</th><th style="width:32px"></th>'
 
     +'</tr></thead><tbody id="cfg-cls-tbody">'
 
-    +'<tr><td colspan="11" class="empty-state">No classes loaded yet.</td></tr>'
+    +'<tr><td colspan="10" class="empty-state">No classes loaded yet.</td></tr>'
 
     +'</tbody></table></div></div>'
 
@@ -9049,6 +9059,8 @@ function addCustomOrg(){
 
 // ── Class config table ──
 
+var CFG_ORG_FILTER='';
+
 function renderCfgClassTable(){
 
   var tbody=document.getElementById('cfg-cls-tbody');
@@ -9059,15 +9071,27 @@ function renderCfgClassTable(){
 
   if(lbl) lbl.textContent=G.cfg.classes.length+' classes';
 
-  if(!G.cfg.classes.length){ tbody.innerHTML='<tr><td colspan="11" class="empty-state">No classes loaded.</td></tr>'; return; }
+  if(!G.cfg.classes.length){ tbody.innerHTML='<tr><td colspan="10" class="empty-state">No classes loaded.</td></tr>'; return; }
 
+  // Build org tabs
+  var orgs=[]; G.cfg.classes.forEach(function(c){ var o=c.org||'CoWN'; if(orgs.indexOf(o)<0) orgs.push(o); });
+  var tabEl=document.getElementById('cls-org-tabs');
+  if(tabEl&&orgs.length>1){
+    var tabHtml='<span class="cls-org-tab'+(CFG_ORG_FILTER===''?' active':'')+'" onclick="setCfgOrgFilter(\'\',this)">All</span>';
+    orgs.forEach(function(o){
+      var m=ORG_META&&ORG_META[o]; var lbl=m?m.label:o;
+      tabHtml+='<span class="cls-org-tab'+(CFG_ORG_FILTER===o?' active':'')+'" onclick="setCfgOrgFilter(\''+esc(o)+'\',this)">'+(m&&m.icon?m.icon+' ':'')+esc(lbl)+'</span>';
+    });
+    tabEl.innerHTML=tabHtml;
+  } else if(tabEl){ tabEl.innerHTML=''; }
 
+  var filtered=G.cfg.classes.filter(function(c){ return !CFG_ORG_FILTER||(c.org||'CoWN')===CFG_ORG_FILTER; });
 
   var byDiv={};
 
-  G.cfg.classes.forEach(function(c){
+  filtered.forEach(function(c){
 
-    var k=(c.org||'CoWN')+': '+(c.division||'General');
+    var k=c.division||'General';
 
     if(!byDiv[k]) byDiv[k]=[];
 
@@ -9075,13 +9099,11 @@ function renderCfgClassTable(){
 
   });
 
-
-
   var html='';
 
   Object.keys(byDiv).sort().forEach(function(div){
 
-    html+='<tr class="div-hdr"><td colspan="11">'+esc(div)+'</td></tr>';
+    html+='<tr class="div-hdr"><td colspan="10">'+esc(div)+'</td></tr>';
 
     byDiv[div].forEach(function(c){
 
@@ -9109,8 +9131,6 @@ function renderCfgClassTable(){
 
         +'<td>'+feeInp(c._id,'jackpot',c.jackpot,'0')+'</td>'
 
-        +'<td>'+feeInp(c._id,'addedMoney',c.addedMoney,'0')+'</td>'
-
         +'<td style="text-align:center;font-weight:600;color:var(--accent);font-size:.8rem" id="ct-'+c._id+'">'+fmtI(total)+'</td>'
 
         +'<td><button class="btn btn-red btn-sm" onclick="delCls(\''+c._id+'\')">&#10005;</button></td>'
@@ -9125,6 +9145,13 @@ function renderCfgClassTable(){
 
   renderAAPrizeCfg();
 
+}
+
+function setCfgOrgFilter(org,el){
+  CFG_ORG_FILTER=org;
+  document.querySelectorAll('.cls-org-tab').forEach(function(t){ t.classList.remove('active'); });
+  if(el) el.classList.add('active');
+  renderCfgClassTable();
 }
 
 
@@ -9285,7 +9312,9 @@ function delCls(id){
 
 function filterCfgClasses(q){
 
-  document.querySelectorAll('#cfg-cls-tbody tr:not(.div-hdr)').forEach(function(r){
+  document.querySelectorAll('#cfg-cls-tbody tr').forEach(function(r){
+
+    if(r.classList.contains('div-hdr')){ r.style.display=''; return; }
 
     r.style.display=(!q||r.textContent.toLowerCase().indexOf(q.toLowerCase())>-1)?'':'none';
 
@@ -13543,7 +13572,7 @@ boot();
 // ═══════════════════════ SETUP WIZARD ═══════════════════════
 
 var ORG_META = {
-  'CoWN':       {icon:'🤠', label:'CoWN Stock Horse',    desc:'Cow Work, Reining, Trail, Pleasure + All Around. Season points via SHTX.'},
+  'CoWN':       {icon:'🤠', label:'SHTX',               desc:'Stock horse classes (Cow Work, Reining, Trail, Pleasure + All Around). Points tracked via SHTX rules.'},
   'VRH':        {icon:'🏆', label:'AQHA VRH',            desc:'Versatility Ranch Horse — Cutting, Cow, Reining, Trail, Pleasure, Conformation.'},
   'AQHA Ranch': {icon:'🐂', label:'AQHA Ranch',          desc:'Ranch Trail, Ranch Riding, Working Western Rail.'},
   'AQHA RHC':   {icon:'🔶', label:'AQHA RHC',           desc:'Ranch Heritage Challenge — age-based working ranch horse classes.'},
@@ -13554,7 +13583,7 @@ var ORG_META = {
 
 var WIZ = {
   step:1, orgs:[], sel:{},
-  fees:{base:30, cow:15, extras:[]},
+  fees:{schedule:null, extras:[]},
   days:1, dayDates:[''], classDays:{}, presetName:''
 };
 
@@ -13572,6 +13601,11 @@ function openWizard(){
     WIZ.orgs = G.cfg.showOrgs.slice();
     WIZ.orgs.forEach(function(org){ wizInitSel(org); });
   }
+  // Init fee schedule from saved config or defaults
+  var src = G.cfg.feeSchedule || DEFAULT_FEE_SCHEDULE;
+  WIZ.fees.schedule = src.map(function(f){ return {key:f.key,label:f.label,amt:f.amt||0,cat:f.cat||'custom'}; });
+  // Pre-load show date into Day 1
+  if(G.cfg.showDate && !WIZ.dayDates[0]) WIZ.dayDates[0] = G.cfg.showDate;
   WIZ.step = 1;
   document.getElementById('wizard-overlay').style.display = 'flex';
   wizRender();
@@ -13582,11 +13616,11 @@ function closeWizard(){
 }
 
 function wizSaveStep(){
-  if(WIZ.step === 3){
-    var b = document.getElementById('wiz-fee-base');
-    var c = document.getElementById('wiz-fee-cow');
-    if(b) WIZ.fees.base = parseFloat(b.value)||0;
-    if(c) WIZ.fees.cow  = parseFloat(c.value)||0;
+  if(WIZ.step === 3 && WIZ.fees.schedule){
+    WIZ.fees.schedule.forEach(function(f,i){
+      var el = document.getElementById('wiz-fee-amt-'+i);
+      if(el) f.amt = parseFloat(el.value)||0;
+    });
   }
 }
 
@@ -13727,32 +13761,40 @@ function wizSelectAll(org,all){
 
 /* ── Step 3: Fees ── */
 function wizStep3Html(){
-  var hasCown=WIZ.orgs.indexOf('CoWN')>=0;
-  var html='<p style="color:var(--muted);font-size:.87rem;margin-bottom:1rem">Set standard fees. You can override per class in Show Setup after launch.</p>'
-    +'<div class="card" style="max-width:540px">'
-    +'<div class="card-title">Class Entry Fees</div>'
-    +'<div class="wiz-fee-row"><span style="font-size:.88rem;color:var(--text)">Base class entry fee</span>'
-    +'<input type="number" class="wiz-input" id="wiz-fee-base" value="'+WIZ.fees.base+'" min="0" step="5" style="width:100%;text-align:right"><span></span></div>';
-  if(hasCown){
-    html+='<div class="wiz-fee-row"><span style="font-size:.88rem;color:var(--text)">Cow Work surcharge</span>'
-      +'<input type="number" class="wiz-input" id="wiz-fee-cow" value="'+WIZ.fees.cow+'" min="0" step="5" style="width:100%;text-align:right"><span></span></div>';
+  if(!WIZ.fees.schedule){
+    WIZ.fees.schedule = DEFAULT_FEE_SCHEDULE.map(function(f){ return {key:f.key,label:f.label,amt:f.amt||0,cat:f.cat||'custom'}; });
   }
-  html+='</div>'
-    +'<div class="card" style="max-width:540px;margin-top:.75rem">'
-    +'<div class="card-title">Additional Fees <small>stalls, camping, clinics…</small></div>'
+  var html='<p style="color:var(--muted);font-size:.87rem;margin-bottom:1.1rem">Pre-set fees are loaded from defaults — adjust any amounts for this show. Unneeded fee types can be zeroed out.</p>';
+  var grouped={};
+  WIZ.fees.schedule.forEach(function(f,i){ var c=f.cat||'custom'; if(!grouped[c]) grouped[c]=[]; grouped[c].push({f:f,i:i}); });
+  var catOrder=['class','stall','rv','office','member'];
+  catOrder.forEach(function(cat){
+    var items=grouped[cat]; if(!items||!items.length) return;
+    var catInfo=FEE_CATS[cat]||{label:cat};
+    html+='<div class="wiz-fee-cat"><div class="wiz-fee-cat-head">'+esc(catInfo.label)+'</div>';
+    items.forEach(function(item){
+      var f=item.f, i=item.i;
+      html+='<div class="wiz-fee-sched-row">'
+        +'<span style="font-size:.85rem;color:var(--text)">'+esc(f.label)+'</span>'
+        +'<input type="number" class="wiz-input" id="wiz-fee-amt-'+i+'" value="'+f.amt+'" min="0" step="1" style="width:100%;text-align:right">'
+        +'</div>';
+    });
+    html+='</div>';
+  });
+  html+='<div class="wiz-fee-cat"><div class="wiz-fee-cat-head">Custom / Additional Fees</div>'
     +'<div id="wiz-extras-list">'+wizExtrasHtml()+'</div>'
-    +'<button class="btn btn-dark btn-sm" onclick="wizAddExtra()" style="margin-top:.55rem">+ Add Fee</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="wizAddExtra()" style="margin-top:.5rem">+ Add Fee</button>'
     +'</div>';
   return html;
 }
 function wizExtrasHtml(){
   return WIZ.fees.extras.map(function(ef,i){
-    return '<div class="wiz-fee-row">'
+    return '<div class="wiz-fee-sched-row">'
       +'<input type="text" class="wiz-input" value="'+esc(ef.label)+'" placeholder="Fee name" oninput="WIZ.fees.extras['+i+'].label=this.value" style="width:100%">'
-      +'<input type="number" class="wiz-input" value="'+ef.amount+'" min="0" step="5" oninput="WIZ.fees.extras['+i+'].amount=parseFloat(this.value)||0" style="width:100%;text-align:right">'
+      +'<input type="number" class="wiz-input" value="'+ef.amount+'" min="0" step="1" oninput="WIZ.fees.extras['+i+'].amount=parseFloat(this.value)||0" style="width:100%;text-align:right">'
       +'<button class="btn btn-red btn-sm" style="padding:.18rem .38rem;min-width:26px" onclick="wizRemoveExtra('+i+')">×</button>'
       +'</div>';
-  }).join('');
+  }).join('')||'<div style="font-size:.82rem;color:var(--muted);padding:.25rem 0">No custom fees added yet.</div>';
 }
 function wizAddExtra(){
   WIZ.fees.extras.push({label:'',amount:0});
@@ -13809,9 +13851,8 @@ function wizDayDatesHtml(){
 function wizSetDays(n){
   n=Math.max(1,Math.min(7,n)); WIZ.days=n;
   while(WIZ.dayDates.length<n) WIZ.dayDates.push('');
-  document.getElementById('wiz-days-num').textContent=n;
-  document.getElementById('wiz-day-dates').innerHTML=wizDayDatesHtml();
   Object.keys(WIZ.classDays).forEach(function(k){ if(WIZ.classDays[k]>n) WIZ.classDays[k]=n; });
+  document.getElementById('wiz-body').innerHTML=wizStep4Html();
 }
 
 /* ── Step 5: Review ── */
@@ -13831,9 +13872,8 @@ function wizStep5Html(){
   });
   html+='<div class="wiz-review-item" style="color:var(--accent);font-weight:600">Total: '+total+' classes</div></div>';
   // Fees
-  html+='<div class="wiz-review-card"><div class="wiz-review-card-title">Fees</div>'
-    +'<div class="wiz-review-item">Base entry: $'+(WIZ.fees.base||0).toFixed(2)+'</div>';
-  if(WIZ.orgs.indexOf('CoWN')>=0&&WIZ.fees.cow) html+='<div class="wiz-review-item">Cow surcharge: $'+(WIZ.fees.cow||0).toFixed(2)+'</div>';
+  html+='<div class="wiz-review-card"><div class="wiz-review-card-title">Fees</div>';
+  (WIZ.fees.schedule||[]).forEach(function(f){ if(f.amt>0) html+='<div class="wiz-review-item">'+esc(f.label)+': $'+f.amt.toFixed(2)+'</div>'; });
   WIZ.fees.extras.forEach(function(ef){ if(ef.label) html+='<div class="wiz-review-item">'+esc(ef.label)+': $'+(ef.amount||0).toFixed(2)+'</div>'; });
   html+='</div>';
   // Schedule
@@ -13863,22 +13903,27 @@ function wizBindStep5(){
 /* ── Launch ── */
 async function wizLaunch(){
   wizSaveStep();
+  var sched=WIZ.fees.schedule||[];
+  var classBase=(sched.find(function(f){return f.key==='classBase';})||{}).amt||0;
+  var cowSurch=(sched.find(function(f){return f.key==='cowSurcharge';})||{}).amt||0;
+  var COW_DISCS={CoWN:['Cow Work'],VRH:['Cutting','Cow Work'],APHA:['Cow Horse']};
   var classes=[], num=1;
   WIZ.orgs.forEach(function(org){
     var oc=ORG_CLASSES[org]; if(!oc) return;
     var sel=WIZ.sel[org]||{};
+    var cowDiscs=COW_DISCS[org]||[];
     oc.divisions.forEach(function(div){
       var dk=div||'(All)', discs=sel[dk]||[];
       oc.disciplines.forEach(function(disc){
         if(discs.indexOf(disc)<0) return;
-        var isCow=(org==='CoWN'&&disc==='Cow Work')||(org==='VRH'&&disc==='Cutting')||(org==='APHA'&&disc==='Cow Horse');
+        var isCow=cowDiscs.indexOf(disc)>=0;
         classes.push({
           num:String(num++),
-          name:(dk==='(All)'?'':dk+' ')+disc,
+          name:disc,
           division:dk==='(All)'?'':dk,
           org:org, isCow:isCow,
-          baseFee:WIZ.fees.base||0,
-          cowFee:isCow?(WIZ.fees.cow||0):0,
+          baseFee:classBase,
+          cowFee:isCow?cowSurch:0,
           jackpot:0, addedMoney:0
         });
       });
@@ -13886,12 +13931,8 @@ async function wizLaunch(){
   });
   G.cfg.classes=classes;
   G.cfg.showOrgs=WIZ.orgs.slice();
-  // Init fee schedule with wizard values
-  initFeeSchedule();
-  var bEntry=G.cfg.feeSchedule.find(function(f){ return f.key==='classBase'; });
-  if(bEntry) bEntry.amt=WIZ.fees.base||0;
-  var cEntry=G.cfg.feeSchedule.find(function(f){ return f.key==='cowSurcharge'; });
-  if(cEntry) cEntry.amt=WIZ.fees.cow||0;
+  // Sync wizard fee schedule to G.cfg
+  G.cfg.feeSchedule = sched.map(function(f){ return {key:f.key,label:f.label,amt:f.amt||0,cat:f.cat||'custom'}; });
   G.cfg.extraFees=WIZ.fees.extras.filter(function(ef){ return ef.label; });
   // Preset
   var pcb=document.getElementById('wiz-save-preset');
