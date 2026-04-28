@@ -6382,20 +6382,50 @@ function pgResults(){
 
       // Per-row anomaly hints (not errors — informational badges only)
       // DQ?: score > 0 but pts = 0 — score was earned but placement voided
-      // OP?: scored higher than someone who received more points — their place was
-      //      penalized regardless of score (off-pattern). Works for any class size.
+      // OP heuristics — two independent detectors, either can flag a row:
+      // 1. Score paradox: scored higher than someone with more pts (classic OP signal)
+      // 2. Pts duplicate: same pts as another rider with a DIFFERENT place — SHTX assigns
+      //    pts by score-rank so OP riders "inherit" another rider's pts value, creating
+      //    duplicates. The lower-placed duplicate is flagged.
       var possibleOPMap={}, possibleDQMap={};
       var scoredActive=clsRows.filter(function(r){ return !r.isDQ&&!(r.opCount>0)&&!r._manual&&r.score>0&&r.pts>0; });
+
+      // Detector 1: score paradox
       clsRows.forEach(function(r){
         if(r.isDQ||(r.opCount>0)||r._manual) return;
         var key=r.rider+'|'+r.horse;
         if(r.score>0&&r.pts===0){ possibleDQMap[key]=true; return; }
         if(r.score>0&&r.pts>0){
-          // Someone scored lower but got more points → r was penalized (OP)
           var lowerScoreMorePts=scoredActive.filter(function(o){
             return o!==r && o.score<r.score && o.pts>r.pts;
           });
           if(lowerScoreMorePts.length>0) possibleOPMap[key]=true;
+        }
+      });
+
+      // Detector 2: duplicate pts with different place → likely SHTX OP artifact
+      // Group active (non-OP, non-DQ) rows by pts value
+      var ptsBuckets={};
+      scoredActive.forEach(function(r){
+        var pk=r.pts.toFixed(2);
+        if(!ptsBuckets[pk]) ptsBuckets[pk]=[];
+        ptsBuckets[pk].push(r);
+      });
+      Object.keys(ptsBuckets).forEach(function(pk){
+        var bucket=ptsBuckets[pk];
+        if(bucket.length<2) return;
+        // Check if all share the same place (legitimate tie) or not
+        var places=bucket.map(function(r){ return r.place; });
+        var allSamePlace=places.every(function(p){ return p===places[0]; });
+        if(!allSamePlace){
+          // Pts duplicate with different places: flag the lower-placed row(s)
+          var minPlace=Math.min.apply(null,places);
+          bucket.forEach(function(r){
+            if(r.place!==minPlace){
+              var key=r.rider+'|'+r.horse;
+              possibleOPMap[key]=true;
+            }
+          });
         }
       });
 
@@ -6414,6 +6444,14 @@ function pgResults(){
       }
       var placeErrs=0, ptsErrs=ptsErrDetails.length;
 
+      // Count duplicate-pts rows (possible unflagged OPs) for CoWN classes
+      var dupPtsRiders=Object.keys(possibleOPMap).filter(function(k){
+        // Only count ones flagged by the duplicate-pts detector, not score-paradox
+        var r=clsRows.find(function(x){ return (x.rider+'|'+x.horse)===k; });
+        return r&&!(r.opCount>0)&&!r.isDQ;
+      });
+      var dupPtsCount=dupPtsRiders.length;
+
       var hasErrors=(!allManual&&entryMismatch)||ptsErrs>0;
 
       // Calc Pts column only for AQHA — CoWN pts from SHTX are authoritative, no comparison needed
@@ -6421,6 +6459,22 @@ function pgResults(){
       var showCalcCols=isAqhaOrg;
 
 
+
+      // ── OP duplicate-pts warning (CoWN / entries-based classes) ──
+      // SHTX assigns pts by score-rank, so OP riders inherit another rider's pts value.
+      // These rows are flagged "OP?" — mark them OP, then Re-rank to fix.
+      if(!isAqhaOrg && dupPtsCount>0){
+        var opFlagged=clsRows.filter(function(r){ return (r.opCount||0)>0; }).length;
+        html+='<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.5rem;padding:.45rem .6rem;'
+          +'background:rgba(224,124,0,.07);border:1px solid rgba(224,124,0,.3);border-radius:6px">'
+          +'<span style="font-size:.78rem;font-weight:600;color:#e07c00">&#9888; Duplicate points detected — '+dupPtsCount+' row'+(dupPtsCount===1?'':'s')+' flagged OP?</span>'
+          +'<span style="font-size:.74rem;color:var(--muted)">SHTX assigns pts by score rank, so OP riders share pts with another rider. '
+          +'Rows marked OP? below are likely the off-pattern riders.</span>'
+          +(opFlagged===0
+            ? '<span style="font-size:.74rem;color:#e07c00">→ Click OP on each flagged row to confirm, then Re-rank to fix the points.</span>'
+            : '<span style="font-size:.74rem;color:var(--green)">'+opFlagged+' marked OP — click Re-rank to recalculate.</span>')
+          +'</div>';
+      }
 
       // ── Audit bar ──
 
