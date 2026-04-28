@@ -421,7 +421,7 @@ input[type="date"]{color-scheme:dark}
 [data-theme="light"] input[type="date"]{color-scheme:light}
 .wiz-fee-cat{margin-bottom:1rem}
 .wiz-fee-cat-head{font-family:'Oswald',sans-serif;font-size:.82rem;color:var(--accent);letter-spacing:.05em;text-transform:uppercase;margin-bottom:.35rem;padding-bottom:.3rem;border-bottom:1px solid var(--border)}
-.wiz-fee-sched-row{display:grid;grid-template-columns:24px 1fr 100px;gap:.4rem;align-items:center;padding:.28rem 0}
+.wiz-fee-sched-row{display:grid;grid-template-columns:1fr 82px 28px;gap:.4rem;align-items:center;padding:.28rem 0}
 .cls-org-tabs{display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem}
 .cls-org-tab{background:var(--bg);border:1px solid var(--border2);border-radius:20px;padding:.22rem .7rem;font-size:.78rem;cursor:pointer;color:var(--muted);transition:all .12s}
 .cls-org-tab:hover{color:var(--text)}.cls-org-tab.active{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
@@ -5778,15 +5778,39 @@ function pgResults(){
     if(_resShowMismatches && unmatchedRiders.length){
       html+='<div style="margin-bottom:.75rem;padding:.65rem .75rem;background:var(--card2);border:1px solid var(--border2);border-radius:8px">'
         +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.55rem">Link to an existing entry or create a new one (pulled from SHTX — marks as "Added at Show").</div>';
+      // Sort entries alphabetically for the dropdown
+      var sortedEntries=G.entries.slice().sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
       unmatchedRiders.forEach(function(r){
-        var entryOpts='<option value="">— no match —</option>';
-        G.entries.forEach(function(e,ei){
-          entryOpts+='<option value="'+ei+'">'+esc(e.name)+' / '+esc(e.horse||'')+'</option>';
+        // Fuzzy suggestions: tokenize SHTX name and find entries sharing name tokens
+        var rTokens=r.rider.toLowerCase().replace(/[^a-z\s]/g,'').split(/\s+/).filter(Boolean);
+        var rHorseNorm=(r.horse||'').toLowerCase().replace(/[^a-z\s]/g,'').trim();
+        var suggestions=[], others=[];
+        sortedEntries.forEach(function(e,si){
+          var ei=G.entries.indexOf(e);
+          var eTokens=(e.name||'').toLowerCase().replace(/[^a-z\s]/g,'').split(/\s+/).filter(Boolean);
+          var eHorseNorm=(e.horse||'').toLowerCase().replace(/[^a-z\s]/g,'').trim();
+          var nameScore=rTokens.filter(function(t){ return eTokens.indexOf(t)>=0; }).length;
+          var horseMatch=rHorseNorm&&eHorseNorm&&(rHorseNorm===eHorseNorm||rHorseNorm.indexOf(eHorseNorm)>=0||eHorseNorm.indexOf(rHorseNorm)>=0);
+          if(nameScore>=1||horseMatch) suggestions.push({ei:ei,e:e,score:nameScore+(horseMatch?2:0)});
+          else others.push({ei:ei,e:e});
         });
+        suggestions.sort(function(a,b){ return b.score-a.score; });
+        var entryOpts='<option value="">— no match —</option>';
+        if(suggestions.length){
+          entryOpts+='<optgroup label="── Suggested matches ──">';
+          suggestions.forEach(function(s){ entryOpts+='<option value="'+s.ei+'">'+esc(s.e.name)+' / '+esc(s.e.horse||'')+'</option>'; });
+          entryOpts+='</optgroup>';
+        }
+        if(others.length){
+          entryOpts+='<optgroup label="── All entries (A–Z) ──">';
+          others.forEach(function(s){ entryOpts+='<option value="'+s.ei+'">'+esc(s.e.name)+' / '+esc(s.e.horse||'')+'</option>'; });
+          entryOpts+='</optgroup>';
+        }
         html+='<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:.4rem;align-items:center;padding:.35rem 0;border-bottom:1px solid var(--border)">'
           +'<div style="font-size:.82rem"><span style="color:var(--text)">'+esc(r.rider)+'</span>'
           +'<span style="color:var(--muted);font-size:.72rem;margin-left:.4rem">'+esc(r.horse||'')+'</span>'
           +(r._horseMismatch?'<span style="font-size:.68rem;color:var(--red);margin-left:.35rem" title="Matched to an entry with a different horse">&#9888; wrong horse</span>':'')
+          +(suggestions.length?'<span style="font-size:.65rem;color:var(--green);margin-left:.35rem">'+suggestions.length+' suggestion'+(suggestions.length!==1?'s':'')+'</span>':'')
           +'</div>'
           +'<select onchange="resSetMatch('+r._idx+',parseInt(this.value))" '
           +'style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.28rem .45rem;font-size:.78rem;font-family:inherit;width:100%">'
@@ -9800,25 +9824,23 @@ function populateFeesFromCfg(){
 
 
 var DEFAULT_FEE_SCHEDULE = [
-  {key:'classBase',     label:'Base Class Fee',          amt:30,  cat:'class'},
-  {key:'cowSurcharge',  label:'Cow Class Surcharge',     amt:15,  cat:'class'},
-  {key:'jackpot',       label:'Jackpot Fee',             amt:0,   cat:'class'},
-  {key:'addedMoney',    label:'Added Money (per class)', amt:0,   cat:'class'},
-  {key:'stall1',        label:'Stall — 1 Night',    amt:40,  cat:'stall'},
-  {key:'stall2',        label:'Stall — 2 Nights',   amt:80,  cat:'stall'},
-  {key:'stall3',        label:'Stall — 3 Nights',   amt:120, cat:'stall'},
-  {key:'stallCircuit',  label:'Stall — Circuit',    amt:150, cat:'stall'},
-  {key:'shavings',      label:'Shavings (per bag)',      amt:12,  cat:'stall'},
-  {key:'rv1',           label:'RV — 1 Night',       amt:40,  cat:'rv'},
-  {key:'rv2',           label:'RV — 2 Nights',      amt:80,  cat:'rv'},
-  {key:'rvCircuit',     label:'RV — Circuit',       amt:110, cat:'rv'},
-  {key:'office',        label:'Office Fee (per entry)',  amt:0,   cat:'office'},
-  {key:'late',          label:'Late Entry Fee',          amt:0,   cat:'office'},
-  {key:'membership1yr', label:'Membership — 1 Year',   amt:60,  cat:'member'},
-  {key:'membership3yr', label:'Membership — 3 Years',  amt:150, cat:'member'},
-  {key:'membershipLife',label:'Membership — Lifetime', amt:200, cat:'member'},
-  {key:'dayLicense',    label:'Day License',             amt:25,  cat:'member'},
-  {key:'horseLicense',  label:'Horse License',           amt:20,  cat:'member'}
+  {key:'classBase',       label:'Base Class Fee',              amt:30,  cat:'class'},
+  {key:'cowSurcharge',    label:'Cattle Fee (Cow Work classes)',amt:15,  cat:'class'},
+  {key:'cuttingSurcharge',label:'Cutting Fee (Cutting classes)',amt:20,  cat:'class'},
+  {key:'jackpot',         label:'Jackpot Fee',                 amt:0,   cat:'class'},
+  {key:'stall1',          label:'Stall — Per Night',           amt:40,  cat:'stall'},
+  {key:'stallCircuit',    label:'Stall — Circuit',             amt:150, cat:'stall'},
+  {key:'tackRoom',        label:'Tack Room',                   amt:0,   cat:'stall'},
+  {key:'shavings',        label:'Shavings (per bag)',          amt:12,  cat:'stall'},
+  {key:'rv1',             label:'RV — Per Night',              amt:40,  cat:'rv'},
+  {key:'rvCircuit',       label:'RV — Circuit',                amt:110, cat:'rv'},
+  {key:'office',          label:'Office Fee (per entry)',       amt:0,   cat:'office'},
+  {key:'late',            label:'Late Entry Fee',               amt:0,   cat:'office'},
+  {key:'membership1yr',   label:'Membership — 1 Year',         amt:60,  cat:'member'},
+  {key:'membership3yr',   label:'Membership — 3 Years',        amt:150, cat:'member'},
+  {key:'membershipLife',  label:'Membership — Lifetime',       amt:200, cat:'member'},
+  {key:'dayLicense',      label:'Day License',                  amt:25,  cat:'member'},
+  {key:'horseLicense',    label:'Horse License',                amt:20,  cat:'member'}
 ];
 
 var FEE_CATS = {
@@ -12937,9 +12959,8 @@ window.clearAllEntries = async function(){
   try{
     var existing = await sbFetch('entries?show_id=eq.'+G.showId+'&select=id');
     if(existing && existing.length){
-      for(var i=0;i<existing.length;i++){
-        await sbDelete('entry_classes?entry_id=eq.'+existing[i].id);
-      }
+      var ids=existing.map(function(e){return e.id;});
+      await sbDelete('entry_classes?entry_id=in.('+ids.join(',')+')');
       await sbDelete('entries?show_id=eq.'+G.showId);
       // Verify — re-query to confirm entries are gone
       var remaining = await sbFetch('entries?show_id=eq.'+G.showId+'&select=id');
@@ -13777,6 +13798,7 @@ function wizStep3Html(){
       html+='<div class="wiz-fee-sched-row">'
         +'<span style="font-size:.85rem;color:var(--text)">'+esc(f.label)+'</span>'
         +'<input type="number" class="wiz-input" id="wiz-fee-amt-'+i+'" value="'+f.amt+'" min="0" step="1" style="width:100%;text-align:right">'
+        +'<button class="btn btn-red btn-sm" style="padding:.15rem .32rem;min-width:24px;font-size:.78rem" onclick="wizRemoveFee('+i+')" title="Remove this fee">×</button>'
         +'</div>';
     });
     html+='</div>';
@@ -13803,6 +13825,11 @@ function wizAddExtra(){
 function wizRemoveExtra(i){
   WIZ.fees.extras.splice(i,1);
   document.getElementById('wiz-extras-list').innerHTML=wizExtrasHtml();
+}
+function wizRemoveFee(i){
+  wizSaveStep(); // save current amounts before re-render
+  WIZ.fees.schedule.splice(i,1);
+  document.getElementById('wiz-body').innerHTML=wizStep3Html();
 }
 
 /* ── Step 4: Schedule ── */
@@ -13904,26 +13931,34 @@ function wizBindStep5(){
 async function wizLaunch(){
   wizSaveStep();
   var sched=WIZ.fees.schedule||[];
-  var classBase=(sched.find(function(f){return f.key==='classBase';})||{}).amt||0;
-  var cowSurch=(sched.find(function(f){return f.key==='cowSurcharge';})||{}).amt||0;
-  var COW_DISCS={CoWN:['Cow Work'],VRH:['Cutting','Cow Work'],APHA:['Cow Horse']};
+  var fAmt=function(key){ return (sched.find(function(f){return f.key===key;})||{}).amt||0; };
+  var classBase=fAmt('classBase');
+  var cowSurch=fAmt('cowSurcharge');
+  var cuttingSurch=fAmt('cuttingSurcharge');
+  // Disciplines that get the cattle fee (cow work)
+  var COW_DISCS={CoWN:['Cow Work'],VRH:['Cow Work'],APHA:['Cow Horse']};
+  // Disciplines that get the cutting fee
+  var CUTTING_DISCS={VRH:['Cutting'],Jackpot:['Cutting']};
   var classes=[], num=1;
   WIZ.orgs.forEach(function(org){
     var oc=ORG_CLASSES[org]; if(!oc) return;
     var sel=WIZ.sel[org]||{};
     var cowDiscs=COW_DISCS[org]||[];
+    var cutDiscs=CUTTING_DISCS[org]||[];
     oc.divisions.forEach(function(div){
       var dk=div||'(All)', discs=sel[dk]||[];
       oc.disciplines.forEach(function(disc){
         if(discs.indexOf(disc)<0) return;
         var isCow=cowDiscs.indexOf(disc)>=0;
+        var isCutting=cutDiscs.indexOf(disc)>=0;
         classes.push({
           num:String(num++),
           name:disc,
           division:dk==='(All)'?'':dk,
-          org:org, isCow:isCow,
+          org:org,
+          isCow:isCow||isCutting,
+          cowFee:isCow?cowSurch:isCutting?cuttingSurch:0,
           baseFee:classBase,
-          cowFee:isCow?cowSurch:0,
           jackpot:0, addedMoney:0
         });
       });
