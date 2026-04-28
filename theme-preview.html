@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thorofare — Theme Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#080c0c;display:flex;flex-direction:column;align-items:center;padding:2rem 1rem;gap:1.5rem;min-height:100vh}
+.label{color:#667;font-size:.72rem;letter-spacing:.15em;text-transform:uppercase;text-align:center;margin-bottom:.25rem}
+.row{display:flex;gap:2rem;align-items:flex-start;flex-wrap:wrap;justify-content:center;width:100%}
+
+/* ── THEME A: Grand Prismatic ── */
+.a{
+  --bg:#091413;--card:#0e1f1d;--card2:#132422;
+  --accent:#f07c28;--accent-dim:rgba(240,124,40,.12);
+  --text:#e8ede8;--muted:#6a8a84;
+  --border:#1a3330;--border2:#1f3c38;
+  --green:#2ecc71;--red:#e74c3c;--blue:#3ab8d4;
+}
+
+/* ── THEME B: Deep Forest ── */
+.b{
+  --bg:#090f0b;--card:#0e1a10;--card2:#122014;
+  --accent:#c8922a;--accent-dim:rgba(200,146,42,.12);
+  --text:#e8ede4;--muted:#6a8a64;
+  --border:#1a301c;--border2:#1f3a22;
+  --green:#2ecc71;--red:#e74c3c;--blue:#3498db;
+}
+
+.theme{
+  background:var(--bg);border-radius:16px;padding:1.5rem;
+  width:320px;display:flex;flex-direction:column;gap:.75rem;
+  border:1px solid var(--border2)
+}
+
+/* wordmark */
+.wordmark{text-align:center;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
+.wordmark h1{font-family:Oswald;font-size:2rem;font-weight:700;color:var(--accent);letter-spacing:.08em}
+.wordmark-bar{width:40px;height:3px;background:var(--accent);border-radius:2px;margin:.6rem auto}
+.wordmark p{font-size:.68rem;color:var(--muted);letter-spacing:.2em;text-transform:uppercase}
+
+/* panel */
+.panel{background:var(--card);border:1px solid var(--border2);border-radius:10px;padding:1rem}
+.panel-title{font-family:Oswald;font-size:.9rem;color:var(--accent);margin-bottom:.65rem;display:flex;align-items:center;justify-content:space-between}
+.db-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:.4rem;background:var(--green)}
+
+/* show row */
+.show-row{
+  background:var(--card2);border:1px solid var(--border2);border-radius:7px;
+  padding:.6rem .85rem;display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:.4rem;cursor:pointer
+}
+.show-row:hover{border-color:var(--accent)}
+.sr-name{font-family:Oswald;font-size:.9rem;color:var(--text)}
+.sr-meta{font-size:.68rem;color:var(--muted);margin-top:1px}
+.sr-badge{font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:10px}
+.s-open{background:rgba(46,204,113,.15);color:var(--green)}
+.s-running{background:rgba(231,76,60,.2);color:var(--red)}
+.s-setup{background:rgba(100,100,100,.15);color:var(--muted)}
+
+/* role cards */
+.role-card{
+  display:flex;align-items:center;gap:.85rem;
+  background:var(--card2);border:1.5px solid var(--border2);border-radius:9px;
+  padding:.75rem .85rem;margin-bottom:.4rem;cursor:pointer
+}
+.role-card:hover{border-color:var(--accent)}
+.role-icon{font-size:1.4rem;width:2rem;text-align:center}
+.role-name{font-family:Oswald;font-size:.9rem;color:var(--text)}
+.role-desc{font-size:.68rem;color:var(--muted);margin-top:1px}
+
+/* buttons */
+.btn-row{display:flex;gap:.5rem;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;padding:.38rem .8rem;border:none;border-radius:6px;cursor:pointer;font-size:.78rem;font-weight:600;font-family:inherit}
+.btn-accent{background:var(--accent);color:#000}
+.btn-dark{background:var(--card2);color:var(--text);border:1px solid var(--border2)}
+
+/* sidebar strip */
+.sidebar-strip{
+  background:var(--card);border:1px solid var(--border2);border-radius:10px;
+  padding:.75rem;display:flex;flex-direction:column;gap:.3rem
+}
+.nav-item{
+  padding:.45rem .7rem;border-radius:6px;font-size:.82rem;color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;gap:.5rem
+}
+.nav-item.active{background:var(--accent-dim);color:var(--accent);font-weight:600}
+.nav-item:hover:not(.active){background:var(--card2);color:var(--text)}
+
+/* stat chips */
+.chips{display:flex;gap:.4rem;flex-wrap:wrap}
+.chip{padding:.25rem .6rem;border-radius:6px;font-size:.72rem;font-weight:600}
+.chip-accent{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(255,255,255,.08)}
+.chip-green{background:rgba(46,204,113,.12);color:var(--green)}
+.chip-red{background:rgba(231,76,60,.15);color:var(--red)}
+.chip-muted{background:var(--card2);color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="label">Thorofare — Theme Comparison</div>
+
+<div class="row">
+
+  <!-- THEME A: Grand Prismatic -->
+  <div>
+    <div class="label" style="margin-bottom:.5rem">A &mdash; Grand Prismatic</div>
+    <div class="theme a">
+
+      <div class="wordmark">
+        <h1>THOROFARE</h1>
+        <div class="wordmark-bar"></div>
+        <p>by TwoTop</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <span><span class="db-dot"></span>Connected</span>
+          <span style="font-size:.68rem;color:var(--muted)">CoWN</span>
+        </div>
+        <div class="show-row">
+          <div><div class="sr-name">CoWN Summerfest 2026</div><div class="sr-meta">Jun 14 · Estes Park</div></div>
+          <span class="sr-badge s-open">entries open</span>
+        </div>
+        <div class="show-row">
+          <div><div class="sr-name">CoWN Fallfest 2025</div><div class="sr-meta">Sep 20 · Estes Park</div></div>
+          <span class="sr-badge s-running">running</span>
+        </div>
+        <div class="show-row">
+          <div><div class="sr-name">CoWN Spring Classic</div><div class="sr-meta">Apr 5 · Fort Collins</div></div>
+          <span class="sr-badge s-setup">setup</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Select Your Role</div>
+        <div class="role-card">
+          <div class="role-icon">🖥️</div>
+          <div><div class="role-name">Secretary</div><div class="role-desc">Full show management</div></div>
+        </div>
+        <div class="role-card">
+          <div class="role-icon">✏️</div>
+          <div><div class="role-name">Scribe</div><div class="role-desc">Score entry for your class</div></div>
+        </div>
+        <div class="role-card">
+          <div class="role-icon">🏆</div>
+          <div><div class="role-name">Participant</div><div class="role-desc">View results &amp; standings</div></div>
+        </div>
+      </div>
+
+      <div class="sidebar-strip">
+        <div class="nav-item active">📋 Entries</div>
+        <div class="nav-item">🏇 Results</div>
+        <div class="nav-item">★ Points Summary</div>
+        <div class="nav-item">💳 Tabs &amp; Payments</div>
+        <div class="nav-item">⚙️ Setup</div>
+      </div>
+
+      <div class="chips">
+        <span class="chip chip-accent">47 entries</span>
+        <span class="chip chip-green">Paid: 38</span>
+        <span class="chip chip-red">Unpaid: 9</span>
+        <span class="chip chip-muted">4 classes</span>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-accent">+ New Show</button>
+        <button class="btn btn-dark">Import Results</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- THEME B: Deep Forest -->
+  <div>
+    <div class="label" style="margin-bottom:.5rem">B &mdash; Deep Forest</div>
+    <div class="theme b">
+
+      <div class="wordmark">
+        <h1>THOROFARE</h1>
+        <div class="wordmark-bar"></div>
+        <p>by TwoTop</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <span><span class="db-dot"></span>Connected</span>
+          <span style="font-size:.68rem;color:var(--muted)">CoWN</span>
+        </div>
+        <div class="show-row">
+          <div><div class="sr-name">CoWN Summerfest 2026</div><div class="sr-meta">Jun 14 · Estes Park</div></div>
+          <span class="sr-badge s-open">entries open</span>
+        </div>
+        <div class="show-row">
+          <div><div class="sr-name">CoWN Fallfest 2025</div><div class="sr-meta">Sep 20 · Estes Park</div></div>
+          <span class="sr-badge s-running">running</span>
+        </div>
+        <div class="show-row">
+          <div><div class="sr-name">CoWN Spring Classic</div><div class="sr-meta">Apr 5 · Fort Collins</div></div>
+          <span class="sr-badge s-setup">setup</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Select Your Role</div>
+        <div class="role-card">
+          <div class="role-icon">🖥️</div>
+          <div><div class="role-name">Secretary</div><div class="role-desc">Full show management</div></div>
+        </div>
+        <div class="role-card">
+          <div class="role-icon">✏️</div>
+          <div><div class="role-name">Scribe</div><div class="role-desc">Score entry for your class</div></div>
+        </div>
+        <div class="role-card">
+          <div class="role-icon">🏆</div>
+          <div><div class="role-name">Participant</div><div class="role-desc">View results &amp; standings</div></div>
+        </div>
+      </div>
+
+      <div class="sidebar-strip">
+        <div class="nav-item active">📋 Entries</div>
+        <div class="nav-item">🏇 Results</div>
+        <div class="nav-item">★ Points Summary</div>
+        <div class="nav-item">💳 Tabs &amp; Payments</div>
+        <div class="nav-item">⚙️ Setup</div>
+      </div>
+
+      <div class="chips">
+        <span class="chip chip-accent">47 entries</span>
+        <span class="chip chip-green">Paid: 38</span>
+        <span class="chip chip-red">Unpaid: 9</span>
+        <span class="chip chip-muted">4 classes</span>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-accent">+ New Show</button>
+        <button class="btn btn-dark">Import Results</button>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div style="color:#445;font-size:.72rem;text-align:center;margin-top:.5rem">Open theme-preview.html in your browser to compare</div>
+
+</body>
+</html>
