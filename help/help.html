@@ -463,9 +463,12 @@ qs('#sidebar-overlay').addEventListener('click', closeMobileMenu);
 
 /* ── Init ───────────────────────────────────────────────────── */
 (function init(){
-  // Default to first audience
-  var firstAud = AUDIENCE_ORDER.find(function(k){ return !!HELP_CONTENT[k]; });
-  if(firstAud) selectAudience(firstAud);
+  // Honour ?aud= URL param (e.g. ?aud=scribe, ?aud=secretary)
+  var params = new URLSearchParams(window.location.search);
+  var audParam = (params.get('aud') || '').toLowerCase();
+  var startAud = AUDIENCE_ORDER.find(function(k){ return k === audParam && !!HELP_CONTENT[k]; });
+  if(!startAud) startAud = AUDIENCE_ORDER.find(function(k){ return !!HELP_CONTENT[k]; });
+  if(startAud) selectAudience(startAud);
   else renderContent();
 })();
 </script>
