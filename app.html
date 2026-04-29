@@ -947,67 +947,117 @@ var ORG_CLASSES = {
   },
 
   'VRH': {
-
-    divisions: ['Open','Amateur','LTD Am','Rookie Am','Youth','LTD Youth','Rookie Youth'],
-
-    disciplines: ['Cutting','Cow Work','Reining','Trail','Pleasure','Conformation'],
-
-    allAround: false,
-
-    aaTiebreak: [],
-
+    divisions: ['Open','Amateur','Limited Amateur','Youth','Limited Youth','Cowboy','Rookie'],
+    disciplines: ['Ranch Riding','Ranch Trail','Ranch Reining','Ranch Cutting','Ranch Cow Work','Ranch Conformation'],
+    allAround: true,
     aaMinClasses: 3,
-
-    // aaRequired is array-of-arrays (OR groups):
-
-    //   rider must satisfy ALL slots, but each slot is satisfied by showing in ANY listed discipline
-
-    aaRequired: [['Cutting','Cow Work'], ['Conformation']],
-
-    pointsSystem: 'aqha'
-
+    aaRequired: [['Ranch Cutting','Ranch Cow Work'],['Ranch Conformation']],
+    aaTiebreak: [],
+    pointsSystem: 'entries'
   },
 
   'AQHA Ranch': {
-
-    divisions: ['Open','Amateur','LTD Am','Rookie Am','Youth','LTD Youth','Rookie Youth'],
-
-    disciplines: ['Ranch Trail','Ranch Riding','Working Western Rail'],
-
+    divisions: ['Open','Amateur','Level 1 Amateur','Youth','Level 1 Youth','Cowboy'],
+    disciplines: ['Ranch Riding','Ranch Trail','Ranch Rail Pleasure','Ranch Conformation'],
     allAround: false,
-
     pointsSystem: 'aqha'
-
   },
 
   'AQHA RHC': {
-
-    divisions: ['Open','Amateur','Youth'],
-
-    disciplines: ['4 y/o Working Ranch Horse','5/6 y/o Working Ranch Horse',
-
-                  '7+ y/o Working Ranch Horse','LTD 4 y/o Working Ranch Horse',
-
-                  'LTD 5/6 y/o Working Ranch Horse','4y/o+ Cowboy Working Ranch Horse',
-
-                  '3 y/o+ Ranch Riding','3 y/o+ Ranch Cutting'],
-
+    divisions: ['Open 4yo','Open 5-6yo','Open 7+','Cowboy','Amateur','Level 1 Amateur','Youth','Level 1 Youth'],
+    disciplines: ['Working Ranch Horse','Ltd. Working Ranch Horse','Ranch Riding','Ranch Cutting','Ranching Heritage Rodeo'],
     allAround: false,
-
-    pointsSystem: 'aqha'
-
+    multiComponent: true,
+    pointsSystem: 'none'
   },
 
   'APHA': {
-
-    divisions: ['Open','Amateur','Novice Amateur','Youth','Novice Youth','Jr Horse'],
-
-    disciplines: ['Cow Horse','Ranch Riding','Reining','Trail','Pleasure','Conformation'],
-
+    divisions: ['Open','Amateur','Novice Amateur','Amateur Walk-Trot','Youth','Novice Youth','Youth Walk-Trot','Solid Paint-Bred'],
+    disciplines: ['Ranch Riding','Ranch Trail','Ranch Reining','Ranch Cow Work','Ranch Cutting','Ranch Rail Pleasure'],
     allAround: false,
+    pointsSystem: 'aqha'  // TBD — placeholder pending research
+  },
 
-    pointsSystem: 'aqha'
+  'NRHA': {
+    divisions: [
+      'Open','Intermediate Open','Limited Open','Novice Horse',
+      'Non-Pro','Intermediate Non-Pro','Limited Non-Pro',
+      'Futurity (3yo)','Derby (4-7yo)','Maturity',
+      'Youth 13 & Under','Youth 14-18','Short Stirrup (10 & Under)',
+      'Green Reiner L1','Green Reiner L2','Ride & Slide',
+      'Rookie L1','Rookie L2','Prime Time (50+)','Masters (60+)'
+    ],
+    disciplines: ['Reining'],
+    allAround: false,
+    pointsSystem: 'entries'
+  },
 
+  'NRCHA': {
+    divisions: [
+      'LAE Futurity Open','LAE Futurity Intermediate','LAE Futurity Limited','LAE Futurity Level 1',
+      'LAE Futurity Non-Pro','LAE Futurity Intermediate NP','LAE Futurity Limited NP','LAE Futurity NP Level 1',
+      'LAE Futurity NP Boxing','LAE Futurity Level 1 NP Boxing','LAE Futurity Select',
+      'LAE Derby Open','LAE Derby Intermediate','LAE Derby Limited','LAE Derby Level 1','LAE Derby Novice Horse',
+      'LAE Derby Non-Pro','LAE Derby Intermediate NP','LAE Derby Limited NP','LAE Derby NP Level 1',
+      'LAE Derby NP Boxing','LAE Derby Level 1 NP Boxing',
+      'Open Bridle','Intermediate Open Bridle','Limited Open Bridle',
+      'NP Bridle','Intermediate NP Bridle','Limited NP Bridle','Select Bridle',
+      'Open Hackamore','Intermediate Open Hackamore','Limited Open Hackamore',
+      'Non-Pro Hackamore','Intermediate NP Hackamore',
+      'Open Two-Rein','Non-Pro Two-Rein',
+      'NP Boxing','Level 1 NP Boxing','Select (55+)',
+      'Youth Boxing','Youth 13 & Under Boxing',
+      'Open Box-Drive','Non-Pro Box-Drive',
+      'Youth Bridle','Youth 13 & Under Bridle',
+      'Bridle Spectacular','Two-Rein Spectacular','Open Cowboy Class'
+    ],
+    disciplines: ['Reining','Cow Work','Cutting'],
+    multiComponent: true,
+    allAround: false,
+    pointsSystem: 'entries'
+  },
+
+  'NCHA': {
+    divisions: [
+      'Open','Intermediate Open','Limited Open',
+      'Non-Pro','Intermediate Non-Pro','Limited Non-Pro',
+      'Amateur','Intermediate Amateur','Limited Amateur',
+      'Novice Horse ($25k)','Novice Horse ($5k)','Novice Horse Non-Pro',
+      'Junior Youth (13 & Under)','Senior Youth (14-18)',
+      'Limited Rider',
+      'Futurity (3yo)','Derby (4yo)','Classic/Maturity (5-6yo)'
+    ],
+    disciplines: ['Cutting'],
+    allAround: false,
+    pointsSystem: 'fixed10'
+  },
+
+  'ApHC': {
+    divisions: ['Open Junior','Open Senior','Non-Pro','Non-Pro 35+','Non-Pro Masters (50+)','Novice Non-Pro','Youth','Novice Youth'],
+    disciplines: ['Ranch Riding','Ranch Trail','Ranch Rail Pleasure','Ranch Reining','Ranch Conformation','Ranch Cow Work','Limited Ranch Cow Work'],
+    allAround: true,
+    aaMinClasses: 2,
+    aaRequired: [['Ranch Conformation']],
+    aaTiebreak: [],
+    pointsSystem: 'aphc'
+  },
+
+  'NVRHA': {
+    divisions: ['Open','Amateur','Intermediate Amateur','Limited Amateur','Novice Amateur','Youth Advanced','Youth Intermediate','Youth Limited','Youth Novice'],
+    disciplines: ['Ranch Riding','Ranch Trail','Ranch Reining','Ranch Cutting','Working Ranch Horse','Ranch Conformation'],
+    allAround: true,
+    aaMinClasses: 5,
+    aaTiebreak: ['Working Ranch Horse','Ranch Reining'],
+    pointsSystem: 'entries'
+  },
+
+  'ASHA': {
+    divisions: ['Open','Limited Open','Amateur','Limited Amateur','Novice','Youth 14-18','Youth 8-13','Walk-Trot'],
+    disciplines: ['Stock Horse Pleasure/Ranch Riding','Stock Horse Trail','Stock Horse Reining','Stock Horse Cow Work','Stock Horse Cutting'],
+    allAround: true,
+    aaRequired: [['Stock Horse Cow Work','Stock Horse Cutting']],
+    aaTiebreak: [],
+    pointsSystem: 'entries+1'
   },
 
   'WHSR': {
@@ -1046,31 +1096,14 @@ var DEFAULT_ORG_CLASSES = JSON.parse(JSON.stringify(ORG_CLASSES));
 
 // Flat ordered lists for UI display
 
-var ORG_ORDER = ['CoWN','VRH','AQHA Ranch','AQHA RHC','APHA','WHSR','Jackpot'];
+var ORG_ORDER = ['CoWN','VRH','AQHA Ranch','AQHA RHC','APHA','NRHA','NRCHA','NCHA','NVRHA','ApHC','ASHA','WHSR','Jackpot'];
 
 
 
-var DIV_ORDER_BY_ORG = {
-
-  'CoWN':       ['Open','Non-Pro','Limited','Intermediate','Novice','L1 Novice','Youth',
-
-                 'Novice Youth','Open Jr Horse','Non-Pro Jr Horse','Non-Pro Boxing',
-
-                 'Collegiate Non-Pro','Collegiate Limited','Collegiate Novice','Open Schooling'],
-
-  'VRH':        ['Open','Amateur','LTD Am','Rookie Am','Youth','LTD Youth','Rookie Youth'],
-
-  'AQHA Ranch': ['Open','Amateur','LTD Am','Rookie Am','Youth','LTD Youth','Rookie Youth'],
-
-  'AQHA RHC':   ['Open','Amateur','Youth'],
-
-  'APHA':       ['Open','Amateur','Novice Amateur','Youth','Novice Youth','Jr Horse'],
-
-  'WHSR':       [''],
-
-  'Jackpot':    ['Open','Amateur','Youth']
-
-};
+var DIV_ORDER_BY_ORG = {};
+Object.keys(ORG_CLASSES).forEach(function(org){
+  DIV_ORDER_BY_ORG[org] = ORG_CLASSES[org].divisions.slice();
+});
 
 
 
@@ -1165,6 +1198,59 @@ function calcCownPoints(rows, entries){
 }
 
 
+
+// ── NCHA fixed-top-10 points ──────────────────────────────────
+// 1st=10, 2nd=9 … 10th=1, below 10th or zero score = 0 pts
+function calcFixed10Points(rows){
+  rows.forEach(function(r,i){
+    if(r.isDQ||!r.place||!r.score){ rows[i]._pts=0; return; }
+    rows[i]._pts=Math.max(0,11-r.place);
+  });
+  return rows;
+}
+
+// ── ApHC tiered-lookup points ─────────────────────────────────
+var APHC_PTS_TABLE=[
+  {min:18,pts:[12,10,8,6,4,2]},
+  {min:15,pts:[6,5,4,3,2,1]},
+  {min:12,pts:[5,4,3,2,1,0]},
+  {min:8, pts:[4,3,2,1,0,0]},
+  {min:5, pts:[3,2,1,0,0,0]},
+  {min:2, pts:[2,1,0,0,0,0]}
+];
+function calcAphcPoints(rows,entries){
+  if(!entries||entries<1) entries=rows.length;
+  var tier=null;
+  for(var t=0;t<APHC_PTS_TABLE.length;t++){
+    if(entries>=APHC_PTS_TABLE[t].min){ tier=APHC_PTS_TABLE[t].pts; break; }
+  }
+  rows.forEach(function(r,i){
+    if(r.isDQ||!r.place){ rows[i]._pts=0; return; }
+    var p=r.place-1;
+    rows[i]._pts=tier&&p<tier.length?tier[p]:0;
+  });
+  return rows;
+}
+
+// ── ASHA entries+1 points ─────────────────────────────────────
+// Same tie-split logic as CoWN but offset +1 (1st=N+1, last=2, no zeros)
+function calcEntriesPlusOnePoints(rows,entries){
+  if(!entries||entries<1) entries=rows.length;
+  var byPlace={};
+  rows.forEach(function(r,i){
+    if(r.isDQ||!r.place){ rows[i]._pts=0; return; }
+    if(!byPlace[r.place]) byPlace[r.place]=[];
+    byPlace[r.place].push(i);
+  });
+  Object.keys(byPlace).forEach(function(pl){
+    var idxs=byPlace[pl]; pl=parseInt(pl);
+    var sum=0;
+    for(var k=0;k<idxs.length;k++) sum+=Math.max(0,entries-(pl+k)+2);
+    var avg=sum/idxs.length;
+    idxs.forEach(function(i){ rows[i]._pts=avg; });
+  });
+  return rows;
+}
 
 // Recalculate placings from scores (higher score = better place)
 
@@ -5543,11 +5629,35 @@ function recomputeClassPts(org, division, discipline){
       var avg=sum/rows.length;
       rows.forEach(function(r){ r.pts=avg; });
     });
+  } else if(orgPtsSys==='entries+1'){
+    Object.keys(byPlace).forEach(function(p){
+      var rows=byPlace[p]; p=parseInt(p);
+      var sum=0;
+      for(var k=0;k<rows.length;k++) sum+=Math.max(0,total-(p+k)+2);
+      var avg=sum/rows.length;
+      rows.forEach(function(r){ r.pts=avg; });
+    });
   } else if(orgPtsSys==='aqha'){
     var tier=Math.floor(total/5);
     Object.keys(byPlace).forEach(function(p){
       var rows=byPlace[p]; p=parseInt(p);
       var pts=tier<1?0:(p<=tier?(tier-p+1):(p===tier+1?0.5:0));
+      rows.forEach(function(r){ r.pts=pts; });
+    });
+  } else if(orgPtsSys==='fixed10'){
+    Object.keys(byPlace).forEach(function(p){
+      var rows=byPlace[p]; p=parseInt(p);
+      var pts=Math.max(0,11-p);
+      rows.forEach(function(r){ r.pts=(r.score&&!r.isDQ)?pts:0; });
+    });
+  } else if(orgPtsSys==='aphc'){
+    var aphcTier=null;
+    for(var t=0;t<APHC_PTS_TABLE.length;t++){
+      if(total>=APHC_PTS_TABLE[t].min){ aphcTier=APHC_PTS_TABLE[t].pts; break; }
+    }
+    Object.keys(byPlace).forEach(function(p){
+      var rows=byPlace[p]; p=parseInt(p);
+      var pts=aphcTier&&(p-1)<aphcTier.length?aphcTier[p-1]:0;
       rows.forEach(function(r){ r.pts=pts; });
     });
   }
@@ -6473,11 +6583,35 @@ function pgResults(){
           var avg=sum/rows.length;
           rows.forEach(function(r){ calcPtsMap[r.rider+'|'+r.horse]=avg; });
         });
+      } else if(orgPtsSys==='entries+1'){
+        Object.keys(byPlace).forEach(function(pl){
+          var rows=byPlace[pl]; pl=parseInt(pl);
+          var sum=0;
+          for(var k=0;k<rows.length;k++) sum+=Math.max(0, actualRows-(pl+k)+2);
+          var avg=sum/rows.length;
+          rows.forEach(function(r){ calcPtsMap[r.rider+'|'+r.horse]=avg; });
+        });
       } else if(orgPtsSys==='aqha'){
         var tier=Math.floor(actualRows/5);
         Object.keys(byPlace).forEach(function(pl){
           var rows=byPlace[pl]; pl=parseInt(pl);
           var pts=tier<1?0:(pl<=tier?(tier-pl+1):(pl===tier+1?0.5:0));
+          rows.forEach(function(r){ calcPtsMap[r.rider+'|'+r.horse]=pts; });
+        });
+      } else if(orgPtsSys==='fixed10'){
+        Object.keys(byPlace).forEach(function(pl){
+          var rows=byPlace[pl]; pl=parseInt(pl);
+          var pts=Math.max(0,11-pl);
+          rows.forEach(function(r){ calcPtsMap[r.rider+'|'+r.horse]=(r.score&&!r.isDQ)?pts:0; });
+        });
+      } else if(orgPtsSys==='aphc'){
+        var aphcTier2=null;
+        for(var t2=0;t2<APHC_PTS_TABLE.length;t2++){
+          if(actualRows>=APHC_PTS_TABLE[t2].min){ aphcTier2=APHC_PTS_TABLE[t2].pts; break; }
+        }
+        Object.keys(byPlace).forEach(function(pl){
+          var rows=byPlace[pl]; pl=parseInt(pl);
+          var pts=aphcTier2&&(pl-1)<aphcTier2.length?aphcTier2[pl-1]:0;
           rows.forEach(function(r){ calcPtsMap[r.rider+'|'+r.horse]=pts; });
         });
       } else {
@@ -8526,13 +8660,12 @@ function renderOrgEditor(){
     +'<span style="color:var(--muted)">Points system:</span>'
 
     +'<select onchange="orgEdSetPts(\''+esc(sel)+'\',this.value)" style="background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:5px;padding:.25rem .4rem;font-size:.8rem">'
-
-    +'<option value="entries"'+(psSel==='entries'?' selected':'')+'>CoWN — entries-based (1st=N … last=1)</option>'
-
-    +'<option value="aqha"'+(psSel==='aqha'?' selected':'')+'>AQHA — entries-based (5=1pt, 10=2pts, 15=3pts…)</option>'
-
-    +'<option value="none"'+(psSel==='none'?' selected':'')+'>None (money event / no season points)</option>'
-
+    +'<option value="entries"'+(psSel==='entries'?' selected':'')+'>Entries-based: 1st=N, last=1 — CoWN, NRHA, VRH, NRCHA, NVRHA</option>'
+    +'<option value="entries+1"'+(psSel==='entries+1'?' selected':'')+'>Entries+1: 1st=N+1, last=2, no zeros — ASHA</option>'
+    +'<option value="aqha"'+(psSel==='aqha'?' selected':'')+'>AQHA tiered: floor(N/5) — AQHA Ranch, APHA</option>'
+    +'<option value="fixed10"'+(psSel==='fixed10'?' selected':'')+'>Fixed top-10: 1st=10 … 10th=1, rest=0 — NCHA</option>'
+    +'<option value="aphc"'+(psSel==='aphc'?' selected':'')+'>ApHC tiered lookup: 18+=12/10/8…, 15-17=6/5/4… — ApHC</option>'
+    +'<option value="none"'+(psSel==='none'?' selected':'')+'>None: score-based placing, no season points — RHC, Jackpot</option>'
     +'</select></div>'
 
     +'</div>'
