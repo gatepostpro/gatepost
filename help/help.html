@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thorofare Help</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="help-content.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#090f0b;--card:#0e1a10;--card2:#122014;
+  --text:#e8ede4;--muted:#6a8a64;
+  --accent:#c8922a;--accent-dim:rgba(200,146,42,.12);
+  --border:#1a301c;--border2:#1f3a22;
+  --green:#2ecc71;--red:#e74c3c;--blue:#3498db;
+  --sidebar-w:260px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
+body{display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Top bar ──────────────────────────────────────────────── */
+.topbar{
+  display:flex;align-items:center;gap:1.2rem;
+  padding:.7rem 1.4rem;
+  background:var(--card);border-bottom:1px solid var(--border2);
+  flex-shrink:0;
+}
+.topbar-logo{font-family:Oswald;font-size:1.3rem;font-weight:700;color:var(--accent);letter-spacing:.06em;white-space:nowrap}
+.topbar-byline{font-size:.7rem;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;white-space:nowrap}
+.topbar-sep{flex:1}
+.topbar-search{
+  background:var(--bg);border:1px solid var(--border2);border-radius:6px;
+  color:var(--text);padding:.35rem .75rem;font-size:.82rem;font-family:inherit;
+  width:220px;outline:none;transition:border-color .15s
+}
+.topbar-search:focus{border-color:rgba(200,146,42,.5)}
+.topbar-search::placeholder{color:var(--muted)}
+
+/* ── Audience tabs ────────────────────────────────────────── */
+.audience-tabs{
+  display:flex;gap:0;background:var(--card);border-bottom:1px solid var(--border2);
+  flex-shrink:0;padding:0 1.4rem;
+}
+.aud-tab{
+  font-family:Oswald;font-size:.8rem;font-weight:600;letter-spacing:.06em;
+  padding:.55rem 1.1rem;cursor:pointer;border:none;background:none;
+  color:var(--muted);border-bottom:2.5px solid transparent;
+  transition:color .15s,border-color .15s;white-space:nowrap;
+}
+.aud-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.aud-tab:hover:not(.active){color:var(--text)}
+
+/* ── Main layout ─────────────────────────────────────────── */
+.layout{display:flex;flex:1;overflow:hidden}
+
+/* ── Sidebar ─────────────────────────────────────────────── */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--card);border-right:1px solid var(--border2);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.sidebar-inner{overflow-y:auto;flex:1;padding:.75rem 0}
+
+.sec-btn{
+  display:flex;align-items:center;gap:.55rem;width:100%;
+  padding:.48rem 1.1rem;background:none;border:none;
+  color:var(--muted);font-size:.78rem;font-family:inherit;
+  cursor:pointer;text-align:left;transition:color .15s,background .15s;
+  line-height:1.3;
+}
+.sec-btn:hover{color:var(--text);background:rgba(255,255,255,.03)}
+.sec-btn.active{color:var(--accent);background:var(--accent-dim)}
+.sec-icon{font-size:.9rem;flex-shrink:0;width:1.2rem;text-align:center}
+.sec-label{flex:1}
+
+/* ── Content area ────────────────────────────────────────── */
+.content{flex:1;overflow-y:auto;padding:2rem 2.5rem;max-width:820px}
+
+.content-title{
+  font-family:Oswald;font-size:1.7rem;font-weight:700;color:var(--accent);
+  margin-bottom:.45rem;letter-spacing:.03em;
+}
+.content-intro{color:var(--muted);font-size:.88rem;margin-bottom:1.8rem;line-height:1.6}
+.content-intro p{margin-bottom:.5rem}
+
+/* ── Topics ──────────────────────────────────────────────── */
+.topic{
+  border:1px solid var(--border2);border-radius:8px;margin-bottom:.6rem;
+  background:var(--card);overflow:hidden;
+}
+.topic-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.72rem 1rem;cursor:pointer;gap:.5rem;
+  font-size:.87rem;font-weight:600;color:var(--text);
+  user-select:none;
+}
+.topic-hdr:hover{color:var(--accent)}
+.topic-hdr .chevron{
+  flex-shrink:0;color:var(--muted);font-size:.7rem;
+  transition:transform .2s;
+}
+.topic.open .chevron{transform:rotate(180deg)}
+.topic-body{
+  display:none;padding:0 1rem 1rem;font-size:.84rem;color:var(--muted);
+  line-height:1.7;
+}
+.topic.open .topic-body{display:block}
+
+/* ── Content typography ──────────────────────────────────── */
+.topic-body p{margin-bottom:.7rem}
+.topic-body p:last-child{margin-bottom:0}
+.topic-body ul,.topic-body ol{padding-left:1.4rem;margin-bottom:.7rem}
+.topic-body li{margin-bottom:.3rem}
+.topic-body strong{color:var(--text);font-weight:600}
+.topic-body a{color:var(--accent);text-decoration:none}
+.topic-body a:hover{text-decoration:underline}
+
+/* ── Tables ──────────────────────────────────────────────── */
+.topic-body table{
+  width:100%;border-collapse:collapse;margin:.5rem 0 .8rem;font-size:.8rem;
+}
+.topic-body th{
+  background:var(--card2);color:var(--accent);font-weight:600;
+  padding:.4rem .7rem;text-align:left;border:1px solid var(--border2);
+  font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;
+}
+.topic-body td{
+  padding:.38rem .7rem;border:1px solid var(--border);color:var(--text);
+  vertical-align:top;
+}
+.topic-body tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+
+/* ── Notes / warnings ────────────────────────────────────── */
+.topic-body .help-note{
+  background:rgba(52,152,219,.08);border:1px solid rgba(52,152,219,.2);
+  border-radius:6px;padding:.55rem .8rem;margin:.5rem 0;
+  color:#87bce6;font-size:.8rem;
+}
+.topic-body .help-warn{
+  background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.2);
+  border-radius:6px;padding:.55rem .8rem;margin:.5rem 0;
+  color:#e88a84;font-size:.8rem;
+}
+
+/* ── Search results ──────────────────────────────────────── */
+.search-results{padding:1rem 0}
+.search-hit{
+  border:1px solid var(--border2);border-radius:8px;margin-bottom:.7rem;
+  background:var(--card);padding:.8rem 1rem;cursor:pointer;
+  transition:border-color .15s;
+}
+.search-hit:hover{border-color:var(--accent)}
+.sh-audience{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.2rem}
+.sh-title{font-size:.9rem;font-weight:600;color:var(--text);margin-bottom:.2rem}
+.sh-context{font-size:.78rem;color:var(--muted);line-height:1.5}
+.sh-context mark{background:rgba(200,146,42,.25);color:var(--accent);border-radius:2px;padding:0 2px}
+.search-empty{color:var(--muted);font-size:.88rem;padding:1rem 0}
+
+/* ── Empty state ─────────────────────────────────────────── */
+.empty-state{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:40vh;gap:.7rem;color:var(--muted);text-align:center;
+}
+.empty-state svg{opacity:.25;margin-bottom:.5rem}
+.empty-state h2{font-family:Oswald;font-size:1.1rem;font-weight:600;color:var(--muted);letter-spacing:.04em}
+
+/* ── Mobile sidebar toggle ───────────────────────────────── */
+.mob-menu-btn{display:none}
+
+@media(max-width:680px){
+  .topbar-search{width:140px}
+  .sidebar{
+    position:fixed;left:0;top:0;bottom:0;z-index:200;
+    transform:translateX(-100%);transition:transform .22s;
+  }
+  .sidebar.open{transform:translateX(0)}
+  .mob-menu-btn{
+    display:flex;align-items:center;justify-content:center;
+    width:34px;height:34px;border:1px solid var(--border2);border-radius:6px;
+    background:none;color:var(--muted);cursor:pointer;font-size:1.1rem;
+    flex-shrink:0;
+  }
+  .sidebar-overlay{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:199;
+  }
+  .sidebar-overlay.visible{display:block}
+  .content{padding:1.25rem 1rem}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="mob-menu-btn" id="mob-menu-btn" aria-label="Menu">☰</button>
+  <div class="topbar-logo">Thorofare</div>
+  <div class="topbar-byline">Help</div>
+  <div class="topbar-sep"></div>
+  <input class="topbar-search" id="search-input" type="search" placeholder="Search help…" autocomplete="off">
+</div>
+
+<div class="audience-tabs" id="audience-tabs"></div>
+
+<div class="layout">
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-inner" id="sidebar-inner"></div>
+  </nav>
+  <main class="content" id="content"></main>
+</div>
+
+<script>
+'use strict';
+
+/* ── State ──────────────────────────────────────────────────── */
+var state = {
+  audience: null,   // 'public' | 'scribe' | 'secretary'
+  section:  null,   // section id string
+  search:   ''
+};
+
+/* ── Helpers ────────────────────────────────────────────────── */
+function qs(sel, root){ return (root||document).querySelector(sel) }
+function el(tag,cls,html){
+  var e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(html !== undefined) e.innerHTML = html;
+  return e;
+}
+function stripHtml(s){
+  var d = document.createElement('div');
+  d.innerHTML = s;
+  return d.textContent || '';
+}
+function highlightText(txt, q){
+  if(!q) return escHtml(txt);
+  var re = new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+  return escHtml(txt).replace(re,'<mark>$1</mark>');
+}
+function escHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ── Audience order ─────────────────────────────────────────── */
+var AUDIENCE_ORDER = ['public','scribe','secretary'];
+
+/* ── Render audience tabs ───────────────────────────────────── */
+function renderAudienceTabs(){
+  var wrap = qs('#audience-tabs');
+  wrap.innerHTML = '';
+  AUDIENCE_ORDER.forEach(function(key){
+    var grp = HELP_CONTENT[key];
+    if(!grp) return;
+    var btn = el('button','aud-tab');
+    btn.textContent = grp.icon ? (grp.icon + ' ' + grp.label) : grp.label;
+    btn.dataset.aud = key;
+    if(key === state.audience) btn.classList.add('active');
+    btn.addEventListener('click', function(){ selectAudience(key); });
+    wrap.appendChild(btn);
+  });
+}
+
+/* ── Render sidebar ─────────────────────────────────────────── */
+function renderSidebar(){
+  var inner = qs('#sidebar-inner');
+  inner.innerHTML = '';
+  if(!state.audience) return;
+  var grp = HELP_CONTENT[state.audience];
+  if(!grp || !grp.sections) return;
+  grp.sections.forEach(function(sec){
+    var btn = el('button','sec-btn');
+    btn.innerHTML = '<span class="sec-icon">'+(sec.icon||'')+'</span><span class="sec-label">'+escHtml(sec.label)+'</span>';
+    if(sec.id === state.section) btn.classList.add('active');
+    btn.addEventListener('click', function(){
+      selectSection(sec.id);
+      closeMobileMenu();
+    });
+    inner.appendChild(btn);
+  });
+}
+
+/* ── Render content ─────────────────────────────────────────── */
+function renderContent(){
+  var area = qs('#content');
+  area.innerHTML = '';
+
+  if(state.search.length >= 2){
+    renderSearchResults(area);
+    return;
+  }
+
+  if(!state.audience){
+    renderWelcome(area);
+    return;
+  }
+
+  var grp = HELP_CONTENT[state.audience];
+  if(!grp) return;
+
+  if(!state.section){
+    // show first section by default
+    if(grp.sections && grp.sections.length){
+      state.section = grp.sections[0].id;
+      renderSidebar();
+    } else {
+      renderWelcome(area);
+      return;
+    }
+  }
+
+  var sec = (grp.sections||[]).find(function(s){ return s.id === state.section; });
+  if(!sec){ renderWelcome(area); return; }
+
+  var title = el('h1','content-title', escHtml(sec.title));
+  area.appendChild(title);
+
+  if(sec.intro){
+    var intro = el('div','content-intro');
+    intro.innerHTML = sec.intro;
+    area.appendChild(intro);
+  }
+
+  (sec.topics||[]).forEach(function(t){
+    var wrap = el('div','topic');
+    var hdr = el('div','topic-hdr');
+    hdr.innerHTML = escHtml(t.title) + '<span class="chevron">▼</span>';
+    hdr.addEventListener('click', function(){
+      wrap.classList.toggle('open');
+    });
+    var body = el('div','topic-body');
+    body.innerHTML = t.body;
+    wrap.appendChild(hdr);
+    wrap.appendChild(body);
+    area.appendChild(wrap);
+  });
+
+  if(!sec.topics || !sec.topics.length){
+    var empty = el('div','empty-state','<h2>No topics yet</h2><p>Content is being added.</p>');
+    area.appendChild(empty);
+  }
+}
+
+/* ── Welcome ────────────────────────────────────────────────── */
+function renderWelcome(area){
+  var meta = HELP_CONTENT.meta || {};
+  area.innerHTML = '';
+  var box = el('div','empty-state');
+  box.innerHTML = [
+    '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">',
+    '<circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/>',
+    '</svg>',
+    '<h2>'+escHtml(meta.appName||'Thorofare')+' Help</h2>',
+    '<p style="font-size:.82rem;max-width:340px;line-height:1.6">Select your role above to find the right help for you.</p>'
+  ].join('');
+  area.appendChild(box);
+}
+
+/* ── Search ─────────────────────────────────────────────────── */
+function renderSearchResults(area){
+  var q = state.search.toLowerCase();
+  var hits = [];
+
+  AUDIENCE_ORDER.forEach(function(audKey){
+    var grp = HELP_CONTENT[audKey];
+    if(!grp || !grp.sections) return;
+    grp.sections.forEach(function(sec){
+      (sec.topics||[]).forEach(function(t){
+        var plain = (t.title + ' ' + stripHtml(t.body)).toLowerCase();
+        if(plain.indexOf(q) === -1) return;
+        // get a short context snippet
+        var fullPlain = stripHtml(t.body);
+        var idx = fullPlain.toLowerCase().indexOf(q);
+        var start = Math.max(0, idx - 50);
+        var snippet = (start > 0 ? '…' : '') + fullPlain.slice(start, idx + q.length + 80).trim() + '…';
+        hits.push({
+          audKey: audKey,
+          audLabel: grp.label,
+          secId: sec.id,
+          topicId: t.id,
+          title: t.title,
+          snippet: snippet
+        });
+      });
+    });
+  });
+
+  var heading = el('h1','content-title','Search results for "'+escHtml(state.search)+'"');
+  area.appendChild(heading);
+
+  if(!hits.length){
+    var empty = el('div','search-empty','No results found. Try different keywords.');
+    area.appendChild(empty);
+    return;
+  }
+
+  var list = el('div','search-results');
+  hits.forEach(function(h){
+    var card = el('div','search-hit');
+    card.innerHTML = [
+      '<div class="sh-audience">'+escHtml(h.audLabel)+'</div>',
+      '<div class="sh-title">'+highlightText(h.title, state.search)+'</div>',
+      '<div class="sh-context">'+highlightText(h.snippet, state.search)+'</div>'
+    ].join('');
+    card.addEventListener('click', function(){
+      state.search = '';
+      qs('#search-input').value = '';
+      selectAudience(h.audKey);
+      selectSection(h.secId, h.topicId);
+    });
+    list.appendChild(card);
+  });
+  area.appendChild(list);
+}
+
+/* ── Navigation actions ─────────────────────────────────────── */
+function selectAudience(key){
+  state.audience = key;
+  var grp = HELP_CONTENT[key];
+  state.section = (grp && grp.sections && grp.sections[0]) ? grp.sections[0].id : null;
+  renderAudienceTabs();
+  renderSidebar();
+  renderContent();
+}
+
+function selectSection(secId, openTopicId){
+  state.section = secId;
+  renderSidebar();
+  renderContent();
+  if(openTopicId){
+    // after render, open and scroll to the matching topic
+    setTimeout(function(){
+      var topics = qs('#content').querySelectorAll('.topic');
+      var grp = HELP_CONTENT[state.audience];
+      var sec = (grp.sections||[]).find(function(s){ return s.id === secId; });
+      if(!sec) return;
+      sec.topics.forEach(function(t, i){
+        if(t.id === openTopicId && topics[i]){
+          topics[i].classList.add('open');
+          topics[i].scrollIntoView({behavior:'smooth', block:'start'});
+        }
+      });
+    }, 50);
+  }
+}
+
+/* ── Search input ───────────────────────────────────────────── */
+qs('#search-input').addEventListener('input', function(){
+  state.search = this.value.trim();
+  renderContent();
+});
+
+/* ── Mobile menu ────────────────────────────────────────────── */
+function closeMobileMenu(){
+  qs('#sidebar').classList.remove('open');
+  qs('#sidebar-overlay').classList.remove('visible');
+}
+qs('#mob-menu-btn').addEventListener('click', function(){
+  qs('#sidebar').classList.toggle('open');
+  qs('#sidebar-overlay').classList.toggle('visible');
+});
+qs('#sidebar-overlay').addEventListener('click', closeMobileMenu);
+
+/* ── Init ───────────────────────────────────────────────────── */
+(function init(){
+  // Default to first audience
+  var firstAud = AUDIENCE_ORDER.find(function(k){ return !!HELP_CONTENT[k]; });
+  if(firstAud) selectAudience(firstAud);
+  else renderContent();
+})();
+</script>
+</body>
+</html>
