@@ -282,6 +282,20 @@ var SCORE_TEMPLATES={
   'Ranch Rail Pleasure':{
     maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6'],
     penValues:[1,3,5],hasNRHA:true
+  },
+  'Cutting':{
+    maneuvers:[
+      'Cow 1 — Herd Work','Cow 1 — Cow Control','Cow 1 — Degree of Difficulty',
+      'Cow 1 — Eye Appeal','Cow 1 — Courage','Cow 1 — Time Worked',
+      'Cow 2 — Herd Work','Cow 2 — Cow Control','Cow 2 — Degree of Difficulty',
+      'Cow 2 — Eye Appeal','Cow 2 — Courage','Cow 2 — Time Worked',
+      'Cow 3 — Herd Work','Cow 3 — Cow Control','Cow 3 — Degree of Difficulty',
+      'Cow 3 — Eye Appeal','Cow 3 — Courage','Cow 3 — Time Worked'
+    ],
+    scorePairs:[[-0.5,0.5,'√−','√+'],[−1,1,'−','+']],
+    zeroLabel:'√',
+    penValues:[1,3,5],
+    cowCount:3,categoriesPerCow:6
   }
 };
 
@@ -308,6 +322,7 @@ function getTemplateForDisc(name){
   var n=name.toLowerCase();
   if(n.indexOf('novice')>=0&&n.indexOf('cow')>=0) return 'Novice Cow Work';
   if(n.indexOf('bdbd')>=0) return 'BDBD Cow Work';
+  if(n.indexOf('cutting')>=0) return 'Cutting';
   if(n.indexOf('cow')>=0) return 'Cow Work';
   if(n.indexOf('ranch')>=0&&n.indexOf('trail')>=0) return 'Ranch Trail';
   if(n.indexOf('ranch')>=0&&(n.indexOf('pleasure')>=0||n.indexOf('rail')>=0)) return 'Ranch Rail Pleasure';
@@ -358,8 +373,18 @@ function calcTotal(s,tmpl){
   if(s.isDQ) return 0;
   if(s.isOP) return null;
   if(!tmpl) return s.rawScore||0;
-  var ms=s.m.reduce(function(a,x){ return a+x.score; },0);
   var ps=s.m.reduce(function(a,x){ return a+x.pen; },0);
+  if(tmpl.cowCount&&tmpl.categoriesPerCow){
+    // NCHA cutting: average the per-cow category totals
+    var cowSum=0;
+    for(var c=0;c<tmpl.cowCount;c++){
+      var cSum=0;
+      for(var k=0;k<tmpl.categoriesPerCow;k++) cSum+=(s.m[c*tmpl.categoriesPerCow+k]||{score:0}).score;
+      cowSum+=cSum;
+    }
+    return Math.round((70+cowSum/tmpl.cowCount-ps)*1000)/1000;
+  }
+  var ms=s.m.reduce(function(a,x){ return a+x.score; },0);
   return Math.round((70+ms-ps+(s.nrha||0))*1000)/1000;
 }
 
@@ -445,7 +470,15 @@ function render(){
 
   // Total bar
   var detailHtml='<div>Base 70</div>';
-  if(manSum!==0) detailHtml+='<div style="color:'+(manSum>=0?'var(--green)':'var(--red)')+'">'+(manSum>=0?'+':'')+manSum.toFixed(1)+'</div>';
+  if(tmpl&&tmpl.cowCount&&tmpl.categoriesPerCow){
+    for(var ci=0;ci<tmpl.cowCount;ci++){
+      var cSum=0;
+      for(var ck=0;ck<tmpl.categoriesPerCow;ck++) cSum+=(s.m[ci*tmpl.categoriesPerCow+ck]||{score:0}).score;
+      detailHtml+='<div style="color:'+(cSum>=0?'var(--green)':'var(--red)')+'">C'+(ci+1)+':'+(cSum>=0?'+':'')+cSum.toFixed(1)+'</div>';
+    }
+  } else {
+    if(manSum!==0) detailHtml+='<div style="color:'+(manSum>=0?'var(--green)':'var(--red)')+'">'+(manSum>=0?'+':'')+manSum.toFixed(1)+'</div>';
+  }
   if(penSum>0) detailHtml+='<div style="color:var(--red)">−'+penSum.toFixed(1)+' pen</div>';
   document.getElementById('total-detail').innerHTML=detailHtml;
   document.getElementById('total-big').style.color=totalColor;
@@ -463,7 +496,23 @@ function render(){
 
   if(tmpl){
     cardsHtml='<div class="hscroll">';
+    var scorePairs=tmpl.scorePairs||[[-1.5,0.5,'−1½','+½'],[-1,1,'−1','+1'],[-0.5,1.5,'−½','+1½']];
+    var zeroLabel=tmpl.zeroLabel||'0';
     tmpl.maneuvers.forEach(function(mname,mi){
+      // Cow group divider card
+      if(tmpl.cowCount&&tmpl.categoriesPerCow&&mi%tmpl.categoriesPerCow===0){
+        var cowNum=Math.floor(mi/tmpl.categoriesPerCow)+1;
+        var cSum=0;
+        for(var ck=0;ck<tmpl.categoriesPerCow;ck++) cSum+=(s.m[(cowNum-1)*tmpl.categoriesPerCow+ck]||{score:0}).score;
+        var cColor=cSum>0?'var(--green)':cSum<0?'var(--red)':'var(--muted)';
+        cardsHtml+='<div class="mcard" style="width:80px;background:var(--bg);border-color:var(--accent);'
+          +'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;flex-shrink:0">'
+          +'<div style="font-family:Oswald;font-size:1rem;color:var(--accent)">Cow '+cowNum+'</div>'
+          +'<div style="font-size:.65rem;color:var(--muted)">6 categories</div>'
+          +'<div style="font-size:1.3rem;font-weight:700;color:'+cColor+'">'+(cSum>=0?'+':'')+cSum.toFixed(1)+'</div>'
+          +'</div>';
+      }
+
       var cm=s.m[mi]||{score:0,pen:0};
       var penVals=tmpl.penValues||[];
       var touched=cm.score!==0||cm.pen>0;
@@ -476,8 +525,8 @@ function render(){
         :isThisOP?'<span class="mc-status-badge op">OP</span>':'';
 
       // Score grid: zero first (spans both cols), then paired neg|pos rows
-      var zeroBtn='<button class="mb zero'+(cm.score===0?' sel':'')+'" onclick="setScore('+mi+',0)">0</button>';
-      var pairBtns=[[-1.5,0.5,'−1½','+½'],[-1,1,'−1','+1'],[-0.5,1.5,'−½','+1½']].map(function(p){
+      var zeroBtn='<button class="mb zero'+(cm.score===0?' sel':'')+'" onclick="setScore('+mi+',0)">'+zeroLabel+'</button>';
+      var pairBtns=scorePairs.map(function(p){
         return '<button class="mb neg'+(cm.score===p[0]?' sel':'')+'" onclick="setScore('+mi+','+p[0]+')">'+p[2]+'</button>'
           +'<button class="mb pos'+(cm.score===p[1]?' sel':'')+'" onclick="setScore('+mi+','+p[1]+')">'+p[3]+'</button>';
       }).join('');

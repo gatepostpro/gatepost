@@ -4310,6 +4310,27 @@ var SCORE_TEMPLATES={
 
     penValues:[1,3,5], hasNRHA:true
 
+  },
+
+  'Cutting':{
+
+    maneuvers:[
+      'Cow 1 — Herd Work','Cow 1 — Cow Control','Cow 1 — Degree of Difficulty',
+      'Cow 1 — Eye Appeal','Cow 1 — Courage','Cow 1 — Time Worked',
+      'Cow 2 — Herd Work','Cow 2 — Cow Control','Cow 2 — Degree of Difficulty',
+      'Cow 2 — Eye Appeal','Cow 2 — Courage','Cow 2 — Time Worked',
+      'Cow 3 — Herd Work','Cow 3 — Cow Control','Cow 3 — Degree of Difficulty',
+      'Cow 3 — Eye Appeal','Cow 3 — Courage','Cow 3 — Time Worked'
+    ],
+
+    scorePairs:[[-0.5,0.5,'√−','√+'],[-1,1,'−','+']],
+
+    zeroLabel:'√',
+
+    penValues:[1,3,5],
+
+    cowCount:3, categoriesPerCow:6
+
   }
 
 };
@@ -4327,6 +4348,8 @@ function getTemplateForDisc(name){
   if(n.indexOf('novice')>=0&&n.indexOf('cow')>=0) return 'Novice Cow Work';
 
   if(n.indexOf('bdbd')>=0) return 'BDBD Cow Work';
+
+  if(n.indexOf('cutting')>=0) return 'Cutting';
 
   if(n.indexOf('cow')>=0) return 'Cow Work';
 
@@ -4586,9 +4609,27 @@ window.openScribeMode=function(initialKey){
 
     if(!tmpl) return s.rawScore||0;
 
-    var ms=s.m.reduce(function(a,mi){ return a+mi.score; },0);
-
     var ps=s.m.reduce(function(a,mi){ return a+mi.pen; },0);
+
+    if(tmpl.cowCount&&tmpl.categoriesPerCow){
+
+      var cowSum=0;
+
+      for(var c=0;c<tmpl.cowCount;c++){
+
+        var cSum=0;
+
+        for(var k=0;k<tmpl.categoriesPerCow;k++) cSum+=(s.m[c*tmpl.categoriesPerCow+k]||{score:0}).score;
+
+        cowSum+=cSum;
+
+      }
+
+      return Math.round((70+cowSum/tmpl.cowCount-ps)*1000)/1000;
+
+    }
+
+    var ms=s.m.reduce(function(a,mi){ return a+mi.score; },0);
 
     return Math.round((70+ms-ps+(s.nrha||0))*1000)/1000;
 
@@ -4728,7 +4769,25 @@ window.openScribeMode=function(initialKey){
 
       hscrollHtml='<div class="scr-hscroll">';
 
+      var scrScorePairs=tmpl.scorePairs||[[-1.5,0.5,'−1½','+½'],[-1,1,'−1','+1'],[-0.5,1.5,'−½','+1½']];
+
+      var scrZeroLabel=tmpl.zeroLabel||'0';
+
       tmpl.maneuvers.forEach(function(mname,mi){
+
+        // Cow group divider card for NCHA cutting
+        if(tmpl.cowCount&&tmpl.categoriesPerCow&&mi%tmpl.categoriesPerCow===0){
+          var cowNum=Math.floor(mi/tmpl.categoriesPerCow)+1;
+          var cSum=0;
+          for(var ck=0;ck<tmpl.categoriesPerCow;ck++) cSum+=(sheetData[selKey]&&sheetData[selKey][ri]&&sheetData[selKey][ri].m[((cowNum-1)*tmpl.categoriesPerCow+ck)]||{score:0}).score;
+          var cColor=cSum>0?'var(--green)':cSum<0?'var(--red)':'var(--muted)';
+          hscrollHtml+='<div class="scr-mcard" style="width:80px;background:var(--bg);border-color:var(--accent);'
+            +'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem">'
+            +'<div style="font-family:Oswald;font-size:1rem;color:var(--accent)">Cow '+cowNum+'</div>'
+            +'<div style="font-size:.65rem;color:var(--muted)">6 categories</div>'
+            +'<div style="font-size:1.3rem;font-weight:700;color:'+cColor+'">'+(cSum>=0?'+':'')+cSum.toFixed(1)+'</div>'
+            +'</div>';
+        }
 
         var cm=s.m[mi];
 
@@ -4736,21 +4795,16 @@ window.openScribeMode=function(initialKey){
 
         var touched=cm.score!==0||cm.pen>0;
 
-        // 3-col grid: row1 neg [−1½,−1,−½], row2 pos [+½,+1,+1½], row3 zero (full width)
-
-        var negBtns=[[-1.5,'−1½'],[-1,'−1'],[-0.5,'−½']].map(function(p){
-
-          return '<button class="scr-mb3 neg'+(cm.score===p[0]?' sel':'')+'" onclick="scrSetM('+mi+','+p[0]+')">'+p[1]+'</button>';
-
+        // Build neg/pos buttons from scorePairs
+        var negBtns=scrScorePairs.map(function(p){
+          return '<button class="scr-mb3 neg'+(cm.score===p[0]?' sel':'')+'" onclick="scrSetM('+mi+','+p[0]+')">'+p[2]+'</button>';
         }).join('');
 
-        var posBtns=[[0.5,'+½'],[1,'+1'],[1.5,'+1½']].map(function(p){
-
-          return '<button class="scr-mb3 pos'+(cm.score===p[0]?' sel':'')+'" onclick="scrSetM('+mi+','+p[0]+')">'+p[1]+'</button>';
-
+        var posBtns=scrScorePairs.map(function(p){
+          return '<button class="scr-mb3 pos'+(cm.score===p[1]?' sel':'')+'" onclick="scrSetM('+mi+','+p[1]+')">'+p[3]+'</button>';
         }).join('');
 
-        var zeroBtn='<button class="scr-mb3 zero'+(cm.score===0?' sel':'')+'" onclick="scrSetM('+mi+',0)">0</button>';
+        var zeroBtn='<button class="scr-mb3 zero'+(cm.score===0?' sel':'')+'" onclick="scrSetM('+mi+',0)">'+scrZeroLabel+'</button>';
 
         var penBtns=penVals.map(function(pv){
 
