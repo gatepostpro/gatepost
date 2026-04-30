@@ -381,10 +381,11 @@ function buildOrgCard(org){
 
   body.appendChild(grid);
 
-  /* plan tier quick-set */
+  /* plan tier + licenses row */
   var tierRow = document.createElement('div');
-  tierRow.style.cssText = 'margin-top:.9rem;display:flex;align-items:center;gap:.75rem';
+  tierRow.style.cssText = 'margin-top:.9rem;padding-top:.9rem;border-top:1px solid var(--border);display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap';
   tierRow.innerHTML = [
+    /* plan tier */
     '<span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Plan</span>',
     '<select class="detail-input" style="width:auto" data-id="'+org.id+'" data-action="tier">',
       ['free','basic','pro','enterprise'].map(function(t){
@@ -394,7 +395,21 @@ function buildOrgCard(org){
     '<span style="font-size:.72rem;color:var(--muted)">Expires</span>',
     '<input type="date" class="detail-input" style="width:auto" data-id="'+org.id+'" data-action="expires"',
       (org.plan_expires?' value="'+org.plan_expires+'"':''),
-    '>'
+    '>',
+    /* divider */
+    '<span style="color:var(--border2);font-size:1.2rem">|</span>',
+    /* secretary seats */
+    '<span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Secretaries</span>',
+    '<input type="number" min="1" max="99" class="detail-input" style="width:60px;text-align:center"',
+      ' data-id="'+org.id+'" data-action="max_secretaries"',
+      ' value="'+(org.max_secretaries != null ? org.max_secretaries : 2)+'"',
+    '>',
+    /* scribe seats */
+    '<span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Scribes</span>',
+    '<input type="number" min="1" max="999" class="detail-input" style="width:65px;text-align:center"',
+      ' data-id="'+org.id+'" data-action="max_scribes"',
+      ' value="'+(org.max_scribes != null ? org.max_scribes : 10)+'"',
+    '>',
   ].join('');
   body.appendChild(tierRow);
 
@@ -500,6 +515,20 @@ document.getElementById('org-list').addEventListener('change', async function(e)
       await sbPatch('associations?id=eq.'+id, { plan_expires: el.value || null });
       org.plan_expires = el.value || null;
       toast('Expiry saved');
+    } catch(ex){ toast('Save failed','err'); }
+    return;
+  }
+
+  /* seat limits */
+  if(el.dataset.action === 'max_secretaries' || el.dataset.action === 'max_scribes'){
+    var val = parseInt(el.value, 10);
+    if(isNaN(val) || val < 1) return;
+    var patch = {};
+    patch[el.dataset.action] = val;
+    try{
+      await sbPatch('associations?id=eq.'+id, patch);
+      org[el.dataset.action] = val;
+      toast('Saved — ' + (el.dataset.action === 'max_secretaries' ? 'secretary' : 'scribe') + ' limit set to ' + val);
     } catch(ex){ toast('Save failed','err'); }
   }
 });
