@@ -270,6 +270,18 @@ var SCORE_TEMPLATES={
   'Novice Cow Work':{
     maneuvers:['Position & Control','Degree of Difficulty','Eye Appeal','Courage','Time Worked'],
     penValues:[1,3,5],hasComments:true
+  },
+  'Ranch Riding':{
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
+    penValues:[0.5,1,2,5],hasNRHA:true
+  },
+  'Ranch Trail':{
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
+    penValues:[1,3,5],hasNRHA:true
+  },
+  'Ranch Rail Pleasure':{
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6'],
+    penValues:[1,3,5],hasNRHA:true
   }
 };
 
@@ -297,6 +309,9 @@ function getTemplateForDisc(name){
   if(n.indexOf('novice')>=0&&n.indexOf('cow')>=0) return 'Novice Cow Work';
   if(n.indexOf('bdbd')>=0) return 'BDBD Cow Work';
   if(n.indexOf('cow')>=0) return 'Cow Work';
+  if(n.indexOf('ranch')>=0&&n.indexOf('trail')>=0) return 'Ranch Trail';
+  if(n.indexOf('ranch')>=0&&(n.indexOf('pleasure')>=0||n.indexOf('rail')>=0)) return 'Ranch Rail Pleasure';
+  if(n.indexOf('ranch')>=0&&(n.indexOf('rein')>=0||n.indexOf('riding')>=0)) return 'Ranch Riding';
   if(n.indexOf('rein')>=0) return 'Reining';
   if(n.indexOf('trail')>=0) return 'Trail';
   if(n.indexOf('pleasure')>=0) return 'Pleasure';
@@ -345,7 +360,7 @@ function calcTotal(s,tmpl){
   if(!tmpl) return s.rawScore||0;
   var ms=s.m.reduce(function(a,x){ return a+x.score; },0);
   var ps=s.m.reduce(function(a,x){ return a+x.pen; },0);
-  return Math.round((70+ms-ps)*1000)/1000;
+  return Math.round((70+ms-ps+(s.nrha||0))*1000)/1000;
 }
 
 function isDone(ri){

@@ -4286,6 +4286,30 @@ var SCORE_TEMPLATES={
 
     penValues:[1,3,5], hasComments:true
 
+  },
+
+  'Ranch Riding':{
+
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
+
+    penValues:[0.5,1,2,5], hasNRHA:true
+
+  },
+
+  'Ranch Trail':{
+
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
+
+    penValues:[1,3,5], hasNRHA:true
+
+  },
+
+  'Ranch Rail Pleasure':{
+
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6'],
+
+    penValues:[1,3,5], hasNRHA:true
+
   }
 
 };
@@ -4305,6 +4329,12 @@ function getTemplateForDisc(name){
   if(n.indexOf('bdbd')>=0) return 'BDBD Cow Work';
 
   if(n.indexOf('cow')>=0) return 'Cow Work';
+
+  if(n.indexOf('ranch')>=0&&n.indexOf('trail')>=0) return 'Ranch Trail';
+
+  if(n.indexOf('ranch')>=0&&(n.indexOf('pleasure')>=0||n.indexOf('rail')>=0)) return 'Ranch Rail Pleasure';
+
+  if(n.indexOf('ranch')>=0&&(n.indexOf('rein')>=0||n.indexOf('riding')>=0)) return 'Ranch Riding';
 
   if(n.indexOf('rein')>=0) return 'Reining';
 
@@ -4560,7 +4590,7 @@ window.openScribeMode=function(initialKey){
 
     var ps=s.m.reduce(function(a,mi){ return a+mi.pen; },0);
 
-    return Math.round((70+ms-ps)*1000)/1000;
+    return Math.round((70+ms-ps+(s.nrha||0))*1000)/1000;
 
   }
 
@@ -7670,12 +7700,11 @@ window.pushToSeasonHub=async function(){
 
     });
 
-    // Delete existing rows for this show then insert fresh
-
-    await sbFetch('season_results?show_id=eq.'+G.showId,{method:'DELETE'});
+    // Build payload first, then delete, then insert — so a build failure never deletes live data
+    // Delete existing rows for this show
+    await sbDelete('season_results?show_id=eq.'+G.showId);
 
     // Insert in batches of 200
-
     for(var i=0;i<payload.length;i+=200){
 
       await sbFetch('season_results',{method:'POST',body:JSON.stringify(payload.slice(i,i+200))});
@@ -12833,13 +12862,15 @@ async function syncEntriesToSupabase(){
 
 
 
-  // Get association id
+  // Get association id — prefer the already-loaded tenant id, fall back to DB lookup
+  var assocId = G.assocId || null;
+  if(!assocId){
+    var abbrev = (G.cfg && G.cfg.orgAbbrev) || 'CoWN';
+    var assocRows = await sbFetch('associations?abbreviation=eq.'+encodeURIComponent(abbrev)+'&select=id');
+    assocId = assocRows && assocRows[0] ? assocRows[0].id : null;
+  }
 
-  var assocRows = await sbFetch('associations?abbreviation=eq.CoWN&select=id');
-
-  var assocId = assocRows && assocRows[0] ? assocRows[0].id : null;
-
-  if(!assocId) throw new Error('Association not found in database');
+  if(!assocId) throw new Error('Association not found. Check your association abbreviation in Settings.');
 
 
 
