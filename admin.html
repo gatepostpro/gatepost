@@ -413,8 +413,81 @@ function buildOrgCard(org){
   ].join('');
   body.appendChild(tierRow);
 
+  /* season config section */
+  var scWrap = document.createElement('div');
+  scWrap.style.cssText = 'border-top:1px solid var(--border);margin-top:.75rem;padding-top:.75rem';
+
+  var scHead = document.createElement('div');
+  scHead.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:.65rem';
+  scHead.innerHTML = '<span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Season Rules &amp; Drop Config</span>'
+    +'<div style="display:flex;gap:.4rem">'
+    +'<button class="btn btn-ghost btn-sm" data-id="'+org.id+'" data-action="add-sc-row">+ Add Org</button>'
+    +'<button class="btn btn-accent btn-sm" data-id="'+org.id+'" data-action="save-sc">Save</button>'
+    +'</div>';
+  scWrap.appendChild(scHead);
+
+  var scList = document.createElement('div');
+  scList.id = 'sc-list-'+org.id;
+  var cfg = org.season_config || {};
+  Object.keys(cfg).forEach(function(orgKey){
+    scList.appendChild(buildScRow(org.id, orgKey, cfg[orgKey]));
+  });
+  scWrap.appendChild(scList);
+
+  body.appendChild(scWrap);
   card.appendChild(body);
   return card;
+}
+
+function buildScRow(orgId, orgKey, cfg){
+  cfg = cfg || {};
+  var row = document.createElement('div');
+  row.className = 'sc-row';
+  row.dataset.orgKey = orgKey;
+  row.style.cssText = 'display:grid;grid-template-columns:130px 60px 1fr auto;gap:.5rem;align-items:start;margin-bottom:.5rem';
+  row.innerHTML = [
+    '<div>',
+      '<div style="font-size:.65rem;color:var(--muted);margin-bottom:2px">Org / Series</div>',
+      '<input class="form-input sc-key" value="'+escHtml(orgKey)+'" placeholder="e.g. CoWN" style="font-size:.76rem;padding:.28rem .5rem">',
+    '</div>',
+    '<div>',
+      '<div style="font-size:.65rem;color:var(--muted);margin-bottom:2px">Drop</div>',
+      '<input type="number" min="0" max="10" class="form-input sc-drop" value="'+(cfg.drop!=null?cfg.drop:0)+'" style="font-size:.76rem;padding:.28rem .5rem;text-align:center">',
+    '</div>',
+    '<div>',
+      '<div style="font-size:.65rem;color:var(--muted);margin-bottom:2px">Rules &amp; Reminders (one per line, max 5)</div>',
+      '<textarea class="form-input sc-notes" rows="3" placeholder="One rule per line…" style="font-size:.74rem;padding:.28rem .5rem;resize:vertical;line-height:1.4">'+escHtml((cfg.notes||[]).join('\n'))+'</textarea>',
+    '</div>',
+    '<div style="padding-top:1.1rem">',
+      '<button class="btn btn-danger btn-sm sc-del" data-id="'+orgId+'">✕</button>',
+    '</div>'
+  ].join('');
+  return row;
+}
+
+function collectSeasonConfig(orgId){
+  var list = document.getElementById('sc-list-'+orgId);
+  if(!list) return {};
+  var cfg = {};
+  list.querySelectorAll('.sc-row').forEach(function(row){
+    var key = row.querySelector('.sc-key').value.trim();
+    if(!key) return;
+    var drop = parseInt(row.querySelector('.sc-drop').value)||0;
+    var notesRaw = row.querySelector('.sc-notes').value;
+    var notes = notesRaw.split('\n').map(function(l){ return l.trim(); }).filter(Boolean).slice(0,5);
+    cfg[key] = {drop:drop, notes:notes};
+  });
+  return cfg;
+}
+
+async function saveSeasonConfig(orgId){
+  var cfg = collectSeasonConfig(orgId);
+  try{
+    await sbPatch('associations?id=eq.'+orgId, {season_config: cfg});
+    var org = orgs.find(function(o){ return o.id===orgId; });
+    if(org) org.season_config = cfg;
+    toast('Season config saved');
+  } catch(ex){ toast('Save failed','err'); }
 }
 
 /* ── Edit details modal ── */
@@ -542,6 +615,23 @@ document.getElementById('org-list').addEventListener('click', async function(e){
 
   if(btn.dataset.action === 'edit'){
     openEditModal(org);
+  }
+
+  if(btn.dataset.action === 'add-sc-row'){
+    var list = document.getElementById('sc-list-'+id);
+    if(list) list.appendChild(buildScRow(id,'',{}));
+    return;
+  }
+
+  if(btn.dataset.action === 'save-sc'){
+    saveSeasonConfig(id);
+    return;
+  }
+
+  if(btn.classList.contains('sc-del')){
+    var row = btn.closest('.sc-row');
+    if(row) row.remove();
+    return;
   }
 
   if(btn.dataset.action === 'toggle-active'){

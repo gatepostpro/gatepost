@@ -91,6 +91,8 @@ tr:hover td{background:rgba(255,255,255,.025)}
       <div class="nav-item" id="nav-merit" style="opacity:.5;cursor:default" title="Coming soon">&#11088; Merit Points</div>
     </nav>
     <div class="sidebar-config">
+      <label>Points Under</label>
+      <select id="cfg-org"><option value="">All</option></select>
       <label>Year</label>
       <select id="cfg-year"></select>
       <label>Drop Shows</label>
@@ -139,8 +141,11 @@ async function sbFetch(path, opts){
 
 // ── State ────────────────────────────────────────────────────
 var S = {
-  rows: [],         // all season_results rows
+  rows: [],         // all season_results rows for this tenant
   shows: [],        // unique show names
+  assocId: '',      // tenant association_id (from URL param — invisible filter)
+  selOrg: '',       // selected sanctioning body (CoWN, VRH, APHA, etc.)
+  seasonConfig: {}, // season_config JSON from associations table
   year: new Date().getFullYear(),
   drop: 2,
   minShows: 1,
@@ -170,17 +175,63 @@ window.addEventListener('DOMContentLoaded', function(){
   yr.addEventListener('change',function(){ S.year=parseInt(this.value); loadData(); });
   document.getElementById('cfg-drop').addEventListener('change',function(){ S.drop=parseInt(this.value); render(); });
   document.getElementById('cfg-min').addEventListener('change',function(){ S.minShows=parseInt(this.value); render(); });
+  document.getElementById('cfg-org').addEventListener('change',function(){
+    S.selOrg=this.value;
+    document.getElementById('page-title').textContent=(S.selOrg||'All Orgs')+' — Season Standings';
+    applyOrgConfig(S.selOrg);
+    S.selDiv=''; S.selDisc='';
+    render();
+  });
+
+  // Read ?assoc= URL param (tenant scope — silent, not shown in UI)
+  S.assocId=new URLSearchParams(window.location.search).get('assoc')||'';
   loadData();
 });
+
+function applyOrgConfig(org){
+  var cfg=(S.seasonConfig&&org)?S.seasonConfig[org]:null;
+  if(cfg&&cfg.drop!=null){
+    S.drop=cfg.drop;
+    document.getElementById('cfg-drop').value=String(cfg.drop);
+  }
+}
 
 async function loadData(){
   document.getElementById('page').innerHTML='<div class="loading-msg"><span class="spinner"></span>Loading…</div>';
   try{
-    // Fetch all season_results rows
-    var data=await sbFetch('season_results?order=show_name.asc&select=*',{headers:{'Prefer':'return=representation'}});
+    // Fetch season_config for this tenant alongside results
+    if(S.assocId){
+      var assocRows=await sbFetch('associations?id=eq.'+S.assocId+'&select=season_config',{headers:{'Prefer':'return=representation'}});
+      S.seasonConfig=(assocRows&&assocRows[0]&&assocRows[0].season_config)||{};
+    }
+
+    // Always scope to tenant association_id if provided
+    var query='season_results?order=show_name.asc&select=*';
+    if(S.assocId) query+='&association_id=eq.'+S.assocId;
+    var data=await sbFetch(query,{headers:{'Prefer':'return=representation'}});
     S.rows=data||[];
 
-    // Extract unique show names for the year (approximate by matching S.year in show_name or published_at)
+    // Populate org selector from distinct orgs in the data
+    var orgSet={};
+    S.rows.forEach(function(r){ if(r.org) orgSet[r.org]=1; });
+    var orgs=Object.keys(orgSet).sort();
+    var orgSel=document.getElementById('cfg-org');
+    var prev=S.selOrg;
+    orgSel.innerHTML='<option value="">All</option>';
+    orgs.forEach(function(o){
+      var opt=document.createElement('option');
+      opt.value=o; opt.textContent=o;
+      if(o===prev) opt.selected=true;
+      orgSel.appendChild(opt);
+    });
+    // Default to first org if nothing selected
+    if(!S.selOrg&&orgs.length){
+      S.selOrg=orgs[0];
+      orgSel.value=orgs[0];
+    }
+    applyOrgConfig(S.selOrg);
+    document.getElementById('page-title').textContent=(S.selOrg||'All Orgs')+' — Season Standings';
+
     var showSet={};
     S.rows.forEach(function(r){ if(r.show_name) showSet[r.show_name]=1; });
     S.shows=Object.keys(showSet).sort();
@@ -196,27 +247,45 @@ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 
 function render(){
   var pg=document.getElementById('page');
-  if(!S.rows.length){
+  // Filter rows by selected sanctioning body
+  var rows=S.selOrg ? S.rows.filter(function(r){ return r.org===S.selOrg; }) : S.rows;
+
+  if(!rows.length){
     pg.innerHTML='<div class="card"><div class="empty">No season results yet.<br><br>'
       +'Push results from the Show Management app to populate standings.</div></div>';
     return;
   }
 
   // ── Stats ────────────────────────────────────────────────────
-  var riders={}; S.rows.forEach(function(r){ if(r.rider) riders[r.rider]=1; });
+  var riders={}; rows.forEach(function(r){ if(r.rider) riders[r.rider]=1; });
+  var showSet2={}; rows.forEach(function(r){ if(r.show_name) showSet2[r.show_name]=1; });
+  var showCount=Object.keys(showSet2).length;
   var html='<div class="stat-grid">'
-    +'<div class="stat c-gold"><div class="n">'+S.shows.length+'</div><div class="l">Shows</div></div>'
+    +'<div class="stat c-gold"><div class="n">'+showCount+'</div><div class="l">Shows</div></div>'
     +'<div class="stat c-blue"><div class="n">'+Object.keys(riders).length+'</div><div class="l">Riders</div></div>'
-    +'<div class="stat c-green"><div class="n">'+S.rows.length+'</div><div class="l">Result Rows</div></div>'
+    +'<div class="stat c-green"><div class="n">'+rows.length+'</div><div class="l">Result Rows</div></div>'
     +'<div class="stat c-purple"><div class="n">'+S.drop+'</div><div class="l">Drop Shows</div></div>'
     +'</div>';
 
   // ── Division pills ───────────────────────────────────────────
   var divsFound={};
-  S.rows.forEach(function(r){ if(r.division) divsFound[r.division]=1; });
+  rows.forEach(function(r){ if(r.division) divsFound[r.division]=1; });
   var divs=DIV_ORDER.filter(function(d){ return divsFound[d]; });
   Object.keys(divsFound).forEach(function(d){ if(divs.indexOf(d)<0) divs.push(d); });
   if(!S.selDiv&&divs.length) S.selDiv=divs[0];
+
+  // ── Rules / notes card ───────────────────────────────────────
+  var orgCfg=(S.seasonConfig&&S.selOrg)?S.seasonConfig[S.selOrg]:null;
+  var notes=orgCfg&&Array.isArray(orgCfg.notes)&&orgCfg.notes.length?orgCfg.notes:null;
+  if(notes){
+    html+='<div style="background:rgba(200,146,42,.06);border:1px solid rgba(200,146,42,.2);border-radius:8px;padding:.65rem .9rem;margin-bottom:.75rem">';
+    html+='<div style="font-size:.68rem;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.4rem;font-weight:600">Rules &amp; Reminders</div>';
+    html+='<ul style="list-style:disc;padding-left:1.2rem;margin:0">';
+    notes.forEach(function(n){
+      if(n&&n.trim()) html+='<li style="font-size:.78rem;color:var(--muted);margin-bottom:.2rem">'+esc(n.trim())+'</li>';
+    });
+    html+='</ul></div>';
+  }
 
   html+='<div class="card">';
   html+='<div style="font-size:.68rem;color:var(--muted);margin-bottom:.3rem;letter-spacing:.08em;text-transform:uppercase">Division</div>';
@@ -227,7 +296,7 @@ function render(){
   html+='</div>';
 
   if(S.selDiv){
-    var divRows=S.rows.filter(function(r){ return r.division===S.selDiv; });
+    var divRows=rows.filter(function(r){ return r.division===S.selDiv; });
 
     // ── Discipline pills ─────────────────────────────────────────
     var discsFound={};
@@ -282,21 +351,30 @@ function renderStandings(rows){
   var riders=Object.values(riderMap);
   if(!riders.length) return '<div class="empty">No results for this class.</div>';
 
-  // Apply drop-show logic
+  // Full show list for this class — every show that ran this discipline
+  var allShowSet={};
+  rows.forEach(function(r){ if(r.show_name) allShowSet[r.show_name]=1; });
+  var allShows=Object.keys(allShowSet).sort();
+
+  // Apply drop-show logic — missed shows count as zero
   riders.forEach(function(m){
+    // Fill in zeros for shows the rider didn't attend
+    allShows.forEach(function(s){
+      if(!m.shows[s]) m.shows[s]={pts:0,place:999,missed:true};
+    });
     var showList=Object.keys(m.shows).sort();
-    m.showCount=showList.length;
-    m.showPts=showList.map(function(s){ return {show:s,pts:m.shows[s].pts}; });
-    // Sort ascending by pts — lowest get dropped
+    m.showCount=allShows.filter(function(s){ return !m.shows[s].missed; }).length; // shows actually attended
+    m.showPts=showList.map(function(s){ return {show:s,pts:m.shows[s].pts,missed:!!m.shows[s].missed}; });
+    // Sort ascending by pts — lowest (including zeros) get dropped first
     var sorted=m.showPts.slice().sort(function(a,b){ return a.pts-b.pts; });
-    var dropN=Math.min(S.drop, Math.max(0, sorted.length-1)); // don't drop all
+    var dropN=Math.min(S.drop, Math.max(0, sorted.length-1)); // never drop all
     var droppedShows={};
     sorted.slice(0,dropN).forEach(function(sp){ droppedShows[sp.show]=1; });
     m.dropped=droppedShows;
     m.total=m.showPts.reduce(function(s,sp){ return s+(droppedShows[sp.show]?0:sp.pts); },0);
   });
 
-  // Filter by min shows
+  // Filter by min shows attended (not counting missed)
   riders=riders.filter(function(m){ return m.showCount>=S.minShows; });
   if(!riders.length) return '<div class="empty">No riders meet the minimum show requirement.</div>';
 
@@ -311,13 +389,11 @@ function renderStandings(rows){
     rank=i+2;
   });
 
-  // Build column list: all unique shows, sorted
-  var showSet={};
-  riders.forEach(function(m){ Object.keys(m.shows).forEach(function(s){ showSet[s]=1; }); });
-  var shows=Object.keys(showSet).sort();
+  // Column list = all shows in the season for this class
+  var shows=allShows;
 
   var html='<div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem">';
-  html+=S.shows.length+' shows total &mdash; dropping '+S.drop+' lowest per rider &mdash; '+riders.length+' riders</div>';
+  html+=allShows.length+' shows &mdash; dropping '+S.drop+' lowest per rider (missed shows = 0 pts) &mdash; '+riders.length+' riders</div>';
   html+='<div class="tbl-wrap"><table><thead><tr>';
   html+='<th style="width:36px">Rank</th><th>Rider</th><th>Horse</th>';
   shows.forEach(function(s){
@@ -334,8 +410,16 @@ function renderStandings(rows){
     html+='<td class="small">'+esc(m.horse)+'</td>';
     shows.forEach(function(s){
       var sp=m.shows[s];
-      if(!sp){ html+='<td class="show-col" style="color:var(--muted)">&mdash;</td>'; return; }
       var isDrop=m.dropped[s];
+      if(!sp||sp.missed){
+        // Missed show — show a dash or dropped-zero
+        if(isDrop){
+          html+='<td class="show-col b-drop" title="Did not attend — dropped">0 &#9660;</td>';
+        } else {
+          html+='<td class="show-col" style="color:var(--muted)" title="Did not attend">&mdash;</td>';
+        }
+        return;
+      }
       html+='<td class="show-col'+(isDrop?' b-drop':'')+'">'+sp.pts.toFixed(1)+(isDrop?' &#9660;':'')+'</td>';
     });
     html+='<td style="text-align:right;font-weight:700;color:var(--accent);background:rgba(212,160,74,.06)">'+m.total.toFixed(1)+'</td>';
