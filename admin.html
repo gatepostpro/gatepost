@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thorofare Admin — TwoTop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#090f0b;--card:#0e1a10;--card2:#122014;
+  --text:#e8ede4;--muted:#6a8a64;
+  --accent:#c8922a;--accent-dim:rgba(200,146,42,.12);
+  --border:#1a301c;--border2:#1f3a22;
+  --green:#2ecc71;--red:#e74c3c;--blue:#3498db;
+  --orange:#e07c00;
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
+
+/* ── Layout ── */
+.topbar{
+  background:var(--card);border-bottom:1px solid var(--border2);
+  padding:.7rem 1.6rem;display:flex;align-items:center;gap:1rem;
+  position:sticky;top:0;z-index:100;
+}
+.topbar-logo{font-family:Oswald;font-size:1.2rem;font-weight:700;color:var(--accent);letter-spacing:.06em}
+.topbar-sub{font-size:.72rem;color:var(--muted);letter-spacing:.15em;text-transform:uppercase}
+.topbar-badge{
+  margin-left:auto;background:rgba(231,76,60,.15);color:var(--red);
+  border:1px solid rgba(231,76,60,.25);border-radius:10px;
+  font-size:.68rem;font-weight:700;padding:2px 10px;letter-spacing:.05em;
+}
+.main{max-width:1100px;margin:0 auto;padding:2rem 1.5rem}
+
+/* ── Section headings ── */
+.section-head{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:1rem;
+}
+.section-title{font-family:Oswald;font-size:1.1rem;color:var(--accent);letter-spacing:.04em}
+
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;gap:.4rem;
+  border:none;border-radius:6px;cursor:pointer;font-family:inherit;
+  font-size:.8rem;font-weight:600;padding:.45rem .9rem;transition:all .15s;
+}
+.btn-accent{background:var(--accent);color:#000}
+.btn-accent:hover{background:#d9a040}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--muted)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:transparent;border:1px solid rgba(231,76,60,.3);color:var(--red)}
+.btn-danger:hover{background:rgba(231,76,60,.1)}
+.btn-sm{font-size:.72rem;padding:.3rem .65rem}
+
+/* ── Cards ── */
+.card{background:var(--card);border:1px solid var(--border2);border-radius:10px;margin-bottom:1rem}
+.card-head{
+  padding:.85rem 1.1rem;border-bottom:1px solid var(--border2);
+  display:flex;align-items:center;gap:.75rem;
+}
+.card-body{padding:1.1rem}
+
+/* ── Org card ── */
+.org-name{font-family:Oswald;font-size:1rem;color:var(--text);letter-spacing:.03em}
+.org-meta{font-size:.72rem;color:var(--muted);margin-top:2px}
+.org-actions{margin-left:auto;display:flex;gap:.5rem;align-items:center}
+
+.tier-badge{
+  font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:8px;
+  text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;
+}
+.tier-free{background:rgba(106,138,100,.15);color:var(--muted)}
+.tier-basic{background:rgba(52,152,219,.15);color:var(--blue)}
+.tier-pro{background:rgba(200,146,42,.15);color:var(--accent)}
+.tier-enterprise{background:rgba(46,204,113,.15);color:var(--green)}
+
+/* ── Feature flags grid ── */
+.flags-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:.6rem;
+}
+.flag-row{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--card2);border:1px solid var(--border);border-radius:6px;
+  padding:.5rem .75rem;gap:.5rem;
+}
+.flag-label{font-size:.78rem;color:var(--text)}
+.flag-desc{font-size:.68rem;color:var(--muted);margin-top:1px}
+
+/* ── Toggle switch ── */
+.toggle{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{
+  position:absolute;inset:0;background:var(--border2);border-radius:20px;
+  cursor:pointer;transition:background .2s;
+}
+.toggle-slider::before{
+  content:'';position:absolute;height:14px;width:14px;
+  left:3px;bottom:3px;background:var(--muted);border-radius:50%;
+  transition:transform .2s,background .2s;
+}
+.toggle input:checked + .toggle-slider{background:rgba(46,204,113,.3)}
+.toggle input:checked + .toggle-slider::before{
+  transform:translateX(16px);background:var(--green);
+}
+
+/* ── Org detail section ── */
+.detail-row{display:flex;align-items:center;gap:.75rem;margin-bottom:.6rem}
+.detail-label{font-size:.72rem;color:var(--muted);width:120px;flex-shrink:0}
+.detail-val{font-size:.82rem;color:var(--text);flex:1}
+input.detail-input,select.detail-input{
+  background:var(--bg);border:1px solid var(--border2);border-radius:5px;
+  color:var(--text);padding:.3rem .6rem;font-size:.82rem;font-family:inherit;
+  width:100%;outline:none;transition:border-color .15s;
+}
+input.detail-input:focus,select.detail-input:focus{border-color:rgba(200,146,42,.5)}
+
+/* ── Add org form ── */
+.add-form{
+  background:var(--card);border:1px solid var(--border2);border-radius:10px;
+  padding:1.2rem;margin-bottom:1.5rem;display:none;
+}
+.add-form.open{display:block}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem}
+.form-group{display:flex;flex-direction:column;gap:.3rem}
+.form-label{font-size:.72rem;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+.form-input{
+  background:var(--bg);border:1px solid var(--border2);border-radius:5px;
+  color:var(--text);padding:.4rem .65rem;font-size:.83rem;font-family:inherit;
+  outline:none;transition:border-color .15s;
+}
+.form-input:focus{border-color:rgba(200,146,42,.5)}
+.form-actions{display:flex;gap:.6rem;justify-content:flex-end}
+
+/* ── Stats bar ── */
+.stats{display:flex;gap:1rem;margin-bottom:1.8rem;flex-wrap:wrap}
+.stat-card{
+  background:var(--card);border:1px solid var(--border2);border-radius:8px;
+  padding:.7rem 1.1rem;flex:1;min-width:120px;
+}
+.stat-val{font-family:Oswald;font-size:1.5rem;color:var(--accent)}
+.stat-label{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+
+/* ── Toast ── */
+.toast{
+  position:fixed;bottom:1.5rem;right:1.5rem;
+  background:var(--card2);border:1px solid var(--border2);border-radius:8px;
+  padding:.65rem 1rem;font-size:.82rem;color:var(--text);
+  box-shadow:0 4px 20px rgba(0,0,0,.4);z-index:999;
+  opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{border-color:rgba(46,204,113,.3);color:var(--green)}
+.toast.err{border-color:rgba(231,76,60,.3);color:var(--red)}
+
+/* ── Empty state ── */
+.empty{text-align:center;padding:3rem;color:var(--muted);font-size:.88rem}
+
+/* ── Responsive ── */
+@media(max-width:600px){
+  .form-grid{grid-template-columns:1fr}
+  .flags-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-logo">Thorofare</div>
+    <div class="topbar-sub">TwoTop Admin</div>
+  </div>
+  <div class="topbar-badge">OWNER ONLY</div>
+</div>
+
+<div class="main">
+
+  <!-- Stats -->
+  <div class="stats" id="stats-bar">
+    <div class="stat-card"><div class="stat-val" id="stat-orgs">—</div><div class="stat-label">Organizations</div></div>
+    <div class="stat-card"><div class="stat-val" id="stat-active">—</div><div class="stat-label">Active</div></div>
+    <div class="stat-card"><div class="stat-val" id="stat-pro">—</div><div class="stat-label">Pro / Enterprise</div></div>
+  </div>
+
+  <!-- Org list -->
+  <div class="section-head">
+    <div class="section-title">Organizations</div>
+    <button class="btn btn-accent" id="btn-add-org">+ Add Organization</button>
+  </div>
+
+  <!-- Add org form -->
+  <div class="add-form" id="add-form">
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Organization Name</label>
+        <input class="form-input" id="f-name" placeholder="e.g. CoWN Stock Horse Association">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Abbreviation</label>
+        <input class="form-input" id="f-abbr" placeholder="e.g. CoWN" maxlength="12">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contact Email</label>
+        <input class="form-input" id="f-email" type="email" placeholder="secretary@org.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Billing Email</label>
+        <input class="form-input" id="f-billing" type="email" placeholder="billing@org.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Licensed To</label>
+        <input class="form-input" id="f-licensed" placeholder="Name or org on the account">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Plan Tier</label>
+        <select class="form-input" id="f-tier">
+          <option value="free">Free</option>
+          <option value="basic" selected>Basic</option>
+          <option value="pro">Pro</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" id="btn-cancel-add">Cancel</button>
+      <button class="btn btn-accent" id="btn-save-add">Create Organization</button>
+    </div>
+  </div>
+
+  <!-- Org cards -->
+  <div id="org-list"></div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+var SUPABASE_URL  = 'https://tpurkcxtkvwpywxnuzwe.supabase.co';
+var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwdXJrY3h0a3Z3cHl3eG51endlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MDUwMzYsImV4cCI6MjA5MjI4MTAzNn0.j1fPBjBsbIoXXosM96YtywdGiVVLWnd-YrXZ1634alU';
+
+var FLAGS = [
+  { key: 'enable_scribe',           label: 'Scribe Tool',        desc: 'Live score entry' },
+  { key: 'enable_year_end',         label: 'Year-End Standings', desc: 'Season points & AA' },
+  { key: 'enable_public_results',   label: 'Public Results',     desc: 'Publicly viewable' },
+  { key: 'enable_stalls',           label: 'Stall Management',   desc: 'Stall & RV booking' },
+  { key: 'enable_rv',               label: 'RV Management',      desc: 'RV spot tracking' },
+  { key: 'enable_entry_form',       label: 'Online Entry Form',  desc: 'Native entry intake' },
+  { key: 'enable_membership',       label: 'Membership Module',  desc: 'Member tracking' },
+  { key: 'enable_horse_registry',   label: 'Horse Registry',     desc: 'Horse records' },
+];
+
+/* ── Supabase helpers ── */
+async function sbGet(path){
+  var res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    headers:{
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + SUPABASE_ANON,
+      'Accept': 'application/json'
+    }
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function sbPatch(path, body){
+  var res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    method: 'PATCH',
+    headers:{
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + SUPABASE_ANON,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    },
+    body: JSON.stringify(body)
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function sbPost(path, body){
+  var res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    method: 'POST',
+    headers:{
+      'apikey': SUPABASE_ANON,
+      'Authorization': 'Bearer ' + SUPABASE_ANON,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    },
+    body: JSON.stringify(body)
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+/* ── Toast ── */
+var toastTimer;
+function toast(msg, type){
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + (type||'ok');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ el.className = 'toast'; }, 2800);
+}
+
+/* ── Tier badge ── */
+function tierBadge(tier){
+  var t = tier || 'free';
+  return '<span class="tier-badge tier-'+t+'">'+t+'</span>';
+}
+
+/* ── Render orgs ── */
+var orgs = [];
+
+function renderStats(){
+  document.getElementById('stat-orgs').textContent  = orgs.length;
+  document.getElementById('stat-active').textContent = orgs.filter(function(o){ return o.active; }).length;
+  document.getElementById('stat-pro').textContent    = orgs.filter(function(o){ return o.plan_tier === 'pro' || o.plan_tier === 'enterprise'; }).length;
+}
+
+function renderOrgs(){
+  renderStats();
+  var list = document.getElementById('org-list');
+  if(!orgs.length){
+    list.innerHTML = '<div class="empty">No organizations yet. Add one above.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  orgs.forEach(function(org){ list.appendChild(buildOrgCard(org)); });
+}
+
+function buildOrgCard(org){
+  var card = document.createElement('div');
+  card.className = 'card';
+  card.id = 'org-' + org.id;
+
+  /* header */
+  var head = document.createElement('div');
+  head.className = 'card-head';
+  head.innerHTML = [
+    '<div>',
+      '<div class="org-name">'+escHtml(org.name)+'</div>',
+      '<div class="org-meta">'+escHtml(org.abbreviation)+(org.licensed_to?' · '+escHtml(org.licensed_to):'')+'</div>',
+    '</div>',
+    tierBadge(org.plan_tier),
+    '<div class="org-actions">',
+      '<button class="btn btn-ghost btn-sm" data-id="'+org.id+'" data-action="edit">Edit Details</button>',
+      '<button class="btn btn-'+(org.active?'danger':'ghost')+' btn-sm" data-id="'+org.id+'" data-action="toggle-active">',
+        org.active ? 'Deactivate' : 'Activate',
+      '</button>',
+    '</div>'
+  ].join('');
+  card.appendChild(head);
+
+  /* body — flags */
+  var body = document.createElement('div');
+  body.className = 'card-body';
+
+  var grid = document.createElement('div');
+  grid.className = 'flags-grid';
+
+  FLAGS.forEach(function(f){
+    var enabled = !!org[f.key];
+    var row = document.createElement('div');
+    row.className = 'flag-row';
+    row.innerHTML = [
+      '<div><div class="flag-label">'+escHtml(f.label)+'</div>',
+      '<div class="flag-desc">'+escHtml(f.desc)+'</div></div>',
+      '<label class="toggle">',
+        '<input type="checkbox" '+(enabled?'checked':''),
+          ' data-id="'+org.id+'" data-flag="'+f.key+'">',
+        '<span class="toggle-slider"></span>',
+      '</label>'
+    ].join('');
+    grid.appendChild(row);
+  });
+
+  body.appendChild(grid);
+
+  /* plan tier quick-set */
+  var tierRow = document.createElement('div');
+  tierRow.style.cssText = 'margin-top:.9rem;display:flex;align-items:center;gap:.75rem';
+  tierRow.innerHTML = [
+    '<span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Plan</span>',
+    '<select class="detail-input" style="width:auto" data-id="'+org.id+'" data-action="tier">',
+      ['free','basic','pro','enterprise'].map(function(t){
+        return '<option value="'+t+'"'+(org.plan_tier===t?' selected':'')+'>'+t+'</option>';
+      }).join(''),
+    '</select>',
+    '<span style="font-size:.72rem;color:var(--muted)">Expires</span>',
+    '<input type="date" class="detail-input" style="width:auto" data-id="'+org.id+'" data-action="expires"',
+      (org.plan_expires?' value="'+org.plan_expires+'"':''),
+    '>'
+  ].join('');
+  body.appendChild(tierRow);
+
+  card.appendChild(body);
+  return card;
+}
+
+/* ── Edit details modal ── */
+function openEditModal(org){
+  var existing = document.getElementById('edit-modal');
+  if(existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'edit-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem';
+
+  var box = document.createElement('div');
+  box.style.cssText = 'background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:1.4rem;width:100%;max-width:480px';
+  box.innerHTML = [
+    '<div style="font-family:Oswald;font-size:1rem;color:var(--accent);margin-bottom:1rem">Edit — '+escHtml(org.name)+'</div>',
+    '<div class="form-grid">',
+      '<div class="form-group"><label class="form-label">Name</label>',
+        '<input class="form-input" id="em-name" value="'+escHtml(org.name||'')+'"></div>',
+      '<div class="form-group"><label class="form-label">Abbreviation</label>',
+        '<input class="form-input" id="em-abbr" value="'+escHtml(org.abbreviation||'')+'"></div>',
+      '<div class="form-group"><label class="form-label">Contact Email</label>',
+        '<input class="form-input" id="em-email" type="email" value="'+escHtml(org.contact_email||'')+'"></div>',
+      '<div class="form-group"><label class="form-label">Billing Email</label>',
+        '<input class="form-input" id="em-billing" type="email" value="'+escHtml(org.billing_email||'')+'"></div>',
+      '<div class="form-group"><label class="form-label">Licensed To</label>',
+        '<input class="form-input" id="em-licensed" value="'+escHtml(org.licensed_to||'')+'"></div>',
+      '<div class="form-group"><label class="form-label">Website</label>',
+        '<input class="form-input" id="em-website" value="'+escHtml(org.website||'')+'"></div>',
+    '</div>',
+    '<div style="display:flex;gap:.6rem;justify-content:flex-end;margin-top:.5rem">',
+      '<button class="btn btn-ghost" id="em-cancel">Cancel</button>',
+      '<button class="btn btn-accent" id="em-save">Save</button>',
+    '</div>'
+  ].join('');
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  document.getElementById('em-cancel').onclick = function(){ overlay.remove(); };
+  overlay.onclick = function(e){ if(e.target === overlay) overlay.remove(); };
+  document.getElementById('em-save').onclick = async function(){
+    var updates = {
+      name:          document.getElementById('em-name').value.trim(),
+      abbreviation:  document.getElementById('em-abbr').value.trim(),
+      contact_email: document.getElementById('em-email').value.trim(),
+      billing_email: document.getElementById('em-billing').value.trim(),
+      licensed_to:   document.getElementById('em-licensed').value.trim(),
+      website:       document.getElementById('em-website').value.trim(),
+    };
+    try{
+      await sbPatch('associations?id=eq.'+org.id, updates);
+      Object.assign(org, updates);
+      document.getElementById('org-'+org.id).replaceWith(buildOrgCard(org));
+      overlay.remove();
+      toast('Saved');
+    } catch(e){ toast('Error: '+e.message,'err'); }
+  };
+}
+
+/* ── Event delegation ── */
+document.getElementById('org-list').addEventListener('change', async function(e){
+  var el = e.target;
+  var id  = el.dataset.id;
+  var org = orgs.find(function(o){ return o.id === id; });
+  if(!org) return;
+
+  /* feature flag toggle */
+  if(el.dataset.flag){
+    var patch = {};
+    patch[el.dataset.flag] = el.checked;
+    try{
+      await sbPatch('associations?id=eq.'+id, patch);
+      org[el.dataset.flag] = el.checked;
+      toast((el.checked ? '✓ Enabled ' : '✗ Disabled ') + el.dataset.flag.replace('enable_','').replace(/_/g,' '));
+    } catch(ex){
+      el.checked = !el.checked;
+      toast('Save failed','err');
+    }
+    return;
+  }
+
+  /* plan tier */
+  if(el.dataset.action === 'tier'){
+    try{
+      await sbPatch('associations?id=eq.'+id, { plan_tier: el.value });
+      org.plan_tier = el.value;
+      var badge = document.querySelector('#org-'+id+' .tier-badge');
+      if(badge){ badge.className = 'tier-badge tier-'+el.value; badge.textContent = el.value; }
+      renderStats();
+      toast('Plan updated to ' + el.value);
+    } catch(ex){ toast('Save failed','err'); }
+    return;
+  }
+
+  /* expiry date */
+  if(el.dataset.action === 'expires'){
+    try{
+      await sbPatch('associations?id=eq.'+id, { plan_expires: el.value || null });
+      org.plan_expires = el.value || null;
+      toast('Expiry saved');
+    } catch(ex){ toast('Save failed','err'); }
+  }
+});
+
+document.getElementById('org-list').addEventListener('click', async function(e){
+  var btn = e.target.closest('[data-action]');
+  if(!btn) return;
+  var id  = btn.dataset.id;
+  var org = orgs.find(function(o){ return o.id === id; });
+  if(!org) return;
+
+  if(btn.dataset.action === 'edit'){
+    openEditModal(org);
+  }
+
+  if(btn.dataset.action === 'toggle-active'){
+    var newVal = !org.active;
+    try{
+      await sbPatch('associations?id=eq.'+id, { active: newVal });
+      org.active = newVal;
+      document.getElementById('org-'+id).replaceWith(buildOrgCard(org));
+      renderStats();
+      toast(newVal ? 'Organization activated' : 'Organization deactivated');
+    } catch(ex){ toast('Save failed','err'); }
+  }
+});
+
+/* ── Add org ── */
+document.getElementById('btn-add-org').onclick = function(){
+  document.getElementById('add-form').classList.add('open');
+  document.getElementById('f-name').focus();
+};
+document.getElementById('btn-cancel-add').onclick = function(){
+  document.getElementById('add-form').classList.remove('open');
+};
+document.getElementById('btn-save-add').onclick = async function(){
+  var name  = document.getElementById('f-name').value.trim();
+  var abbr  = document.getElementById('f-abbr').value.trim();
+  var email = document.getElementById('f-email').value.trim();
+  var billing = document.getElementById('f-billing').value.trim();
+  var licensed = document.getElementById('f-licensed').value.trim();
+  var tier  = document.getElementById('f-tier').value;
+  if(!name || !abbr){ toast('Name and abbreviation required','err'); return; }
+  try{
+    var rows = await sbPost('associations', {
+      name: name, abbreviation: abbr,
+      contact_email: email || null,
+      billing_email: billing || null,
+      licensed_to: licensed || null,
+      plan_tier: tier,
+      active: true,
+      enable_scribe: true,
+      enable_year_end: true,
+      enable_public_results: false,
+      enable_stalls: true,
+      enable_rv: true,
+      enable_entry_form: false,
+      enable_membership: false,
+      enable_horse_registry: false,
+    });
+    var newOrg = Array.isArray(rows) ? rows[0] : rows;
+    orgs.push(newOrg);
+    renderOrgs();
+    document.getElementById('add-form').classList.remove('open');
+    ['f-name','f-abbr','f-email','f-billing','f-licensed'].forEach(function(id){
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('f-tier').value = 'basic';
+    toast('Organization created');
+  } catch(ex){ toast('Error: '+ex.message,'err'); }
+};
+
+/* ── Utils ── */
+function escHtml(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Load ── */
+async function load(){
+  try{
+    orgs = await sbGet('associations?order=name.asc&select=*');
+    renderOrgs();
+  } catch(e){
+    document.getElementById('org-list').innerHTML = '<div class="empty">Failed to load: '+e.message+'</div>';
+  }
+}
+
+load();
+</script>
+</body>
+</html>
