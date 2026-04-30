@@ -1000,6 +1000,74 @@ var HELP_CONTENT = {
         ]
       },
 
+      // ── Season Hub ──────────────────────────────────────────
+      {
+        id:    'season-hub',
+        label: 'Season Hub',
+        icon:  '★',
+        title: 'Season Hub — Year-End Standings',
+        intro: '<p>The Season Hub is where all show results accumulate into year-end standings. It lives at a separate URL from the show management app and is updated each time you push results from a completed show.</p>',
+        topics: [
+          {
+            id:    'hub-push',
+            title: 'Pushing results to the Season Hub',
+            body:  `
+<p>Results don't appear in the Season Hub automatically — you push them manually after each show is reviewed and finalized.</p>
+<ol>
+  <li>In the show management app, go to the <strong>Publish</strong> tab.</li>
+  <li>Review the results summary — this shows how many rows will be pushed per org and division.</li>
+  <li>Click <strong>Push to Season Hub</strong>.</li>
+  <li>The system deletes any previously pushed data for that show and replaces it with the current results. This means you can re-push after corrections without creating duplicates.</li>
+</ol>
+<div class="help-note">Always push after making corrections. Re-pushing is safe — it replaces, not appends.</div>`
+          },
+          {
+            id:    'hub-orgs',
+            title: 'Viewing standings by organization',
+            body:  `
+<p>The Season Hub groups standings by sanctioning body — CoWN, VRH, APHA, Jackpot, etc. Each org's standings are completely separate.</p>
+<p>Use the <strong>Points Under</strong> dropdown in the left sidebar to switch between orgs. The standings, division pills, and class pills all update to reflect only that org's results.</p>
+<p>The dropdown is populated automatically from the results that have been pushed — if only CoWN results have been pushed, only CoWN will appear.</p>`
+          },
+          {
+            id:    'hub-drop',
+            title: 'Drop shows',
+            body:  `
+<p>The <strong>Drop Shows</strong> setting controls how many of each rider's lowest-scoring shows are excluded from their season total. Use this when your association's rules allow a rider to drop their worst show(s).</p>
+<p><strong>Important:</strong> If a rider didn't attend a show, that's counted as a zero-point show. Those zeros are eligible to be dropped just like low scores from attended shows. So if you drop 1 show and a rider missed 2, the zero from their worst miss gets dropped.</p>
+<p>The drop count auto-sets when you switch orgs based on that org's configured rule. You can still manually override it in the sidebar.</p>
+<p>To configure per-org drop counts, use the admin panel (admin.html) → Season Rules &amp; Drop Config.</p>`
+          },
+          {
+            id:    'hub-notes',
+            title: 'Rules & Reminders',
+            body:  `
+<p>Each sanctioning body can have a small set of rule reminders that appear above the standings when that org is selected. These are useful for things like:</p>
+<ul>
+  <li>"Must compete in 3+ shows to be eligible for year-end titles"</li>
+  <li>"All Around requires entry in all four disciplines"</li>
+  <li>"Drop 1 lowest show per season"</li>
+</ul>
+<p>These are configured in the admin panel → Season Rules &amp; Drop Config. Each line in the notes textarea becomes one bullet point. Maximum 5 bullets per org.</p>`
+          },
+          {
+            id:    'hub-allaround',
+            title: 'All Around standings',
+            body:  `
+<p>The All Around view is available from the discipline pills — select the ★ All Around pill to see combined standings across all disciplines for that division.</p>
+<p>All Around is calculated by summing a rider's points across all disciplines they competed in, after applying the drop-show rule to each discipline individually. A rider must have competed in at least one discipline to appear.</p>
+<p>Each association has different All Around eligibility rules — see the <strong>Association Reference</strong> section for specifics on which associations require All Around and how many disciplines are mandatory.</p>`
+          },
+          {
+            id:    'hub-export',
+            title: 'Printing and exporting',
+            body:  `
+<p>Use the <strong>Print</strong> button in the top bar to print the current standings view. The sidebar, filters, and buttons are hidden in the printed output — only the standings table shows.</p>
+<div class="help-note">Spreadsheet export is coming in a future update.</div>`
+          }
+        ]
+      },
+
       // ── Tabs & Payments ─────────────────────────────────────
       {
         id:    'payments',
@@ -1010,15 +1078,383 @@ var HELP_CONTENT = {
         topics: [
           {
             id:    'payments-overview',
-            title: 'Payments overview',
+            title: 'How tabs work',
             body:  `
-<p>The Tabs &amp; Payments tab tracks what each rider owes and what's been collected. It handles entry fees, class fees, added charges, and discounts.</p>
-<div class="help-note">Full documentation for Tabs &amp; Payments is coming as this feature is finalized. Check back for updates.</div>`
+<p>Every entry in a show has a <strong>tab</strong> — a running total of what that rider owes. The tab is built automatically from the classes they're entered in, plus any stall, RV, or membership charges.</p>
+<p>The Tabs &amp; Payments screen shows each rider's total owed, total paid, and the balance. You can record payments as they come in — cash, check, card, Venmo — and track check numbers for your records.</p>`
+          },
+          {
+            id:    'payments-fees',
+            title: 'How fees are calculated',
+            body:  `
+<p>Entry fees are built from the show's fee configuration (set in Show Setup). Each class has a base fee, with optional surcharges for cow classes and jackpot add-ons. Fees are calculated when an entry is created and recalculated if class assignments change.</p>
+<p>Stall and RV charges are added based on the quantities entered in each rider's entry. Membership fees are added if the rider needs a day license or annual membership.</p>`
+          },
+          {
+            id:    'payments-record',
+            title: 'Recording a payment',
+            body:  `
+<p>In the Tabs &amp; Payments tab, find the rider and click <strong>Record Payment</strong>. Enter:</p>
+<ul>
+  <li><strong>Amount</strong> — what they're paying now</li>
+  <li><strong>Method</strong> — cash, check, card, Venmo, credit</li>
+  <li><strong>Check number</strong> — if paying by check</li>
+  <li><strong>Notes</strong> — optional</li>
+</ul>
+<p>Partial payments are fine — the balance updates automatically. A rider can make multiple payments across the show weekend.</p>`
+          },
+          {
+            id:    'payments-credits',
+            title: 'Credits and prize payouts',
+            body:  `
+<p>If a rider wins prize money in a jackpot class, that amount can be applied to their tab as a credit instead of being paid out in cash. This reduces their balance owed.</p>
+<p>Credits appear as negative charges on the tab and are subtracted from the total owed.</p>`
           }
         ]
       }
 
     ] // end secretary sections
+  },
+
+
+  // ════════════════════════════════════════════════════════════
+  //  OWNER  (TwoTop — platform operator)
+  // ════════════════════════════════════════════════════════════
+  owner: {
+    label: 'TwoTop Admin',
+    icon:  '🔧',
+    sections: [
+
+      // ── Platform Overview ────────────────────────────────────
+      {
+        id:    'platform',
+        label: 'Platform Overview',
+        icon:  '🗺️',
+        title: 'Platform Overview — How Everything Connects',
+        intro: '<p>Thorofare runs across three cloud services. Understanding how they fit together makes troubleshooting and maintenance much simpler.</p>',
+        topics: [
+          {
+            id:    'stack-overview',
+            title: 'The three services',
+            body:  `
+<table>
+  <thead><tr><th>Service</th><th>What it does</th><th>Where</th></tr></thead>
+  <tbody>
+    <tr><td><strong>GitHub</strong></td><td>Stores all the code. Every HTML, JS, and config file lives here.</td><td>github.com/gatepostpro/gatepost</td></tr>
+    <tr><td><strong>Cloudflare Pages</strong></td><td>Hosts the website. Pulls from GitHub automatically on every push. Serves the files to users.</td><td>thorofare.app (via Cloudflare)</td></tr>
+    <tr><td><strong>Supabase</strong></td><td>The database. Stores all show data, entries, results, members, standings.</td><td>tpurkcxtkvwpywxnuzwe.supabase.co</td></tr>
+  </tbody>
+</table>
+<p><strong>The flow:</strong> You edit a file locally → push to GitHub → Cloudflare detects the push and deploys automatically → users see the update within about 60 seconds.</p>
+<p>Supabase is always live and separate — it doesn't deploy, it just stores data. The app files (HTML/JS) connect to it using an API key baked into the code.</p>`
+          },
+          {
+            id:    'stack-auth',
+            title: 'How access control works',
+            body:  `
+<p>There are two layers of access control:</p>
+<p><strong>Layer 1 — Cloudflare Access:</strong> A wall in front of the entire site. Anyone hitting thorofare.app gets intercepted and must authenticate via email one-time PIN. You control who's on the allow list. This protects the site during development and limits it to invited users when it goes live to customers.</p>
+<p><strong>Layer 2 — App-level roles (coming):</strong> Once inside, users will see different interfaces depending on their role — secretary, scribe, participant. This is managed through Supabase Auth and the users table. Not yet fully built.</p>
+<p>Right now, Cloudflare Access is the primary gatekeeper. Anyone you add to the Access policy can reach the site.</p>`
+          }
+        ]
+      },
+
+      // ── Cloudflare ───────────────────────────────────────────
+      {
+        id:    'cloudflare',
+        label: 'Cloudflare',
+        icon:  '☁️',
+        title: 'Cloudflare — Hosting & Access',
+        intro: '<p>Cloudflare handles two things: serving your website (Pages) and controlling who can reach it (Access).</p>',
+        topics: [
+          {
+            id:    'cf-pages',
+            title: 'Cloudflare Pages — how deploys work',
+            body:  `
+<p>Cloudflare Pages is connected to your GitHub repo (<code>gatepostpro/gatepost</code>). Every time you push code to GitHub, Cloudflare automatically deploys the update. No manual upload needed.</p>
+<p><strong>To check a deployment:</strong></p>
+<ol>
+  <li>Go to cloudflare.com → Workers &amp; Pages → thorofare</li>
+  <li>Click the <strong>Deployments</strong> tab</li>
+  <li>The most recent deployment shows at the top with a status: Success, Failed, or In Progress</li>
+  <li>Click any deployment to see its logs if something went wrong</li>
+</ol>
+<p><strong>If a deployment fails:</strong> Check the build log for the error. Since there's no build step (pure HTML/JS), failures are usually a GitHub connection issue. Go to Settings → Builds &amp; Deployments → verify the GitHub repo connection.</p>
+<p><strong>Rollback:</strong> In the Deployments tab, click any previous successful deployment and hit <strong>Rollback to this deployment</strong>. Takes effect immediately.</p>`
+          },
+          {
+            id:    'cf-access',
+            title: 'Cloudflare Access — managing who gets in',
+            body:  `
+<p>Access lives under <strong>Zero Trust → Access → Applications</strong>. You have one application set up for thorofare.app.</p>
+<p><strong>To add someone:</strong></p>
+<ol>
+  <li>Zero Trust → Access → Applications → thorofare → Edit</li>
+  <li>Go to the <strong>Policies</strong> tab → edit the Team policy</li>
+  <li>Under the Emails rule, add their email address</li>
+  <li>Save — they can now log in immediately</li>
+</ol>
+<p><strong>To remove someone:</strong> Same path — remove their email from the rule and save. Their current session will expire at its natural timeout (usually 24 hours).</p>
+<p><strong>To revoke immediately:</strong> Zero Trust → Access → Active Sessions → find their session → Revoke.</p>
+<div class="help-warn">If you lock yourself out, go directly to the Cloudflare dashboard (cloudflare.com) — that's always accessible. Add your email back to the Access policy from there.</div>`
+          },
+          {
+            id:    'cf-domains',
+            title: 'Domain management',
+            body:  `
+<p>Both domains — <strong>thorofare.app</strong> and <strong>two-top.com</strong> — are registered at Namecheap but use Cloudflare's nameservers. All DNS management happens in Cloudflare, not Namecheap.</p>
+<p><strong>To view/edit DNS records:</strong> Cloudflare dashboard → click the domain → DNS → Records.</p>
+<p><strong>thorofare.app</strong> has a CNAME pointing to Cloudflare Pages. Don't change this record or the site will go down.</p>
+<p><strong>two-top.com</strong> is parked — no records pointing anywhere yet. When you build the TwoTop marketing site, you'll add records here.</p>
+<p><strong>SSL:</strong> Automatic via Cloudflare. You don't need to renew certificates — Cloudflare manages them indefinitely.</p>`
+          },
+          {
+            id:    'cf-troubleshoot',
+            title: 'Common issues',
+            body:  `
+<table>
+  <thead><tr><th>Problem</th><th>Likely cause</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>Site shows "Access denied"</td><td>Email not on Access allow list</td><td>Add email to Zero Trust → Access policy</td></tr>
+    <tr><td>Changes not showing after push</td><td>Deploy failed or still in progress</td><td>Check Workers &amp; Pages → Deployments tab</td></tr>
+    <tr><td>Site unreachable (DNS error)</td><td>DNS misconfiguration</td><td>Check DNS records — thorofare.app CNAME should point to *.pages.dev</td></tr>
+    <tr><td>Old version showing</td><td>Browser cache</td><td>Hard refresh (Ctrl+Shift+R) or check Cloudflare caching settings</td></tr>
+  </tbody>
+</table>`
+          }
+        ]
+      },
+
+      // ── Supabase ─────────────────────────────────────────────
+      {
+        id:    'supabase',
+        label: 'Supabase',
+        icon:  '🗄️',
+        title: 'Supabase — Database',
+        intro: '<p>Supabase is the database behind Thorofare. All show data, entries, results, members, and standings live here.</p>',
+        topics: [
+          {
+            id:    'sb-access',
+            title: 'Accessing the Supabase dashboard',
+            body:  `
+<p>Go to <strong>supabase.com</strong> → sign in → select the Thorofare project (<code>tpurkcxtkvwpywxnuzwe</code>).</p>
+<p>Key sections of the dashboard:</p>
+<table>
+  <thead><tr><th>Section</th><th>What it's for</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Table Editor</strong></td><td>Browse and edit data directly — like a spreadsheet view of every table</td></tr>
+    <tr><td><strong>SQL Editor</strong></td><td>Run SQL queries and migrations. This is where you run schema updates.</td></tr>
+    <tr><td><strong>Authentication</strong></td><td>User accounts and login settings. URL Configuration is here.</td></tr>
+    <tr><td><strong>API</strong></td><td>Where to find the project URL and anon key if they ever need to be updated in the code</td></tr>
+    <tr><td><strong>Logs</strong></td><td>API request logs — useful for debugging when something isn't saving correctly</td></tr>
+  </tbody>
+</table>`
+          },
+          {
+            id:    'sb-tables',
+            title: 'Key tables and what they store',
+            body:  `
+<table>
+  <thead><tr><th>Table</th><th>What it stores</th></tr></thead>
+  <tbody>
+    <tr><td><strong>associations</strong></td><td>Customer organizations (CoWN, future clients). Feature flags, plan tier, license seats, and season config all live here.</td></tr>
+    <tr><td><strong>shows</strong></td><td>One row per show — name, date, venue, status, fee config.</td></tr>
+    <tr><td><strong>show_classes</strong></td><td>The classes offered at each show.</td></tr>
+    <tr><td><strong>entries</strong></td><td>One row per rider+horse per show.</td></tr>
+    <tr><td><strong>entry_classes</strong></td><td>Which specific classes each entry is competing in, with scores and placings.</td></tr>
+    <tr><td><strong>show_results</strong></td><td>Imported SHTX result rows — raw results before they're processed.</td></tr>
+    <tr><td><strong>season_results</strong></td><td>Pushed results that feed the Season Hub standings. Written by the Publish tab.</td></tr>
+    <tr><td><strong>members</strong></td><td>Rider and member records per association.</td></tr>
+    <tr><td><strong>horses</strong></td><td>Horse registry — registered name, barn name, breed, coggins, etc.</td></tr>
+    <tr><td><strong>payments</strong></td><td>Payment transactions against entry tabs.</td></tr>
+  </tbody>
+</table>`
+          },
+          {
+            id:    'sb-migrations',
+            title: 'Running schema migrations',
+            body:  `
+<p>When new features require new columns or tables, you run a SQL migration in the Supabase SQL Editor.</p>
+<ol>
+  <li>Supabase dashboard → <strong>SQL Editor</strong> → New query</li>
+  <li>Paste the migration SQL</li>
+  <li>Click <strong>Run</strong></li>
+  <li>Check the results panel — a successful migration shows no errors</li>
+</ol>
+<p><strong>Safe patterns to use:</strong></p>
+<ul>
+  <li><code>alter table X add column if not exists ...</code> — adds a column only if it doesn't already exist. Safe to run twice.</li>
+  <li><code>create table if not exists ...</code> — same idea for tables.</li>
+</ul>
+<div class="help-warn">Never run DROP TABLE or DROP COLUMN on production unless you are absolutely certain. There is no undo. If you're unsure, ask first.</div>`
+          },
+          {
+            id:    'sb-apikey',
+            title: 'API keys — what they are and when to update them',
+            body:  `
+<p>The app connects to Supabase using an <strong>anon key</strong> — a long JWT string embedded in the HTML files. This key is safe to be in client-side code because Supabase's Row Level Security (RLS) controls what the key can actually access.</p>
+<p><strong>Where to find the current key:</strong> Supabase dashboard → Settings → API → Project API keys → <code>anon public</code>.</p>
+<p><strong>If the key needs to be updated</strong> (e.g., after a key rotation), update it in every HTML file that connects to Supabase:</p>
+<ul>
+  <li>app.html — <code>var SUPABASE_ANON = '...'</code></li>
+  <li>season.html — <code>var SUPABASE_KEY = '...'</code></li>
+  <li>admin.html — <code>var SUPABASE_ANON = '...'</code></li>
+  <li>scribe.html — check for the same pattern</li>
+  <li>membership.html — if connected</li>
+</ul>
+<p>After updating, push to GitHub and verify the site loads correctly.</p>`
+          },
+          {
+            id:    'sb-rls',
+            title: 'Row Level Security — current state',
+            body:  `
+<p>All tables have RLS enabled, but currently use a temporary <strong>"allow all"</strong> policy that lets the anon key do anything. This was intentional during early development.</p>
+<p>Before going fully public or onboarding paying customers, these policies need to be tightened so that each organization can only see and modify their own data.</p>
+<div class="help-warn">The current "allow all" RLS policy means any user who has the anon key can read or write any data. Cloudflare Access is currently your only real protection. Proper RLS policies are on the roadmap before multi-tenant launch.</div>`
+          }
+        ]
+      },
+
+      // ── GitHub ───────────────────────────────────────────────
+      {
+        id:    'github',
+        label: 'GitHub',
+        icon:  '🐙',
+        title: 'GitHub — Code Repository',
+        intro: '<p>All code lives in the GitHub repo at <strong>github.com/gatepostpro/gatepost</strong>. Every push to main deploys automatically to thorofare.app.</p>',
+        topics: [
+          {
+            id:    'gh-workflow',
+            title: 'The deploy workflow',
+            body:  `
+<ol>
+  <li>Edit files locally (in your Google Drive folder)</li>
+  <li>Open GitHub Desktop (or VS Code source control panel)</li>
+  <li>Review the changed files — make sure only what you intended changed</li>
+  <li>Write a commit message describing what you changed</li>
+  <li>Click <strong>Commit to main</strong></li>
+  <li>Click <strong>Push origin</strong></li>
+  <li>Cloudflare detects the push and deploys — usually live within 60 seconds</li>
+</ol>
+<p>You can verify the deploy completed in Cloudflare: Workers &amp; Pages → thorofare → Deployments.</p>`
+          },
+          {
+            id:    'gh-lockfile',
+            title: 'Git lock file errors',
+            body:  `
+<p>If you see <em>"A lock file already exists in the repository"</em>, a previous git operation didn't finish cleanly and left a stale lock behind.</p>
+<p><strong>Fix:</strong> Navigate to your project folder → <code>.git</code> folder (hidden — enable hidden items in File Explorer) → delete the file named <code>HEAD.lock</code>. Leave all other files alone. Then try committing again.</p>
+<p>This is harmless and happens occasionally when the computer shuts down mid-operation or a commit is interrupted.</p>`
+          },
+          {
+            id:    'gh-structure',
+            title: 'Repo file structure',
+            body:  `
+<table>
+  <thead><tr><th>File / Folder</th><th>What it is</th></tr></thead>
+  <tbody>
+    <tr><td><strong>index.html</strong></td><td>Public landing page — show list, navigation to roles</td></tr>
+    <tr><td><strong>app.html</strong></td><td>Secretary show management app — the main workhorse</td></tr>
+    <tr><td><strong>scribe.html</strong></td><td>Scribe score entry interface</td></tr>
+    <tr><td><strong>season.html</strong></td><td>Season Hub — year-end standings</td></tr>
+    <tr><td><strong>admin.html</strong></td><td>TwoTop owner admin panel — org management, feature flags</td></tr>
+    <tr><td><strong>membership.html</strong></td><td>Membership management (in development)</td></tr>
+    <tr><td><strong>schema.sql</strong></td><td>Full database schema — reference for table structure and migrations</td></tr>
+    <tr><td><strong>help/</strong></td><td>Help system — help.html viewer and help-content.js content registry</td></tr>
+    <tr><td><strong>Example files/</strong></td><td>Sample SHTX exports and Cognito Forms CSVs for testing imports</td></tr>
+  </tbody>
+</table>`
+          },
+          {
+            id:    'gh-branching',
+            title: 'Branching and safe development',
+            body:  `
+<p>Currently all development happens directly on <strong>main</strong>, which deploys immediately to production. This works fine while you're the sole developer, but as the app grows you may want to use feature branches.</p>
+<p><strong>Feature branch workflow (when ready):</strong></p>
+<ol>
+  <li>Create a new branch: <code>git checkout -b feature/my-feature</code></li>
+  <li>Make and commit changes on that branch</li>
+  <li>Test on the Cloudflare preview URL (each branch gets its own preview)</li>
+  <li>Merge to main when ready: Cloudflare deploys to production</li>
+</ol>
+<p>Cloudflare Pages automatically creates preview deployments for non-main branches, giving you a staging environment for free.</p>`
+          }
+        ]
+      },
+
+      // ── Admin Panel ──────────────────────────────────────────
+      {
+        id:    'admin-panel',
+        label: 'Admin Panel',
+        icon:  '⚙️',
+        title: 'Admin Panel — Managing Customers',
+        intro: '<p>The admin panel (thorofare.app/admin.html) is your control center for managing the organizations that use Thorofare. It\'s protected by Cloudflare Access and only accessible to your email.</p>',
+        topics: [
+          {
+            id:    'admin-orgs',
+            title: 'Managing organizations',
+            body:  `
+<p>Each card in the admin panel represents one customer organization. The card shows:</p>
+<ul>
+  <li><strong>Name and abbreviation</strong> — how they appear in the app</li>
+  <li><strong>Plan tier badge</strong> — Free / Basic / Pro / Enterprise</li>
+  <li><strong>Licensed to / billing email</strong> — the contact on the account</li>
+</ul>
+<p><strong>To add a new organization:</strong> Click <strong>+ Add Organization</strong> at the top. Fill in name, abbreviation, contact details, and plan tier. New orgs default to Basic with standard features enabled.</p>
+<p><strong>To edit details:</strong> Click <strong>Edit Details</strong> on any card — updates name, emails, website.</p>
+<p><strong>To deactivate:</strong> Click <strong>Deactivate</strong>. The org's data is preserved but they can no longer access the app. Reactivate at any time.</p>`
+          },
+          {
+            id:    'admin-flags',
+            title: 'Feature flags',
+            body:  `
+<p>Each org card has a grid of on/off toggles controlling which features that org can access. Toggles save instantly — no save button needed.</p>
+<table>
+  <thead><tr><th>Flag</th><th>What it controls</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Scribe Tool</strong></td><td>Access to the live score entry interface (scribe.html)</td></tr>
+    <tr><td><strong>Year-End Standings</strong></td><td>Season Hub and season points tracking</td></tr>
+    <tr><td><strong>Public Results</strong></td><td>Whether results are visible to the public without logging in</td></tr>
+    <tr><td><strong>Stall Management</strong></td><td>Stall assignment and RV tracking in the show app</td></tr>
+    <tr><td><strong>RV Management</strong></td><td>RV spot tracking (requires Stall Management)</td></tr>
+    <tr><td><strong>Online Entry Form</strong></td><td>Native Thorofare entry form (not yet built — future feature)</td></tr>
+    <tr><td><strong>Membership Module</strong></td><td>Member tracking and dues management</td></tr>
+    <tr><td><strong>Horse Registry</strong></td><td>Horse records and coggins tracking</td></tr>
+  </tbody>
+</table>
+<div class="help-note">Feature flags are stored in the database but the app doesn't yet check them on load — the enforcement layer is coming in the next build phase.</div>`
+          },
+          {
+            id:    'admin-plan',
+            title: 'Plan tier and license seats',
+            body:  `
+<p>At the bottom of each org card:</p>
+<p><strong>Plan tier</strong> — Free / Basic / Pro / Enterprise. Controls what they're billed for. The app doesn't enforce plan tiers automatically yet — this is a record-keeping field until billing is integrated.</p>
+<p><strong>Plan expires</strong> — the date their current subscription period ends. Use this to track renewals.</p>
+<p><strong>Secretaries</strong> — the number of secretary (admin) login accounts this org is allowed. Default 2.</p>
+<p><strong>Scribes</strong> — the number of scribe accounts allowed. Default 10.</p>
+<p>These seat limits are stored in the database. Once user authentication is built, the app will enforce them — an org at their secretary limit won't be able to add another login.</p>`
+          },
+          {
+            id:    'admin-season',
+            title: 'Season rules and drop config',
+            body:  `
+<p>The <strong>Season Rules &amp; Drop Config</strong> section at the bottom of each org card configures how the Season Hub behaves for that org's different sanctioning bodies.</p>
+<p><strong>To configure a sanctioning body:</strong></p>
+<ol>
+  <li>Click <strong>+ Add Org</strong></li>
+  <li>Enter the org/series name exactly as it appears in results (e.g. "CoWN", "VRH", "Jackpot")</li>
+  <li>Set the <strong>Drop</strong> count — how many lowest shows to exclude per rider</li>
+  <li>Enter <strong>Rules &amp; Reminders</strong> — one per line, max 5. These appear as bullet points above the standings in the Season Hub.</li>
+  <li>Click <strong>Save</strong></li>
+</ol>
+<p>The org name must match exactly (case-sensitive) what's in the results data, or the config won't apply.</p>`
+          }
+        ]
+      }
+
+    ] // end owner sections
   }
 
 }; // end HELP_CONTENT
