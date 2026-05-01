@@ -139,9 +139,12 @@ tr:hover td{background:rgba(255,255,255,.03)}
 .btn:disabled{opacity:.4;cursor:default}
 
 .fee-cat-section{margin-bottom:1.1rem}
-.fee-cat-head{display:flex;align-items:baseline;gap:.6rem;margin-bottom:.45rem;padding-bottom:.35rem;border-bottom:1px solid var(--border)}
+.fee-cat-head{display:flex;align-items:center;gap:.6rem;margin-bottom:.45rem;padding-bottom:.35rem;border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
 .fee-cat-label{font-family:'Oswald',sans-serif;font-size:.88rem;color:var(--accent);white-space:nowrap}
-.fee-cat-note{font-size:.76rem;color:var(--muted);line-height:1.3}
+.fee-cat-note{font-size:.76rem;color:var(--muted);line-height:1.3;flex:1}
+.fee-cat-toggle{margin-left:auto;color:var(--muted);font-size:.7rem;transition:transform .15s}
+.fee-cat-section.collapsed .fee-cat-toggle{transform:rotate(-90deg)}
+.fee-cat-section.collapsed .fee-sched-row,.fee-cat-section.collapsed .fee-add-btn{display:none}
 .fee-sched-row{display:grid;grid-template-columns:1fr 130px 34px;gap:.5rem;align-items:center;padding:.42rem 0;border-bottom:1px solid var(--border)}
 .fee-sched-row:last-child{border-bottom:none}
 .fee-sched-label,.fee-sched-amt{background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.32rem .55rem;font-size:.88rem;font-family:inherit}
@@ -422,9 +425,9 @@ input[type="date"]{color-scheme:dark}
 .wiz-fee-cat{margin-bottom:1rem}
 .wiz-fee-cat-head{font-family:'Oswald',sans-serif;font-size:.82rem;color:var(--accent);letter-spacing:.05em;text-transform:uppercase;margin-bottom:.35rem;padding-bottom:.3rem;border-bottom:1px solid var(--border)}
 .wiz-fee-sched-row{display:grid;grid-template-columns:1fr 82px 28px;gap:.4rem;align-items:center;padding:.28rem 0}
-.cls-org-tabs{display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem}
-.cls-org-tab{background:var(--bg);border:1px solid var(--border2);border-radius:20px;padding:.22rem .7rem;font-size:.78rem;cursor:pointer;color:var(--muted);transition:all .12s}
-.cls-org-tab:hover{color:var(--text)}.cls-org-tab.active{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+.cls-org-tabs{display:flex;gap:0;flex-wrap:wrap;margin-bottom:0;border-bottom:1px solid var(--border);padding:0 1.25rem}
+.cls-org-tab{font-family:'Oswald',sans-serif;font-size:.8rem;cursor:pointer;padding:.38rem .85rem;border-bottom:2px solid transparent;color:var(--muted);letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;background:transparent;border-top:none;border-left:none;border-right:none;transition:color .12s}
+.cls-org-tab:hover{color:var(--text)}.cls-org-tab.active{color:var(--text);border-bottom-color:var(--accent)}
 </style>
 
 </head>
@@ -457,7 +460,7 @@ input[type="date"]{color-scheme:dark}
 
       <div class="nav-item" data-page="classes"><span class="ico">&#127891;</span> Classes</div>
 
-      <div class="nav-item" data-page="tabs"><span class="ico">&#36;</span> Tabs &amp; Payments</div>
+      <div class="nav-item" data-page="tabs"><span class="ico">&#36;</span> Checkout</div>
 
       <div class="nav-item" data-page="stalls"><span class="ico">&#127968;</span> Stalls &amp; RV</div>
 
@@ -2649,7 +2652,7 @@ var PAGE_TITLES = {
 
   setup:'Show Setup', entries:'Entries', classes:'Classes',
 
-  tabs:'Tabs & Payments', stalls:'Stalls & RV', results:'Results',
+  tabs:'Checkout', stalls:'Stalls & RV', results:'Results',
 
   publish:'Publish Results', settings:'Settings'
 
@@ -3542,6 +3545,8 @@ function pgClasses(){
 
   var activeOrg='All';
 
+  var activeDivision='All';
+
 
 
   pg.innerHTML='<div class="btn-row no-print">'
@@ -3553,6 +3558,8 @@ function pgClasses(){
     +'</div>'
 
     +'<div class="pills no-print" id="org-pills"></div>'
+
+    +'<div class="pills no-print" id="div-tabs" style="margin-top:.35rem;padding-bottom:.3rem;border-bottom:1px solid var(--border)"></div>'
 
     +'<div id="cl-content"></div>';
 
@@ -3568,21 +3575,58 @@ function pgClasses(){
 
   }
 
+  function getActiveDivisions(){
+
+    var list=sorted.filter(function(c){ return activeOrg==='All'||(c.org||'CoWN')===activeOrg; });
+
+    return Array.from(new Set(list.map(function(c){ return c.division||'General'; }))).sort();
+
+  }
+
+  function drawDivTabs(){
+
+    var divs=getActiveDivisions();
+
+    var tabEl=document.getElementById('div-tabs');
+
+    if(divs.length<=1){ tabEl.innerHTML=''; return; }
+
+    tabEl.innerHTML=(['All'].concat(divs)).map(function(d){
+
+      return '<button class="pill'+(d===activeDivision?' active':'')+'" data-pill="'+esc(d)+'">'+esc(d)+'</button>';
+
+    }).join('');
+
+  }
+
+  function drawAndWireDivTabs(){
+
+    drawDivTabs();
+
+    wirePillClicks('div-tabs', function(v){ activeDivision=v; drawAndWireDivTabs(); drawClassLists(); });
+
+  }
+
   function drawAndWireOrgPills(){
 
     drawOrgPills();
 
-    wirePillClicks('org-pills', function(v){ activeOrg=v; drawAndWireOrgPills(); drawClassLists(); });
+    wirePillClicks('org-pills', function(v){ activeOrg=v; activeDivision='All'; drawAndWireOrgPills(); drawAndWireDivTabs(); drawClassLists(); });
 
   }
 
   drawAndWireOrgPills();
 
+  drawAndWireDivTabs();
+
 
 
   function drawClassLists(){
 
-    var list=sorted.filter(function(c){ return activeOrg==='All'||(c.org||'CoWN')===activeOrg; });
+    var list=sorted.filter(function(c){
+      return (activeOrg==='All'||(c.org||'CoWN')===activeOrg)
+          && (activeDivision==='All'||(c.division||'General')===activeDivision);
+    });
 
     var html=list.map(function(cls){
 
@@ -7644,7 +7688,7 @@ function pgSetup(){
 
   +'<button class="btn btn-dark btn-sm" onclick="showPage(\'classes\')">&#127891; Class Lists</button>'
 
-  +'<button class="btn btn-dark btn-sm" onclick="showPage(\'tabs\')">&#36; Tabs &amp; Payments</button>'
+  +'<button class="btn btn-dark btn-sm" onclick="showPage(\'tabs\')">&#36; Checkout</button>'
 
   +'<button class="btn btn-dark btn-sm" onclick="showPage(\'stalls\')">&#127968; Stall Assignments</button>'
 
@@ -8110,11 +8154,13 @@ function pgSettings(){
 
     +'<th style="width:75px">Jackpot</th>'
 
+    +'<th style="width:75px">Added $</th>'
+
     +'<th style="width:55px;text-align:center">Total</th><th style="width:32px"></th>'
 
     +'</tr></thead><tbody id="cfg-cls-tbody">'
 
-    +'<tr><td colspan="10" class="empty-state">No classes loaded yet.</td></tr>'
+    +'<tr><td colspan="11" class="empty-state">No classes loaded yet.</td></tr>'
 
     +'</tbody></table></div></div>'
 
@@ -8264,14 +8310,19 @@ function tryRestoreMapper(){
 
     buildMapperUI();
 
+    // Hide upload card — saved mapping is already loaded
+    var ssMapper=document.getElementById('ss-mapper');
+    var uploadCard=ssMapper?ssMapper.querySelector('.card'):null;
+    if(uploadCard) uploadCard.style.display='none';
+
     var note=document.createElement('div');
-
-    note.style.cssText='font-size:.78rem;color:var(--muted);margin-bottom:.5rem';
-
-    note.innerHTML='&#10003; Showing saved column map from last import. Drop a new file to update.';
+    note.style.cssText='font-size:.78rem;color:var(--muted);margin-bottom:.5rem;display:flex;align-items:center;gap:.6rem';
+    note.innerHTML='<span style="color:var(--green)">&#10003; Saved column map loaded.</span>'
+      +'<button class="btn btn-dark btn-sm" style="font-size:.75rem" onclick="'
+      +'var c=document.querySelector(\'#ss-mapper .card\');if(c)c.style.display=\'\';this.closest(\'div\').remove()'
+      +'">Re-upload file</button>';
 
     var firstCard=document.querySelector('#mapper-out .card');
-
     if(firstCard) firstCard.parentNode.insertBefore(note, firstCard);
 
   }
@@ -9519,7 +9570,7 @@ function renderCfgClassTable(){
 
   if(lbl) lbl.textContent=G.cfg.classes.length+' classes';
 
-  if(!G.cfg.classes.length){ tbody.innerHTML='<tr><td colspan="10" class="empty-state">No classes loaded.</td></tr>'; return; }
+  if(!G.cfg.classes.length){ tbody.innerHTML='<tr><td colspan="11" class="empty-state">No classes loaded.</td></tr>'; return; }
 
   // Build org tabs
   var orgs=[]; G.cfg.classes.forEach(function(c){ var o=c.org||'CoWN'; if(orgs.indexOf(o)<0) orgs.push(o); });
@@ -9551,7 +9602,7 @@ function renderCfgClassTable(){
 
   Object.keys(byDiv).sort().forEach(function(div){
 
-    html+='<tr class="div-hdr"><td colspan="10">'+esc(div)+'</td></tr>';
+    html+='<tr class="div-hdr"><td colspan="11">'+esc(div)+'</td></tr>';
 
     byDiv[div].forEach(function(c){
 
@@ -9578,6 +9629,8 @@ function renderCfgClassTable(){
         +'<td>'+feeInp(c._id,'cowFee',c.cowFee,c.isCow?'15':'n/a',!c.isCow)+'</td>'
 
         +'<td>'+feeInp(c._id,'jackpot',c.jackpot,'0')+'</td>'
+
+        +'<td>'+feeInp(c._id,'addedMoney',c.addedMoney,'0')+'</td>'
 
         +'<td style="text-align:center;font-weight:600;color:var(--accent);font-size:.8rem" id="ct-'+c._id+'">'+fmtI(total)+'</td>'
 
@@ -10310,10 +10363,11 @@ function renderFeeSchedule(){
     var fees = sched.filter(function(f){ return (f.cat||'custom')===cat; });
     if(!fees.length && cat!=='custom') return;
     var info = FEE_CATS[cat];
-    html += '<div class="fee-cat-section">'
-      +'<div class="fee-cat-head">'
+    html += '<div class="fee-cat-section" id="fcs-'+cat+'">'
+      +'<div class="fee-cat-head" onclick="toggleFeeSection(\''+cat+'\')">'
       +'<span class="fee-cat-label">'+info.label+'</span>'
       +'<span class="fee-cat-note">'+info.note+'</span>'
+      +'<span class="fee-cat-toggle">&#9660;</span>'
       +'</div>';
     if(fees.length){
       fees.forEach(function(f){
@@ -10335,7 +10389,7 @@ function renderFeeSchedule(){
       html += '<div style="font-size:.78rem;color:var(--muted);padding:.4rem .2rem">No custom fees yet.</div>';
     }
     if(cat==='custom'){
-      html += '<div style="margin-top:.4rem">'
+      html += '<div class="fee-add-btn" style="margin-top:.4rem">'
         +'<button class="btn btn-accent btn-sm" onclick="addScheduleFee()">+ Add Fee</button>'
         +'</div>';
     }
@@ -10359,9 +10413,17 @@ window.removeScheduleFee = function(idx){
 window.addScheduleFee = function(){
   initFeeSchedule();
   G.cfg.feeSchedule.push({key:null, label:'New Fee', amt:0, cat:'custom'});
+  // Make sure custom section is open
+  var sec=document.getElementById('fcs-custom');
+  if(sec) sec.classList.remove('collapsed');
   renderFeeSchedule();
   var rows = document.querySelectorAll('.fee-sched-label');
   if(rows.length) rows[rows.length-1].select();
+};
+
+window.toggleFeeSection = function(cat){
+  var sec=document.getElementById('fcs-'+cat);
+  if(sec) sec.classList.toggle('collapsed');
 };
 
 window.saveFeeSchedule = function(){
