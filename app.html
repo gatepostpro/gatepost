@@ -562,6 +562,10 @@ var G = {
 
   resultsFile: '',
 
+  billingGroups: [], // [{id, payerName, entryKeys:['Rider|Horse',...], notes}]
+
+  horseAliases: {},  // {normKey: canonicalSpelling} — Cognito spelling wins
+
   scoreLinks: {},    // "org|div|disc" → URL for score sheet PDF
 
   aaMoney: {},       // "org|div" → scalar added money total (payout split computed dynamically)
@@ -961,7 +965,8 @@ var ORG_CLASSES = {
     aaMinClasses: 3,
     aaRequired: [['Ranch Cutting','Ranch Cow Work'],['Ranch Conformation']],
     aaTiebreak: [],
-    pointsSystem: 'entries'
+    pointsSystem: 'entries',
+    aaStyle: 'credits50'
   },
 
   'AQHA Ranch': {
@@ -1117,15 +1122,27 @@ Object.keys(ORG_CLASSES).forEach(function(org){
 
 // ── AQHA points calculator ────────────────────────────────────
 
-// AQHA scale: tier = floor(entries/5); 1st=tier, 2nd=tier-1 … down to 1pt, next=0.5pt
-
-// Fewer than 5 entries = no points awarded
+// Official AQHA scale:
+//   <3 entries → 0 pts
+//   3–4 entries → 0.5 pts to 1st only
+//   5–9 → tier 1: 1st=1, 2nd=0.5
+//   10–14 → tier 2: 1st=2, 2nd=1, 3rd=0.5
+//   … (tier = floor(entries/5), capped at 9)
+//   40+ → tier 9 (max): 1st=9, 2nd=8 … 9th=1, 10th=0.5
 
 function calcAqhaPoints(rows, entries){
 
   if(!entries||entries<1) entries=rows.length;
 
-  var tier=Math.floor(entries/5);
+  // Special case: 3–4 entries → only 1st gets 0.5
+  if(entries>=3 && entries<5){
+    rows.forEach(function(r,i){
+      rows[i]._pts=(r.isDQ||!r.place)?0:(r.place===1?0.5:0);
+    });
+    return rows;
+  }
+
+  var tier=Math.min(9, Math.floor(entries/5)); // cap at 9
 
   rows.forEach(function(r,i){
 
@@ -1847,6 +1864,21 @@ function parseClassDivStr(raw){
 
 }
 
+// Confidence of parseClassDivStr result:
+//  'matched'   → org was explicit in the string, discipline found        (green ✓)
+//  'check'     → org inferred or defaulted to CoWN, should verify        (amber ⚠)
+//  'unmatched' → discipline could not be identified                       (red ✗)
+function classParseConfidence(rawStr, parsed){
+  if(!parsed.discipline) return 'unmatched';
+  var s=String(rawStr||'');
+  // Explicit org marker in the string
+  if(/^VRH\b|^AQHA\b|^APHA\b|^ApHC\b|^NRCHA\b|^NRHA\b|^NCHA\b|^WHSR\b|^ASHA\b|^NVRHA\b/i.test(s)) return 'matched';
+  if(/versatility\s+ranch|ranch\s+heritage|jackpot|collegiate|open\s+schooling|^schooling\b/i.test(s)) return 'matched';
+  if(s===s.toUpperCase()&&/[A-Z]/.test(s)) return 'matched'; // GJHSA all-caps format
+  if(parsed.org!=='CoWN') return 'matched'; // inferred to non-CoWN via discipline signal
+  return 'check'; // defaulted to CoWN — may or may not be correct
+}
+
 
 
 function parseSTHXRows(rawRows, headerOverride){
@@ -2105,20 +2137,22 @@ function findEntryForRider(riderName, horseName){
   var rNorm=normForMatch(riderName);
   var rFL=firstLast(rNorm);
   var hNorm=(horseName||'').toUpperCase().replace(/\s+/g,' ').trim();
-  // Pass 1: exact rider name + exact horse name (when both are known)
+  // Pass 1: exact rider name + exact horse name (when both are known); also try canonical alias
   if(hNorm){
     for(var i=0;i<G.entries.length;i++){
       var e=G.entries[i];
       var eHorse=(e.horse||'').toUpperCase().replace(/\s+/g,' ').trim();
-      if(normForMatch(e.name||'')===rNorm && eHorse===hNorm) return {entry:e,idx:i,type:'exact'};
+      var eHorseCanon=(getCanonicalHorse(e.horse)||'').toUpperCase().replace(/\s+/g,' ').trim();
+      if(normForMatch(e.name||'')===rNorm && (eHorse===hNorm||eHorseCanon===hNorm)) return {entry:e,idx:i,type:'exact'};
     }
   }
-  // Pass 2: fuzzy rider name + horse name match (when both are known)
+  // Pass 2: fuzzy rider name + horse name match (when both are known); also try canonical alias
   if(hNorm){
     for(var i=0;i<G.entries.length;i++){
       var e=G.entries[i];
       var eHorse=(e.horse||'').toUpperCase().replace(/\s+/g,' ').trim();
-      if(firstLast(normForMatch(e.name||''))===rFL && eHorse===hNorm) return {entry:e,idx:i,type:'fuzzy'};
+      var eHorseCanon=(getCanonicalHorse(e.horse)||'').toUpperCase().replace(/\s+/g,' ').trim();
+      if(firstLast(normForMatch(e.name||''))===rFL && (eHorse===hNorm||eHorseCanon===hNorm)) return {entry:e,idx:i,type:'fuzzy'};
     }
   }
   // Pass 3: name-only match — only use if this entry has no horse or the result has no horse
@@ -2316,6 +2350,67 @@ async function loadResultsFile(file){
 
 
 
+// Parse results file without committing — returns {parsedRows, uniqueClasses, filename}
+async function previewResultsFile(file){
+  return new Promise(function(resolve,reject){
+    var ext=(file.name||'').split('.').pop().toLowerCase();
+    var reader=new FileReader();
+    reader.onerror=function(){ reject(new Error('File read failed')); };
+
+    function processRows(rawRows, rawHeaders){
+      var override=buildResHeaderOverride(rawHeaders||[]);
+      var parsed=parseSTHXRows(rawRows, override);
+      parsed.forEach(function(r,i){ r._idx=i; });
+
+      // Build unique class strings with parse results + confidence
+      var seenMap={}, uniqueClasses=[];
+      parsed.forEach(function(r){
+        var k=r.rawClass||'';
+        if(!seenMap[k]){
+          seenMap[k]=uniqueClasses.length;
+          uniqueClasses.push({rawClass:k, org:r.org, division:r.division, discipline:r.discipline,
+            confidence:classParseConfidence(k,r), count:0});
+        }
+        uniqueClasses[seenMap[k]].count++;
+      });
+
+      resolve({parsedRows:parsed, uniqueClasses:uniqueClasses, override:override, filename:file.name});
+    }
+
+    if(ext==='txt'||ext==='csv'){
+      reader.onload=function(e){
+        try{
+          var lines=e.target.result.split(/\r?\n/).filter(function(l){ return l.trim(); });
+          if(!lines.length){ reject(new Error('Empty file')); return; }
+          var headers=lines[0].split('\t'), rows=[];
+          for(var i=1;i<lines.length;i++){
+            var cells=lines[i].split('\t'), obj={};
+            headers.forEach(function(h,j){ obj[h]=cells[j]||''; });
+            rows.push(obj);
+          }
+          processRows(rows, headers);
+        } catch(ex){ reject(ex); }
+      };
+      reader.readAsText(file);
+    } else {
+      reader.onload=function(e){
+        try{
+          var wb=XLSX.read(e.target.result,{type:'array'});
+          var ws=null, rawHeaders=[];
+          for(var si=0;si<wb.SheetNames.length;si++){
+            var cws=wb.Sheets[wb.SheetNames[si]];
+            var chdr=(XLSX.utils.sheet_to_json(cws,{header:1,defval:''})[0]||[]);
+            if(chdr.some(function(h){ return normalizeHeader(String(h))==='classdivision'; })){ ws=cws; rawHeaders=chdr; break; }
+          }
+          if(!ws){ ws=wb.Sheets[wb.SheetNames[0]]; rawHeaders=XLSX.utils.sheet_to_json(ws,{header:1,defval:''})[0]||[]; }
+          processRows(XLSX.utils.sheet_to_json(ws,{defval:''}), rawHeaders);
+        } catch(ex){ reject(ex); }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  });
+}
+
 function setupResultsDrop(zoneId){
 
   var zone=document.getElementById(zoneId);
@@ -2339,28 +2434,109 @@ function setupResultsDrop(zoneId){
 
 
 async function handleResultsFile(file){
-
-  var err=document.getElementById('res-import-err');
-
-  if(err) err.textContent='';
+  var pg=document.getElementById('page');
+  // Show reading state
+  var dz=document.getElementById('res-drop-zone');
+  if(dz) dz.innerHTML='<div style="color:var(--muted);padding:1rem;text-align:center">Reading '+esc(file.name)+'…</div>';
 
   try{
-
-    var n=await loadResultsFile(file);
-
-    toast('Loaded '+n+' result rows from '+file.name);
-
-    pgResults();
-
+    var data=await previewResultsFile(file);
+    showResultsAudit(data);
   } catch(ex){
-
+    var err=document.getElementById('res-import-err');
     if(err) err.textContent='Error: '+ex.message;
-
+    else if(pg) pg.innerHTML='<div class="card"><span style="color:var(--red)">Error: '+esc(ex.message)+'</span></div>';
     console.error(ex);
-
   }
-
 }
+
+// ── Results import audit UI ──────────────────────────────────────
+
+var _pendingResultsAudit=null;
+
+function showResultsAudit(data){
+  _pendingResultsAudit=data;
+  var pg=document.getElementById('page');
+  var uc=data.uniqueClasses, total=data.parsedRows.length;
+
+  var unmatchedN=uc.filter(function(u){ return u.confidence==='unmatched'; }).length;
+  var checkN=uc.filter(function(u){ return u.confidence==='check'; }).length;
+
+  var statusParts=[];
+  if(unmatchedN) statusParts.push('<span style="color:var(--red)">'+unmatchedN+' unmatched ✗</span>');
+  if(checkN) statusParts.push('<span style="color:var(--accent)">'+checkN+' to check ⚠</span>');
+  if(!unmatchedN&&!checkN) statusParts.push('<span style="color:var(--green)">All classes identified ✓</span>');
+
+  var orgOpts=ORG_ORDER.map(function(o){ return '<option value="'+esc(o)+'">'+esc(o)+'</option>'; }).join('');
+
+  var tableRows=uc.map(function(u,idx){
+    var ci=u.confidence;
+    var icon=ci==='matched'?'<span style="color:var(--green)">✓</span>':
+             ci==='check'?'<span style="color:var(--accent)">⚠</span>':
+             '<span style="color:var(--red)">✗</span>';
+    var rowBg=ci==='unmatched'?'background:rgba(231,76,60,.07)':ci==='check'?'background:rgba(200,146,42,.06)':'';
+    var selOrg=ORG_ORDER.map(function(o){ return '<option value="'+esc(o)+'"'+(u.org===o?' selected':'')+'>'+o+'</option>'; }).join('');
+    return '<tr style="'+rowBg+'">'
+      +'<td style="text-align:center">'+icon+'</td>'
+      +'<td style="font-size:.82rem;max-width:250px;word-break:break-word">'+esc(u.rawClass||'(blank)')+'</td>'
+      +'<td style="text-align:center"><span class="badge b-blue" style="font-size:.72rem">'+u.count+'</span></td>'
+      +'<td><select onchange="resAuditChange('+idx+',\'org\',this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 4px;font-size:.78rem;width:100%">'+selOrg+'</select></td>'
+      +'<td><input type="text" value="'+esc(u.division)+'" onchange="resAuditChange('+idx+',\'division\',this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 5px;font-size:.78rem;width:130px"></td>'
+      +'<td><input type="text" value="'+esc(u.discipline)+'" onchange="resAuditChange('+idx+',\'discipline\',this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 5px;font-size:.78rem;width:150px"></td>'
+      +'</tr>';
+  }).join('');
+
+  pg.innerHTML=
+    '<div class="card">'
+    +'<div class="card-title">Results Import Review <small style="font-family:\'Source Sans 3\',sans-serif;font-weight:400">'+esc(data.filename)+'</small></div>'
+    +'<div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.5rem">'
+    +'<span style="font-size:.85rem"><strong>'+total+'</strong> result rows &middot; <strong>'+uc.length+'</strong> unique classes</span>'
+    +'<span style="font-size:.85rem">'+statusParts.join(' &nbsp;')+'</span>'
+    +'</div>'
+    +'<p style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem">Review how each class string from the file was parsed. Correct any wrong org, division, or discipline, then commit. Unmatched ✗ rows need a discipline before committing.</p>'
+    +'<div style="overflow-x:auto"><table class="cfg-tbl"><thead><tr>'
+    +'<th style="width:28px"></th>'
+    +'<th>Class string (from file)</th>'
+    +'<th style="width:48px;text-align:center">Rows</th>'
+    +'<th style="width:115px">Org</th>'
+    +'<th style="width:155px">Division</th>'
+    +'<th style="width:170px">Discipline</th>'
+    +'</tr></thead><tbody>'+tableRows+'</tbody></table></div>'
+    +'<div class="btn-row" style="margin-top:.85rem">'
+    +'<button class="btn btn-green" onclick="commitResultsImport()">&#10003; Commit '+total+' Results</button>'
+    +'<button class="btn btn-dark" onclick="_pendingResultsAudit=null;pgResults()">Cancel</button>'
+    +'</div>'
+    +'</div>';
+}
+
+window.resAuditChange=function(idx,field,val){
+  if(!_pendingResultsAudit) return;
+  var u=_pendingResultsAudit.uniqueClasses[idx];
+  if(!u) return;
+  u[field]=val.trim();
+  // Recompute confidence after manual edit
+  u.confidence=u.discipline?'matched':'unmatched';
+};
+
+window.commitResultsImport=function(){
+  if(!_pendingResultsAudit) return;
+  var data=_pendingResultsAudit;
+  // Build correction map
+  var fix={};
+  data.uniqueClasses.forEach(function(u){ fix[u.rawClass]={org:u.org,division:u.division,discipline:u.discipline}; });
+  // Apply corrections to each result row
+  data.parsedRows.forEach(function(r){
+    var c=fix[r.rawClass];
+    if(c){ r.org=c.org; r.division=c.division; r.discipline=c.discipline; }
+  });
+  G.results=data.parsedRows;
+  G.resultsFile=data.filename;
+  _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1; _resSelShow='';
+  _pendingResultsAudit=null;
+  reconcileResultsToEntries(); saveResultsToStorage();
+  pgResults();
+  toast(G.results.length+' results imported');
+};
 
 
 
@@ -2385,6 +2561,8 @@ function saveEntriesToStorage(){
     localStorage.setItem('gp_scratches_'+G.showId, JSON.stringify(G.scratches||{}));
 
     localStorage.setItem('gp_fullscratches_'+G.showId, JSON.stringify(G.fullScratches||[]));
+
+    saveBillingData();
 
   } catch(ex){ console.warn('localStorage save failed:', ex); }
 
@@ -2507,6 +2685,147 @@ function amtPaid(entry){ return G.payments[entry.rowIndex] || 0; }
 function tabBalance(entry){ return tabTotal(entry) - amtPaid(entry); }
 
 function isFullyPaid(entry){ return tabBalance(entry) <= 0; }
+
+// ─── Horse matching helpers ───────────────────────────────────────────────────
+
+function normHorse(s){
+  return (s||'').toLowerCase().replace(/[''']/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+}
+
+function horsesMatch(a, b){
+  var na=normHorse(a), nb=normHorse(b);
+  if(!na||!nb) return false;
+  return na===nb || na.indexOf(nb)>=0 || nb.indexOf(na)>=0;
+}
+
+function getCanonicalHorse(name){
+  return G.horseAliases[normHorse(name)] || name;
+}
+
+function entryKey(e){ return e.name+'|'+e.horse; }
+
+// Returns array of {normKey, canonical, entries:[]} where 2+ different riders share a horse
+function findSameHorseGroups(){
+  var buckets={};
+  G.entries.forEach(function(e){
+    var k=normHorse(e.horse);
+    if(!k) return;
+    if(!buckets[k]) buckets[k]={normKey:k, canonical:G.horseAliases[k]||e.horse, entries:[]};
+    buckets[k].entries.push(e);
+  });
+  // Also merge buckets where horse names fuzzy-match across different norm keys
+  var keys=Object.keys(buckets);
+  for(var i=0;i<keys.length;i++){
+    for(var j=i+1;j<keys.length;j++){
+      if(horsesMatch(buckets[keys[i]].canonical, buckets[keys[j]].canonical)){
+        buckets[keys[i]].entries=buckets[keys[i]].entries.concat(buckets[keys[j]].entries);
+        delete buckets[keys[j]];
+        keys.splice(j,1); j--;
+      }
+    }
+  }
+  return Object.keys(buckets).map(function(k){ return buckets[k]; }).filter(function(g){
+    var riders=[]; g.entries.forEach(function(e){ if(riders.indexOf(e.name)<0) riders.push(e.name); });
+    return riders.length>1;
+  });
+}
+
+// ─── Billing group helpers ────────────────────────────────────────────────────
+
+function getBillingGroup(e){
+  var k=entryKey(e);
+  return G.billingGroups.find(function(g){ return g.entryKeys.indexOf(k)>=0; })||null;
+}
+
+function groupAmtOwed(grp){
+  return grp.entryKeys.reduce(function(s,k){
+    var e=G.entries.find(function(e){ return entryKey(e)===k; });
+    return s+(e?tabTotal(e):0);
+  },0);
+}
+
+function groupAmtPaid(grp){
+  return G.payments['__grp__'+grp.id]||0;
+}
+
+function groupBalance(grp){ return groupAmtOwed(grp)-groupAmtPaid(grp); }
+
+function groupIsFullyPaid(grp){ return groupBalance(grp)<=0; }
+
+function saveBillingData(){
+  if(!G.showId) return;
+  localStorage.setItem('gp_billinggroups_'+G.showId, JSON.stringify(G.billingGroups));
+  localStorage.setItem('gp_horsealiases_'+G.showId, JSON.stringify(G.horseAliases));
+}
+
+async function syncBillingGroupsToSupabase(){
+  if(!G.showId) return;
+  try{
+    await sbFetch('billing_groups?show_id=eq.'+G.showId, {method:'DELETE'});
+    for(var i=0;i<G.billingGroups.length;i++){
+      var g=G.billingGroups[i];
+      await sbFetch('billing_groups', {method:'POST', body:JSON.stringify({
+        id:g.id, show_id:G.showId, association_id:G.assocId||null,
+        payer_name:g.payerName, entry_keys:g.entryKeys, notes:g.notes||null
+      })});
+    }
+    // Sync horse aliases
+    await sbFetch('horse_aliases?show_id=eq.'+G.showId, {method:'DELETE'});
+    var aliases=Object.keys(G.horseAliases);
+    for(var ai=0;ai<aliases.length;ai++){
+      await sbFetch('horse_aliases', {method:'POST', body:JSON.stringify({
+        show_id:G.showId, norm_key:aliases[ai], canonical_name:G.horseAliases[aliases[ai]]
+      })});
+    }
+  } catch(e){ console.warn('Billing sync error:', e); }
+}
+
+async function loadBillingDataFromSupabase(showId){
+  try{
+    var grpRows=await sbFetch('billing_groups?show_id=eq.'+showId+'&select=*');
+    if(grpRows&&grpRows.length){
+      G.billingGroups=grpRows.map(function(r){
+        return {id:r.id, payerName:r.payer_name, entryKeys:r.entry_keys||[], notes:r.notes||''};
+      });
+    }
+    var aliasRows=await sbFetch('horse_aliases?show_id=eq.'+showId+'&select=norm_key,canonical_name');
+    if(aliasRows&&aliasRows.length){
+      G.horseAliases={};
+      aliasRows.forEach(function(r){ G.horseAliases[r.norm_key]=r.canonical_name; });
+    }
+    saveBillingData();
+  } catch(e){ console.warn('Could not load billing data:', e); }
+}
+
+function createBillingGroup(payerName, entryKeys, notes){
+  var id=([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,function(c){ return (c^(crypto.getRandomValues(new Uint8Array(1))[0]&(15>>c/4))).toString(16); });
+  var grp={id:id, payerName:payerName, entryKeys:entryKeys, notes:notes||''};
+  G.billingGroups.push(grp);
+  saveBillingData();
+  syncBillingGroupsToSupabase();
+  return grp;
+}
+
+function deleteBillingGroup(id){
+  G.billingGroups=G.billingGroups.filter(function(g){ return g.id!==id; });
+  delete G.payments['__grp__'+id];
+  saveBillingData();
+  syncBillingGroupsToSupabase();
+}
+
+function splitFromBillingGroup(groupId, keysToRemove){
+  var grp=G.billingGroups.find(function(g){ return g.id===groupId; });
+  if(!grp) return;
+  grp.entryKeys=grp.entryKeys.filter(function(k){ return keysToRemove.indexOf(k)<0; });
+  if(grp.entryKeys.length<2) deleteBillingGroup(groupId);
+  else { saveBillingData(); syncBillingGroupsToSupabase(); }
+}
+
+function setHorseAlias(rawName, canonicalName){
+  G.horseAliases[normHorse(rawName)]=canonicalName;
+  saveBillingData();
+  syncBillingGroupsToSupabase();
+}
 
 
 
@@ -3248,37 +3567,20 @@ function wireImportDZ(){
 
         }
 
+        // Navigate immediately — sync happens in the background
+        showPage('entries');
+
         if(G.showId){
-
-          var st2=document.getElementById('imp-status');
-
-          if(st2) st2.innerHTML='<span style="color:var(--muted)">Saving to database...</span>';
 
           syncEntriesToSupabase().then(function(){
 
-            var el=document.getElementById('imp-status');
-
-            if(el) el.innerHTML='<span style="color:var(--green)">&#10003; '+G.entries.length+' entries saved.</span>';
-
-            setTimeout(function(){ showPage('entries'); },700);
+            toast(G.entries.length+' entries saved to database');
 
           }).catch(function(err){
 
-            var el=document.getElementById('imp-status');
-
-            if(el) el.innerHTML='<span style="color:var(--accent)">Loaded locally. Sync failed: '+esc(err.message)+'</span>';
-
-            setTimeout(function(){ showPage('entries'); },1200);
+            toast('Entries loaded locally. Sync failed: '+esc(err.message), true);
 
           });
-
-        } else {
-
-          var el=document.getElementById('imp-status');
-
-          if(el) el.innerHTML='<span style="color:var(--green)">&#10003; '+G.entries.length+' entries loaded.</span>';
-
-          setTimeout(function(){ showPage('entries'); },700);
 
         }
 
@@ -5403,158 +5705,152 @@ function pgTabs(){
 
   if(!G.entries.length){ pg.innerHTML='<div class="card"><p class="empty-state">No entries loaded.</p></div>'; return; }
 
+  // Totals include group payments; individual entries in a group don't count their own payments
+  var groupedKeys={};
+  G.billingGroups.forEach(function(g){ g.entryKeys.forEach(function(k){ groupedKeys[k]=g.id; }); });
 
+  var totalOwed=0, totalPaid=0, fullyPaidCount=0;
+  G.billingGroups.forEach(function(g){
+    totalOwed+=groupAmtOwed(g); totalPaid+=groupAmtPaid(g);
+    if(groupIsFullyPaid(g)) fullyPaidCount++;
+  });
+  G.entries.forEach(function(e){
+    if(!groupedKeys[entryKey(e)]){ totalOwed+=tabTotal(e); totalPaid+=amtPaid(e); if(isFullyPaid(e)) fullyPaidCount++; }
+  });
 
-  var totalOwed=G.entries.reduce(function(s,e){ return s+tabTotal(e); },0);
+  // Detect same-horse suggestions for unmerged entries
+  var sameHorseGroups=findSameHorseGroups();
+  var sameHorseBadge={};  // riderName → suggested horse canonical
+  sameHorseGroups.forEach(function(g){
+    g.entries.forEach(function(e){
+      if(!groupedKeys[entryKey(e)]) sameHorseBadge[e.name]=g.canonical;
+    });
+  });
 
-  var totalPaid=G.entries.reduce(function(s,e){ return s+amtPaid(e); },0);
-
-  var fullyPaid=G.entries.filter(isFullyPaid).length;
-
-
+  var suggestionHtml='';
+  if(sameHorseGroups.length){
+    var unmergedGroups=sameHorseGroups.filter(function(g){
+      return g.entries.some(function(e){ return !groupedKeys[entryKey(e)]; });
+    });
+    if(unmergedGroups.length){
+      suggestionHtml='<div style="margin-bottom:.65rem;padding:.5rem .7rem;background:rgba(200,146,42,.07);border:1px solid rgba(200,146,42,.3);border-radius:6px;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">'
+        +'<span style="font-size:.78rem;color:var(--accent);font-weight:600">&#9650; Same horse detected across riders:</span>';
+      unmergedGroups.forEach(function(g){
+        var riders=[];
+        g.entries.forEach(function(e){ if(!groupedKeys[entryKey(e)]&&riders.indexOf(e.name)<0) riders.push(e.name); });
+        if(riders.length>1){
+          var rEsc=riders.map(function(r){ return r.replace(/\\/g,'\\\\').replace(/'/g,"\\'"); });
+          suggestionHtml+='<span style="font-size:.78rem;color:var(--text)">'+esc(g.canonical)+': <em style="color:var(--muted)">'+esc(riders.join(', '))+'</em></span>'
+            +'<button class="btn btn-sm" style="font-size:.72rem;background:rgba(200,146,42,.15);border:1px solid rgba(200,146,42,.4);color:var(--accent)" '
+            +'onclick="promptMerge(\''+esc(g.canonical).replace(/'/g,"\\'")+"',['"+rEsc.join("','")+"'])\">"
+            +'Merge tabs</button>';
+        }
+      });
+      suggestionHtml+='</div>';
+    }
+  }
 
   pg.innerHTML='<div class="stat-grid">'
-
     +'<div class="stat c-green"><div class="n">'+fmt$(totalOwed)+'</div><div class="l">Total Owed</div></div>'
-
     +'<div class="stat c-blue"><div class="n">'+fmt$(totalPaid)+'</div><div class="l">Collected</div></div>'
-
     +'<div class="stat c-red"><div class="n">'+fmt$(totalOwed-totalPaid)+'</div><div class="l">Outstanding</div></div>'
-
-    +'<div class="stat c-gold"><div class="n">'+fullyPaid+'/'+G.entries.length+'</div><div class="l">Paid in Full</div></div>'
-
+    +'<div class="stat c-gold"><div class="n">'+fullyPaidCount+'</div><div class="l">Paid in Full</div></div>'
     +'</div><div class="card">'
-
-    +'<div class="search-wrap"><span class="search-ico">&#128269;</span><input class="search-box" id="tq" placeholder="Search rider..."></div>'
-
+    +'<div class="search-wrap"><span class="search-ico">&#128269;</span><input class="search-box" id="tq" placeholder="Search rider or payer..."></div>'
     +'<div class="pills" id="tpills"></div>'
-
+    +suggestionHtml
     +'<div class="tbl-wrap" id="ttbl"></div></div>';
 
-
-
   var tf='All';
-
-  function drawTPills(){
-
-    document.getElementById('tpills').innerHTML=['All','Outstanding','Paid'].map(function(f){
-
-      return '<button class="pill'+(f===tf?' active':'')+'" data-tf="'+f+'">'+f+'</button>';
-
-    }).join('');
-
-  }
-
-  window.setTF=function(f){ tf=f; drawTPills(); drawTabTable(); };
-
   function drawAndWireTPills(){
-
-    drawTPills();
-
+    document.getElementById('tpills').innerHTML=['All','Outstanding','Paid'].map(function(f){
+      return '<button class="pill'+(f===tf?' active':'')+'" data-tf="'+f+'">'+f+'</button>';
+    }).join('');
     wirePillClicks('tpills', function(v){ tf=v; drawAndWireTPills(); drawTabTable(); });
-
   }
-
   drawAndWireTPills();
 
-
-
   function drawTabTable(){
-
     var q=(document.getElementById('tq')||{value:''}).value.trim().toLowerCase();
+    var t='<table><thead><tr><th>Rider / Payer</th><th>Horse(s)</th><th>Entries</th><th>Owed</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr></thead><tbody>';
+    var anyRow=false;
 
-    // Group by rider
-
-    // Build rider index — keyed by integer so no names ever touch onclick strings
-
-    var byRider={};
-
-    G.entries.forEach(function(e){
-
-      if(!byRider[e.name]) byRider[e.name]=[];
-
-      byRider[e.name].push(e);
-
-    });
-
-    // Store rider list in a stable array so we can reference by index
-
-    G._riderList=Object.keys(byRider).sort();
-
-    var names=G._riderList.filter(function(name){
-
-      var entries=byRider[name];
-
-      var owed=entries.reduce(function(s,e){ return s+tabTotal(e); },0);
-
-      var paid=entries.reduce(function(s,e){ return s+amtPaid(e); },0);
-
-      var bal=owed-paid; var isPaid=bal<=0;
-
+    // ── Billing groups ──
+    G.billingGroups.forEach(function(grp){
+      var owed=groupAmtOwed(grp), paid=groupAmtPaid(grp), bal=owed-paid, isPaid=bal<=0;
+      var qMatch=!q||grp.payerName.toLowerCase().indexOf(q)>-1
+        ||grp.entryKeys.some(function(k){ return k.toLowerCase().indexOf(q)>-1; });
       var fOk=tf==='All'||(tf==='Paid'&&isPaid)||(tf==='Outstanding'&&!isPaid);
-
-      var qOk=!q||name.toLowerCase().indexOf(q)>-1;
-
-      return fOk&&qOk;
-
-    });
-
-    var t='<table><thead><tr><th>Rider</th><th>Horse(s)</th><th>Entries</th><th>Owed</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead><tbody>';
-
-    if(!names.length) t+='<tr><td colspan="7" class="empty-state">No entries match</td></tr>';
-
-    names.forEach(function(name){
-
-      var entries=byRider[name];
-
-      var owed=entries.reduce(function(s,e){ return s+tabTotal(e); },0);
-
-      var paid=entries.reduce(function(s,e){ return s+amtPaid(e); },0);
-
-      var bal=owed-paid; var isPaid=bal<=0;
-
-      var horses=[...new Set(entries.map(function(e){ return e.horse; }))].join(', ');
-
-      var refIdx=entries[0].rowIndex;
-
-      t+='<tr style="cursor:pointer" data-refidx="'+refIdx+'">'
-
-        +'<td class="bold">'+esc(name)+'</td>'
-
-        +'<td class="small">'+esc(horses)+'</td>'
-
-        +'<td class="ctr">'+entries.length+'</td>'
-
+      if(!fOk||!qMatch) return;
+      anyRow=true;
+      var gEsc=grp.id.replace(/'/g,"\\'");
+      // Header row
+      t+='<tr style="background:rgba(200,146,42,.06);cursor:pointer" onclick="showGroupTabModal(\''+gEsc+'\')">'
+        +'<td class="bold" style="color:var(--accent)">&#128281; '+esc(grp.payerName)+'<span style="font-size:.68rem;color:var(--muted);margin-left:.4rem">Combined</span></td>'
+        +'<td class="small" style="color:var(--muted)">'+esc([...new Set(grp.entryKeys.map(function(k){ return k.split('|')[1]||''; }))].join(', '))+'</td>'
+        +'<td class="ctr">'+grp.entryKeys.length+'</td>'
         +'<td>'+fmt$(owed)+'</td>'
-
         +'<td style="color:var(--green)">'+fmt$(paid)+'</td>'
-
         +'<td class="bold" style="color:'+(isPaid?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</td>'
-
         +'<td>'+(isPaid?'<span class="badge b-green">Paid</span>':'<span class="badge b-red">Due</span>')+'</td>'
-
+        +'<td><button class="btn btn-sm btn-dark" style="font-size:.68rem" onclick="event.stopPropagation();promptSplit(\''+gEsc+'\')">Split</button></td>'
         +'</tr>';
-
+      // Sub-rows per entry key
+      grp.entryKeys.forEach(function(k){
+        var parts=k.split('|'); var rName=parts[0]; var hName=parts.slice(1).join('|');
+        var subEntries=G.entries.filter(function(e){ return e.name===rName&&e.horse===hName; });
+        var subOwed=subEntries.reduce(function(s,e){ return s+tabTotal(e); },0);
+        t+='<tr style="background:rgba(200,146,42,.02)">'
+          +'<td style="padding-left:1.6rem;font-size:.83rem;color:var(--muted)">&#8627; '+esc(rName)+'</td>'
+          +'<td class="small" style="color:var(--muted)">'+esc(hName)+'</td>'
+          +'<td class="ctr" style="color:var(--muted)">'+subEntries.length+'</td>'
+          +'<td style="color:var(--muted)">'+fmt$(subOwed)+'</td>'
+          +'<td></td><td></td><td></td><td></td>'
+          +'</tr>';
+      });
     });
 
+    // ── Individual rider tabs (not in any group) ──
+    var byRider={};
+    G.entries.forEach(function(e){
+      if(groupedKeys[entryKey(e)]) return;
+      if(!byRider[e.name]) byRider[e.name]=[];
+      byRider[e.name].push(e);
+    });
+    G._riderList=Object.keys(byRider).sort();
+    G._riderList.forEach(function(name){
+      var entries=byRider[name];
+      var owed=entries.reduce(function(s,e){ return s+tabTotal(e); },0);
+      var paid=entries.reduce(function(s,e){ return s+amtPaid(e); },0);
+      var bal=owed-paid; var isPaid=bal<=0;
+      var qOk=!q||name.toLowerCase().indexOf(q)>-1;
+      var fOk=tf==='All'||(tf==='Paid'&&isPaid)||(tf==='Outstanding'&&!isPaid);
+      if(!fOk||!qOk) return;
+      anyRow=true;
+      var horses=[...new Set(entries.map(function(e){ return getCanonicalHorse(e.horse); }))].join(', ');
+      var refIdx=entries[0].rowIndex;
+      var hasSameHorse=!!sameHorseBadge[name];
+      var badgeHtml=hasSameHorse?'<span style="font-size:.62rem;margin-left:.35rem;padding:1px 5px;border-radius:3px;background:rgba(200,146,42,.18);color:var(--accent);cursor:help" title="Same horse as another rider — consider merging tabs">&#9660; same horse</span>':'';
+      var nEsc=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      t+='<tr>'
+        +'<td class="bold" style="cursor:pointer" onclick="showTabModalByIdx('+refIdx+')">'+esc(name)+badgeHtml+'</td>'
+        +'<td class="small">'+esc(horses)+'</td>'
+        +'<td class="ctr">'+entries.length+'</td>'
+        +'<td>'+fmt$(owed)+'</td>'
+        +'<td style="color:var(--green)">'+fmt$(paid)+'</td>'
+        +'<td class="bold" style="color:'+(isPaid?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</td>'
+        +'<td>'+(isPaid?'<span class="badge b-green">Paid</span>':'<span class="badge b-red">Due</span>')+'</td>'
+        +'<td>'+(hasSameHorse?'<button class="btn btn-sm" style="font-size:.68rem;background:rgba(200,146,42,.12);border:1px solid rgba(200,146,42,.3);color:var(--accent)" onclick="promptMergeForRider(\''+nEsc+'\')">Merge</button>':'')+'</td>'
+        +'</tr>';
+    });
+
+    if(!anyRow) t+='<tr><td colspan="8" class="empty-state">No entries match</td></tr>';
     t+='</tbody></table>';
-
     document.getElementById('ttbl').innerHTML=t;
-
-    document.getElementById('ttbl').addEventListener('click',function(ev){
-
-      var row=ev.target.closest('tr[data-refidx]');
-
-      if(row) showTabModalByIdx(parseInt(row.dataset.refidx));
-
-    });
-
   }
 
   drawTabTable();
-
   document.getElementById('tq').addEventListener('input',drawTabTable);
-
 }
 
 
@@ -6476,6 +6772,8 @@ function pgResults(){
 
       var hasEligRules=aaMinCls<scoringDiscs.length||aaReqGroups.length>0;
 
+      var isCredits50=orgCfg.aaStyle==='credits50';
+
 
 
       // Build per-rider-per-horse totals from unfiltered rows so search doesn't drop anyone.
@@ -6504,6 +6802,7 @@ function pgResults(){
           aaMap[aaKey].total+=(r.pts||0);
 
           aaMap[aaKey].byDisc[r.discipline]=(aaMap[aaKey].byDisc[r.discipline]||0)+(r.pts||0);
+
 
           if(!aaMap[aaKey].scoreByDisc[r.discipline]||(r.score||0)>(aaMap[aaKey].scoreByDisc[r.discipline]||0))
             aaMap[aaKey].scoreByDisc[r.discipline]=r.score||0;
@@ -6632,6 +6931,7 @@ function pgResults(){
         +'<th style="width:36px">Rank</th><th>Rider</th><th>Horse</th>';
       scoringDiscs.forEach(function(c){ html+='<th style="text-align:right;font-size:.8rem">'+esc(c)+'</th>'; });
       html+='<th style="text-align:right;background:rgba(200,146,42,.1);color:var(--accent)">Total</th>';
+      if(isCredits50) html+='<th style="text-align:right;color:var(--accent);font-size:.8rem" title="1st=50, 2nd=49… per discipline">AQHA Credits</th>';
       if(hasMoney) html+='<th style="text-align:right;color:var(--green)">Prize</th>';
       html+='</tr></thead><tbody>';
 
@@ -6643,7 +6943,8 @@ function pgResults(){
 
       var rank=1;
       eligible.forEach(function(r,i){
-        var isTie=i>0&&eligible[i-1].total===r.total&&tb.every(function(d){ return (eligible[i-1].scoreByDisc[d]||0)===(r.scoreByDisc[d]||0); });
+        var _prev=eligible[i-1];
+        var isTie=i>0&&_prev.total===r.total&&tb.every(function(d){ return (_prev.scoreByDisc[d]||0)===(r.scoreByDisc[d]||0); });
         if(!isTie) rank=i+1;
         var plColor=rank===1?'var(--accent)':rank===2?'#aaa':rank===3?'#cd7f32':'var(--text)';
         var prize=prizes[rank-1]||0;
@@ -6668,6 +6969,7 @@ function pgResults(){
           }
         });
         html+='<td style="text-align:right;font-weight:700;color:var(--accent);background:rgba(200,146,42,.06)">'+r.total.toFixed(1)+'</td>';
+        if(isCredits50) html+='<td style="text-align:right;font-weight:700;color:var(--accent)">'+Math.max(0,51-rank)+'</td>';
         if(hasMoney) html+='<td style="text-align:right;color:var(--green)">'+(prize?'$'+prize:'&mdash;')+'</td>';
         html+='</tr>';
       });
@@ -7183,21 +7485,6 @@ function pgResults(){
 
           +'<td style="text-align:right;color:var(--green)">'+(r.money?'$'+r.money.toFixed(0):'&mdash;')+'</td>'
 
-          +'<td style="text-align:right;padding-right:.3rem;white-space:nowrap">'
-          +(r._matchType==='none'?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Create entry from this row" style="background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);border-radius:4px;color:var(--green);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">+</button>':'')
-          +(r._horseMismatch?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Matched to wrong horse — click to create correct entry" style="background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);border-radius:4px;color:var(--red);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">&#9888;+</button>':'')
-          +(!isAAClass&&!isAqhaOrg?(function(){
-            var oc=r.opCount||0;
-            var lbl=oc>0?(oc>1?'OP'+oc:'OP'):'OP';
-            var title=oc===0?'Mark as Off-Pattern (click to cycle OP→OP2→OP3→clear)':'OP×'+oc+' — click to advance, cycles back to clear';
-            var sty=oc>0?'background:rgba(224,124,0,.25);border:1px solid #e07c00;color:#e07c00;':'background:transparent;border:1px solid rgba(224,124,0,.35);color:rgba(224,124,0,.55);';
-            return '<button onclick="resMarkOP('+r._idx+')" title="'+title+'" style="'+sty+'border-radius:4px;cursor:pointer;font-size:.68rem;font-weight:700;padding:1px 4px;line-height:1;margin-right:.2rem">'+lbl+'</button>';
-          }()):'')
-          +(!isAAClass&&!isAqhaOrg?'<button onclick="resMarkDQ('+r._idx+')" title="'+(r.isDQ?'Remove DQ mark':'Mark as Disqualified')+'" style="'
-          +(r.isDQ?'background:rgba(231,76,60,.2);border:1px solid var(--red);color:var(--red);':'background:transparent;border:1px solid rgba(231,76,60,.3);color:rgba(231,76,60,.6);')
-          +'border-radius:4px;cursor:pointer;font-size:.68rem;font-weight:700;padding:1px 4px;line-height:1;margin-right:.2rem">DQ</button>':'')
-          +'<button onclick="resEdit('+r._idx+')" title="Edit row" style="background:none;border:1px solid var(--border2);border-radius:4px;color:var(--muted);cursor:pointer;font-size:.75rem;padding:1px 5px;line-height:1">&#9998;</button></td>'
-
           +(isAAClass?(function(){
             var riderPlaces=aaDiscPlaceMap[r.rider]||{};
             var riderPts=aaDiscPtsMap[r.rider]||{};
@@ -7213,6 +7500,21 @@ function pgResults(){
                 +'</td>';
             }).join('');
           })():'')
+
+          +'<td style="text-align:right;padding-right:.3rem;white-space:nowrap">'
+          +(r._matchType==='none'?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Create entry from this row" style="background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);border-radius:4px;color:var(--green);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">+</button>':'')
+          +(r._horseMismatch?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Matched to wrong horse — click to create correct entry" style="background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);border-radius:4px;color:var(--red);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">&#9888;+</button>':'')
+          +(!isAAClass&&!isAqhaOrg?(function(){
+            var oc=r.opCount||0;
+            var lbl=oc>0?(oc>1?'OP'+oc:'OP'):'OP';
+            var title=oc===0?'Mark as Off-Pattern (click to cycle OP→OP2→OP3→clear)':'OP×'+oc+' — click to advance, cycles back to clear';
+            var sty=oc>0?'background:rgba(224,124,0,.25);border:1px solid #e07c00;color:#e07c00;':'background:transparent;border:1px solid rgba(224,124,0,.35);color:rgba(224,124,0,.55);';
+            return '<button onclick="resMarkOP('+r._idx+')" title="'+title+'" style="'+sty+'border-radius:4px;cursor:pointer;font-size:.68rem;font-weight:700;padding:1px 4px;line-height:1;margin-right:.2rem">'+lbl+'</button>';
+          }()):'')
+          +(!isAAClass&&!isAqhaOrg?'<button onclick="resMarkDQ('+r._idx+')" title="'+(r.isDQ?'Remove DQ mark':'Mark as Disqualified')+'" style="'
+          +(r.isDQ?'background:rgba(231,76,60,.2);border:1px solid var(--red);color:var(--red);':'background:transparent;border:1px solid rgba(231,76,60,.3);color:rgba(231,76,60,.6);')
+          +'border-radius:4px;cursor:pointer;font-size:.68rem;font-weight:700;padding:1px 4px;line-height:1;margin-right:.2rem">DQ</button>':'')
+          +'<button onclick="resEdit('+r._idx+')" title="Edit row" style="background:none;border:1px solid var(--border2);border-radius:4px;color:var(--muted);cursor:pointer;font-size:.75rem;padding:1px 5px;line-height:1">&#9998;</button></td>'
 
           +'</tr>';
 
@@ -8060,7 +8362,7 @@ function pgSettings(){
 
     +'<div class="ssec" id="ss-parser">'
 
-    +settingsCard('Class String Parser Test','Paste any raw SHTX ClassDivision string to see how Gatepost parses it',
+    +settingsCard('Class String Parser Test','Paste any raw SHTX ClassDivision string to see how Thorofare parses it',
 
       '<div style="display:flex;gap:.5rem;align-items:flex-start;flex-wrap:wrap">'
 
@@ -8150,13 +8452,11 @@ function pgSettings(){
 
     +'<th style="width:75px">Jackpot</th>'
 
-    +'<th style="width:75px">Added $</th>'
-
     +'<th style="width:55px;text-align:center">Total</th><th style="width:32px"></th>'
 
     +'</tr></thead><tbody id="cfg-cls-tbody">'
 
-    +'<tr><td colspan="11" class="empty-state">No classes loaded yet.</td></tr>'
+    +'<tr><td colspan="10" class="empty-state">No classes loaded yet.</td></tr>'
 
     +'</tbody></table></div></div>'
 
@@ -8196,9 +8496,9 @@ function pgSettings(){
 
     +'<div class="ssec" id="ss-mapper">'
 
-    +'<div class="card"><div class="card-title">Entries Column Mapper <small>Tell Gatepost what each Cognito column means — saved and reused every import</small></div>'
+    +'<div class="card"><div class="card-title">Entries Column Mapper <small>Tell Thorofare what each Cognito column means — saved and reused every import</small></div>'
 
-    +'<p style="font-size:.83rem;color:var(--muted);margin-bottom:1rem">Drop any export from this association. Gatepost auto-detects most columns — review and fix anything it got wrong, then save. Works for any org&apos;s Cognito form.</p>'
+    +'<p style="font-size:.83rem;color:var(--muted);margin-bottom:1rem">Drop any export from this association. Thorofare auto-detects most columns — review and fix anything it got wrong, then save. Works for any org&apos;s Cognito form.</p>'
 
     +'<div class="drop-zone" id="map-dz"><div class="dz-ico">&#128190;</div><h3>Drop Cognito Export to Map Columns</h3><p>Reads your column headers and suggests mappings</p><input type="file" id="map-fi" accept=".xlsx,.xls" style="display:none"></div>'
 
@@ -8230,7 +8530,7 @@ function pgSettings(){
 
     +'<div class="card"><div class="card-title">Results Column Mapper <small>Map Funnware/SHTX export columns — saved and applied on every results import</small></div>'
 
-    +'<p style="font-size:.83rem;color:var(--muted);margin-bottom:1rem">Drop any SHTX results file. Gatepost reads the headers and maps them to the expected fields. Save once and it will remember for next time.</p>'
+    +'<p style="font-size:.83rem;color:var(--muted);margin-bottom:1rem">Drop any SHTX results file. Thorofare reads the headers and maps them to the expected fields. Save once and it will remember for next time.</p>'
 
     +'<div class="drop-zone" id="resmap-dz"><div class="dz-ico">&#128196;</div><h3>Drop SHTX Results File to Map Columns</h3><p>.xlsx or tab-delimited .txt from Funnware</p><input type="file" id="resmap-fi" accept=".xlsx,.xls,.txt,.csv" style="display:none"></div>'
 
@@ -8654,6 +8954,15 @@ function loadOrgConfig(){
       // Merge saved into ORG_CLASSES (replace each key if present)
 
       Object.keys(parsed).forEach(function(k){ ORG_CLASSES[k]=parsed[k]; });
+
+      // Backfill new default properties that didn't exist in older saves
+      Object.keys(DEFAULT_ORG_CLASSES).forEach(function(k){
+        if(ORG_CLASSES[k]){
+          Object.keys(DEFAULT_ORG_CLASSES[k]).forEach(function(prop){
+            if(ORG_CLASSES[k][prop]===undefined) ORG_CLASSES[k][prop]=DEFAULT_ORG_CLASSES[k][prop];
+          });
+        }
+      });
 
       // Rebuild DIV_ORDER_BY_ORG from ORG_CLASSES
 
@@ -9082,7 +9391,7 @@ window.orgEdRemoveOrg=function(o){
 
   if(o==='CoWN'){alert('Cannot remove CoWN.'); return;}
 
-  if(!confirm('Remove org "'+o+'" and all its divisions/disciplines? This only affects Gatepost\'s class structure — no show data is deleted.')) return;
+  if(!confirm('Remove org "'+o+'" and all its divisions/disciplines? This only affects Thorofare\'s class structure — no show data is deleted.')) return;
 
   delete ORG_CLASSES[o];
 
@@ -9568,21 +9877,20 @@ function renderCfgClassTable(){
 
   if(lbl) lbl.textContent=G.cfg.classes.length+' classes';
 
-  if(!G.cfg.classes.length){ tbody.innerHTML='<tr><td colspan="11" class="empty-state">No classes loaded.</td></tr>'; return; }
+  if(!G.cfg.classes.length){ tbody.innerHTML='<tr><td colspan="10" class="empty-state">No classes loaded.</td></tr>'; return; }
 
   // Build org tabs
   var orgs=[]; G.cfg.classes.forEach(function(c){ var o=c.org||'CoWN'; if(orgs.indexOf(o)<0) orgs.push(o); });
-  // Default to first org when filter is unset and multiple orgs exist
-  if(!CFG_ORG_FILTER && orgs.length>1) CFG_ORG_FILTER=orgs[0];
+  if(!CFG_ORG_FILTER) CFG_ORG_FILTER=orgs[0]||'';
   var tabEl=document.getElementById('cls-org-tabs');
-  if(tabEl&&orgs.length>1){
+  if(tabEl){
     var tabHtml='';
     orgs.forEach(function(o){
       var m=ORG_META&&ORG_META[o]; var lbl=m?m.label:o;
       tabHtml+='<span class="cls-org-tab'+(CFG_ORG_FILTER===o?' active':'')+'" onclick="setCfgOrgFilter(\''+esc(o)+'\',this)">'+(m&&m.icon?m.icon+' ':'')+esc(lbl)+'</span>';
     });
     tabEl.innerHTML=tabHtml;
-  } else if(tabEl){ tabEl.innerHTML=''; }
+  }
 
   var filtered=G.cfg.classes.filter(function(c){ return !CFG_ORG_FILTER||(c.org||'CoWN')===CFG_ORG_FILTER; });
 
@@ -9602,7 +9910,7 @@ function renderCfgClassTable(){
 
   Object.keys(byDiv).sort().forEach(function(div){
 
-    html+='<tr class="div-hdr"><td colspan="11">'+esc(div)+'</td></tr>';
+    html+='<tr class="div-hdr"><td colspan="10">'+esc(div)+'</td></tr>';
 
     byDiv[div].forEach(function(c){
 
@@ -9629,8 +9937,6 @@ function renderCfgClassTable(){
         +'<td>'+feeInp(c._id,'cowFee',c.cowFee,c.isCow?'15':'n/a',!c.isCow)+'</td>'
 
         +'<td>'+feeInp(c._id,'jackpot',c.jackpot,'0')+'</td>'
-
-        +'<td>'+feeInp(c._id,'addedMoney',c.addedMoney,'0')+'</td>'
 
         +'<td style="text-align:center;font-weight:600;color:var(--accent);font-size:.8rem" id="ct-'+c._id+'">'+fmtI(total)+'</td>'
 
@@ -10524,7 +10830,7 @@ function exportConfig(){
 
   a.href=URL.createObjectURL(blob);
 
-  a.download=(G.cfg.showName||'gatepost').replace(/\s+/g,'_')+'_config.json';
+  a.download=(G.cfg.showName||'thorofare').replace(/\s+/g,'_')+'_config.json';
 
   a.click();
 
@@ -12630,6 +12936,135 @@ window.removeGuestSplit=function(myRowIdx, splitKey){
 
 function showTabModalByIdx(refRowIdx){ var ref=G.entries.find(function(e){ return e.rowIndex===refRowIdx; }); if(ref) showTabModal(ref.name); };
 
+function showGroupTabModal(groupId){
+  var grp=G.billingGroups.find(function(g){ return g.id===groupId; });
+  if(!grp) return;
+  var owed=groupAmtOwed(grp), paid=groupAmtPaid(grp), bal=owed-paid;
+  var gEsc=groupId.replace(/'/g,"\\'");
+  var html='<div class="modal-bg" id="tm" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal"><h2>&#128281; '+esc(grp.payerName)+'</h2>'
+    +'<div class="small" style="color:var(--muted);margin-bottom:1rem">Combined billing group</div>';
+  // Per-rider sub-tabs
+  grp.entryKeys.forEach(function(k){
+    var parts=k.split('|'); var rName=parts[0]; var hName=parts.slice(1).join('|');
+    var subEntries=G.entries.filter(function(e){ return e.name===rName&&e.horse===hName; });
+    if(!subEntries.length) return;
+    var allLines=[]; subEntries.forEach(function(e){ buildTabLines(e).forEach(function(l){ allLines.push(l); }); });
+    var subOwed=allLines.reduce(function(s,l){ return s+l.amt; },0);
+    html+='<div style="margin-bottom:.6rem;padding:.5rem .65rem;background:var(--card2);border-radius:6px">'
+      +'<div style="font-size:.8rem;font-weight:600;color:var(--accent);margin-bottom:.35rem">'+esc(rName)+' &middot; <span style="color:var(--muted);font-weight:400">'+esc(hName)+'</span></div>'
+      +allLines.map(function(l){ return '<div class="tab-line" style="font-size:.82rem"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; }).join('')
+      +'<div class="tab-line" style="font-weight:600;border-top:1px solid var(--border);margin-top:.3rem;padding-top:.3rem"><span>Subtotal</span><span>'+fmt$(subOwed)+'</span></div>'
+      +'</div>';
+  });
+  html+='<div class="tab-total"><span>Total</span><span>'+fmt$(owed)+'</span></div>'
+    +'<div class="pay-status">'
+    +'<div style="flex:1"><div class="small">Paid</div><div class="bold" style="color:var(--green)">'+fmt$(paid)+'</div></div>'
+    +'<div style="flex:1"><div class="small">Balance</div><div class="bold" style="color:'+(bal<=0?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</div></div>'
+    +'<div>'+(bal>0?'<button class="btn btn-green btn-sm" onclick="markGroupPaid(\''+gEsc+'\','+owed+')">Mark Paid</button>':'<span class="badge b-green">&#10003; Paid in Full</span>')+'</div>'
+    +'</div>'
+    +'<div style="margin-top:.65rem">'
+    +'<label style="font-size:.78rem;color:var(--muted)">Payment amount</label>'
+    +'<div style="display:flex;gap:.4rem;margin-top:.25rem">'
+    +'<input id="grp-pay-amt" type="number" step="0.01" value="'+bal.toFixed(2)+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.35rem .5rem;font-size:.84rem;width:110px">'
+    +'<button class="btn btn-green btn-sm" onclick="markGroupPaidAmt(\''+gEsc+'\')">Record</button>'
+    +'</div></div>'
+    +'<div class="btn-row" style="margin-top:1rem;margin-bottom:0">'
+    +'<button class="btn btn-dark" onclick="closeModal()">Close</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="closeModal();promptSplit(\''+gEsc+'\')">&#9135; Split Group</button>'
+    +'<button class="btn btn-dark btn-sm no-print" onclick="window.print()">&#128424; Print</button>'
+    +'</div></div></div>';
+  document.getElementById('modal-root').innerHTML=html;
+}
+
+function markGroupPaid(groupId, amount){
+  G.payments['__grp__'+groupId]=amount;
+  saveEntriesToStorage();
+  closeModal(); pgTabs();
+}
+
+function markGroupPaidAmt(groupId){
+  var amt=parseFloat((document.getElementById('grp-pay-amt')||{}).value)||0;
+  var existing=G.payments['__grp__'+groupId]||0;
+  G.payments['__grp__'+groupId]=existing+amt;
+  saveEntriesToStorage();
+  closeModal(); pgTabs();
+}
+
+function promptMerge(canonicalHorse, riderNames){
+  // Build entryKeys for all unmerged entries for these riders
+  var entryKeys=[];
+  riderNames.forEach(function(name){
+    G.entries.forEach(function(e){
+      if(e.name===name&&horsesMatch(e.horse,canonicalHorse)&&!getBillingGroup(e))
+        entryKeys.push(entryKey(e));
+    });
+  });
+  if(entryKeys.length<2){ toast('Need at least 2 entries to merge', true); return; }
+  var keysJson=JSON.stringify(entryKeys);
+  var root=document.getElementById('modal-root');
+  root.innerHTML='<div class="modal-bg" id="tm" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal"><h2>Merge Tabs</h2>'
+    +'<div class="small" style="color:var(--muted);margin-bottom:1rem">Combining tabs for <strong>'+esc(canonicalHorse)+'</strong></div>'
+    +'<div class="fg" style="margin-bottom:.6rem"><label>Payer name</label>'
+    +'<input id="merge-payer" value="'+esc(canonicalHorse)+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;width:100%"></div>'
+    +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.8rem">Entries to combine:<br>'
+    +entryKeys.map(function(k){ return '<span style="display:inline-block;margin:.15rem .25rem;padding:1px 6px;background:var(--card2);border-radius:4px">'+esc(k)+'</span>'; }).join('')
+    +'</div>'
+    +'<div class="btn-row"><button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
+    +'<button class="btn btn-accent" onclick="confirmMerge('+keysJson.replace(/"/g,"'")+')" >Merge</button>'
+    +'</div></div></div>';
+}
+
+function promptMergeForRider(riderName){
+  // Find the horse(s) for this rider that match another rider
+  var shg=findSameHorseGroups();
+  var matched=shg.find(function(g){ return g.entries.some(function(e){ return e.name===riderName&&!getBillingGroup(e); }); });
+  if(!matched){ toast('No matching horse found across other riders', true); return; }
+  var riders=[];
+  matched.entries.forEach(function(e){ if(!getBillingGroup(e)&&riders.indexOf(e.name)<0) riders.push(e.name); });
+  promptMerge(matched.canonical, riders);
+}
+
+function confirmMerge(entryKeys){
+  var payer=(document.getElementById('merge-payer')||{value:''}).value.trim()||entryKeys[0].split('|')[1]||'Group';
+  createBillingGroup(payer, entryKeys);
+  closeModal(); pgTabs();
+}
+
+function promptSplit(groupId){
+  var grp=G.billingGroups.find(function(g){ return g.id===groupId; });
+  if(!grp) return;
+  if(grp.entryKeys.length<=2){
+    if(confirm('Split "'+grp.payerName+'" back into individual tabs?')){ deleteBillingGroup(groupId); pgTabs(); }
+    return;
+  }
+  var gEsc=groupId.replace(/'/g,"\\'");
+  var root=document.getElementById('modal-root');
+  root.innerHTML='<div class="modal-bg" id="tm" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal"><h2>Split Group</h2>'
+    +'<div class="small" style="color:var(--muted);margin-bottom:.75rem">Select entries to remove from <strong>'+esc(grp.payerName)+'</strong></div>'
+    +grp.entryKeys.map(function(k,i){
+      return '<label style="display:flex;align-items:center;gap:.5rem;padding:.25rem 0;font-size:.84rem;cursor:pointer">'
+        +'<input type="checkbox" id="split-'+i+'" value="'+esc(k)+'"> '+esc(k)+'</label>';
+    }).join('')
+    +'<div class="btn-row" style="margin-top:.75rem">'
+    +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
+    +'<button class="btn btn-accent" onclick="confirmSplit(\''+gEsc+'\','+grp.entryKeys.length+')">Split Selected</button>'
+    +'</div></div></div>';
+}
+
+function confirmSplit(groupId, count){
+  var toRemove=[];
+  for(var i=0;i<count;i++){
+    var cb=document.getElementById('split-'+i);
+    if(cb&&cb.checked) toRemove.push(cb.value);
+  }
+  if(!toRemove.length){ toast('Select at least one entry to split out', true); return; }
+  splitFromBillingGroup(groupId, toRemove);
+  closeModal(); pgTabs();
+}
+
 function showTabModal(name){
 
   var entries=G.entries.filter(function(e){ return e.name===name; });
@@ -13847,6 +14282,11 @@ async function boot(){
 
         if(cachedFS) G.fullScratches=JSON.parse(cachedFS);
 
+        var cachedBG=localStorage.getItem('gp_billinggroups_'+showId);
+        var cachedHA=localStorage.getItem('gp_horsealiases_'+showId);
+        if(cachedBG) G.billingGroups=JSON.parse(cachedBG);
+        if(cachedHA) G.horseAliases=JSON.parse(cachedHA);
+
         toast('Loaded '+G.entries.length+' entries from cache');
 
       }
@@ -14004,6 +14444,8 @@ async function boot(){
       }
 
       toast('Loaded '+G.entries.length+' entries');
+
+      loadBillingDataFromSupabase(showId);
 
     }
 

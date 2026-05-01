@@ -655,5 +655,48 @@ alter table horse_revisions enable row level security;
 create policy "allow_all_for_now" on horse_revisions for all using (true) with check (true);
 
 -- ============================================================
+-- BILLING GROUPS
+-- Groups multiple rider entries under one payer (e.g. horse owner
+-- paying for trainer + owner riding the same horse). Per-show.
+-- entry_keys is a JSON array of "Rider Name|Horse Name" strings.
+-- ============================================================
+create table if not exists billing_groups (
+  id              uuid primary key default uuid_generate_v4(),
+  show_id         uuid references shows(id) on delete cascade,
+  association_id  uuid references associations(id),
+  payer_name      text not null,
+  entry_keys      jsonb not null default '[]'::jsonb,
+  notes           text,
+  created_at      timestamptz default now(),
+  updated_at      timestamptz default now()
+);
+
+create index if not exists idx_billing_groups_show on billing_groups(show_id);
+
+alter table billing_groups enable row level security;
+create policy "allow_all_for_now" on billing_groups for all using (true) with check (true);
+
+-- ============================================================
+-- HORSE ALIASES
+-- Per-show canonical horse name map. When the same horse is
+-- spelled differently across entries, one spelling is chosen
+-- as canonical (Cognito import wins). Stored as a single row
+-- per show keyed by normalized horse name string.
+-- ============================================================
+create table if not exists horse_aliases (
+  id              uuid primary key default uuid_generate_v4(),
+  show_id         uuid references shows(id) on delete cascade,
+  norm_key        text not null,   -- normalized (lowercase, alphanum+space)
+  canonical_name  text not null,   -- Cognito-preferred spelling
+  created_at      timestamptz default now(),
+  unique(show_id, norm_key)
+);
+
+create index if not exists idx_horse_aliases_show on horse_aliases(show_id);
+
+alter table horse_aliases enable row level security;
+create policy "allow_all_for_now" on horse_aliases for all using (true) with check (true);
+
+-- ============================================================
 -- DONE
 -- ============================================================

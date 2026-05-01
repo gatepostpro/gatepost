@@ -239,7 +239,73 @@ All show state is keyed by `showId`. Full key inventory:
 | `gp_aamoney_<showId>` | G.aaMoney |
 | `gp_tmploverride_<showId>` | tmplOverride (per-class template selection) |
 | `gp_closedclasses_<showId>` | array of classKeys marked closed by gate helpers (gate.html) |
+| `gp_billinggroups_<showId>` | G.billingGroups — merged billing groups |
+| `gp_horsealiases_<showId>` | G.horseAliases — canonical horse name map |
 | `gatepost_cfg` | G.cfg (show config, scribePin + gatePin, no showId suffix) |
+
+---
+
+## Secretary App — UI Conventions
+
+### Navigation / Naming
+
+- The "Tabs & Payments" tab is now called **Checkout** everywhere — nav label, `PAGE_TITLES`, and the `&#36; Checkout` button in the header.
+- **Never rename localStorage keys** — they keep the `gp_` / `gatepost_` prefix to avoid breaking existing user data even though all user-facing text says "Thorofare".
+
+### Fee Schedule (Show Setup → Finances)
+
+- `renderFeeSchedule()` renders each fee category as its own `.card.fee-cat-section` element — not nested inside one outer card.
+- `toggleFeeSection(cat)` collapses/expands individual category cards. Toggle chevron rotates via CSS `.collapsed` class.
+- CSS: `.fee-cat-section.collapsed` hides `.fee-sched-row`, `.fee-add-btn`, `.fee-cat-empty` children.
+
+### Class Fees (Show Setup → Class Fees)
+
+- `CFG_ORG_FILTER` / `setCfgOrgFilter()` / `renderCfgClassTable()` control which org's classes are shown.
+- Org tabs (`.cls-org-tab` pills, Oswald font, `border:1px solid var(--border2)`) are **always shown** — no `orgs.length > 1` guard.
+- **No "All" tab** — defaults to the first org on every tab open. The "All" option was removed; it caused confusion.
+- `showStab()` resets `CFG_ORG_FILTER = ''` when switching to the Class Fees tab so the first org is always re-selected.
+
+### Classes Page (Division Sub-tabs)
+
+- `pgClasses()` maintains `activeDivision` state (default `'All'`).
+- `getActiveDivisions()` collects distinct divisions from the current org's classes.
+- `drawDivTabs()` / `drawAndWireDivTabs()` render division pills below the org pills.
+- `drawClassLists()` filters by `activeDivision` when not `'All'`.
+
+### Entries Import
+
+- After `parseCognito()` succeeds, the app immediately calls `showPage('entries')` — the user lands on the Entries page right away.
+- `syncEntriesToSupabase()` runs async in the background; result is shown via `toast()`.
+- `tryRestoreMapper()` hides the upload drop zone and shows a "Re-upload file" button when a saved column mapping already exists.
+
+---
+
+## Results Import — Audit Flow
+
+File upload no longer commits immediately. The flow is:
+
+1. **`handleResultsFile(file)`** — calls `previewResultsFile(file)` then `showResultsAudit(data)`.
+2. **`previewResultsFile(file)`** — async; parses the SHTX results file, calls `parseClassDivStr` + `classParseConfidence` on each unique class string. Returns `{parsedRows, uniqueClasses, filename}` without saving anything.
+3. **`showResultsAudit(data)`** — renders a pre-commit audit panel. Each unique class string gets a confidence badge (`matched` / `check` / `unmatched`). User can inline-edit `org`, `division`, `discipline` before committing.
+4. **`window.resAuditChange(idx, field, val)`** — handles inline edits in the audit table; updates `_pendingResultsAudit`.
+5. **`window.commitResultsImport()`** — applies corrections, saves to `G.results`, calls `pgResults()`.
+6. **`_pendingResultsAudit`** — module-level var holding the preview between audit and commit.
+
+**`classParseConfidence(rawStr, parsed)`** — rates parse result as `'matched'` (clean hit), `'check'` (ambiguous), or `'unmatched'` (no hit). Added after `parseClassDivStr`.
+
+---
+
+## Points Systems
+
+`calcAqhaPoints(rows, entries)` — **AQHA points:**
+
+- 1–2 entries: no points (`tier = 0`).
+- **3–4 entries: 0.5 pts to 1st only** — special-cased before the tier formula. (Previous bug: `floor(3/5) = 0` → no points.)
+- 5+ entries: `tier = Math.min(9, Math.floor(entries / 5))`. Cap at 9 prevents over-awarding in very large classes. (Previous bug: no cap → could exceed 9.)
+
+`APHC_PTS_TABLE` — ApHC points lookup table, 6-tier hardcoded structure.
+
+Points system identifiers: `'entries'`, `'entries+1'`, `'aqha'`, `'fixed10'`, `'aphc'`, `'none'`.
 
 ---
 
@@ -255,6 +321,34 @@ NRCHA uses a 7-step **RUN CONTENT** scale: `--` / `-` / `√-` / `√` / `√+` 
 - **NRCHA Herd Work** — pending score sheet from user.
 
 Implementing these requires extending the `scorePairs` UI to support 7 buttons instead of 5. New UI work — do not add data only.
+
+### Horse / Rider Tab Combining (not yet implemented)
+
+Two riders often share one horse (trainer + owner, parent + child). The owner or parent pays the combined tab. Requirements:
+
+- Fuzzy horse name matching (same approach as rider fuzzy-match already in place).
+- Ability to group billing under one payee across different riders on the same horse.
+- Ability to split entries back out by rider if needed.
+- Do not implement without user — needs UX design session first.
+
+### Points System Verification
+
+Verify all org points formulas against `Example files/Horse ASSOCIATIONS Divisions and classes.xlsx`. Orgs that need checking: **ASHA, NVRHA, NRHA** specifically. Do not change formulas until the spreadsheet is reviewed together.
+
+### Results Parser Improvements
+
+`parseClassDivStr()` has known weaknesses for certain SHTX string formats. The audit panel (added this session) catches them at import time, but the underlying parser should be improved. Work through common failure patterns from audit logs before changing the parser.
+
+---
+
+## Todo List
+
+- [x] **Horse/rider tab combining** — implemented: billing groups (merge/split), horse alias canonical names, same-horse detection badge, Supabase sync via `billing_groups` + `horse_aliases` tables
+- [ ] **Points system verification** — audit ASHA, NVRHA, NRHA formulas against the Excel reference file (`Example files/Horse ASSOCIATIONS Divisions and classes.xlsx`)
+- [ ] **Results parser improvements** — strengthen `parseClassDivStr()` for edge-case SHTX strings; use audit panel failure patterns as test cases
+- [ ] **Feature flags → UI** — wire `enable_*` flags from `associations` table into the secretary app UI — do not implement without user present to test
+- [ ] **NRCHA scoring UI** — extend `scorePairs` system to support 7 buttons (±2 scale) for NRCHA cow work events; blocked on remaining score sheets from user
+- [ ] **Multi-tenant RLS** — tighten Supabase row-level security once multi-tenant architecture is ready; coordinate with user before any change
 
 ---
 
