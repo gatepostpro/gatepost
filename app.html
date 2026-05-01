@@ -570,6 +570,8 @@ var G = {
 
     scribePin: '',         // PIN required to open scribe mode (empty = no PIN)
 
+    gatePin: '',           // PIN required to open gate help (empty = no PIN)
+
     resultsVisible: false, // false = hidden from public; secretary can toggle
 
     fees:{
@@ -4242,7 +4244,7 @@ var SCORE_TEMPLATES={
 
   'Reining':{
 
-    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8','Maneuver 9'],
 
     penValues:[0.5,1,2,5], hasNRHA:true
 
@@ -4250,7 +4252,7 @@ var SCORE_TEMPLATES={
 
   'Trail':{
 
-    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8','Maneuver 9'],
 
     penValues:[1,3,5], hasNRHA:true
 
@@ -4258,7 +4260,7 @@ var SCORE_TEMPLATES={
 
   'Pleasure':{
 
-    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8','Maneuver 9'],
 
     penValues:[1,3,5], hasNRHA:true
 
@@ -4276,7 +4278,7 @@ var SCORE_TEMPLATES={
 
     maneuvers:['Boxing','Drive (Run & Rate)','Boxing 2','Drive 2 (Run & Rate)','Position & Control','Degree of Difficulty','Eye Appeal','Courage'],
 
-    penValues:[3,5]
+    penValues:[1,3,5]
 
   },
 
@@ -4288,7 +4290,7 @@ var SCORE_TEMPLATES={
 
   },
 
-  'Ranch Riding':{
+  'Ranch Reining':{
 
     maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
 
@@ -4296,9 +4298,17 @@ var SCORE_TEMPLATES={
 
   },
 
+  'Ranch Riding':{
+
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8','Maneuver 9','Maneuver 10','Maneuver 11','Maneuver 12','Maneuver 13','Maneuver 14','Maneuver 15'],
+
+    penValues:[1,3,5], hasNRHA:true
+
+  },
+
   'Ranch Trail':{
 
-    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8','Maneuver 9'],
 
     penValues:[1,3,5], hasNRHA:true
 
@@ -4331,6 +4341,97 @@ var SCORE_TEMPLATES={
 
     cowCount:3, categoriesPerCow:6
 
+  },
+
+  'Ranch Cutting':{
+    maneuvers:[
+      'Cow 1 — Herd Work','Cow 1 — Control of Cow','Cow 1 — Degree of Difficulty','Cow 1 — Eye Appeal',
+      'Cow 2 — Herd Work','Cow 2 — Control of Cow','Cow 2 — Degree of Difficulty','Cow 2 — Eye Appeal',
+      'Courage'
+    ],
+    penValues:[1,3,5],
+    cowCount:2, categoriesPerCow:4, postCowManeuvers:1
+  },
+
+  // ── APHA / ApHC association-specific templates ────────────────
+
+  'Ranch Reining (APHA)':{
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8','Maneuver 9','Maneuver 10'],
+    penValues:[0.5,1,2,5], hasNRHA:true
+  },
+
+  'Ranch Reining (ApHC)':{
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8','Maneuver 9'],
+    penValues:[0.5,1,2,5]
+  },
+
+  'Ranch Riding (ApHC)':{
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8','Maneuver 9','Maneuver 10','Maneuver 11','Maneuver 12'],
+    penValues:[1,3,5]
+  },
+
+  'Ranch Trail (10)':{
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8','Maneuver 9','Maneuver 10'],
+    penValues:[1,3,5], hasNRHA:true
+  },
+
+  'Ranch Cutting (APHA)':{
+    maneuvers:[
+      'Cow 1 — Hard Work','Cow 1 — Control of Cow','Cow 1 — Degree of Difficulty','Cow 1 — Eye Appeal',
+      'Cow 2 — Hard Work','Cow 2 — Control of Cow','Cow 2 — Degree of Difficulty','Cow 2 — Eye Appeal'
+    ],
+    penValues:[1,3,5], cowCount:2, categoriesPerCow:4
+  },
+
+  'Ranch Boxing':{
+    maneuvers:['Approach','Position','Form & Correctness','Control','Degree of Difficulty','Eye Appeal','Time Worked'],
+    penValues:[1,3,5]
+  },
+
+  'Ranch Box Drive':{
+    maneuvers:['Boxing','Drive (Run & Rate)','Position & Control','Degree of Difficulty','Eye Appeal','Courage'],
+    penValues:[1,3,5]
+  },
+
+  'ApHC Cow Work':{
+    maneuvers:['Scouting','Drive/Rate/Rally','Boxing','Drive/Turn & Rally','Position & Control','Degree of Difficulty','Eye Appeal','Courage'],
+    penValues:[1,3,5]
+  },
+
+  // ── NRCHA templates ───────────────────────────────────────────
+
+  'NRCHA Reined Work':{
+    maneuvers:['Maneuver 1','Maneuver 2','Maneuver 3','Maneuver 4','Maneuver 5','Maneuver 6','Maneuver 7','Maneuver 8'],
+    penValues:[0.5,1,2,5]
+  },
+
+  'NRCHA Cow Work':{
+    maneuvers:['Boxing','Rating','Form & Quality of Turns','Circling','Position & Control','Degree of Difficulty','Eye Appeal'],
+    scorePairs:[[-2,2,'--','++'],[-1,1,'-','+'],[-.5,.5,'√-','√+']], zeroLabel:'√',
+    penValues:[1,2,3,5]
+  },
+
+  'NRCHA Boxing':{
+    maneuvers:['Approach','Position','Form & Correctness','Control','Degree of Difficulty','Eye Appeal','Time Worked'],
+    scorePairs:[[-2,2,'--','++'],[-1,1,'-','+'],[-.5,.5,'√-','√+']], zeroLabel:'√',
+    penValues:[1,3,5]
+  },
+
+  'NRCHA Box Drive':{
+    maneuvers:['Boxing','Drive (Run & Rate)','Boxing 2','Drive 2 (Run & Rate)','Position & Control','Degree of Difficulty','Eye Appeal','Courage'],
+    scorePairs:[[-2,2,'--','++'],[-1,1,'-','+'],[-.5,.5,'√-','√+']], zeroLabel:'√',
+    penValues:[1,3,5]
+  },
+
+  'NRCHA Herd Work':{
+    maneuvers:['Herd Work','Control of Cow','Degree of Difficulty','Eye Appeal','Cow Score','Working Time'],
+    scorePairs:[[-2,2,'--','++'],[-1,1,'-','+'],[-.5,.5,'√-','√+']], zeroLabel:'√',
+    penValues:[1,3,5]
+  },
+
+  'NRCHA Steer Stopping':{
+    maneuvers:['Box','Run & Rate','Stop','Position','Eye Appeal','Degree of Difficulty','Loop'],
+    penValues:[2,5]
   }
 
 };
@@ -4345,20 +4446,62 @@ function getTemplateForDisc(name){
 
   var n=name.toLowerCase();
 
+  // Novice / Rookie Cow Work
   if(n.indexOf('novice')>=0&&n.indexOf('cow')>=0) return 'Novice Cow Work';
+  if(n.indexOf('rookie')>=0&&n.indexOf('cow')>=0) return 'Novice Cow Work';
 
+  // BDBD / Limited
   if(n.indexOf('bdbd')>=0) return 'BDBD Cow Work';
+  if(n.indexOf('limited')>=0&&n.indexOf('cow')>=0) return 'BDBD Cow Work';
+  if(n.indexOf('ltd')>=0&&n.indexOf('cow')>=0) return 'BDBD Cow Work';
 
+  // NRCHA — must precede generic ranch/cow/rein checks
+  if(n.indexOf('nrcha')>=0){
+    if(n.indexOf('herd')>=0) return 'NRCHA Herd Work';
+    if(n.indexOf('steer')>=0) return 'NRCHA Steer Stopping';
+    if(n.indexOf('box')>=0&&n.indexOf('drive')>=0) return 'NRCHA Box Drive';
+    if(n.indexOf('boxing')>=0) return 'NRCHA Boxing';
+    if(n.indexOf('cow')>=0) return 'NRCHA Cow Work';
+    if(n.indexOf('rein')>=0) return 'NRCHA Reined Work';
+  }
+
+  // APHA-specific
+  if(n.indexOf('apha')>=0){
+    if(n.indexOf('ranch')>=0&&n.indexOf('rein')>=0) return 'Ranch Reining (APHA)';
+    if(n.indexOf('cutting')>=0) return 'Ranch Cutting (APHA)';
+    if(n.indexOf('ranch')>=0&&n.indexOf('trail')>=0) return 'Ranch Trail (10)';
+    if(n.indexOf('box')>=0&&n.indexOf('drive')>=0) return 'Ranch Box Drive';
+    if(n.indexOf('boxing')>=0) return 'Ranch Boxing';
+  }
+
+  // ApHC-specific
+  if(n.indexOf('aphc')>=0){
+    if(n.indexOf('ranch')>=0&&n.indexOf('rein')>=0) return 'Ranch Reining (ApHC)';
+    if(n.indexOf('ranch')>=0&&n.indexOf('riding')>=0) return 'Ranch Riding (ApHC)';
+    if(n.indexOf('cutting')>=0) return 'Ranch Cutting (APHA)';
+    if(n.indexOf('ranch')>=0&&n.indexOf('trail')>=0) return 'Ranch Trail (10)';
+    if(n.indexOf('cow')>=0) return 'ApHC Cow Work';
+  }
+
+  // Ranch Boxing / Box Drive (non-NRCHA, before generic cow check)
+  if(n.indexOf('box')>=0&&n.indexOf('drive')>=0) return 'Ranch Box Drive';
+  if(n.indexOf('boxing')>=0) return 'Ranch Boxing';
+
+  // Ranch Cutting / Cutting
+  if(n.indexOf('ranch')>=0&&n.indexOf('cutting')>=0) return 'Ranch Cutting';
   if(n.indexOf('cutting')>=0) return 'Cutting';
 
   if(n.indexOf('cow')>=0) return 'Cow Work';
 
+  // Ranch disciplines (VRH / generic)
   if(n.indexOf('ranch')>=0&&n.indexOf('trail')>=0) return 'Ranch Trail';
 
   if(n.indexOf('ranch')>=0&&(n.indexOf('pleasure')>=0||n.indexOf('rail')>=0)) return 'Ranch Rail Pleasure';
 
-  if(n.indexOf('ranch')>=0&&(n.indexOf('rein')>=0||n.indexOf('riding')>=0)) return 'Ranch Riding';
+  if(n.indexOf('ranch')>=0&&n.indexOf('rein')>=0) return 'Ranch Reining';
+  if(n.indexOf('ranch')>=0&&n.indexOf('riding')>=0) return 'Ranch Riding';
 
+  // AQHA / generic
   if(n.indexOf('rein')>=0) return 'Reining';
 
   if(n.indexOf('trail')>=0) return 'Trail';
@@ -4408,6 +4551,7 @@ window.openScribeMode=function(initialKey){
   var sheetData=G.scratchpad;  // reference — writes persist automatically
 
   var tmplOverride={};
+  try{ var _to=localStorage.getItem('gp_tmploverride_'+G.showId); if(_to) tmplOverride=JSON.parse(_to); } catch(e){}
 
 
 
@@ -4498,6 +4642,7 @@ window.openScribeMode=function(initialKey){
       '.scr-pen-total{font-size:.78rem;color:#e74c3c;font-weight:700}'+
 
       '.scr-pclr{padding:.2rem .5rem;font-size:.72rem;border:1px solid var(--border2);border-radius:4px;cursor:pointer;background:transparent;color:var(--muted)}'+
+      '.scr-pen-note{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:.2rem .38rem;font-size:.68rem;margin-top:.2rem;text-transform:uppercase;letter-spacing:.04em}'+
 
       // Maneuver nav
 
@@ -4625,7 +4770,12 @@ window.openScribeMode=function(initialKey){
 
       }
 
-      return Math.round((70+cowSum/tmpl.cowCount-ps)*1000)/1000;
+      var postSum=0;
+      if(tmpl.postCowManeuvers){
+        var startIdx=tmpl.cowCount*tmpl.categoriesPerCow;
+        for(var p=0;p<tmpl.postCowManeuvers;p++) postSum+=(s.m[startIdx+p]||{score:0}).score;
+      }
+      return Math.round((70+cowSum/tmpl.cowCount+postSum-ps)*1000)/1000;
 
     }
 
@@ -4776,7 +4926,7 @@ window.openScribeMode=function(initialKey){
       tmpl.maneuvers.forEach(function(mname,mi){
 
         // Cow group divider card for NCHA cutting
-        if(tmpl.cowCount&&tmpl.categoriesPerCow&&mi%tmpl.categoriesPerCow===0){
+        if(tmpl.cowCount&&tmpl.categoriesPerCow&&mi%tmpl.categoriesPerCow===0&&mi<tmpl.cowCount*tmpl.categoriesPerCow){
           var cowNum=Math.floor(mi/tmpl.categoriesPerCow)+1;
           var cSum=0;
           for(var ck=0;ck<tmpl.categoriesPerCow;ck++) cSum+=(sheetData[selKey]&&sheetData[selKey][ri]&&sheetData[selKey][ri].m[((cowNum-1)*tmpl.categoriesPerCow+ck)]||{score:0}).score;
@@ -4784,7 +4934,7 @@ window.openScribeMode=function(initialKey){
           hscrollHtml+='<div class="scr-mcard" style="width:80px;background:var(--bg);border-color:var(--accent);'
             +'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem">'
             +'<div style="font-family:Oswald;font-size:1rem;color:var(--accent)">Cow '+cowNum+'</div>'
-            +'<div style="font-size:.65rem;color:var(--muted)">6 categories</div>'
+            +'<div style="font-size:.65rem;color:var(--muted)">'+tmpl.categoriesPerCow+' categories</div>'
             +'<div style="font-size:1.3rem;font-weight:700;color:'+cColor+'">'+(cSum>=0?'+':'')+cSum.toFixed(1)+'</div>'
             +'</div>';
         }
@@ -4818,7 +4968,7 @@ window.openScribeMode=function(initialKey){
 
           :'<span style="color:var(--muted)">0</span>';
 
-        var penDisp=cm.pen>0?'<span style="color:#e74c3c;font-weight:700;margin-left:.35rem">−'+cm.pen+' pen</span>':'';
+        var penDisp=cm.pen>0?'<span style="color:#e74c3c;font-weight:700;margin-left:.35rem">−'+cm.pen+(cm.penNote?' ('+esc(cm.penNote)+')':'')+' pen</span>':'';
 
         hscrollHtml+='<div class="scr-mcard'+(touched?' touched':'')+statusCardClass+'">'
 
@@ -4837,6 +4987,7 @@ window.openScribeMode=function(initialKey){
              +'<div class="scr-mc-pbtns">'+penBtns+'</div>'
 
              +(cm.pen>0?'<button class="scr-pclr" style="margin-bottom:.3rem" onclick="scrMPenClr('+mi+')">✕ clear penalty</button>':'')
+             +(cm.pen>0?'<input class="scr-pen-note" type="text" maxlength="12" placeholder="Code (e.g. W/O)" value="'+esc(cm.penNote||'')+'" onchange="scrSetPenNote('+mi+',this.value)">':'')
 
             :'')
 
@@ -5026,7 +5177,8 @@ window.openScribeMode=function(initialKey){
 
     window.scrMPenAdd=function(mi,pv){ var st=initState(ri); st.m[mi].pen=Math.round((st.m[mi].pen+pv)*10)/10; saveScratch(); render(); };
 
-    window.scrMPenClr=function(mi){ initState(ri).m[mi].pen=0; saveScratch(); render(); };
+    window.scrMPenClr=function(mi){ var m=initState(ri).m[mi]; m.pen=0; m.penNote=''; saveScratch(); render(); };
+    window.scrSetPenNote=function(mi,v){ initState(ri).m[mi].penNote=(v||'').trim().toUpperCase(); saveScratch(); };
 
     window.scrToggleOP=function(){ var st=initState(ri); st.isOP=!st.isOP; if(st.isOP)st.isDQ=false; saveScratch(); render(); };
 
@@ -5040,7 +5192,7 @@ window.openScribeMode=function(initialKey){
 
     window.scrSelClass=function(key){ selKey=key; riderIdx=0; mvrIdx=0; render(); };
 
-    window.scrSetTmpl=function(name){ tmplOverride[selKey]=name; sheetData[selKey]={}; mvrIdx=0; render(); };
+    window.scrSetTmpl=function(name){ tmplOverride[selKey]=name; sheetData[selKey]={}; mvrIdx=0; try{ localStorage.setItem('gp_tmploverride_'+G.showId,JSON.stringify(tmplOverride)); } catch(e){} render(); };
 
     window.scrPrevRider=function(){ if(riderIdx>0){ riderIdx--; mvrIdx=0; render(); } };
 
@@ -7558,6 +7710,30 @@ function pgSetup(){
 
   +'</div>'
 
+  +'<div style="border-top:1px solid var(--border);padding-top:.75rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">'
+
+  +'<div style="flex:1;min-width:180px">'
+
+  +'<div style="font-size:.85rem;font-weight:600">Gate PIN</div>'
+
+  +'<div style="font-size:.75rem;color:var(--muted)">Gate helpers enter this to access the gate page. Leave blank for no PIN.</div>'
+
+  +'</div>'
+
+  +'<div style="display:flex;gap:.4rem;align-items:center">'
+
+  +'<input id="gate-pin-input" type="text" inputmode="numeric" maxlength="8" placeholder="No PIN" '
+
+  +'value="'+esc(s.gatePin||'')+'" '
+
+  +'style="width:90px;text-align:center;letter-spacing:.15em;font-size:.95rem;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.32rem .5rem">'
+
+  +'<button class="btn btn-dark btn-sm" onclick="saveGatePin()">Save</button>'
+
+  +'</div>'
+
+  +'</div>'
+
 
 
   +'</div></div>';
@@ -7603,6 +7779,22 @@ window.saveScribePin=function(){
   try{ localStorage.setItem('gatepost_cfg',JSON.stringify(G.cfg)); } catch(e){}
 
   var btn=document.querySelector('#scribe-pin-input+button');
+
+  if(btn){ btn.textContent='Saved ✓'; setTimeout(function(){ btn.textContent='Save'; },1500); }
+
+};
+
+
+
+window.saveGatePin=function(){
+
+  var val=(document.getElementById('gate-pin-input').value||'').trim();
+
+  G.cfg.gatePin=val;
+
+  try{ localStorage.setItem('gatepost_cfg',JSON.stringify(G.cfg)); } catch(e){}
+
+  var btn=document.querySelector('#gate-pin-input+button');
 
   if(btn){ btn.textContent='Saved ✓'; setTimeout(function(){ btn.textContent='Save'; },1500); }
 

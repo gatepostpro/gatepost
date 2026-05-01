@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Thorofare — Gate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#090f0b;--card:#0e1a10;--card2:#122014;
+  --text:#e8ede4;--muted:#6a8a64;
+  --accent:#c8922a;
+  --border:#1a301c;--border2:#1f3a22;
+  --topbar:#0a120c;
+  --green:#2ecc71;--red:#e74c3c;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:'Inter',sans-serif;font-size:16px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;outline:none;background:transparent;color:inherit}
+input{font-family:inherit;font-size:inherit}
+
+/* ── Shell ───────────────────────────────────────── */
+#app{display:flex;flex-direction:column;height:100vh;max-width:640px;margin:0 auto}
+
+/* ── Head bar ───────────────────────────────────── */
+#gate-head{
+  background:var(--topbar);border-bottom:1px solid var(--border2);
+  padding:.45rem .65rem;display:flex;align-items:center;gap:.5rem;flex-shrink:0
+}
+.head-show{font-family:Oswald;font-size:.9rem;color:var(--accent);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.head-lbl{font-size:.72rem;color:var(--muted);white-space:nowrap}
+.btn-refresh{padding:.28rem .6rem;border-radius:6px;border:1px solid var(--border2);background:var(--card);color:var(--muted);font-size:.72rem;font-weight:600;margin-left:.1rem}
+
+/* ── Sync note ──────────────────────────────────── */
+#sync-note{
+  background:rgba(200,146,42,.07);border-bottom:1px solid rgba(200,146,42,.18);
+  padding:.3rem .65rem;font-size:.7rem;color:#8aaa70;flex-shrink:0;line-height:1.4
+}
+
+/* ── Body ────────────────────────────────────────── */
+#gate-body{flex:1;overflow:hidden;position:relative}
+
+/* ── Class list view ────────────────────────────── */
+#view-list{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.cls-row{
+  display:flex;align-items:center;gap:.55rem;
+  padding:.65rem .75rem;border-bottom:1px solid var(--border);cursor:pointer
+}
+.cls-row:active{background:var(--card2)}
+.cls-num{font-family:Oswald;color:var(--accent);font-size:.9rem;width:2.2rem;flex-shrink:0;text-align:right}
+.cls-info{flex:1;min-width:0}
+.cls-name{font-weight:600;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cls-count{font-size:.7rem;color:var(--muted);margin-top:1px}
+.badge-closed{font-size:.6rem;font-weight:800;padding:.1rem .32rem;border-radius:3px;background:rgba(231,76,60,.18);color:var(--red);flex-shrink:0;letter-spacing:.03em}
+.cls-chev{color:var(--muted);font-size:.8rem;flex-shrink:0}
+
+/* ── Detail view ────────────────────────────────── */
+#view-detail{position:absolute;inset:0;flex-direction:column;display:none}
+#detail-hdr{
+  background:var(--card2);border-bottom:1px solid var(--border2);
+  padding:.42rem .65rem;display:flex;align-items:center;gap:.5rem;flex-shrink:0
+}
+.btn-back{padding:.3rem .6rem;border-radius:6px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:.78rem;font-weight:600;flex-shrink:0}
+.detail-title{font-family:Oswald;font-size:.95rem;color:var(--accent);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn-cls-toggle{padding:.3rem .65rem;border-radius:6px;font-size:.72rem;font-weight:700;border:1px solid;flex-shrink:0}
+.btn-cls-toggle.is-open{border-color:var(--border2);background:var(--card);color:var(--muted)}
+.btn-cls-toggle.is-closed{border-color:rgba(231,76,60,.45);background:rgba(231,76,60,.12);color:var(--red)}
+#detail-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* ── Entry rows ─────────────────────────────────── */
+.sec-hdr{
+  padding:.38rem .75rem .22rem;font-size:.68rem;font-weight:700;
+  color:var(--muted);text-transform:uppercase;letter-spacing:.07em;
+  border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0
+}
+.entry-row{display:flex;align-items:center;gap:.5rem;padding:.52rem .75rem;border-bottom:1px solid var(--border)}
+.entry-row.is-scratched{opacity:.42}
+.e-back{font-family:Oswald;color:var(--accent);font-size:.85rem;min-width:2.4rem;flex-shrink:0}
+.e-info{flex:1;min-width:0}
+.e-name{font-weight:600;font-size:.83rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.e-horse{font-size:.7rem;color:var(--muted)}
+.btn-scratch{padding:.24rem .52rem;border-radius:5px;font-size:.7rem;font-weight:700;border:1px solid rgba(231,76,60,.4);background:rgba(231,76,60,.1);color:var(--red);flex-shrink:0}
+.btn-restore{padding:.24rem .52rem;border-radius:5px;font-size:.7rem;font-weight:700;border:1px solid rgba(46,204,113,.3);background:rgba(46,204,113,.08);color:var(--green);flex-shrink:0}
+.btn-add-wrap{padding:.65rem .75rem}
+.btn-add{
+  display:flex;align-items:center;justify-content:center;gap:.4rem;
+  width:100%;padding:.55rem;border-radius:8px;
+  border:1px dashed var(--border2);color:var(--muted);font-size:.83rem;font-weight:600
+}
+.btn-add[disabled]{opacity:.38;pointer-events:none}
+.empty{padding:1.5rem;text-align:center;color:var(--muted);font-size:.83rem}
+
+/* ── Add rider modal ────────────────────────────── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:flex-end;justify-content:center;z-index:100}
+.sheet{background:var(--card);border-radius:14px 14px 0 0;width:100%;max-width:640px;max-height:80vh;display:flex;flex-direction:column;border-top:1px solid var(--border2)}
+.sheet-hdr{padding:.75rem .9rem .5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;flex-shrink:0}
+.sheet-title{font-family:Oswald;font-size:1rem;color:var(--accent);flex:1}
+.btn-x{color:var(--muted);font-size:1.1rem;padding:.2rem .5rem}
+.sheet-search{margin:.45rem .9rem;padding:.42rem .6rem;background:var(--bg);border:1px solid var(--border2);border-radius:7px;color:var(--text);width:calc(100% - 1.8rem);flex-shrink:0}
+.sheet-search:focus{border-color:var(--accent);outline:none}
+.sheet-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.sheet-row{display:flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-bottom:1px solid var(--border);cursor:pointer}
+.sheet-row:active{background:var(--card2)}
+
+/* ── PIN screen ─────────────────────────────────── */
+.pin-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:200;padding:1.5rem}
+.pin-card{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:1.75rem 1.5rem;width:100%;max-width:300px;text-align:center}
+.pin-title{font-family:Oswald;font-size:1.25rem;color:var(--accent);margin-bottom:.3rem}
+.pin-sub{font-size:.78rem;color:var(--muted);margin-bottom:1.1rem}
+.pin-inp{width:100%;text-align:center;font-size:1.5rem;letter-spacing:.28em;background:var(--bg);border:2px solid var(--border2);border-radius:8px;color:var(--text);padding:.5rem;margin-bottom:.45rem}
+.pin-inp:focus{border-color:var(--accent);outline:none}
+.pin-err{color:var(--red);font-size:.74rem;min-height:1rem;margin-bottom:.4rem}
+.btn-go{width:100%;padding:.5rem;border-radius:7px;background:var(--accent);color:#000;font-weight:700;font-size:.9rem}
+
+/* ── No data ────────────────────────────────────── */
+.no-data{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:150;padding:1.5rem}
+.no-data-card{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:1.75rem 1.5rem;max-width:300px;text-align:center}
+.nd-title{font-family:Oswald;font-size:1.2rem;color:var(--accent);margin-bottom:.6rem}
+.nd-body{font-size:.85rem;color:var(--muted);line-height:1.6}
+</style>
+</head>
+<body>
+
+<!-- PIN Screen -->
+<div class="pin-screen" id="pin-screen" style="display:none">
+  <div class="pin-card">
+    <div class="pin-title">Gate Access</div>
+    <div class="pin-sub">Enter your PIN to continue</div>
+    <input class="pin-inp" id="pin-inp" type="password" inputmode="numeric" maxlength="8" placeholder="••••" autocomplete="off">
+    <div class="pin-err" id="pin-err"></div>
+    <button class="btn-go" onclick="checkPin()">Enter</button>
+  </div>
+</div>
+
+<!-- No data -->
+<div class="no-data" id="no-data" style="display:none">
+  <div class="no-data-card">
+    <div class="nd-title">No Show Data</div>
+    <p class="nd-body">No show ID found in URL. Open this page from the secretary app.</p>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app" style="display:none">
+  <div id="gate-head">
+    <span class="head-show" id="head-show">Gate Help</span>
+    <span class="head-lbl">Gate</span>
+    <button class="btn-refresh" onclick="refreshData()">⟳ Refresh</button>
+  </div>
+  <div id="sync-note">
+    ⚠ Changes sync within this device only. Tap Refresh to load the latest from the secretary. Other gate helpers must also tap Refresh to see your changes.
+  </div>
+  <div id="gate-body">
+
+    <!-- Class list view -->
+    <div id="view-list">
+      <div id="cls-list"></div>
+    </div>
+
+    <!-- Class detail view -->
+    <div id="view-detail">
+      <div id="detail-hdr">
+        <button class="btn-back" onclick="showList()">← Classes</button>
+        <span class="detail-title" id="detail-title"></span>
+        <button class="btn-cls-toggle" id="btn-close-toggle" onclick="toggleClose()"></button>
+      </div>
+      <div id="detail-scroll"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Add rider modal -->
+<div class="overlay" id="add-modal" style="display:none" onclick="hideModal()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-hdr">
+      <span class="sheet-title">Add Rider</span>
+      <button class="btn-x" onclick="hideModal()">✕</button>
+    </div>
+    <input class="sheet-search" id="add-search" placeholder="Search by name, back #, or horse…" oninput="renderAddList()">
+    <div class="sheet-list" id="add-list"></div>
+  </div>
+</div>
+
+<script>
+var showId = '';
+var selKey = '';
+var G = {
+  entries: [], classOrder: {}, scratches: {}, fullScratches: [], backNums: {},
+  cfg: { gatePin: '', showName: '', showDate: '' }
+};
+var classMap = {};
+var classList = [];
+var closedClasses = [];
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function clsKey(c){ return (c.num?c.num+'_':'')+c.name; }
+
+function backNum(ri){
+  for(var k in G.backNums){ if(G.backNums[k]===ri) return k; }
+  return '';
+}
+
+// ─── Entry helpers ────────────────────────────────────────────
+function getActive(key){
+  var sc = G.scratches[key] || [];
+  var order = G.classOrder[key];
+  if(order && order.length){
+    return order
+      .filter(function(ri){ return sc.indexOf(ri) < 0; })
+      .map(function(ri){ return G.entries.find(function(e){ return e.rowIndex === ri; }); })
+      .filter(Boolean);
+  }
+  return G.entries.filter(function(e){
+    if(G.fullScratches.indexOf(e.rowIndex) >= 0) return false;
+    if(sc.indexOf(e.rowIndex) >= 0) return false;
+    return (e.classes||[]).some(function(c){ return clsKey(c) === key; });
+  });
+}
+
+function getScratched(key){
+  var sc = G.scratches[key] || [];
+  return G.entries.filter(function(e){ return sc.indexOf(e.rowIndex) >= 0; });
+}
+
+function getAddCandidates(){
+  var active = getActive(selKey).map(function(e){ return e.rowIndex; });
+  var scratched = G.scratches[selKey] || [];
+  return G.entries.filter(function(e){
+    if(G.fullScratches.indexOf(e.rowIndex) >= 0) return false;
+    if(active.indexOf(e.rowIndex) >= 0) return false;
+    if(scratched.indexOf(e.rowIndex) >= 0) return false; // use Restore instead
+    return true;
+  });
+}
+
+// ─── Class map ───────────────────────────────────────────────
+function buildClasses(){
+  classMap = {};
+  G.entries.forEach(function(e){
+    (e.classes||[]).forEach(function(c){
+      var k = clsKey(c);
+      if(!classMap[k]) classMap[k] = { key:k, num:c.num, name:c.name };
+    });
+  });
+  classList = Object.values(classMap).sort(function(a,b){
+    return (parseInt(a.num)||999) - (parseInt(b.num)||999);
+  });
+}
+
+// ─── Class list view ─────────────────────────────────────────
+function showList(){
+  selKey = '';
+  document.getElementById('view-list').style.display = 'block';
+  document.getElementById('view-detail').style.display = 'none';
+  renderList();
+}
+
+function renderList(){
+  var html = '';
+  if(!classList.length){
+    html = '<div class="empty">No classes found. Make sure entries have been loaded in the secretary app, then tap Refresh.</div>';
+  } else {
+    classList.forEach(function(cls){
+      var active = getActive(cls.key);
+      var isClosed = closedClasses.indexOf(cls.key) >= 0;
+      html += '<div class="cls-row" onclick="showDetail(\''+esc(cls.key)+'\')">'
+        + '<span class="cls-num">' + esc(cls.num||'') + '</span>'
+        + '<span class="cls-info">'
+          + '<div class="cls-name">' + esc(cls.name) + '</div>'
+          + '<div class="cls-count">' + active.length + ' rider' + (active.length===1?'':'s') + '</div>'
+        + '</span>'
+        + (isClosed ? '<span class="badge-closed">CLOSED</span>' : '')
+        + '<span class="cls-chev">›</span>'
+        + '</div>';
+    });
+  }
+  document.getElementById('cls-list').innerHTML = html;
+}
+
+// ─── Class detail view ───────────────────────────────────────
+function showDetail(key){
+  selKey = key;
+  document.getElementById('view-list').style.display = 'none';
+  document.getElementById('view-detail').style.display = 'flex';
+  renderDetail();
+}
+
+function renderDetail(){
+  var cls = classMap[selKey];
+  if(!cls) return;
+
+  document.getElementById('detail-title').textContent = (cls.num ? cls.num + ' ' : '') + cls.name;
+  var isClosed = closedClasses.indexOf(selKey) >= 0;
+  var btn = document.getElementById('btn-close-toggle');
+  btn.textContent = isClosed ? 'Reopen' : 'Close Class';
+  btn.className = 'btn-cls-toggle ' + (isClosed ? 'is-closed' : 'is-open');
+
+  var active = getActive(selKey);
+  var scratched = getScratched(selKey);
+  var html = '';
+
+  if(active.length){
+    html += '<div class="sec-hdr">In Class (' + active.length + ')</div>';
+    active.forEach(function(e){
+      var bn = backNum(e.rowIndex);
+      html += '<div class="entry-row">'
+        + '<span class="e-back">' + (bn ? '#'+esc(bn) : '') + '</span>'
+        + '<span class="e-info">'
+          + '<div class="e-name">' + esc(e.name||'') + '</div>'
+          + (e.horse ? '<div class="e-horse">' + esc(e.horse) + '</div>' : '')
+        + '</span>'
+        + '<button class="btn-scratch" onclick="scratchRider(' + e.rowIndex + ')">Scratch</button>'
+        + '</div>';
+    });
+  } else {
+    html += '<div class="empty">No active riders in this class.</div>';
+  }
+
+  if(scratched.length){
+    html += '<div class="sec-hdr">Scratched (' + scratched.length + ')</div>';
+    scratched.forEach(function(e){
+      var bn = backNum(e.rowIndex);
+      html += '<div class="entry-row is-scratched">'
+        + '<span class="e-back">' + (bn ? '#'+esc(bn) : '') + '</span>'
+        + '<span class="e-info">'
+          + '<div class="e-name">' + esc(e.name||'') + '</div>'
+          + (e.horse ? '<div class="e-horse">' + esc(e.horse) + '</div>' : '')
+        + '</span>'
+        + '<button class="btn-restore" onclick="restoreRider(' + e.rowIndex + ')">Restore</button>'
+        + '</div>';
+    });
+  }
+
+  html += '<div class="btn-add-wrap">'
+    + '<button class="btn-add" onclick="showModal()" ' + (isClosed ? 'disabled' : '') + '>＋ Add Rider</button>'
+    + '</div>';
+
+  document.getElementById('detail-scroll').innerHTML = html;
+}
+
+// ─── Actions ─────────────────────────────────────────────────
+function scratchRider(ri){
+  if(!G.scratches[selKey]) G.scratches[selKey] = [];
+  if(G.scratches[selKey].indexOf(ri) < 0) G.scratches[selKey].push(ri);
+  saveData();
+  renderDetail();
+  renderList();
+}
+
+function restoreRider(ri){
+  if(!G.scratches[selKey]) return;
+  G.scratches[selKey] = G.scratches[selKey].filter(function(x){ return x !== ri; });
+  saveData();
+  renderDetail();
+  renderList();
+}
+
+function addRider(ri){
+  if(!G.classOrder[selKey] || !G.classOrder[selKey].length){
+    G.classOrder[selKey] = getActive(selKey).map(function(e){ return e.rowIndex; });
+  }
+  if(G.classOrder[selKey].indexOf(ri) < 0) G.classOrder[selKey].push(ri);
+  if(G.scratches[selKey]){
+    G.scratches[selKey] = G.scratches[selKey].filter(function(x){ return x !== ri; });
+  }
+  saveData();
+  hideModal();
+  renderDetail();
+  renderList();
+}
+
+function toggleClose(){
+  var i = closedClasses.indexOf(selKey);
+  if(i >= 0) closedClasses.splice(i, 1);
+  else closedClasses.push(selKey);
+  saveClosedClasses();
+  renderDetail();
+  renderList();
+}
+
+// ─── Save ────────────────────────────────────────────────────
+function saveData(){
+  try{
+    localStorage.setItem('gp_scratches_' + showId, JSON.stringify(G.scratches));
+    localStorage.setItem('gp_classorder_' + showId, JSON.stringify(G.classOrder));
+  } catch(e){}
+}
+
+function saveClosedClasses(){
+  try{ localStorage.setItem('gp_closedclasses_' + showId, JSON.stringify(closedClasses)); } catch(e){}
+}
+
+// ─── Add modal ───────────────────────────────────────────────
+function showModal(){
+  document.getElementById('add-search').value = '';
+  renderAddList();
+  document.getElementById('add-modal').style.display = 'flex';
+  setTimeout(function(){ document.getElementById('add-search').focus(); }, 80);
+}
+
+function hideModal(){
+  document.getElementById('add-modal').style.display = 'none';
+}
+
+function renderAddList(){
+  var q = (document.getElementById('add-search').value || '').toLowerCase().trim();
+  var candidates = getAddCandidates();
+  if(q){
+    candidates = candidates.filter(function(e){
+      return (e.name||'').toLowerCase().indexOf(q) >= 0
+        || String(backNum(e.rowIndex)).toLowerCase().indexOf(q) >= 0
+        || (e.horse||'').toLowerCase().indexOf(q) >= 0;
+    });
+  }
+  var html = '';
+  if(!candidates.length){
+    html = '<div class="empty">No riders to add' + (q ? ' matching "'+esc(q)+'"' : '') + '.</div>';
+  } else {
+    candidates.forEach(function(e){
+      var bn = backNum(e.rowIndex);
+      html += '<div class="sheet-row" onclick="addRider(' + e.rowIndex + ')">'
+        + '<span style="font-family:Oswald;color:var(--accent);font-size:.85rem;min-width:2.4rem;flex-shrink:0">' + (bn ? '#'+esc(bn) : '') + '</span>'
+        + '<span style="flex:1;min-width:0">'
+          + '<div style="font-weight:600;font-size:.83rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(e.name||'') + '</div>'
+          + (e.horse ? '<div style="font-size:.7rem;color:var(--muted)">' + esc(e.horse) + '</div>' : '')
+        + '</span>'
+        + '</div>';
+    });
+  }
+  document.getElementById('add-list').innerHTML = html;
+}
+
+// ─── Refresh ─────────────────────────────────────────────────
+function refreshData(){
+  var prevKey = selKey;
+  loadData();
+  buildClasses();
+  if(prevKey && classMap[prevKey]){
+    renderList();
+    renderDetail();
+  } else {
+    showList();
+  }
+}
+
+// ─── Data load ───────────────────────────────────────────────
+function loadData(){
+  try{
+    var e  = localStorage.getItem('gp_entries_'      + showId); if(e)  G.entries      = JSON.parse(e);
+    var bn = localStorage.getItem('gp_backnums_'     + showId); if(bn) G.backNums      = JSON.parse(bn);
+    var co = localStorage.getItem('gp_classorder_'   + showId); if(co) G.classOrder    = JSON.parse(co);
+    var sk = localStorage.getItem('gp_scratches_'    + showId); if(sk) G.scratches     = JSON.parse(sk);
+    var fs = localStorage.getItem('gp_fullscratches_'+ showId); if(fs) G.fullScratches = JSON.parse(fs);
+    var cc = localStorage.getItem('gp_closedclasses_'+ showId); if(cc) closedClasses   = JSON.parse(cc);
+  } catch(ex){ console.warn('Gate load failed', ex); }
+}
+
+// ─── PIN ─────────────────────────────────────────────────────
+function checkPin(){
+  var val = document.getElementById('pin-inp').value;
+  if(val === String(G.cfg.gatePin)){
+    document.getElementById('pin-screen').style.display = 'none';
+    boot();
+  } else {
+    document.getElementById('pin-err').textContent = 'Incorrect PIN — try again';
+    document.getElementById('pin-inp').value = '';
+    document.getElementById('pin-inp').focus();
+  }
+}
+
+// ─── Init ────────────────────────────────────────────────────
+function boot(){
+  loadData();
+  buildClasses();
+  document.getElementById('head-show').textContent = G.cfg.showName || 'Untitled Show';
+  document.getElementById('app').style.display = 'flex';
+  showList();
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  var params = new URLSearchParams(window.location.search);
+  showId = params.get('show');
+  if(!showId){
+    document.getElementById('no-data').style.display = 'flex';
+    return;
+  }
+
+  try{ var cfg = localStorage.getItem('gatepost_cfg'); if(cfg) G.cfg = JSON.parse(cfg); } catch(e){}
+
+  if(G.cfg.gatePin){
+    document.getElementById('pin-screen').style.display = 'flex';
+    document.getElementById('pin-inp').focus();
+    document.getElementById('pin-inp').addEventListener('keydown', function(e){
+      if(e.key === 'Enter') checkPin();
+    });
+  } else {
+    boot();
+  }
+});
+</script>
+</body>
+</html>
