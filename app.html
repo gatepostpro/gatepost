@@ -562,9 +562,13 @@ var G = {
 
   resultsFile: '',
 
-  billingGroups: [], // [{id, payerName, entryKeys:['Rider|Horse',...], notes}]
+  billingGroups: [], // [{id, payerName, responsibleKey, entryKeys:['Rider|Horse',...], notes}]
 
   horseAliases: {},  // {normKey: canonicalSpelling} — Cognito spelling wins
+
+  horseDistinct: {}, // {entryKey: 'normKey_N'} — disambiguates same-name horses that are different animals
+
+  paymentHistory: {}, // same keys as G.payments; values are [{amount,method,checkNum,note,paidAt}]
 
   scoreLinks: {},    // "org|div|disc" → URL for score sheet PDF
 
@@ -574,7 +578,7 @@ var G = {
 
   cfg: {
 
-    showName:'', showDate:'', location:'', secretary:'', email:'',
+    showName:'', showDate:'', location:'', secretary:'', email:'', logoUrl:'',
 
     scribePin: '',         // PIN required to open scribe mode (empty = no PIN)
 
@@ -610,7 +614,8 @@ var G = {
 
     orgs:['CoWN'],   // associations this show runs
 
-    extraFees:[], feeSchedule:null  // feeSchedule: [{key,label,amt}] array or null for defaults
+    extraFees:[], feeSchedule:null, // feeSchedule: [{key,label,amt,cat}] array or null for defaults
+    assocFees:[]  // [{id,org,desc,amt,per:'entry'|'class',disciplines:[]}] per-org auto fees
 
   }
 
@@ -694,176 +699,660 @@ var COW_WORDS = ['cow','cut','boxing','working'];
 
 
 
-function parseCognito(wb){
+// classCols: explicit [{i,div,org,isCow}] from audit (null = auto-detect from headers)
+// customFields: [{name,col}] extra columns to capture per-entry as customFees
+function parseCognito(wb, colMapping, classCols, customFields){
+  var m = colMapping || {};
+  var gc = function(r, key, defaultCol){
+    var col = (key in m) ? m[key] : defaultCol;
+    return (col != null) ? r[col] : null;
+  };
+  var gn = function(r, key, defaultCol){
+    var v = gc(r, key, defaultCol);
+    return (typeof v === 'number' && v > 0) ? v : 0;
+  };
 
   var ws = wb.Sheets[wb.SheetNames[0]];
-
   var raw = XLSX.utils.sheet_to_json(ws,{header:1,defval:null,cellDates:true});
-
   var headers = raw[0];
 
-  // Sanity-check: Cognito exports have "Entry #" or "Rider" in early columns
-
-  // SHTX/Funnware files have "Show", "ClassDivision" etc — reject them here
-
   var headerStr = (headers||[]).slice(0,10).map(function(h){ return String(h||'').toLowerCase(); }).join('|');
-
   if(headerStr.indexOf('classdivision')>-1 || headerStr.indexOf('placecode')>-1){
-
     throw new Error('This looks like a Funnware/SHTX results file, not a Cognito entry form export. Use the Results tab to import it.');
-
   }
 
-  var rows = raw.slice(1).filter(function(r){ return r[4]; });
+  var riderCol = ('riderName' in m) ? m.riderName : 4;
+  var rows = raw.slice(1).filter(function(r){ return riderCol != null ? r[riderCol] : r[4]; });
 
-
-
-  // Build column role map from headers
-
-  var classCols = []; // {colIdx, divName, org, isCowCount}
-
-  headers.forEach(function(h,i){
-
-    if(!h) return;
-
-    if(isClassCol(String(h))){ classCols.push({i:i, div:extractDivName(String(h)), org:detectOrg(String(h)), isCow:false}); }
-
-    else if(isCowCountCol(String(h))){ classCols.push({i:i, div:extractDivName(String(h)), org:detectOrg(String(h)), isCow:true}); }
-
-  });
-
-
+  // Use explicit class column list from audit (with user edits) or auto-detect
+  var detectedClassCols;
+  if(classCols != null){
+    detectedClassCols = classCols;
+  } else {
+    detectedClassCols = [];
+    headers.forEach(function(h,i){
+      if(!h) return;
+      if(isClassCol(String(h)))      detectedClassCols.push({i:i, div:extractDivName(String(h)), org:detectOrg(String(h)), isCow:false});
+      else if(isCowCountCol(String(h))) detectedClassCols.push({i:i, div:extractDivName(String(h)), org:detectOrg(String(h)), isCow:true});
+    });
+  }
 
   return rows.map(function(r,idx){
-
     var orderStr = String(r[3]||'');
-
     var amtM = orderStr.match(/\$([\d,]+\.?\d*)/);
-
     var amount = amtM ? parseFloat(amtM[1].replace(/,/g,'')) : 0;
-
     var isPaid = orderStr.toLowerCase().indexOf('unpaid') === -1;
 
-
-
     var classes = [];
-
-    classCols.forEach(function(cc){
-
-      if(cc.isCow) return; // skip count cols for class list
-
+    detectedClassCols.forEach(function(cc){
+      if(cc.isCow) return;
       var val = r[cc.i];
-
       if(!val || !String(val).trim()) return;
-
       String(val).split(',').forEach(function(cls){
-
         cls = cls.replace(/\xa0/g,' ').trim();
-
         if(!cls) return;
-
-        var m = cls.match(/^(\d+)[\s\-–]+(.+)$/);
-
-        var rawName = m ? m[2].trim() : cls;
+        var mx = cls.match(/^(\d+)[\s\-–]+(.+)$/);
+        var rawName = mx ? mx[2].trim() : cls;
         classes.push({
-
-          num: m ? m[1].trim() : '',
-
+          num: mx ? mx[1].trim() : '',
           name: normalizeDiscName(rawName, cc.org) || rawName,
-
           division: cc.div,
-
           org: cc.org,
-
           raw: cls
-
         });
-
       });
-
     });
 
+    var customFeesObj = {};
+    if(customFields && customFields.length){
+      customFields.forEach(function(cf){
+        if(cf.col!=null && cf.name){
+          var v = r[cf.col];
+          customFeesObj[cf.name] = (typeof v==='number' && v>0) ? v : 0;
+        }
+      });
+    }
 
-
-    // Parse associations shown
-
-    var assocRaw = String(r[13]||'');
-
-
-
-    // Stalling: col55=qty 1-night, col57=qty 2-night, col59=shavings bags
-
-    // RV: col62=qty 1-night, col64=qty 2-night, col66=circuit qty
-
-    var stall1qty = (typeof r[55]==='number' && r[55]>0) ? r[55] : 0;
-
-    var stall2qty = (typeof r[57]==='number' && r[57]>0) ? r[57] : 0;
-
-    var shavings  = (typeof r[59]==='number' && r[59]>0) ? r[59] : 0;
-
-    var rv1qty    = (typeof r[62]==='number' && r[62]>0) ? r[62] : 0;
-
-    var rv2qty    = (typeof r[64]==='number' && r[64]>0) ? r[64] : 0;
-
-    var rvCircuit = (typeof r[66]==='number' && r[66]>0) ? r[66] : 0;
-
-    var stallNote = r[53] ? String(r[53]) : '';
-
-    var _nameParts = String(r[4]||'').trim().split(/\s+/);
-    var _addr = parseUSAddress(String(r[5]||''));
+    var nameRaw    = String(gc(r,'riderName',4)||'').trim();
+    var _nameParts = nameRaw.split(/\s+/);
+    var _addr      = parseUSAddress(String(gc(r,'address',5)||''));
 
     return {
-
-      rowIndex:idx, entryNum:r[0], submitted:r[2],
-
-      name:_nameParts.join(' '),
-      firstName:_nameParts[0]||'',
-      lastName:_nameParts.slice(1).join(' ')||'',
-
-      address:_addr.street,
-      city:_addr.city,
-      state:_addr.state,
-      zip:_addr.zip,
-
-      phone:String(r[6]||'').trim(),
-
-      email:String(r[7]||'').trim(),
-
-      dob:r[8],
-
-      horse:String(r[9]||'').trim(),
-
-      horseGender:String(r[10]||'').trim(),
-
-      horseOwner:String(r[11]||'').trim(),
-
-      horseDob:r[12],
-
-      assocRaw:assocRaw,
-
-      hasMembership:String(r[14]||'').trim(),
-
-      memberNum:String(r[15]||'').replace(/\xa0/g,'').trim(),
-
-      needsMembership:String(r[16]||'').trim(),
-
-      division:String(r[17]||'').trim(),
-
-      classes:classes,
-
-      stall1qty:stall1qty, stall2qty:stall2qty, shavings:shavings,
-
-      rv1qty:rv1qty, rv2qty:rv2qty, rvCircuit:rvCircuit, stallNote:stallNote,
-
-      cognitoAmount:amount, isPaid:isPaid, orderStr:orderStr
-
+      rowIndex:idx, entryNum:gc(r,'entryNum',0), submitted:r[2],
+      name: nameRaw,
+      firstName: _nameParts[0]||'',
+      lastName: _nameParts.slice(1).join(' ')||'',
+      address: _addr.street, city: _addr.city, state: _addr.state, zip: _addr.zip,
+      phone: String(gc(r,'phone',6)||'').trim(),
+      email: String(gc(r,'email',7)||'').trim(),
+      dob: r[8],
+      horse: String(gc(r,'horseName',9)||'').trim(),
+      horseGender: String(r[10]||'').trim(),
+      horseOwner: String(gc(r,'horseOwner',11)||'').trim(),
+      horseDob: r[12],
+      assocRaw: String(gc(r,'assocRaw',13)||''),
+      hasMembership: String(r[14]||'').trim(),
+      memberNum:  String(gc(r,'memberNum', 15)||'').replace(/\xa0/g,'').trim(),
+      memberCoWN: String(gc(r,'memberCoWN',null)||'').replace(/\xa0/g,'').trim(),
+      memberSHTX: String(gc(r,'memberSHTX',null)||'').replace(/\xa0/g,'').trim(),
+      memberAQHA: String(gc(r,'memberAQHA',null)||'').replace(/\xa0/g,'').trim(),
+      memberAPHA: String(gc(r,'memberAPHA',null)||'').replace(/\xa0/g,'').trim(),
+      memberApHC: String(gc(r,'memberApHC',null)||'').replace(/\xa0/g,'').trim(),
+      memberNRHA: String(gc(r,'memberNRHA',null)||'').replace(/\xa0/g,'').trim(),
+      needsMembership: String(r[16]||'').trim(),
+      division: String(r[17]||'').trim(),
+      classes: classes,
+      customFees: customFeesObj,
+      stall1qty: gn(r,'stall1',55), stall2qty: gn(r,'stall2',57), stall3qty: gn(r,'stall3',null),
+      shavings:  gn(r,'shavings',59),
+      rv1qty:    gn(r,'rv1',62), rv2qty: gn(r,'rv2',64), rvCircuit: gn(r,'rvCircuit',66),
+      stallNote: r[53] ? String(r[53]) : '',
+      cognitoAmount: amount, isPaid: isPaid, orderStr: orderStr
     };
-
   });
-
 }
 
 
+
+// ═══════════════════════ ENTRIES IMPORT AUDIT ═══════════════════════
+
+// Expected fields: kw = ALL must match in header (AND), col = Cognito default fallback
+var _EXPECTED_FIELDS = [
+  {cat:'Entry Info',      name:'Entry #',                key:'entryNum',   kw:['entry'],         col:0},
+  {cat:'Entry Info',      name:'Rider Name',             key:'riderName',  kw:['name'],          col:4,    required:true},
+  {cat:'Entry Info',      name:'Address',                key:'address',    kw:['address'],       col:5},
+  {cat:'Entry Info',      name:'Phone',                  key:'phone',      kw:['phone'],         col:6},
+  {cat:'Entry Info',      name:'Email',                  key:'email',      kw:['email'],         col:7},
+  {cat:'Entry Info',      name:'Horse Name',             key:'horseName',  kw:['horse'],         col:9,    required:true},
+  {cat:'Entry Info',      name:'Horse Owner',            key:'horseOwner', kw:['owner'],         col:11},
+  {cat:'Entry Info',      name:'Associations',           key:'assocRaw',   kw:['association'],   col:13},
+  {cat:'Member Numbers',  name:'CoWN Member #',          key:'memberCoWN', kw:['cown'],          col:null},
+  {cat:'Member Numbers',  name:'SHTX Member #',          key:'memberSHTX', kw:['shtx'],          col:null},
+  {cat:'Member Numbers',  name:'AQHA Member #',          key:'memberAQHA', kw:['aqha'],          col:null},
+  {cat:'Member Numbers',  name:'APHA Member #',          key:'memberAPHA', kw:['apha'],          col:null},
+  {cat:'Member Numbers',  name:'ApHC Member #',          key:'memberApHC', kw:['aphc'],          col:null},
+  {cat:'Member Numbers',  name:'NRHA Member #',          key:'memberNRHA', kw:['nrha'],          col:null},
+  {cat:'Member Numbers',  name:'General Member #',       key:'memberNum',  kw:['member'],        col:15},
+  {cat:'Fees & Stabling', name:'Office / Entry Fee',     key:'officeFee',  kw:['office'],        col:null},
+  {cat:'Fees & Stabling', name:'Stall – 1 Night',        key:'stall1',     kw:['stall','1'],     col:55},
+  {cat:'Fees & Stabling', name:'Stall – 2 Nights',       key:'stall2',     kw:['stall','2'],     col:57},
+  {cat:'Fees & Stabling', name:'Stall – 3 Nights',       key:'stall3',     kw:['stall','3'],     col:null},
+  {cat:'Fees & Stabling', name:'Shavings / Bedding',     key:'shavings',   kw:['shaving'],       col:59},
+  {cat:'Fees & Stabling', name:'RV – 1 Night',           key:'rv1',        kw:['rv','1'],        col:62},
+  {cat:'Fees & Stabling', name:'RV – 2 Nights',          key:'rv2',        kw:['rv','2'],        col:64},
+  {cat:'Fees & Stabling', name:'RV – Circuit/Weekend',   key:'rvCircuit',  kw:['rv','circuit'],  col:66},
+  {cat:'Fees & Stabling', name:'Drug / Testing Fee',     key:'drugFee',    kw:['drug'],          col:null},
+  {cat:'Fees & Stabling', name:'Grounds / Facility Fee', key:'groundsFee', kw:['ground'],        col:null},
+];
+
+var _ENTRY_ORG_OPTIONS = ['CoWN','VRH','AQHA Ranch','AQHA RHC','APHA','WHSR','Jackpot'];
+
+var _pendingEntriesWb   = null;
+var _pendingColMapping  = {};  // {fieldKey: colIndex|null}
+var _pendingClassCols   = [];  // [{i, header, div, org, isCow}] — user-editable list
+var _pendingCustomFields= [];  // [{name, col}] — extra columns to capture
+var _pendingAuditData   = null;// {headers, dataRows, ...} for re-render
+var _pendingMergeResult = null;// {unchanged, changed, added, missing} — set before merge preview
+
+// Fields compared during re-import merge diff
+var _DIFF_FIELDS = [
+  {key:'riderName',   label:'Rider Name'},
+  {key:'horseName',   label:'Horse Name'},
+  {key:'horseOwner',  label:'Horse Owner'},
+  {key:'phone',       label:'Phone'},
+  {key:'email',       label:'Email'},
+  {key:'address',     label:'Address'},
+  {key:'city',        label:'City'},
+  {key:'state',       label:'State'},
+  {key:'isYouth',     label:'Youth'},
+  {key:'stall1qty',   label:'1-Night Stalls'},
+  {key:'stall2qty',   label:'Circuit Stalls'},
+  {key:'stall3qty',   label:'3-Night Stalls'},
+  {key:'shavings',    label:'Shavings'},
+  {key:'rv1qty',      label:'RV Spots'},
+  {key:'rv2qty',      label:'RV 2'},
+  {key:'rvCircuit',   label:'RV Circuit'},
+  {key:'memberCoWN',  label:'CoWN #'},
+  {key:'memberSHTX',  label:'SHTX #'},
+  {key:'memberAQHA',  label:'AQHA #'},
+  {key:'memberAPHA',  label:'APHA #'},
+  {key:'memberApHC',  label:'ApHC #'},
+  {key:'memberNRHA',  label:'NRHA #'},
+];
+
+function _normStr(s){ return String(s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
+
+function _findMatchingEntry(ne){
+  // Try entry number first
+  if(ne.entryNum){
+    var byNum = G.entries.find(function(ex){ return String(ex.entryNum||ex.rowIndex)===String(ne.entryNum); });
+    if(byNum) return byNum;
+  }
+  // Fall back to rider last name + horse name
+  var rk = _normStr(ne.riderName), hk = _normStr(ne.horseName);
+  if(!rk || !hk) return null;
+  return G.entries.find(function(ex){ return _normStr(ex.riderName)===rk && _normStr(ex.horseName)===hk; }) || null;
+}
+
+function _diffEntries(existing, incoming){
+  var diffs = [];
+  _DIFF_FIELDS.forEach(function(f){
+    var ov = String(existing[f.key]||''), nv = String(incoming[f.key]||'');
+    if(ov !== nv) diffs.push({field:f.key, label:f.label, oldVal:ov, newVal:nv});
+  });
+  // Compare class lists by sorted classNum / class name
+  var exCls = (existing.classes||[]).map(function(c){ return c.num||c.name||''; }).sort().join('|');
+  var inCls = (incoming.classes||[]).map(function(c){ return c.num||c.name||''; }).sort().join('|');
+  if(exCls !== inCls) diffs.push({field:'classes', label:'Classes', oldVal:exCls||'(none)', newVal:inCls||'(none)'});
+  return diffs;
+}
+
+function _analyzeMerge(newEntries){
+  var result = {unchanged:[], changed:[], added:[], missing:[]};
+  var matchedRowIndexes = {};
+  newEntries.forEach(function(ne){
+    var match = _findMatchingEntry(ne);
+    if(!match){ result.added.push(ne); return; }
+    matchedRowIndexes[match.rowIndex] = true;
+    var diffs = _diffEntries(match, ne);
+    if(diffs.length === 0){ result.unchanged.push(ne); }
+    else { result.changed.push({existing:match, incoming:ne, diffs:diffs}); }
+  });
+  G.entries.forEach(function(ex){
+    if(!matchedRowIndexes[ex.rowIndex]) result.missing.push(ex);
+  });
+  return result;
+}
+
+function _renderMergeAudit(result){
+  var rows = '';
+
+  if(result.changed.length){
+    rows += '<div style="font-size:.8rem;font-weight:700;color:var(--accent);text-transform:uppercase;'
+      +'letter-spacing:.06em;margin:.75rem 0 .25rem">Changes Detected ('+result.changed.length+')</div>';
+    result.changed.forEach(function(item, idx){
+      var diffRows = item.diffs.map(function(d){
+        return '<tr><td style="padding:2px 8px;color:var(--muted);font-size:.78rem;white-space:nowrap">'+esc(d.label)+'</td>'
+          +'<td style="padding:2px 8px;font-size:.78rem;color:var(--red,#e74c3c);text-decoration:line-through">'+esc(d.oldVal)+'</td>'
+          +'<td style="padding:2px 8px;font-size:.78rem;color:var(--green,#4caf50)">'+esc(d.newVal)+'</td>'
+          +'<td style="padding:2px 4px"><input type="checkbox" checked data-merge-idx="'+idx+'" data-merge-field="'+esc(d.field)+'" '
+          +'title="Apply this change"></td>'
+          +'</tr>';
+      }).join('');
+      rows += '<div style="border:1px solid var(--border2);border-radius:6px;padding:.5rem;margin-bottom:.4rem">'
+        +'<div style="font-size:.85rem;font-weight:600">'+esc(item.existing.riderName)+' / '+esc(item.existing.horseName)+'</div>'
+        +'<table style="width:100%;border-collapse:collapse;margin-top:.25rem">'
+        +'<tr style="color:var(--muted);font-size:.72rem"><th style="text-align:left;padding:2px 8px">Field</th>'
+        +'<th style="text-align:left;padding:2px 8px">Current</th>'
+        +'<th style="text-align:left;padding:2px 8px">File</th>'
+        +'<th style="padding:2px 4px" title="Apply?">&#10003;</th></tr>'
+        +diffRows+'</table></div>';
+    });
+  }
+
+  if(result.added.length){
+    rows += '<div style="font-size:.8rem;font-weight:700;color:var(--accent);text-transform:uppercase;'
+      +'letter-spacing:.06em;margin:.75rem 0 .25rem">New Entries ('+result.added.length+')</div>'
+      +'<div style="border:1px solid var(--border2);border-radius:6px;padding:.5rem">'
+      +result.added.map(function(ne){
+        return '<div style="font-size:.83rem;padding:2px 0">'+esc(ne.riderName||'—')+' / '+esc(ne.horseName||'—')+'</div>';
+      }).join('')+'</div>';
+  }
+
+  if(result.missing.length){
+    rows += '<div style="font-size:.8rem;font-weight:700;color:var(--amber,#e6a817);text-transform:uppercase;'
+      +'letter-spacing:.06em;margin:.75rem 0 .25rem">In App But Not In File ('+result.missing.length+') — not changed</div>'
+      +'<div style="border:1px solid var(--border2);border-radius:6px;padding:.5rem;font-size:.83rem;color:var(--muted)">'
+      +result.missing.map(function(ex){
+        return '<div style="padding:2px 0">'+esc(ex.riderName||'—')+' / '+esc(ex.horseName||'—')
+          +' <span style="font-size:.75rem">(scratch or remove manually if needed)</span></div>';
+      }).join('')+'</div>';
+  }
+
+  if(result.unchanged.length){
+    rows += '<div style="font-size:.8rem;color:var(--muted);margin:.75rem 0 .1rem">'
+      +result.unchanged.length+' entr'+(result.unchanged.length===1?'y':'ies')+' unchanged — will be skipped</div>';
+  }
+
+  var summary = result.changed.length+' change'+(result.changed.length===1?'':'s')+', '
+    +result.added.length+' new, '
+    +result.missing.length+' not in file, '
+    +result.unchanged.length+' unchanged';
+
+  var html = '<div id="entries-merge-panel" style="border:1px solid var(--border2);border-radius:8px;'
+    +'padding:1rem;background:var(--card);margin-top:.5rem">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
+    +'<strong>Merge Preview</strong>'
+    +'<button class="btn btn-ghost btn-sm" onclick="cancelEntriesAudit()">✕ Cancel</button>'
+    +'</div>'
+    +'<div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">'+esc(summary)+'</div>'
+    +rows
+    +'<div style="display:flex;gap:.5rem;margin-top:1rem">'
+    +'<button class="btn btn-primary" onclick="commitMergeImport()">Apply Changes</button>'
+    +'<button class="btn btn-ghost" onclick="cancelEntriesAudit()">Cancel</button>'
+    +'</div></div>';
+
+  var el = document.getElementById('imp-status');
+  if(el) el.innerHTML = html;
+}
+
+window.commitMergeImport = function(){
+  var result = _pendingMergeResult;
+  if(!result){ toast('No pending merge',true); return; }
+
+  // Apply checked field changes to existing entries
+  result.changed.forEach(function(item, idx){
+    var checkboxes = document.querySelectorAll('[data-merge-idx="'+idx+'"]');
+    var fieldsToApply = {};
+    checkboxes.forEach(function(cb){ if(cb.checked) fieldsToApply[cb.dataset.mergeField] = true; });
+    _DIFF_FIELDS.forEach(function(f){
+      if(fieldsToApply[f.key]) item.existing[f.key] = item.incoming[f.key];
+    });
+    if(fieldsToApply['classes']) item.existing.classes = item.incoming.classes;
+  });
+
+  // Add new entries (assign rowIndex continuing from max existing)
+  var maxIdx = G.entries.reduce(function(m,e){ return Math.max(m, e.rowIndex||0); }, 0);
+  result.added.forEach(function(ne){
+    ne.rowIndex = ++maxIdx;
+    G.entries.push(ne);
+    G.payments[ne.rowIndex] = ne.isPaid ? tabTotal(ne) : 0;
+  });
+
+  _pendingMergeResult = null;
+  _pendingAuditData   = null;
+
+  try{
+    localStorage.setItem('gp_entries_'+G.showId, JSON.stringify(G.entries));
+    localStorage.setItem('gp_payments_'+G.showId, JSON.stringify(G.payments));
+    localStorage.setItem('gp_backnums_'+G.showId, JSON.stringify(G.backNums));
+  } catch(ex){}
+
+  var spn=document.getElementById('pill-name'), spm=document.getElementById('pill-meta');
+  if(spn) spn.textContent = G.showName || 'Imported';
+  if(spm) spm.textContent = G.entries.length+' entries';
+
+  showPage('entries');
+  if(G.showId){
+    syncEntriesToSupabase().then(function(){
+      toast(result.added.length+' added, '+result.changed.length+' updated');
+    }).catch(function(err){
+      toast('Saved locally. Sync failed: '+esc(err.message), true);
+    });
+  }
+};
+
+function _autoDetectMapping(headers, fieldDefs){
+  var mapping = {};
+  fieldDefs.forEach(function(def){
+    var bestCol = null, bestScore = 0;
+    headers.forEach(function(h,i){
+      if(!h) return;
+      var hn = String(h).toLowerCase();
+      if(def.kw.every(function(k){ return hn.indexOf(k)>-1; })){
+        var score = def.kw.length;
+        if(score > bestScore){ bestScore = score; bestCol = i; }
+      }
+    });
+    mapping[def.key] = (bestCol !== null) ? bestCol : (def.col != null ? def.col : null);
+  });
+  return mapping;
+}
+
+function previewEntriesFile(wb){
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  var raw = XLSX.utils.sheet_to_json(ws,{header:1,defval:null,cellDates:true});
+  var headers = raw[0] || [];
+  var colMapping = _autoDetectMapping(headers, _EXPECTED_FIELDS);
+  var classCols = [];
+  headers.forEach(function(h,i){
+    if(!h) return;
+    var hs = String(h);
+    if(isClassCol(hs))       classCols.push({i:i, header:hs, div:extractDivName(hs), org:detectOrg(hs), isCow:false});
+    else if(isCowCountCol(hs)) classCols.push({i:i, header:hs, div:extractDivName(hs), org:detectOrg(hs), isCow:true});
+  });
+  var riderCol = (colMapping.riderName != null) ? colMapping.riderName : 4;
+  var dataRows = raw.slice(1).filter(function(r){ return r[riderCol]; });
+  return {headers:headers, colMapping:colMapping, classCols:classCols, dataRows:dataRows, totalEntries:dataRows.length};
+}
+
+function _reRenderAudit(){
+  if(_pendingAuditData) _renderEntriesAudit();
+}
+
+function showEntriesAudit(data, wb){
+  _pendingEntriesWb   = wb;
+  _pendingAuditData   = data;
+  _pendingColMapping  = Object.assign({}, data.colMapping);
+  _pendingClassCols   = data.classCols.map(function(cc){ return Object.assign({},cc); });
+  _pendingCustomFields= [];
+  _renderEntriesAudit();
+}
+
+function _renderEntriesAudit(){
+  var data    = _pendingAuditData;
+  var headers = data.headers;
+
+  // ── Column mapping dropdowns ──────────────────────────────────────
+  function colSelect(fieldKey, currentCol, onchangeFn){
+    var opts = '<option value="">(skip / not in file)</option>';
+    headers.forEach(function(h,i){
+      if(!h) return;
+      opts += '<option value="'+i+'"'+(currentCol===i?' selected':'')+'>Col '+i+': '+esc(String(h).substring(0,50))+'</option>';
+    });
+    return '<select style="background:var(--card2,#13201a);color:var(--fg);border:1px solid var(--border2);'
+      +'padding:2px 6px;border-radius:4px;font-size:.8rem;width:100%;max-width:320px" '
+      +'onchange="'+onchangeFn+'">'+opts+'</select>';
+  }
+
+  var cats = {}, catOrder = [];
+  _EXPECTED_FIELDS.forEach(function(def){
+    if(!cats[def.cat]){ cats[def.cat]=[]; catOrder.push(def.cat); }
+    cats[def.cat].push(def);
+  });
+
+  var mapRows = catOrder.map(function(cat){
+    var hdr = '<tr><td colspan="2" style="padding:8px 8px 3px;font-size:.72rem;font-weight:700;'
+      +'color:var(--accent);text-transform:uppercase;letter-spacing:.08em;border-top:1px solid var(--border)">'+esc(cat)+'</td></tr>';
+    var rows = cats[cat].map(function(def){
+      var col = _pendingColMapping[def.key];
+      var req = def.required ? '<span style="color:var(--red,#e74c3c)"> *</span>' : '';
+      var hint = (col==null && def.required) ? ' <span style="color:var(--red,#e74c3c);font-size:.72rem">⚠ not mapped</span>'
+               : (col==null ? ' <span style="color:var(--muted);font-size:.72rem">not in file</span>' : '');
+      return '<tr>'
+        +'<td style="padding:3px 8px;white-space:nowrap;font-size:.82rem">'+esc(def.name)+req+hint+'</td>'
+        +'<td style="padding:3px 8px">'+colSelect(def.key, col, 'window._entryMapChange(\''+def.key+'\',this.value)')+'</td>'
+        +'</tr>';
+    }).join('');
+    // After "Fees & Stabling" rows, append custom fee rows + add button
+    var extra = '';
+    if(cat==='Fees & Stabling'){
+      var customRows = _pendingCustomFields.map(function(cf,idx){
+        var nameInput = '<input type="text" value="'+esc(cf.name||'')+'" placeholder="Fee name…" '
+          +'style="background:var(--card2,#13201a);color:var(--fg);border:1px solid var(--border2);'
+          +'padding:2px 6px;border-radius:4px;font-size:.8rem;width:140px" '
+          +'oninput="window._entryCustomName('+idx+',this.value)">';
+        return '<tr>'
+          +'<td style="padding:3px 8px;font-size:.82rem">'+nameInput+'</td>'
+          +'<td style="padding:3px 8px;display:flex;gap:.25rem;align-items:center">'
+          +colSelect('_cf'+idx, cf.col, 'window._entryCustomCol('+idx+',this.value)')
+          +'<button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:.8rem;flex-shrink:0" '
+          +'onclick="window._entryDeleteCustom('+idx+')">✕</button></td></tr>';
+      }).join('');
+      extra = customRows
+        +'<tr><td colspan="2" style="padding:4px 8px">'
+        +'<button class="btn btn-ghost btn-sm" style="font-size:.8rem" onclick="window._entryAddCustom()">+ Add fee / data column</button>'
+        +'</td></tr>';
+    }
+    return hdr+rows+extra;
+  }).join('');
+
+  // ── Class columns (fully editable) ───────────────────────────────
+  var classRows = _pendingClassCols.map(function(cc,idx){
+    var cowBadge = cc.isCow ? ' <span style="background:#444;color:#ccc;padding:0 4px;border-radius:8px;font-size:.7rem">cow count</span>' : '';
+    var orgSel = _ENTRY_ORG_OPTIONS.map(function(o){
+      return '<option value="'+esc(o)+'"'+(cc.org===o?' selected':'')+'>'+esc(o)+'</option>';
+    }).join('');
+    return '<tr>'
+      +'<td style="padding:3px 8px;font-size:.8rem;color:var(--muted)">'+esc(cc.header)+cowBadge+'</td>'
+      +'<td style="padding:3px 8px"><input type="text" value="'+esc(cc.div||'')+'" placeholder="Division label…" '
+      +'style="background:var(--card2,#13201a);color:var(--fg);border:1px solid var(--border2);'
+      +'padding:2px 6px;border-radius:4px;font-size:.8rem;width:120px" '
+      +'oninput="window._entryClassDiv('+cc.i+',this.value)"></td>'
+      +'<td style="padding:3px 8px"><select style="background:var(--card2,#13201a);color:var(--fg);'
+      +'border:1px solid var(--border2);padding:2px 5px;border-radius:4px;font-size:.8rem" '
+      +'onchange="window._entryClassOrg('+cc.i+',this.value)">'+orgSel+'</select></td>'
+      +'<td style="padding:3px 4px"><button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:.8rem;color:var(--red,#e74c3c)" '
+      +'onclick="window._entryDeleteClassCol('+cc.i+')">✕</button></td>'
+      +'</tr>';
+  }).join('');
+
+  // Add-column row
+  var usedColIdxs = _pendingClassCols.map(function(cc){ return cc.i; });
+  var addOpts = '<option value="">— pick a column to add as class column —</option>';
+  headers.forEach(function(h,i){
+    if(!h || usedColIdxs.indexOf(i)>-1) return;
+    addOpts += '<option value="'+i+'">Col '+i+': '+esc(String(h).substring(0,50))+'</option>';
+  });
+  classRows += '<tr><td colspan="4" style="padding:6px 8px">'
+    +'<select id="ea-add-cc" style="background:var(--card2,#13201a);color:var(--fg);border:1px solid var(--border2);'
+    +'padding:2px 6px;border-radius:4px;font-size:.8rem;margin-right:.5rem">'+addOpts+'</select>'
+    +'<button class="btn btn-ghost btn-sm" style="font-size:.8rem" onclick="window._entryAddClassCol()">+ Add class column</button>'
+    +'</td></tr>';
+  if(!_pendingClassCols.length){
+    classRows = '<tr><td colspan="4" style="padding:4px 8px;color:var(--red,#e74c3c);font-size:.82rem">'
+      +'No class columns detected</td></tr>'+classRows;
+  }
+
+  // ── Sample data ───────────────────────────────────────────────────
+  var sampleKeys = ['riderName','horseName','horseOwner','email','memberNum'];
+  var sampleLabels = ['Rider','Horse','Owner','Email','Member #'];
+  var sampleHtml = '';
+  if(data.dataRows.length){
+    sampleHtml = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem">'
+      +'<tr style="color:var(--muted)">'+sampleLabels.map(function(l){
+        return '<th style="text-align:left;padding:3px 8px;white-space:nowrap">'+esc(l)+'</th>';
+      }).join('')+'</tr>'
+      +data.dataRows.slice(0,4).map(function(r){
+        return '<tr style="border-top:1px solid var(--border)">'+sampleKeys.map(function(key){
+          var col = _pendingColMapping[key];
+          var v = (col!=null && r[col]!=null) ? String(r[col]).substring(0,30) : '';
+          return '<td style="padding:3px 8px">'+(v?esc(v):'<span style="color:var(--muted)">—</span>')+'</td>';
+        }).join('')+'</tr>';
+      }).join('')+'</table></div>';
+  }
+
+  var missingReq = _EXPECTED_FIELDS.filter(function(f){ return f.required && _pendingColMapping[f.key]==null; });
+
+  var html = '<div id="entries-audit-panel" style="border:1px solid var(--border2);border-radius:8px;'
+    +'padding:1rem;background:var(--card);margin-top:.5rem">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
+    +'<strong>Map Columns — '+data.totalEntries+' entries detected</strong>'
+    +'<button class="btn btn-ghost btn-sm" onclick="cancelEntriesAudit()">✕ Cancel</button>'
+    +'</div>'
+    +(missingReq.length ? '<div style="color:var(--red,#e74c3c);font-size:.85rem;margin-bottom:.5rem">⚠ Required not mapped: '
+      +missingReq.map(function(f){return esc(f.name);}).join(', ')+'</div>' : '')
+    +'<details open><summary style="cursor:pointer;font-weight:600;font-size:.9rem;padding:.25rem 0">Column Mapping'
+    +'<span style="color:var(--muted);font-size:.8rem;font-weight:400"> — match each expected field to a column in your file</span>'
+    +'</summary><table style="width:100%;border-collapse:collapse;margin-top:.25rem">'+mapRows+'</table></details>'
+    +'<details open style="margin-top:.75rem"><summary style="cursor:pointer;font-weight:600;font-size:.9rem;padding:.25rem 0">'
+    +'Class Columns ('+_pendingClassCols.length+' active)'
+    +'<span style="color:var(--muted);font-size:.8rem;font-weight:400"> — edit division label, set org, delete or add columns</span>'
+    +'</summary><table style="width:100%;border-collapse:collapse;margin-top:.25rem">'
+    +'<tr style="color:var(--muted);font-size:.78rem"><th style="text-align:left;padding:3px 8px">File column</th>'
+    +'<th style="text-align:left;padding:3px 8px">Division label</th>'
+    +'<th style="text-align:left;padding:3px 8px">Org</th><th></th></tr>'
+    +classRows+'</table></details>'
+    +'<details style="margin-top:.75rem"><summary style="cursor:pointer;font-weight:600;font-size:.9rem;padding:.25rem 0">'
+    +'Sample Data (first '+Math.min(data.dataRows.length,4)+')</summary>'+sampleHtml+'</details>'
+    +'<div style="display:flex;gap:.5rem;margin-top:1rem">'
+    +'<button class="btn btn-primary" onclick="commitEntriesImport()">Confirm &amp; Import</button>'
+    +'<button class="btn btn-ghost" onclick="cancelEntriesAudit()">Cancel</button>'
+    +'</div></div>';
+
+  var el = document.getElementById('imp-status');
+  if(el) el.innerHTML = html;
+}
+
+// ── Handlers — all immediate-update, no re-render unless structure changes ──
+
+window._entryMapChange = function(fieldKey, colVal){
+  _pendingColMapping[fieldKey] = colVal==='' ? null : parseInt(colVal,10);
+};
+window._entryClassDiv = function(colIdx, val){
+  var cc = _pendingClassCols.find(function(c){ return c.i===colIdx; });
+  if(cc) cc.div = val;
+};
+window._entryClassOrg = function(colIdx, val){
+  var cc = _pendingClassCols.find(function(c){ return c.i===colIdx; });
+  if(cc) cc.org = val;
+};
+window._entryDeleteClassCol = function(colIdx){
+  _pendingClassCols = _pendingClassCols.filter(function(c){ return c.i!==colIdx; });
+  _reRenderAudit();
+};
+window._entryAddClassCol = function(){
+  var sel = document.getElementById('ea-add-cc');
+  if(!sel || sel.value==='') return;
+  var i = parseInt(sel.value,10);
+  var h = String(_pendingAuditData.headers[i]||'');
+  _pendingClassCols.push({i:i, header:h, div:extractDivName(h), org:detectOrg(h), isCow:false});
+  _reRenderAudit();
+};
+window._entryAddCustom = function(){
+  _pendingCustomFields.push({name:'', col:null});
+  _reRenderAudit();
+};
+window._entryCustomName = function(idx, val){
+  if(_pendingCustomFields[idx]) _pendingCustomFields[idx].name = val;
+};
+window._entryCustomCol = function(idx, val){
+  if(_pendingCustomFields[idx]) _pendingCustomFields[idx].col = val==='' ? null : parseInt(val,10);
+};
+window._entryDeleteCustom = function(idx){
+  _pendingCustomFields.splice(idx, 1);
+  _reRenderAudit();
+};
+
+function commitEntriesImport(){
+  if(!_pendingEntriesWb){ toast('No pending import',true); return; }
+  try{
+    // Register any custom fee columns in the fee schedule so Finances shows them with price inputs
+    if(_pendingCustomFields.length){
+      initFeeSchedule();
+      _pendingCustomFields.forEach(function(cf){
+        if(!cf.name || cf.col==null) return;
+        var exists = G.cfg.feeSchedule.some(function(s){ return s.cat==='import' && s.label===cf.name; });
+        if(!exists) G.cfg.feeSchedule.push({key:null, label:cf.name, amt:0, cat:'import'});
+      });
+    }
+
+    var newEntries = parseCognito(_pendingEntriesWb, _pendingColMapping, _pendingClassCols, _pendingCustomFields);
+
+    // Re-import: show merge preview instead of replacing immediately
+    if(G.entries && G.entries.length > 0){
+      _pendingMergeResult = _analyzeMerge(newEntries);
+      _renderMergeAudit(_pendingMergeResult);
+      return;
+    }
+
+    // First import: replace directly
+    _pendingEntriesWb = null;
+    G.entries  = newEntries;
+    G.payments = {}; G.backNums = {};
+    G.entries.forEach(function(en){ G.payments[en.rowIndex] = en.isPaid ? tabTotal(en) : 0; });
+
+    var spn=document.getElementById('pill-name'), spm=document.getElementById('pill-meta');
+    if(spn) spn.textContent = G.showName || 'Imported';
+    if(spm) spm.textContent = G.entries.length+' entries';
+
+    try{
+      localStorage.setItem('gp_entries_'+G.showId, JSON.stringify(G.entries));
+      localStorage.setItem('gp_payments_'+G.showId, JSON.stringify(G.payments));
+      localStorage.setItem('gp_backnums_'+G.showId, JSON.stringify(G.backNums));
+    } catch(ex){}
+
+    if(!G.cfg.classes.length){
+      var classMap = {};
+      G.entries.forEach(function(en){
+        en.classes.forEach(function(cls){
+          if(cls.num && !classMap[cls.num]){
+            var isCow = COW_WORDS.some(function(k){ return (cls.name||'').toLowerCase().indexOf(k)>-1; });
+            CFG_ROW_ID++;
+            classMap[cls.num] = {_id:'cr'+CFG_ROW_ID, num:cls.num, name:cls.name,
+              division:cls.division, org:cls.org||'CoWN', isCow:isCow,
+              baseFee:null, cowFee:null, jackpot:null, addedMoney:null};
+          }
+        });
+      });
+      G.cfg.classes = Object.values(classMap).sort(function(a,b){ return (parseInt(a.num)||999)-(parseInt(b.num)||999); });
+    }
+
+    showPage('entries');
+    if(G.showId){
+      syncEntriesToSupabase().then(function(){
+        toast(G.entries.length+' entries saved to database');
+      }).catch(function(err){
+        toast('Entries loaded locally. Sync failed: '+esc(err.message), true);
+      });
+    }
+  } catch(err){
+    var el = document.getElementById('imp-status');
+    if(el) el.innerHTML = '<span style="color:var(--red)">Error: '+esc(err.message)+'</span>';
+    console.error(err);
+  }
+}
+
+function cancelEntriesAudit(){
+  _pendingEntriesWb    = null;
+  _pendingColMapping   = {};
+  _pendingClassCols    = [];
+  _pendingCustomFields = [];
+  _pendingAuditData    = null;
+  _pendingMergeResult  = null;
+  var el = document.getElementById('imp-status');
+  if(el) el.innerHTML = '';
+}
 
 // ═══════════════════════ RESULTS (SHTX IMPORT) ═══════════════════════
 
@@ -2137,22 +2626,25 @@ function findEntryForRider(riderName, horseName){
   var rNorm=normForMatch(riderName);
   var rFL=firstLast(rNorm);
   var hNorm=(horseName||'').toUpperCase().replace(/\s+/g,' ').trim();
-  // Pass 1: exact rider name + exact horse name (when both are known); also try canonical alias
+  var hNormStripped=hNorm.replace(/\s/g,'');
+  // Pass 1: exact rider name + exact/alias/space-stripped horse name
   if(hNorm){
     for(var i=0;i<G.entries.length;i++){
       var e=G.entries[i];
       var eHorse=(e.horse||'').toUpperCase().replace(/\s+/g,' ').trim();
       var eHorseCanon=(getCanonicalHorse(e.horse)||'').toUpperCase().replace(/\s+/g,' ').trim();
-      if(normForMatch(e.name||'')===rNorm && (eHorse===hNorm||eHorseCanon===hNorm)) return {entry:e,idx:i,type:'exact'};
+      var eStripped=eHorse.replace(/\s/g,'');
+      if(normForMatch(e.name||'')===rNorm && (eHorse===hNorm||eHorseCanon===hNorm||eStripped===hNormStripped)) return {entry:e,idx:i,type:'exact'};
     }
   }
-  // Pass 2: fuzzy rider name + horse name match (when both are known); also try canonical alias
+  // Pass 2: fuzzy rider name + exact/alias/space-stripped horse name
   if(hNorm){
     for(var i=0;i<G.entries.length;i++){
       var e=G.entries[i];
       var eHorse=(e.horse||'').toUpperCase().replace(/\s+/g,' ').trim();
       var eHorseCanon=(getCanonicalHorse(e.horse)||'').toUpperCase().replace(/\s+/g,' ').trim();
-      if(firstLast(normForMatch(e.name||''))===rFL && (eHorse===hNorm||eHorseCanon===hNorm)) return {entry:e,idx:i,type:'fuzzy'};
+      var eStripped=eHorse.replace(/\s/g,'');
+      if(firstLast(normForMatch(e.name||''))===rFL && (eHorse===hNorm||eHorseCanon===hNorm||eStripped===hNormStripped)) return {entry:e,idx:i,type:'fuzzy'};
     }
   }
   // Pass 3: name-only match — only use if this entry has no horse or the result has no horse
@@ -2662,6 +3154,8 @@ function buildTabLines(entry){
 
   if(entry.stall2qty > 0) lines.push({desc:feeLabel('stall2')+' × '+entry.stall2qty, amt:f.stall2*entry.stall2qty, type:'stall'});
 
+  if(entry.stall3qty > 0) lines.push({desc:feeLabel('stall3')+' × '+entry.stall3qty, amt:f.stall3*entry.stall3qty, type:'stall'});
+
   if(entry.shavings  > 0) lines.push({desc:feeLabel('shavings')+' × '+entry.shavings, amt:f.shavings*entry.shavings, type:'stall'});
 
   if(entry.rv1qty    > 0) lines.push({desc:feeLabel('rv1')+' × '+entry.rv1qty, amt:f.rv1*entry.rv1qty, type:'rv'});
@@ -2670,7 +3164,42 @@ function buildTabLines(entry){
 
   if(entry.rvCircuit > 0) lines.push({desc:feeLabel('rvCircuit')+' × '+entry.rvCircuit, amt:f.rvCircuit*entry.rvCircuit, type:'rv'});
 
+  // Per-association admin fees — applied based on which orgs the rider entered classes in
+  (G.cfg.assocFees||[]).forEach(function(af){
+    if(!af.amt || !af.org) return;
+    if(isFullScratched(entry.rowIndex)) return;
+    var matchClasses = entry.classes.filter(function(cls){
+      if(isScratched(clsKey(cls), entry.rowIndex)) return false;
+      if(cls.org !== af.org) return false;
+      if(af.disciplines && af.disciplines.length){
+        var dn = (cls.name||'').toLowerCase();
+        return af.disciplines.some(function(d){ return dn.indexOf(d.toLowerCase())>-1; });
+      }
+      return true;
+    });
+    if(!matchClasses.length) return;
+    if(af.per === 'class'){
+      matchClasses.forEach(function(cls){
+        lines.push({desc:af.org+' — '+af.desc+' ('+cls.name+')', amt:af.amt, type:'assocfee'});
+      });
+    } else {
+      lines.push({desc:af.org+' — '+af.desc, amt:af.amt, type:'assocfee'});
+    }
+  });
 
+  // Custom import fee columns — qty captured at import × price set in Finances
+  if(entry.customFees){
+    var importSched = (G.cfg.feeSchedule||[]).filter(function(s){ return s.cat==='import'; });
+    Object.keys(entry.customFees).forEach(function(name){
+      var qty = entry.customFees[name];
+      if(!qty) return;
+      var sched = importSched.find(function(s){ return s.label===name; });
+      var price = sched ? (sched.amt||0) : 0;
+      lines.push({desc:name+(qty>1?' × '+qty:''), amt:price*qty, type:'import',
+        noPrice: !price  // flag so Checkout can warn that price needs to be set
+      });
+    });
+  }
 
   return lines;
 
@@ -2680,7 +3209,195 @@ function buildTabLines(entry){
 
 function tabTotal(entry){ return buildTabLines(entry).reduce(function(s,l){ return s+l.amt; },0); }
 
-function amtPaid(entry){ return G.payments[entry.rowIndex] || 0; }
+// ─── Receipt printing — opens a clean standalone window ──────────────────────
+
+function _rcpLineItems(allLines){
+  // Groups lines by type, collapses class list if > 4
+  var grouped={};
+  allLines.forEach(function(l){
+    var t=l.type||'other';
+    if(!grouped[t]) grouped[t]={lines:[],total:0};
+    grouped[t].lines.push(l); grouped[t].total+=l.amt;
+  });
+  var html='';
+  ['office','membership','extra','stall','rv'].forEach(function(t){
+    if(!grouped[t]) return;
+    grouped[t].lines.forEach(function(l){
+      html+='<div class="rcp-line"><span class="desc">'+esc(l.desc)+'</span><span class="amt">'+fmt$(l.amt)+'</span></div>';
+    });
+  });
+  if(grouped['class']){
+    var cls=grouped['class'];
+    if(cls.lines.length>4){
+      html+='<div class="rcp-line"><span class="desc">Classes ('+cls.lines.length+')</span><span class="amt">'+fmt$(cls.total)+'</span></div>';
+    } else {
+      cls.lines.forEach(function(l){
+        html+='<div class="rcp-line"><span class="desc">'+esc(l.desc)+'</span><span class="amt">'+fmt$(l.amt)+'</span></div>';
+      });
+    }
+  }
+  Object.keys(grouped).forEach(function(t){
+    if(['office','membership','extra','stall','rv','class'].indexOf(t)>=0) return;
+    grouped[t].lines.forEach(function(l){
+      html+='<div class="rcp-line"><span class="desc">'+esc(l.desc)+'</span><span class="amt">'+fmt$(l.amt)+'</span></div>';
+    });
+  });
+  return html;
+}
+
+function _rcpPaymentSummary(paid, payHistory){
+  if(!paid && !payHistory.length) return '';
+  var html='';
+  if(payHistory&&payHistory.length){
+    var byMethod={};
+    payHistory.forEach(function(p){
+      var lbl=payMethodLabel(p.method)+(p.checkNum?' #'+p.checkNum:'');
+      if(!byMethod[lbl]) byMethod[lbl]=0; byMethod[lbl]+=p.amount;
+    });
+    Object.keys(byMethod).forEach(function(lbl){
+      html+='<div class="rcp-payment-line"><span>'+esc(lbl)+'</span><span>'+fmt$(byMethod[lbl])+'</span></div>';
+    });
+  } else if(paid>0){
+    html+='<div class="rcp-payment-line"><span>Paid</span><span>'+fmt$(paid)+'</span></div>';
+  }
+  return html;
+}
+
+var _RCP_CSS='*{margin:0;padding:0;box-sizing:border-box}'
+  +'body{font-family:"Helvetica Neue",Arial,sans-serif;color:#222;background:#fff;padding:2rem 2.5rem;max-width:680px;margin:0 auto}'
+  +'.rcp-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:1rem;margin-bottom:1.5rem;border-bottom:3px solid #222}'
+  +'.rcp-left{flex:1}.rcp-show-name{font-size:1.2rem;font-weight:700;letter-spacing:.02em}'
+  +'.rcp-show-meta{font-size:.75rem;color:#666;margin-top:.2rem}'
+  +'.rcp-logo{max-height:70px;max-width:160px;object-fit:contain}'
+  +'.rcp-label{font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:#999;margin-bottom:.1rem}'
+  +'.rcp-name{font-size:1.35rem;font-weight:700;margin-bottom:.15rem}'
+  +'.rcp-subtitle{font-size:.82rem;color:#555;margin-bottom:.2rem}'
+  +'.rcp-contact{font-size:.78rem;color:#888;margin-bottom:1.25rem}'
+  +'.rcp-items{margin-bottom:.5rem}'
+  +'.rcp-line{display:flex;justify-content:space-between;align-items:baseline;padding:.22rem 0;border-bottom:1px solid #f0f0f0;font-size:.87rem}'
+  +'.rcp-line .desc{flex:1;padding-right:1rem}.rcp-line .amt{white-space:nowrap;font-variant-numeric:tabular-nums}'
+  +'.rcp-divider{border:none;border-top:2px solid #222;margin:.6rem 0 0}'
+  +'.rcp-total{display:flex;justify-content:space-between;padding:.45rem 0 .2rem;font-size:1rem;font-weight:700}'
+  +'.rcp-pmt-head{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:#aaa;margin:.6rem 0 .15rem}'
+  +'.rcp-payment-line{display:flex;justify-content:space-between;padding:.18rem 0;font-size:.84rem;color:#444}'
+  +'.rcp-balance{display:flex;justify-content:space-between;padding:.4rem 0 0;font-size:.95rem;font-weight:700;border-top:1px solid #ccc;margin-top:.3rem}'
+  +'.rcp-paid-badge{margin-top:.5rem;font-size:.75rem;color:#27ae60;font-weight:600;letter-spacing:.04em}'
+  +'.rcp-section{margin-bottom:.75rem;padding:.55rem .75rem;background:#f7f7f7;border-left:3px solid #bbb;border-radius:0 4px 4px 0}'
+  +'.rcp-section-name{font-weight:600;font-size:.88rem;margin-bottom:.3rem;color:#333}'
+  +'.rcp-section-sub{font-size:.78rem;color:#888}'
+  +'.rcp-section-total{display:flex;justify-content:space-between;font-size:.84rem;font-weight:600;margin-top:.3rem;padding-top:.3rem;border-top:1px solid #ddd;color:#333}'
+  +'.rcp-footer{margin-top:2rem;padding-top:1rem;border-top:1px solid #eee;text-align:center;font-size:.7rem;color:#bbb}'
+  +'@media print{body{padding:0}@page{margin:.65in}}';
+
+function openReceiptWindow(titleStr, bodyHtml){
+  var win=window.open('','_blank','width=720,height=900');
+  if(!win){ toast('Pop-up blocked — allow pop-ups and try again', true); return; }
+  win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8">'
+    +'<title>Receipt — '+titleStr+'</title>'
+    +'<style>'+_RCP_CSS+'</style>'
+    +'</head><body>'
+    +bodyHtml
+    +'<script>window.onload=function(){window.print();}<\/script>'
+    +'</body></html>');
+  win.document.close();
+}
+
+function printTabReceipt(name){
+  var entries=G.entries.filter(function(e){ return e.name===name; });
+  if(!entries.length) return;
+  var e0=entries[0];
+  var allLines=[]; entries.forEach(function(e){ buildTabLines(e).forEach(function(l){ allLines.push(l); }); });
+  var total=allLines.reduce(function(s,l){ return s+l.amt; },0);
+  var paid=entries.reduce(function(s,e){ return s+amtPaid(e); },0);
+  var hist=G.paymentHistory[e0.rowIndex]||[];
+  var bal=total-paid;
+
+  var showDate=G.cfg.showDate?new Date(G.cfg.showDate+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):'';
+  var contact=[e0.email,e0.phone,[e0.address,e0.city,e0.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+
+  var pmtHtml=_rcpPaymentSummary(paid,hist);
+  var body=''
+    +'<div class="rcp-header">'
+    +'<div class="rcp-left">'+(G.cfg.logoUrl?'':'')
+    +'<div class="rcp-show-name">'+(G.cfg.showName||'Horse Show')+'</div>'
+    +'<div class="rcp-show-meta">'+(showDate||'')+(G.cfg.location?' &middot; '+esc(G.cfg.location):'')+'</div>'
+    +'</div>'
+    +(G.cfg.logoUrl?'<img src="'+G.cfg.logoUrl+'" class="rcp-logo">':'')
+    +'</div>'
+    +'<div class="rcp-label">Receipt</div>'
+    +'<div class="rcp-name">'+esc(name)+'</div>'
+    +(e0.horse?'<div class="rcp-subtitle">'+esc(e0.horse)+'</div>':'')
+    +(contact?'<div class="rcp-contact">'+esc(contact)+'</div>':'')
+    +'<div class="rcp-items">'+_rcpLineItems(allLines)+'</div>'
+    +'<hr class="rcp-divider">'
+    +'<div class="rcp-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
+    +(pmtHtml?'<div class="rcp-pmt-head">Payment</div>'+pmtHtml:'')
+    +(pmtHtml?'<div class="rcp-balance"><span>Balance</span><span>'+(bal<=0?'$0.00':fmt$(bal))+'</span></div>':'')
+    +(bal<=0?'<div class="rcp-paid-badge">&#10003; Paid in Full</div>':'')
+    +'<div class="rcp-footer">'+(G.cfg.showName||'Thorofare')+(showDate?' &middot; '+showDate:'')+'</div>';
+
+  openReceiptWindow(name, body);
+}
+
+function printGroupReceipt(groupId){
+  var grp=G.billingGroups.find(function(g){ return g.id===groupId; });
+  if(!grp) return;
+  var payKey='__grp__'+groupId;
+  var paid=groupAmtPaid(grp);
+  var hist=G.paymentHistory[payKey]||[];
+  var owed=groupAmtOwed(grp);
+  var bal=owed-paid;
+
+  var showDate=G.cfg.showDate?new Date(G.cfg.showDate+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):'';
+
+  // Responsible party contact
+  var respKey=grp.responsibleKey||grp.entryKeys[0]||'';
+  var respEntry=G.entries.find(function(e){ return e.name===respKey.split('|')[0]; });
+  var contact=respEntry?[respEntry.email,respEntry.phone,[respEntry.address,respEntry.city,respEntry.state].filter(Boolean).join(', ')].filter(Boolean).join(' · '):'';
+
+  var sectionsHtml='';
+  grp.entryKeys.forEach(function(k){
+    var parts=k.split('|'); var rName=parts[0]; var hName=parts.slice(1).join('|');
+    var subEntries=G.entries.filter(function(e){ return e.name===rName&&e.horse===hName; });
+    if(!subEntries.length) return;
+    var subLines=[]; subEntries.forEach(function(e){ buildTabLines(e).forEach(function(l){ subLines.push(l); }); });
+    var subTotal=subLines.reduce(function(s,l){ return s+l.amt; },0);
+    sectionsHtml+='<div class="rcp-section">'
+      +'<div class="rcp-section-name">'+esc(rName)+'</div>'
+      +(hName?'<div class="rcp-section-sub">'+esc(hName)+'</div>':'')
+      +_rcpLineItems(subLines)
+      +'<div class="rcp-section-total"><span>Subtotal</span><span>'+fmt$(subTotal)+'</span></div>'
+      +'</div>';
+  });
+
+  var pmtHtml=_rcpPaymentSummary(paid,hist);
+  var body=''
+    +'<div class="rcp-header">'
+    +'<div class="rcp-left">'
+    +'<div class="rcp-show-name">'+(G.cfg.showName||'Horse Show')+'</div>'
+    +'<div class="rcp-show-meta">'+(showDate||'')+(G.cfg.location?' &middot; '+esc(G.cfg.location):'')+'</div>'
+    +'</div>'
+    +(G.cfg.logoUrl?'<img src="'+G.cfg.logoUrl+'" class="rcp-logo">':'')
+    +'</div>'
+    +'<div class="rcp-label">Group Receipt</div>'
+    +'<div class="rcp-name">'+esc(grp.payerName)+'</div>'
+    +(contact?'<div class="rcp-contact">'+esc(contact)+'</div>':'<div style="margin-bottom:1.25rem"></div>')
+    +sectionsHtml
+    +'<hr class="rcp-divider">'
+    +'<div class="rcp-total"><span>Total</span><span>'+fmt$(owed)+'</span></div>'
+    +(pmtHtml?'<div class="rcp-pmt-head">Payment</div>'+pmtHtml:'')
+    +(pmtHtml?'<div class="rcp-balance"><span>Balance</span><span>'+(bal<=0?'$0.00':fmt$(bal))+'</span></div>':'')
+    +(bal<=0?'<div class="rcp-paid-badge">&#10003; Paid in Full</div>':'')
+    +'<div class="rcp-footer">'+(G.cfg.showName||'Thorofare')+(showDate?' &middot; '+showDate:'')+'</div>';
+
+  openReceiptWindow(grp.payerName, body);
+}
+
+function amtPaid(entry){
+  var hist=G.paymentHistory[entry.rowIndex];
+  if(hist&&hist.length) return hist.reduce(function(s,p){ return s+p.amount; },0);
+  return G.payments[entry.rowIndex]||0;
+}
 
 function tabBalance(entry){ return tabTotal(entry) - amtPaid(entry); }
 
@@ -2695,7 +3412,8 @@ function normHorse(s){
 function horsesMatch(a, b){
   var na=normHorse(a), nb=normHorse(b);
   if(!na||!nb) return false;
-  return na===nb || na.indexOf(nb)>=0 || nb.indexOf(na)>=0;
+  var nas=na.replace(/\s/g,''), nbs=nb.replace(/\s/g,'');
+  return na===nb || nas===nbs || na.indexOf(nb)>=0 || nb.indexOf(na)>=0;
 }
 
 function getCanonicalHorse(name){
@@ -2708,17 +3426,23 @@ function entryKey(e){ return e.name+'|'+e.horse; }
 function findSameHorseGroups(){
   var buckets={};
   G.entries.forEach(function(e){
-    var k=normHorse(e.horse);
-    if(!k) return;
-    if(!buckets[k]) buckets[k]={normKey:k, canonical:G.horseAliases[k]||e.horse, entries:[]};
-    buckets[k].entries.push(e);
+    var nk=normHorse(e.horse);
+    if(!nk) return;
+    // Use horseDistinct to separate same-name horses that are different animals
+    var bucketKey=G.horseDistinct[entryKey(e)] || nk;
+    if(!buckets[bucketKey]) buckets[bucketKey]={normKey:nk, canonical:G.horseAliases[nk]||e.horse, entries:[], distinctKey:bucketKey};
+    buckets[bucketKey].entries.push(e);
   });
-  // Also merge buckets where horse names fuzzy-match across different norm keys
+  // Also merge buckets where horse names fuzzy-match across different norm keys (only if neither has a distinct override)
   var keys=Object.keys(buckets);
   for(var i=0;i<keys.length;i++){
     for(var j=i+1;j<keys.length;j++){
-      if(horsesMatch(buckets[keys[i]].canonical, buckets[keys[j]].canonical)){
-        buckets[keys[i]].entries=buckets[keys[i]].entries.concat(buckets[keys[j]].entries);
+      var bi=buckets[keys[i]], bj=buckets[keys[j]];
+      // Don't merge if either bucket has explicit distinct overrides (they've been split on purpose)
+      var iHasDistinct=bi.entries.some(function(e){ return !!G.horseDistinct[entryKey(e)]; });
+      var jHasDistinct=bj.entries.some(function(e){ return !!G.horseDistinct[entryKey(e)]; });
+      if(!iHasDistinct&&!jHasDistinct&&horsesMatch(bi.canonical, bj.canonical)){
+        bi.entries=bi.entries.concat(bj.entries);
         delete buckets[keys[j]];
         keys.splice(j,1); j--;
       }
@@ -2745,17 +3469,41 @@ function groupAmtOwed(grp){
 }
 
 function groupAmtPaid(grp){
-  return G.payments['__grp__'+grp.id]||0;
+  var key='__grp__'+grp.id;
+  var hist=G.paymentHistory[key];
+  if(hist&&hist.length) return hist.reduce(function(s,p){ return s+p.amount; },0);
+  return G.payments[key]||0;
 }
 
 function groupBalance(grp){ return groupAmtOwed(grp)-groupAmtPaid(grp); }
 
 function groupIsFullyPaid(grp){ return groupBalance(grp)<=0; }
 
+function recordPayment(key, amount, method, checkNum, note){
+  if(!G.paymentHistory[key]) G.paymentHistory[key]=[];
+  G.paymentHistory[key].push({amount:amount, method:method||'cash', checkNum:checkNum||'', note:note||'', paidAt:new Date().toISOString()});
+  G.payments[key]=G.paymentHistory[key].reduce(function(s,p){ return s+p.amount; },0);
+  saveEntriesToStorage();
+}
+
+function undoLastPayment(key){
+  var hist=G.paymentHistory[key];
+  if(!hist||!hist.length) return;
+  hist.pop();
+  G.payments[key]=hist.reduce(function(s,p){ return s+p.amount; },0);
+  saveEntriesToStorage();
+}
+
+function payMethodLabel(m){
+  return {cash:'Cash',check:'Check',card:'Credit Card',venmo:'Venmo',other:'Other'}[m]||m||'Cash';
+}
+
 function saveBillingData(){
   if(!G.showId) return;
   localStorage.setItem('gp_billinggroups_'+G.showId, JSON.stringify(G.billingGroups));
   localStorage.setItem('gp_horsealiases_'+G.showId, JSON.stringify(G.horseAliases));
+  localStorage.setItem('gp_horsedistinct_'+G.showId, JSON.stringify(G.horseDistinct));
+  localStorage.setItem('gp_payhistory_'+G.showId, JSON.stringify(G.paymentHistory));
 }
 
 async function syncBillingGroupsToSupabase(){
@@ -3091,6 +3839,109 @@ document.querySelectorAll('.nav-item').forEach(function(el){
 
 
 
+// ═══════════════════════ ONLINE SUBMISSIONS ═══════════════════════
+
+async function loadPendingSubmissions(){
+  if(!G.showId) return;
+  var el = document.getElementById('pending-subs-card');
+  if(!el) return;
+  try {
+    var subs = await sbFetch('online_submissions?show_id=eq.'+G.showId+'&status=eq.pending&select=id,submission_data,submitted_at&order=submitted_at.asc');
+    el.innerHTML = (subs && subs.length) ? _renderPendingSubsCard(subs) : '';
+  } catch(e){ console.warn('Could not load pending submissions:', e); }
+}
+
+function _renderPendingSubsCard(subs){
+  var html = '<div class="card" style="border-color:var(--accent);margin-bottom:1rem">';
+  html += '<div class="card-title" style="color:var(--accent)">&#9654; '+subs.length+' Pending Online Entr'+(subs.length===1?'y':'ies')+'</div>';
+  html += '<div style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem">Review and accept each submission to add it to the entry list.</div>';
+  subs.forEach(function(s){
+    var d = s.submission_data || {};
+    var clsNames = (d.classes||[]).map(function(c){ return c.className; }).join(', ');
+    html += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:.75rem 1rem;margin-bottom:.5rem">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;flex-wrap:wrap">';
+    html += '<div>';
+    html += '<div style="font-size:.95rem">'+esc(((d.riderNameFirst||'')+' '+(d.riderNameLast||'')).trim())+'</div>';
+    html += '<div style="font-size:.82rem;color:var(--muted)">'+esc(d.horseName||'')+(d.horseGender?' &bull; '+esc(d.horseGender):'')+'</div>';
+    if(clsNames) html += '<div style="font-size:.8rem;margin-top:.2rem">'+esc(clsNames)+'</div>';
+    if(d.stall1qty||d.stall2qty||d.stall3qty||d.rv1qty){
+      var stall=[];
+      if(d.stall1qty) stall.push(d.stall1qty+'×&thinsp;1-night stall');
+      if(d.stall2qty) stall.push(d.stall2qty+'×&thinsp;circuit stall');
+      if(d.stall3qty) stall.push(d.stall3qty+'×&thinsp;3-night stall');
+      if(d.rv1qty)    stall.push(d.rv1qty+'×&thinsp;RV');
+      html += '<div style="font-size:.78rem;color:var(--muted);margin-top:.2rem">'+stall.join(', ')+'</div>';
+    }
+    html += '</div>';
+    html += '<div style="display:flex;gap:.4rem;flex-shrink:0;margin-top:.25rem">';
+    html += '<button class="btn btn-accent btn-sm" onclick="acceptOnlineSub(\''+s.id+'\')">&#10003; Accept</button>';
+    html += '<button class="btn btn-dark btn-sm" style="color:var(--red);border-color:var(--red)" onclick="rejectOnlineSub(\''+s.id+'\')">&#10005; Reject</button>';
+    html += '</div></div></div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+window.acceptOnlineSub = async function(id){
+  if(!confirm('Accept this entry and add it to the list?')) return;
+  try {
+    var subs = await sbFetch('online_submissions?id=eq.'+id+'&select=*');
+    if(!subs || !subs.length){ toast('Submission not found'); return; }
+    var d = subs[0].submission_data || {};
+    var mb = d.memberships || {};
+    var entry = {
+      rowIndex:    G.entries.length,
+      entryNum:    null,
+      name:        ((d.riderNameFirst||'')+' '+(d.riderNameLast||'')).trim(),
+      firstName:   d.riderNameFirst||'',
+      lastName:    d.riderNameLast||'',
+      email:       d.email||'',
+      phone:       d.phone||'',
+      address:     d.address1||'',
+      city:        d.city||'',
+      state:       d.state||'',
+      zip:         d.zip||'',
+      horse:       d.horseName||'',
+      horseGender: d.horseGender||'',
+      horseOwner:  d.horseOwner||'',
+      dob:         d.dob||null,
+      isYouth:     d.isYouth||false,
+      memberCoWN:  mb.CoWN||'',
+      memberSHTX:  mb.SHTX||'',
+      memberAQHA:  mb.AQHA||'',
+      memberAPHA:  mb.APHA||'',
+      memberApHC:  mb.ApHC||'',
+      memberNRHA:  mb.NRHA||'',
+      memberNum:   '',
+      classes: (d.classes||[]).map(function(c){
+        return {num:c.classNum||'', name:c.className||'', division:c.division||'', org:c.org||'', raw:c.className||''};
+      }),
+      stall1qty:  d.stall1qty||0, stall2qty: d.stall2qty||0, stall3qty: d.stall3qty||0,
+      shavings:   d.shavings||0,
+      rv1qty:     d.rv1qty||0, rv2qty: d.rv2qty||0, rvCircuit: d.rvCircuit||0,
+      stallNote:  d.stallingGroup||'',
+      source:     'online_form',
+      cognitoAmount: d.estimatedTotal||0,
+      isPaid: false, orgFees: [], customFees: {}
+    };
+    G.entries.push(entry);
+    saveEntries();
+    await sbFetch('online_submissions?id=eq.'+id, {method:'PATCH', body:JSON.stringify({status:'accepted', reviewed_at:new Date().toISOString()})});
+    syncEntriesToSupabase().catch(function(e){ console.warn('Sync error:', e); });
+    toast('Entry accepted — '+entry.name);
+    pgEntries();
+  } catch(e){ toast('Failed to accept entry'); console.error(e); }
+};
+
+window.rejectOnlineSub = async function(id){
+  if(!confirm('Reject this submission? The rider will not be notified automatically.')) return;
+  try {
+    await sbFetch('online_submissions?id=eq.'+id, {method:'PATCH', body:JSON.stringify({status:'rejected', reviewed_at:new Date().toISOString()})});
+    toast('Submission rejected');
+    pgEntries();
+  } catch(e){ toast('Reject failed'); console.error(e); }
+};
+
 // ═══════════════════════ PAGE: ENTRIES ═══════════════════════
 
 function pgEntries(){
@@ -3153,9 +4004,11 @@ function pgEntries(){
 
   if(!hasEntries){
 
-    pg.innerHTML=importCard;
+    pg.innerHTML='<div id="pending-subs-card"></div>'+importCard;
 
     wireImportDZ();
+
+    loadPendingSubmissions();
 
     return;
 
@@ -3176,6 +4029,8 @@ function pgEntries(){
 
 
   pg.innerHTML=importCard
+
+    +'<div id="pending-subs-card"></div>'
 
     +'<div class="stat-grid">'
 
@@ -3231,7 +4086,7 @@ function pgEntries(){
 
   wireImportDZ();
 
-
+  loadPendingSubmissions();
 
   var pills=['All'].concat(Object.keys(divCounts).sort());
 
@@ -3515,74 +4370,9 @@ function wireImportDZ(){
 
         var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
 
-        G.entries=parseCognito(wb);
+        var auditData=previewEntriesFile(wb);
 
-        G.payments={}; G.backNums={};
-
-        G.entries.forEach(function(en){ G.payments[en.rowIndex]=en.isPaid?tabTotal(en):0; });
-
-        var spn=document.getElementById('pill-name'), spm=document.getElementById('pill-meta');
-
-        if(spn) spn.textContent=G.showName||file.name.replace(/\.xlsx?$/i,'');
-
-        if(spm) spm.textContent=G.entries.length+' entries';
-
-        try{
-
-          localStorage.setItem('gp_entries_'+G.showId, JSON.stringify(G.entries));
-
-          localStorage.setItem('gp_payments_'+G.showId, JSON.stringify(G.payments));
-
-          localStorage.setItem('gp_backnums_'+G.showId, JSON.stringify(G.backNums));
-
-        } catch(ex){}
-
-        if(!G.cfg.classes.length){
-
-          var classMap={};
-
-          G.entries.forEach(function(en){
-
-            en.classes.forEach(function(cls){
-
-              if(cls.num && !classMap[cls.num]){
-
-                var isCow=COW_WORDS.some(function(k){ return (cls.name||'').toLowerCase().indexOf(k)>-1; });
-
-                CFG_ROW_ID++;
-
-                classMap[cls.num]={_id:'cr'+CFG_ROW_ID,num:cls.num,name:cls.name,
-
-                  division:cls.division,org:cls.org||'CoWN',isCow:isCow,
-
-                  baseFee:null,cowFee:null,jackpot:null,addedMoney:null};
-
-              }
-
-            });
-
-          });
-
-          G.cfg.classes=Object.values(classMap).sort(function(a,b){ return (parseInt(a.num)||999)-(parseInt(b.num)||999); });
-
-        }
-
-        // Navigate immediately — sync happens in the background
-        showPage('entries');
-
-        if(G.showId){
-
-          syncEntriesToSupabase().then(function(){
-
-            toast(G.entries.length+' entries saved to database');
-
-          }).catch(function(err){
-
-            toast('Entries loaded locally. Sync failed: '+esc(err.message), true);
-
-          });
-
-        }
+        showEntriesAudit(auditData,wb);
 
       } catch(err){
 
@@ -5740,10 +6530,12 @@ function pgTabs(){
         g.entries.forEach(function(e){ if(!groupedKeys[entryKey(e)]&&riders.indexOf(e.name)<0) riders.push(e.name); });
         if(riders.length>1){
           var rEsc=riders.map(function(r){ return r.replace(/\\/g,'\\\\').replace(/'/g,"\\'"); });
+          var canEsc=esc(g.canonical).replace(/'/g,"\\'");
           suggestionHtml+='<span style="font-size:.78rem;color:var(--text)">'+esc(g.canonical)+': <em style="color:var(--muted)">'+esc(riders.join(', '))+'</em></span>'
             +'<button class="btn btn-sm" style="font-size:.72rem;background:rgba(200,146,42,.15);border:1px solid rgba(200,146,42,.4);color:var(--accent)" '
-            +'onclick="promptMerge(\''+esc(g.canonical).replace(/'/g,"\\'")+"',['"+rEsc.join("','")+"'])\">"
-            +'Merge tabs</button>';
+            +'onclick="promptMerge(\''+canEsc+"',['"+rEsc.join("','")+"'])\">"
+            +'Merge tabs</button>'
+            +(riders.length>2?'<button class="btn btn-sm btn-dark" style="font-size:.72rem" onclick="promptSplitHorse(\''+canEsc+'\')">Split horse</button>':'');
         }
       });
       suggestionHtml+='</div>';
@@ -5756,7 +6548,10 @@ function pgTabs(){
     +'<div class="stat c-red"><div class="n">'+fmt$(totalOwed-totalPaid)+'</div><div class="l">Outstanding</div></div>'
     +'<div class="stat c-gold"><div class="n">'+fullyPaidCount+'</div><div class="l">Paid in Full</div></div>'
     +'</div><div class="card">'
-    +'<div class="search-wrap"><span class="search-ico">&#128269;</span><input class="search-box" id="tq" placeholder="Search rider or payer..."></div>'
+    +'<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">'
+    +'<div class="search-wrap" style="flex:1;margin-bottom:0"><span class="search-ico">&#128269;</span><input class="search-box" id="tq" placeholder="Search rider or payer..."></div>'
+    +'<button class="btn btn-dark btn-sm" onclick="promptNewGroup()" style="white-space:nowrap">+ New Group</button>'
+    +'</div>'
     +'<div class="pills" id="tpills"></div>'
     +suggestionHtml
     +'<div class="tbl-wrap" id="ttbl"></div></div>';
@@ -5793,19 +6588,25 @@ function pgTabs(){
         +'<td style="color:var(--green)">'+fmt$(paid)+'</td>'
         +'<td class="bold" style="color:'+(isPaid?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</td>'
         +'<td>'+(isPaid?'<span class="badge b-green">Paid</span>':'<span class="badge b-red">Due</span>')+'</td>'
-        +'<td><button class="btn btn-sm btn-dark" style="font-size:.68rem" onclick="event.stopPropagation();promptSplit(\''+gEsc+'\')">Split</button></td>'
+        +'<td style="white-space:nowrap">'
+        +'<button class="btn btn-sm btn-dark" style="font-size:.68rem" onclick="event.stopPropagation();promptSplit(\''+gEsc+'\')">Split</button> '
+        +(G.billingGroups.length>1?'<button class="btn btn-sm btn-dark" style="font-size:.68rem" onclick="event.stopPropagation();promptMergeGroups(\''+gEsc+'\')">Merge&hellip;</button>':'')
+        +'</td>'
         +'</tr>';
       // Sub-rows per entry key
+      var uniqueRiders=[]; grp.entryKeys.forEach(function(k){ var n=k.split('|')[0]; if(uniqueRiders.indexOf(n)<0) uniqueRiders.push(n); });
       grp.entryKeys.forEach(function(k){
         var parts=k.split('|'); var rName=parts[0]; var hName=parts.slice(1).join('|');
         var subEntries=G.entries.filter(function(e){ return e.name===rName&&e.horse===hName; });
         var subOwed=subEntries.reduce(function(s,e){ return s+tabTotal(e); },0);
+        var rEsc=rName.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
         t+='<tr style="background:rgba(200,146,42,.02)">'
           +'<td style="padding-left:1.6rem;font-size:.83rem;color:var(--muted)">&#8627; '+esc(rName)+'</td>'
           +'<td class="small" style="color:var(--muted)">'+esc(hName)+'</td>'
           +'<td class="ctr" style="color:var(--muted)">'+subEntries.length+'</td>'
           +'<td style="color:var(--muted)">'+fmt$(subOwed)+'</td>'
-          +'<td></td><td></td><td></td><td></td>'
+          +'<td></td><td></td><td></td>'
+          +'<td><button class="btn btn-sm btn-dark" style="font-size:.65rem" onclick="event.stopPropagation();promptMoveRider(\''+rEsc+'\',\''+gEsc+'\')">Move&hellip;</button></td>'
           +'</tr>';
       });
     });
@@ -5817,7 +6618,11 @@ function pgTabs(){
       if(!byRider[e.name]) byRider[e.name]=[];
       byRider[e.name].push(e);
     });
-    G._riderList=Object.keys(byRider).sort();
+    G._riderList=Object.keys(byRider).sort(function(a,b){
+      var aW=a.trim().split(/\s+/),bW=b.trim().split(/\s+/);
+      var al=aW[aW.length-1].toLowerCase(),bl=bW[bW.length-1].toLowerCase();
+      return al<bl?-1:al>bl?1:a.toLowerCase()<b.toLowerCase()?-1:1;
+    });
     G._riderList.forEach(function(name){
       var entries=byRider[name];
       var owed=entries.reduce(function(s,e){ return s+tabTotal(e); },0);
@@ -6292,6 +7097,16 @@ window.resMarkDQ=function(idx){
   if(r.isDQ){ r.isOP=false; r.opCount=0; }
   saveResultsToStorage();
   pgResults();
+};
+
+window.resConfirmHorseAlias=function(resultHorse, canonicalHorse){
+  // Save alias: resultHorse spelling → canonicalHorse (Cognito/entry spelling wins)
+  setHorseAlias(resultHorse, canonicalHorse);
+  // Re-reconcile so _horseMismatch clears and match type updates
+  reconcileResultsToEntries();
+  saveResultsToStorage();
+  pgResults();
+  toast('"'+resultHorse+'" → "'+canonicalHorse+'" saved as same horse');
 };
 
 
@@ -7503,7 +8318,21 @@ function pgResults(){
 
           +'<td style="text-align:right;padding-right:.3rem;white-space:nowrap">'
           +(r._matchType==='none'?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Create entry from this row" style="background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.3);border-radius:4px;color:var(--green);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">+</button>':'')
-          +(r._horseMismatch?'<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Matched to wrong horse — click to create correct entry" style="background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);border-radius:4px;color:var(--red);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">&#9888;+</button>':'')
+          +(r._horseMismatch&&r._canonical?(function(){
+            var rh=(r.horse||''), ch=(r._canonical.horse||'');
+            var isFuzzyMatch=horsesMatch(rh,ch);
+            var rhEsc=rh.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            var chEsc=ch.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            if(isFuzzyMatch){
+              // Spelling/spacing variant — offer to set alias
+              return '<button onclick="resConfirmHorseAlias(\''+rhEsc+'\',\''+chEsc+'\')" '
+                +'title="'+esc(rh)+' → '+esc(ch)+': confirm these are the same horse" '
+                +'style="background:rgba(200,146,42,.15);border:1px solid rgba(200,146,42,.4);border-radius:4px;color:var(--accent);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">'
+                +'Same horse?</button>';
+            }
+            // Genuinely different horse name — offer to create new entry
+            return '<button onclick="resCreateEntryFromIdx('+r._idx+')" title="Matched to wrong horse — click to create correct entry" style="background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);border-radius:4px;color:var(--red);cursor:pointer;font-size:.7rem;padding:1px 4px;line-height:1;margin-right:.2rem">&#9888;+</button>';
+          })():'')
           +(!isAAClass&&!isAqhaOrg?(function(){
             var oc=r.opCount||0;
             var lbl=oc>0?(oc>1?'OP'+oc:'OP'):'OP';
@@ -8347,6 +9176,8 @@ function pgSettings(){
     +'<button class="stab" onclick="showStab(\'classes\',this)">&#127891; Class Fees</button>'
 
     +'<button class="stab" onclick="showStab(\'orgs\',this)">&#127981; Associations</button>'
+
+    +'<button class="stab" onclick="showStab(\'entryform\',this)">&#128203; Entry Form</button>'
 
     +'<span class="stab-group-label stab-group-sep">Tools</span>'
 
@@ -10632,7 +11463,9 @@ var FEE_CATS = {
   rv:     {label:'RV Hookups',            note:'Charged per RV spot.'},
   office: {label:'Office & Admin',        note:'Office fee charged per entry. Late fee applied manually per entry.'},
   member: {label:'Membership & Licenses', note:'Charged per rider based on membership type on the entry.'},
-  custom: {label:'Custom / Additional',   note:'Charged to every entry at this show.'}
+  custom:    {label:'Custom / Additional',       note:'Charged to every entry at this show.'},
+  assocfee:  {label:'Association Admin Fees',    note:'Applied per rider or per class based on which org\'s classes they entered. Set up in the Association Fees section below.'},
+  import:    {label:'Import / Variable Fields',  note:'Columns captured from your entry form — qty per rider × price set here. Add columns in the import mapper when loading entries.'}
 };
 
 function feeLabel(key){
@@ -10662,12 +11495,12 @@ function renderFeeSchedule(){
   if(!el) return;
   var sched = G.cfg.feeSchedule;
 
-  var catOrder = ['class','stall','rv','office','member','custom'];
+  var catOrder = ['class','stall','rv','office','member','custom','import'];
   var html = '';
 
   catOrder.forEach(function(cat){
     var fees = sched.filter(function(f){ return (f.cat||'custom')===cat; });
-    if(!fees.length && cat!=='custom') return;
+    if(!fees.length && cat!=='custom' && cat!=='import') return;
     var info = FEE_CATS[cat];
     html += '<div class="card fee-cat-section" id="fcs-'+cat+'">'
       +'<div class="fee-cat-head" onclick="toggleFeeSection(\''+cat+'\')">'
@@ -10678,8 +11511,10 @@ function renderFeeSchedule(){
     if(fees.length){
       fees.forEach(function(f){
         var i = sched.indexOf(f);
+        var locked = cat==='import'; // import fields: label is locked (set by mapper), only price editable
         html += '<div class="fee-sched-row">'
           +'<input class="fee-sched-label" value="'+esc(f.label||'')+'" placeholder="Fee name" '
+          +(locked?'readonly style="opacity:.6;cursor:default" ':''  )
           +'onchange="updateScheduleFee('+i+',\'label\',this.value)">'
           +'<div style="display:flex;align-items:center;gap:.3rem">'
           +'<span style="color:var(--muted);font-size:.9rem">$</span>'
@@ -10692,7 +11527,9 @@ function renderFeeSchedule(){
           +'</div>';
       });
     } else {
-      html += '<div class="fee-cat-empty" style="font-size:.78rem;color:var(--muted);padding:.4rem .2rem">No custom fees yet.</div>';
+      html += '<div class="fee-cat-empty" style="font-size:.78rem;color:var(--muted);padding:.4rem .2rem">'
+        +(cat==='import' ? 'No import fields yet. Add fee columns in the import mapper when loading entries.' : 'No custom fees yet.')
+        +'</div>';
     }
     if(cat==='custom'){
       html += '<div class="fee-add-btn" style="margin-top:.4rem">'
@@ -10702,12 +11539,85 @@ function renderFeeSchedule(){
     html += '</div>';
   });
 
+  // Association Fees section
+  var assocFees = G.cfg.assocFees || [];
+  var orgOpts = (_getShowOrgs()).map(function(o){ return '<option value="'+esc(o)+'">'+esc(o)+'</option>'; }).join('');
+  var afRows = assocFees.map(function(af, idx){
+    var orgSel = _getShowOrgs().map(function(o){
+      return '<option value="'+esc(o)+'"'+(af.org===o?' selected':'')+'>'+esc(o)+'</option>';
+    }).join('');
+    var perSel = '<option value="entry"'+(af.per==='entry'?' selected':'')+'>Per entry (once per rider in this org)</option>'
+      +'<option value="class"'+(af.per==='class'?' selected':'')+'>Per class entered</option>';
+    return '<div class="fee-sched-row" style="flex-wrap:wrap;gap:.35rem;align-items:center">'
+      +'<select style="background:var(--card2,#13201a);color:var(--fg);border:1px solid var(--border2);'
+      +'padding:2px 6px;border-radius:4px;font-size:.82rem" onchange="updateAssocFee('+idx+',\'org\',this.value)">'+orgSel+'</select>'
+      +'<input style="background:var(--card2,#13201a);color:var(--fg);border:1px solid var(--border2);'
+      +'padding:2px 8px;border-radius:4px;font-size:.82rem;flex:1;min-width:120px" '
+      +'value="'+esc(af.desc||'')+'" placeholder="Fee description (e.g. Drug Test Fee)" '
+      +'oninput="updateAssocFee('+idx+',\'desc\',this.value)">'
+      +'<div style="display:flex;align-items:center;gap:.25rem">'
+      +'<span style="color:var(--muted);font-size:.9rem">$</span>'
+      +'<input type="number" style="background:var(--card2,#13201a);color:var(--fg);border:1px solid var(--border2);'
+      +'padding:2px 6px;border-radius:4px;font-size:.82rem;width:70px" '
+      +'value="'+(af.amt||0)+'" step="0.01" min="0" oninput="updateAssocFee('+idx+',\'amt\',this.value)">'
+      +'</div>'
+      +'<select style="background:var(--card2,#13201a);color:var(--fg);border:1px solid var(--border2);'
+      +'padding:2px 6px;border-radius:4px;font-size:.82rem" onchange="updateAssocFee('+idx+',\'per\',this.value)">'+perSel+'</select>'
+      +'<input style="background:var(--card2,#13201a);color:var(--fg);border:1px solid var(--border2);'
+      +'padding:2px 8px;border-radius:4px;font-size:.82rem;flex:1;min-width:100px" '
+      +'value="'+esc((af.disciplines||[]).join(', '))+'" placeholder="Disciplines filter (e.g. Trail, Reining) — blank = all" '
+      +'oninput="updateAssocFee('+idx+',\'disciplines\',this.value)">'
+      +'<button onclick="removeAssocFee('+idx+')" style="background:transparent;border:1px solid rgba(231,76,60,.3);'
+      +'color:var(--red);border-radius:4px;cursor:pointer;padding:.15rem .45rem;font-size:.9rem">&times;</button>'
+      +'</div>';
+  }).join('');
+
+  html += '<div class="card fee-cat-section" id="fcs-assocfee">'
+    +'<div class="fee-cat-head" onclick="toggleFeeSection(\'assocfee\')">'
+    +'<span class="fee-cat-label">Association Admin Fees</span>'
+    +'<span class="fee-cat-note">Auto-applied per rider or per class based on which org\'s classes they entered. Drug tests, trail fees, admin fees, etc.</span>'
+    +'<span class="fee-cat-toggle">&#9660;</span>'
+    +'</div>'
+    +(afRows || '<div class="fee-cat-empty" style="font-size:.78rem;color:var(--muted);padding:.4rem .2rem">No association fees set up yet.</div>')
+    +'<div class="fee-add-btn" style="margin-top:.4rem">'
+    +'<button class="btn btn-accent btn-sm" onclick="addAssocFee()">+ Add Association Fee</button>'
+    +'</div></div>';
+
   el.innerHTML = html;
+}
+
+function _getShowOrgs(){
+  var base = ['CoWN','VRH','AQHA Ranch','AQHA RHC','APHA','WHSR','Jackpot'];
+  var fromClasses = (G.cfg.classes||[]).map(function(c){ return c.org; }).filter(Boolean);
+  var combined = base.concat(fromClasses);
+  return combined.filter(function(o,i){ return combined.indexOf(o)===i; });
 }
 
 window.updateScheduleFee = function(idx, field, val){
   if(!G.cfg.feeSchedule || !G.cfg.feeSchedule[idx]) return;
   G.cfg.feeSchedule[idx][field] = field==='amt' ? parseFloat(val)||0 : val;
+};
+
+window.updateAssocFee = function(idx, field, val){
+  if(!G.cfg.assocFees || !G.cfg.assocFees[idx]) return;
+  if(field==='amt') G.cfg.assocFees[idx].amt = parseFloat(val)||0;
+  else if(field==='disciplines') G.cfg.assocFees[idx].disciplines = val.split(',').map(function(s){return s.trim();}).filter(Boolean);
+  else G.cfg.assocFees[idx][field] = val;
+};
+
+window.removeAssocFee = function(idx){
+  if(!G.cfg.assocFees) return;
+  G.cfg.assocFees.splice(idx,1);
+  renderFeeSchedule();
+};
+
+window.addAssocFee = function(){
+  if(!G.cfg.assocFees) G.cfg.assocFees = [];
+  var firstOrg = _getShowOrgs()[0] || 'CoWN';
+  G.cfg.assocFees.push({id:'af_'+Date.now(), org:firstOrg, desc:'', amt:0, per:'entry', disciplines:[]});
+  var sec=document.getElementById('fcs-assocfee');
+  if(sec) sec.classList.remove('collapsed');
+  renderFeeSchedule();
 };
 
 window.removeScheduleFee = function(idx){
@@ -10741,14 +11651,18 @@ window.saveFeeSchedule = function(){
     if(f.key){
       G.cfg.fees[f.key] = f.amt;
     } else {
-      if(f.label) extras.push({label:f.label, amt:f.amt||0});
+      if(f.label) extras.push({label:f.label, amt:f.amt||0, cat:f.cat||'custom'});
     }
   });
   G.cfg.extraFees = extras;
-  // Save fees only — don't touch show metadata DOM inputs which may not be visible
+  if(!G.cfg.assocFees) G.cfg.assocFees = [];
   try{ localStorage.setItem('gatepost_cfg', JSON.stringify(G.cfg)); } catch(e){}
   if(G.showId){
-    var feeConfig = Object.assign({}, G.cfg.fees, {_schedule:G.cfg.feeSchedule||null, _extraFees:G.cfg.extraFees||[]});
+    var feeConfig = Object.assign({}, G.cfg.fees, {
+      _schedule: G.cfg.feeSchedule||null,
+      _extraFees: G.cfg.extraFees||[],
+      _assocFees: G.cfg.assocFees||[]
+    });
     sbFetch('shows?id=eq.'+G.showId, {method:'PATCH', body:JSON.stringify({fee_config:feeConfig})})
       .then(function(){ toast('Fee schedule saved'); })
       .catch(function(e){ toast('Saved locally (DB error: '+e.message+')', true); });
@@ -10788,7 +11702,7 @@ function saveConfig(){
 
       location:   G.cfg.location || null,
 
-      fee_config: Object.assign({}, G.cfg.fees, {_schedule:G.cfg.feeSchedule||null, _extraFees:G.cfg.extraFees||[]}),
+      fee_config: Object.assign({}, G.cfg.fees, {_schedule:G.cfg.feeSchedule||null, _extraFees:G.cfg.extraFees||[], _assocFees:G.cfg.assocFees||[]}),
 
     };
 
@@ -10805,6 +11719,11 @@ function saveConfig(){
           +'<div class="sp-meta">'+(G.cfg.showDate||'')+(G.cfg.location?' &middot; '+G.cfg.location:'')+'</div>';
 
         toast('Show saved to database');
+
+        // Sync class list so show_classes stays current for entry form and entry_classes
+        if(G.cfg.classes && G.cfg.classes.length){
+          syncShowClassesToSupabase().catch(function(e){ console.warn('Class sync failed:', e); });
+        }
 
       })
 
@@ -11115,6 +12034,24 @@ function showEntryModal(rowIdx){
     }
 
 
+
+    // Association admin fees
+    var assocFeeLines = lines.filter(function(l){ return l.type==='assocfee'; });
+    if(assocFeeLines.length){
+      feesHTML += '<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:.6rem 0 .25rem">Association Fees</div>';
+      assocFeeLines.forEach(function(l){ feesHTML += '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; });
+    }
+
+    // Import / variable fees
+    var importLines = lines.filter(function(l){ return l.type==='import'; });
+    if(importLines.length){
+      feesHTML += '<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:.6rem 0 .25rem">Variable Fees</div>';
+      importLines.forEach(function(l){
+        feesHTML += '<div class="tab-line"><span>'+esc(l.desc)
+          +(l.noPrice ? ' <span style="color:var(--amber,#e6a817);font-size:.72rem">&#9888; set price in Finances</span>' : '')
+          +'</span><span>'+(l.noPrice ? '<span style="color:var(--muted)">$0.00</span>' : fmt$(l.amt))+'</span></div>';
+      });
+    }
 
     // Org fees with adjusted display
 
@@ -12936,60 +13873,140 @@ window.removeGuestSplit=function(myRowIdx, splitKey){
 
 function showTabModalByIdx(refRowIdx){ var ref=G.entries.find(function(e){ return e.rowIndex===refRowIdx; }); if(ref) showTabModal(ref.name); };
 
+// ─── Shared payment UI builder ────────────────────────────────────────────────
+function buildPaymentSection(payKey, bal, reopenFn){
+  var hist=G.paymentHistory[payKey]||[];
+  var pkEsc=String(payKey).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  var s='';
+  // History list
+  if(hist.length){
+    s+='<div style="margin:0 0 .5rem;font-size:.76rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Payment History</div>';
+    hist.forEach(function(p,i){
+      var d=p.paidAt?new Date(p.paidAt).toLocaleDateString():'';
+      s+='<div style="display:flex;align-items:center;gap:.5rem;padding:.25rem 0;border-bottom:1px solid var(--border);font-size:.82rem">'
+        +'<span style="color:var(--green);font-weight:600">'+fmt$(p.amount)+'</span>'
+        +'<span style="color:var(--muted)">'+payMethodLabel(p.method)+(p.checkNum?' #'+esc(p.checkNum):'')+'</span>'
+        +(d?'<span style="color:var(--muted);font-size:.72rem">'+d+'</span>':'')
+        +(p.note?'<span style="color:var(--muted);font-style:italic;font-size:.75rem">'+esc(p.note)+'</span>':'')
+        +(i===hist.length-1?'<button onclick="undoPayment(\''+pkEsc+'\',\''+reopenFn+'\')" style="margin-left:auto;background:transparent;border:1px solid rgba(231,76,60,.4);border-radius:4px;color:var(--red);cursor:pointer;font-size:.68rem;padding:1px 5px">Undo</button>':'')
+        +'</div>';
+    });
+  }
+  // Record payment form
+  s+='<div style="margin-top:.6rem">'
+    +'<div style="font-size:.76rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.35rem">Record Payment</div>'
+    +'<div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">'
+    +'<select id="pay-method" onchange="toggleCheckNum()" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.32rem .45rem;font-size:.82rem">'
+    +'<option value="cash">Cash</option><option value="check">Check</option>'
+    +'<option value="card">Credit Card</option><option value="venmo">Venmo</option><option value="other">Other</option>'
+    +'</select>'
+    +'<input id="pay-checknum" placeholder="Check #" style="display:none;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.32rem .45rem;font-size:.82rem;width:80px">'
+    +'<input id="pay-amount" type="number" step="0.01" min="0" value="'+(bal>0?bal.toFixed(2):'') +'" placeholder="Amount" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.32rem .45rem;font-size:.82rem;width:90px">'
+    +'<input id="pay-note" placeholder="Note (optional)" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.32rem .45rem;font-size:.82rem;flex:1;min-width:90px">'
+    +'<button class="btn btn-green btn-sm" onclick="submitPayment(\''+pkEsc+'\',\''+reopenFn+'\')">Record</button>'
+    +'</div></div>';
+  return s;
+}
+
+window.toggleCheckNum=function(){
+  var m=(document.getElementById('pay-method')||{}).value;
+  var cn=document.getElementById('pay-checknum');
+  if(cn) cn.style.display=(m==='check')?'':'none';
+};
+
+window.submitPayment=function(payKey, reopenFn){
+  var amt=parseFloat((document.getElementById('pay-amount')||{}).value)||0;
+  if(amt<=0){ toast('Enter an amount', true); return; }
+  var method=(document.getElementById('pay-method')||{}).value||'cash';
+  var checkNum=(document.getElementById('pay-checknum')||{}).value||'';
+  var note=(document.getElementById('pay-note')||{}).value||'';
+  recordPayment(payKey, amt, method, checkNum, note);
+  closeModal();
+  if(reopenFn) window[reopenFn]&&window[reopenFn](payKey);
+  pgTabs();
+};
+
+window.undoPayment=function(payKey, reopenFn){
+  undoLastPayment(payKey);
+  closeModal();
+  if(reopenFn) window[reopenFn]&&window[reopenFn](payKey);
+  pgTabs();
+};
+
+// ─── Contact info helper ──────────────────────────────────────────────────────
+function buildContactLine(e){
+  if(!e) return '';
+  var parts=[];
+  if(e.email) parts.push('<a href="mailto:'+esc(e.email)+'" style="color:var(--accent)">'+esc(e.email)+'</a>');
+  if(e.phone) parts.push(esc(e.phone));
+  var addr=[e.address,e.city,e.state].filter(Boolean).join(', ');
+  if(addr) parts.push(esc(addr));
+  return parts.length?'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">'+parts.join(' &middot; ')+'</div>':'';
+}
+
 function showGroupTabModal(groupId){
   var grp=G.billingGroups.find(function(g){ return g.id===groupId; });
   if(!grp) return;
   var owed=groupAmtOwed(grp), paid=groupAmtPaid(grp), bal=owed-paid;
+  var payKey='__grp__'+groupId;
   var gEsc=groupId.replace(/'/g,"\\'");
+
+  // Responsible party contact
+  var respKey=grp.responsibleKey||grp.entryKeys[0]||'';
+  var respParts=respKey.split('|'); var respName=respParts[0];
+  var respEntry=G.entries.find(function(e){ return e.name===respName; });
+
   var html='<div class="modal-bg" id="tm" onclick="if(event.target===this)closeModal()">'
     +'<div class="modal"><h2>&#128281; '+esc(grp.payerName)+'</h2>'
-    +'<div class="small" style="color:var(--muted);margin-bottom:1rem">Combined billing group</div>';
-  // Per-rider sub-tabs
+    +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.3rem">Responsible: '
+    +'<select id="grp-resp" onchange="setGroupResp(\''+gEsc+'\',this.value)" style="background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-size:.78rem;padding:1px 4px">'
+    +grp.entryKeys.map(function(k){ return '<option value="'+esc(k)+'"'+(k===respKey?' selected':'')+'>'+esc(k.split('|')[0])+'</option>'; }).join('')
+    +'</select></div>'
+    +buildContactLine(respEntry);
+
+  // Per-rider charge breakdown (screen only)
   grp.entryKeys.forEach(function(k){
     var parts=k.split('|'); var rName=parts[0]; var hName=parts.slice(1).join('|');
     var subEntries=G.entries.filter(function(e){ return e.name===rName&&e.horse===hName; });
     if(!subEntries.length) return;
-    var allLines=[]; subEntries.forEach(function(e){ buildTabLines(e).forEach(function(l){ allLines.push(l); }); });
-    var subOwed=allLines.reduce(function(s,l){ return s+l.amt; },0);
-    html+='<div style="margin-bottom:.6rem;padding:.5rem .65rem;background:var(--card2);border-radius:6px">'
-      +'<div style="font-size:.8rem;font-weight:600;color:var(--accent);margin-bottom:.35rem">'+esc(rName)+' &middot; <span style="color:var(--muted);font-weight:400">'+esc(hName)+'</span></div>'
-      +allLines.map(function(l){ return '<div class="tab-line" style="font-size:.82rem"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; }).join('')
-      +'<div class="tab-line" style="font-weight:600;border-top:1px solid var(--border);margin-top:.3rem;padding-top:.3rem"><span>Subtotal</span><span>'+fmt$(subOwed)+'</span></div>'
+    var subLines=[]; subEntries.forEach(function(e){ buildTabLines(e).forEach(function(l){ subLines.push(l); }); });
+    var subOwed=subLines.reduce(function(s,l){ return s+l.amt; },0);
+    var rEsc2=rName.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    html+='<div style="margin-bottom:.5rem;padding:.45rem .6rem;background:var(--card2);border-radius:6px">'
+      +'<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">'
+      +'<span style="font-size:.8rem;font-weight:600;color:var(--accent)">'+esc(rName)+'</span>'
+      +'<span style="font-size:.78rem;color:var(--muted)">'+esc(hName)+'</span>'
+      +'<button class="btn btn-sm btn-dark no-print" style="font-size:.65rem;margin-left:auto" onclick="promptMoveRider(\''+rEsc2+'\',\''+gEsc+'\')">Move&hellip;</button>'
+      +'</div>'
+      +subLines.map(function(l){ return '<div class="tab-line" style="font-size:.81rem"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; }).join('')
+      +'<div class="tab-line" style="font-weight:600;border-top:1px solid var(--border);margin-top:.25rem;padding-top:.25rem"><span>Subtotal</span><span>'+fmt$(subOwed)+'</span></div>'
       +'</div>';
   });
+
   html+='<div class="tab-total"><span>Total</span><span>'+fmt$(owed)+'</span></div>'
-    +'<div class="pay-status">'
+    +'<div class="pay-status" style="margin-bottom:.5rem">'
     +'<div style="flex:1"><div class="small">Paid</div><div class="bold" style="color:var(--green)">'+fmt$(paid)+'</div></div>'
     +'<div style="flex:1"><div class="small">Balance</div><div class="bold" style="color:'+(bal<=0?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</div></div>'
-    +'<div>'+(bal>0?'<button class="btn btn-green btn-sm" onclick="markGroupPaid(\''+gEsc+'\','+owed+')">Mark Paid</button>':'<span class="badge b-green">&#10003; Paid in Full</span>')+'</div>'
+    +(bal<=0?'<div><span class="badge b-green">&#10003; Paid in Full</span></div>':'')
     +'</div>'
-    +'<div style="margin-top:.65rem">'
-    +'<label style="font-size:.78rem;color:var(--muted)">Payment amount</label>'
-    +'<div style="display:flex;gap:.4rem;margin-top:.25rem">'
-    +'<input id="grp-pay-amt" type="number" step="0.01" value="'+bal.toFixed(2)+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.35rem .5rem;font-size:.84rem;width:110px">'
-    +'<button class="btn btn-green btn-sm" onclick="markGroupPaidAmt(\''+gEsc+'\')">Record</button>'
-    +'</div></div>'
+    +buildPaymentSection(payKey, bal, '_reopenGroup')
     +'<div class="btn-row" style="margin-top:1rem;margin-bottom:0">'
     +'<button class="btn btn-dark" onclick="closeModal()">Close</button>'
-    +'<button class="btn btn-dark btn-sm" onclick="closeModal();promptSplit(\''+gEsc+'\')">&#9135; Split Group</button>'
-    +'<button class="btn btn-dark btn-sm no-print" onclick="window.print()">&#128424; Print</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="closeModal();promptSplit(\''+gEsc+'\')">&#9135; Split</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="printGroupReceipt(\''+gEsc+'\')">&#128424; Print Receipt</button>'
     +'</div></div></div>';
   document.getElementById('modal-root').innerHTML=html;
 }
 
-function markGroupPaid(groupId, amount){
-  G.payments['__grp__'+groupId]=amount;
-  saveEntriesToStorage();
-  closeModal(); pgTabs();
-}
+window._reopenGroup=function(payKey){
+  var groupId=payKey.replace('__grp__','');
+  showGroupTabModal(groupId);
+};
 
-function markGroupPaidAmt(groupId){
-  var amt=parseFloat((document.getElementById('grp-pay-amt')||{}).value)||0;
-  var existing=G.payments['__grp__'+groupId]||0;
-  G.payments['__grp__'+groupId]=existing+amt;
-  saveEntriesToStorage();
-  closeModal(); pgTabs();
-}
+window.setGroupResp=function(groupId, respKey){
+  var grp=G.billingGroups.find(function(g){ return g.id===groupId; });
+  if(grp){ grp.responsibleKey=respKey; saveBillingData(); syncBillingGroupsToSupabase(); }
+};
 
 function promptMerge(canonicalHorse, riderNames){
   // Build entryKeys for all unmerged entries for these riders
@@ -13032,6 +14049,84 @@ function confirmMerge(entryKeys){
   closeModal(); pgTabs();
 }
 
+// ─── Horse disambiguation: split same-name horses that are actually different animals ─────
+
+function promptSplitHorse(canonical){
+  var shg=findSameHorseGroups();
+  var grp=shg.find(function(g){ return g.canonical===canonical; });
+  if(!grp){ toast('Horse group not found', true); return; }
+
+  // Collect unique riders and their entryKeys for this horse
+  var riderKeys={}; // riderName → [entryKey, ...]
+  grp.entries.forEach(function(e){
+    if(!riderKeys[e.name]) riderKeys[e.name]=[];
+    var k=entryKey(e);
+    if(riderKeys[e.name].indexOf(k)<0) riderKeys[e.name].push(k);
+  });
+  var riders=Object.keys(riderKeys).sort(function(a,b){
+    var aW=a.trim().split(/\s+/),bW=b.trim().split(/\s+/);
+    var al=aW[aW.length-1].toLowerCase(),bl=bW[bW.length-1].toLowerCase();
+    return al<bl?-1:al>bl?1:0;
+  });
+  var numGroups=2; // start with 2 groups
+
+  var root=document.getElementById('modal-root');
+  var canEsc=canonical.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  root.innerHTML='<div class="modal-bg" id="tm" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal"><h2>Split Horse: '+esc(canonical)+'</h2>'
+    +'<div class="small" style="color:var(--muted);margin-bottom:.75rem">Assign each rider to a horse group. Riders in the same group share the same horse.</div>'
+    +'<table style="width:100%;border-collapse:collapse;margin-bottom:.75rem"><thead>'
+    +'<tr><th style="text-align:left;padding:.25rem .4rem;font-size:.75rem;color:var(--muted)">Rider</th><th style="text-align:left;padding:.25rem .4rem;font-size:.75rem;color:var(--muted)">Horse Group</th></tr></thead><tbody>'
+    +riders.map(function(name){
+      var eks=riderKeys[name];
+      var cur=G.horseDistinct[eks[0]]||'';
+      // Determine current group number from stored key (e.g. "ace_1" → "1")
+      var curNum=cur?cur.split('_').pop():'1';
+      return '<tr><td style="padding:.3rem .4rem;font-size:.84rem">'+esc(name)+'</td>'
+        +'<td style="padding:.3rem .4rem">'
+        +'<select class="sh-grp-sel" data-rider="'+esc(name)+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:.2rem .4rem;font-size:.82rem">'
+        +'<option value="1"'+(curNum==='1'?' selected':'')+'>Horse 1</option>'
+        +'<option value="2"'+(curNum==='2'?' selected':'')+'>Horse 2</option>'
+        +'<option value="3"'+(curNum==='3'?' selected':'')+'>Horse 3</option>'
+        +'</select></td></tr>';
+    }).join('')
+    +'</tbody></table>'
+    +'<div class="btn-row">'
+    +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="clearHorseSplit(\''+canEsc+'\')">Clear Split</button>'
+    +'<button class="btn btn-accent" onclick="saveSplitHorse(\''+canEsc+'\','+JSON.stringify(riders).replace(/"/g,"'")+')">Save</button>'
+    +'</div></div></div>';
+}
+
+window.saveSplitHorse=function(canonical, riders){
+  var nk=normHorse(canonical);
+  riders.forEach(function(name){
+    var sel=document.querySelector('.sh-grp-sel[data-rider="'+name+'"]');
+    if(!sel) return;
+    var grpNum=sel.value||'1';
+    // Set horseDistinct for every entry this rider has on this horse
+    G.entries.forEach(function(e){
+      if(e.name===name&&horsesMatch(e.horse,canonical)){
+        G.horseDistinct[entryKey(e)]=nk+'_'+grpNum;
+      }
+    });
+  });
+  saveBillingData();
+  closeModal(); pgTabs();
+};
+
+window.clearHorseSplit=function(canonical){
+  var nk=normHorse(canonical);
+  G.entries.forEach(function(e){
+    if(horsesMatch(e.horse,canonical)){
+      var dk=G.horseDistinct[entryKey(e)];
+      if(dk&&dk.indexOf(nk+'_')===0) delete G.horseDistinct[entryKey(e)];
+    }
+  });
+  saveBillingData();
+  closeModal(); pgTabs();
+};
+
 function promptSplit(groupId){
   var grp=G.billingGroups.find(function(g){ return g.id===groupId; });
   if(!grp) return;
@@ -13065,56 +14160,218 @@ function confirmSplit(groupId, count){
   closeModal(); pgTabs();
 }
 
-function showTabModal(name){
-
-  var entries=G.entries.filter(function(e){ return e.name===name; });
-
-  if(!entries.length) return;
-
-  var refIdx=entries[0].rowIndex; // safe integer for onclick strings
-
-  var allLines=[];
-
-  entries.forEach(function(e){ buildTabLines(e).forEach(function(l){ allLines.push(l); }); });
-
-  var total=allLines.reduce(function(s,l){ return s+l.amt; },0);
-
-  var paid=entries.reduce(function(s,e){ return s+amtPaid(e); },0);
-
-  var bal=total-paid;
-
-  var html='<div class="modal-bg" id="tm" onclick="if(event.target===this)closeModal()">'
-
-    +'<div class="modal"><h2>'+esc(name)+'</h2>'
-
-    +'<div class="small" style="color:var(--muted);margin-bottom:1rem">'+esc(entries[0].email)+' &middot; '+esc(entries[0].phone)+'</div>'
-
-    +allLines.map(function(l){ return '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; }).join('')
-
-    +'<div class="tab-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
-
-    +'<div class="pay-status">'
-
-    +'<div style="flex:1"><div class="small">Paid</div><div class="bold" style="color:var(--green)">'+fmt$(paid)+'</div></div>'
-
-    +'<div style="flex:1"><div class="small">Balance</div><div class="bold" style="color:'+(bal<=0?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</div></div>'
-
-    +'<div>'+(bal>0?'<button class="btn btn-green btn-sm" onclick="markPaidByRef('+refIdx+','+total+')">Mark Paid</button>':'<span class="badge b-green">&#10003; Paid in Full</span>')+'</div>'
-
+function promptNewGroup(){
+  // Build list of ALL riders — grouped and ungrouped
+  var riderGroupMap={}; // riderName → group they're currently in (or null)
+  G.billingGroups.forEach(function(grp){
+    grp.entryKeys.forEach(function(k){
+      var name=k.split('|')[0];
+      if(!riderGroupMap[name]) riderGroupMap[name]=grp;
+    });
+  });
+  var byRider={};
+  G.entries.forEach(function(e){
+    if(!byRider[e.name]) byRider[e.name]=[];
+    byRider[e.name].push(entryKey(e));
+  });
+  var riders=Object.keys(byRider).sort(function(a,b){
+    var aW=a.trim().split(/\s+/),bW=b.trim().split(/\s+/);
+    var al=aW[aW.length-1].toLowerCase(),bl=bW[bW.length-1].toLowerCase();
+    return al<bl?-1:al>bl?1:a.toLowerCase()<b.toLowerCase()?-1:1;
+  });
+  if(riders.length<2){ toast('Not enough riders to combine', true); return; }
+  var root=document.getElementById('modal-root');
+  root.innerHTML='<div class="modal-bg" id="tm" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal"><h2>New Combined Tab</h2>'
+    +'<div class="fg" style="margin-bottom:.6rem"><label>Group / Payer name</label>'
+    +'<input id="ng-payer" placeholder="e.g. Smith Family" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;width:100%"></div>'
+    +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.35rem">Select riders to combine <span style="color:var(--accent)">(checking a grouped rider moves them here)</span>:</div>'
+    +'<div style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:.35rem .5rem">'
+    +riders.map(function(name){
+      var horses=[...new Set(byRider[name].map(function(k){ return k.split('|').slice(1).join('|'); }))].join(', ');
+      var owed=G.entries.filter(function(e){ return e.name===name; }).reduce(function(s,e){ return s+tabTotal(e); },0);
+      var curGrp=riderGroupMap[name];
+      var grpNote=curGrp?'<span style="font-size:.7rem;padding:1px 5px;border-radius:3px;background:rgba(200,146,42,.15);color:var(--accent);margin-left:.3rem">in: '+esc(curGrp.payerName)+'</span>':'';
+      return '<label style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0;font-size:.84rem;cursor:pointer;border-bottom:1px solid var(--border)">'
+        +'<input type="checkbox" class="ng-cb" data-rider="'+esc(name)+'"'+(curGrp?' data-from-group="'+esc(curGrp.id)+'"':'')+'>'
+        +'<span style="flex:1"><strong>'+esc(name)+'</strong>'+grpNote+' <span style="font-size:.75rem;color:var(--muted)">'+esc(horses)+'</span></span>'
+        +'<span style="font-size:.78rem;color:var(--muted)">'+fmt$(owed)+'</span>'
+        +'</label>';
+    }).join('')
     +'</div>'
-
-    +'<div class="btn-row" style="margin-top:1rem;margin-bottom:0">'
-
-    +'<button class="btn btn-dark" onclick="closeModal()">Close</button>'
-
-    +'<button class="btn btn-accent btn-sm" onclick="closeModal();showEntryModal('+refIdx+');setTimeout(function(){switchModalTab("fees")},50)">&#9998; Edit Fees</button>'
-
-    +'<button class="btn btn-dark btn-sm no-print" onclick="window.print()">&#128424; Print</button>'
-
+    +'<div class="btn-row" style="margin-top:.75rem">'
+    +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
+    +'<button class="btn btn-accent" onclick="confirmNewGroup()">Create Group</button>'
     +'</div></div></div>';
+}
 
+function confirmNewGroup(){
+  var payer=(document.getElementById('ng-payer')||{value:''}).value.trim();
+  if(!payer){ toast('Enter a group name', true); return; }
+  var entryKeys=[];
+  document.querySelectorAll('.ng-cb:checked').forEach(function(cb){
+    var name=cb.dataset.rider;
+    var fromGroupId=cb.dataset.fromGroup||'';
+    // Remove from existing group first
+    if(fromGroupId){
+      var grp=G.billingGroups.find(function(g){ return g.id===fromGroupId; });
+      if(grp){
+        var toRemove=grp.entryKeys.filter(function(k){ return k.split('|')[0]===name; });
+        splitFromBillingGroup(fromGroupId, toRemove);
+      }
+    }
+    G.entries.forEach(function(e){
+      if(e.name===name) entryKeys.push(entryKey(e));
+    });
+  });
+  if(entryKeys.length<2){ toast('Select at least 2 riders', true); return; }
+  createBillingGroup(payer, entryKeys);
+  closeModal(); pgTabs();
+}
+
+// ─── Merge two existing groups into one ──────────────────────────────────────
+
+function promptMergeGroups(groupId){
+  var grp=G.billingGroups.find(function(g){ return g.id===groupId; });
+  if(!grp) return;
+  var others=G.billingGroups.filter(function(g){ return g.id!==groupId; });
+  if(!others.length){ toast('No other groups to merge with', true); return; }
+  var gEsc=groupId.replace(/'/g,"\\'");
+  var root=document.getElementById('modal-root');
+  root.innerHTML='<div class="modal-bg" id="tm" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal"><h2>Merge Groups</h2>'
+    +'<div class="small" style="color:var(--muted);margin-bottom:.75rem">Merge <strong>'+esc(grp.payerName)+'</strong> with another group. All entries will be combined under one tab.</div>'
+    +'<div style="display:flex;flex-direction:column;gap:.35rem;margin-bottom:.75rem">'
+    +others.map(function(g){
+      var oEsc=g.id.replace(/'/g,"\\'");
+      var riders=g.entryKeys.map(function(k){ return k.split('|')[0]; }).filter(function(n,i,a){ return a.indexOf(n)===i; });
+      return '<label style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border:1px solid var(--border);border-radius:6px;cursor:pointer">'
+        +'<input type="radio" name="mg-pick" value="'+esc(g.id)+'">'
+        +'<span><strong>'+esc(g.payerName)+'</strong> <span style="font-size:.76rem;color:var(--muted)">'+esc(riders.join(', '))+'</span></span>'
+        +'</label>';
+    }).join('')
+    +'</div>'
+    +'<div class="small" style="color:var(--muted);margin-bottom:.4rem">New group name:</div>'
+    +'<input id="mg-name" value="'+esc(grp.payerName)+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .55rem;font-size:.84rem;width:100%;margin-bottom:.75rem">'
+    +'<div class="btn-row">'
+    +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
+    +'<button class="btn btn-accent" onclick="confirmMergeGroups(\''+gEsc+'\')">Merge</button>'
+    +'</div></div></div>';
+}
+
+window.confirmMergeGroups=function(groupId){
+  var picked=document.querySelector('input[name="mg-pick"]:checked');
+  if(!picked){ toast('Select a group to merge with', true); return; }
+  var otherId=picked.value;
+  var newName=(document.getElementById('mg-name')||{value:''}).value.trim();
+  var grpA=G.billingGroups.find(function(g){ return g.id===groupId; });
+  var grpB=G.billingGroups.find(function(g){ return g.id===otherId; });
+  if(!grpA||!grpB) return;
+  // Combine all entry keys (deduplicated)
+  var combined=grpA.entryKeys.slice();
+  grpB.entryKeys.forEach(function(k){ if(combined.indexOf(k)<0) combined.push(k); });
+  // Remove both old groups
+  G.billingGroups=G.billingGroups.filter(function(g){ return g.id!==groupId&&g.id!==otherId; });
+  // Create merged group
+  createBillingGroup(newName||grpA.payerName, combined);
+  saveBillingData(); syncBillingGroupsToSupabase();
+  closeModal(); pgTabs();
+};
+
+// ─── Move a single rider to a different group (or back to individual) ─────────
+
+function promptMoveRider(riderName, fromGroupId){
+  var fromGrp=G.billingGroups.find(function(g){ return g.id===fromGroupId; });
+  if(!fromGrp) return;
+  var otherGroups=G.billingGroups.filter(function(g){ return g.id!==fromGroupId; });
+  var fEsc=fromGroupId.replace(/'/g,"\\'");
+  var nEsc=riderName.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  var root=document.getElementById('modal-root');
+  root.innerHTML='<div class="modal-bg" id="tm" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal"><h2>Move '+esc(riderName)+'</h2>'
+    +'<div class="small" style="color:var(--muted);margin-bottom:.75rem">Currently in <strong>'+esc(fromGrp.payerName)+'</strong>. Choose a destination:</div>'
+    +'<div style="display:flex;flex-direction:column;gap:.35rem;margin-bottom:.75rem">'
+    +'<label style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border:1px solid var(--border);border-radius:6px;cursor:pointer">'
+    +'<input type="radio" name="mv-dest" value="__individual__" checked>'
+    +'<span>&#128100; Individual tab (remove from group)</span>'
+    +'</label>'
+    +otherGroups.map(function(g){
+      var riders=g.entryKeys.map(function(k){ return k.split('|')[0]; }).filter(function(n,i,a){ return a.indexOf(n)===i; });
+      return '<label style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border:1px solid var(--border);border-radius:6px;cursor:pointer">'
+        +'<input type="radio" name="mv-dest" value="'+esc(g.id)+'">'
+        +'<span><strong>'+esc(g.payerName)+'</strong> <span style="font-size:.76rem;color:var(--muted)">'+esc(riders.join(', '))+'</span></span>'
+        +'</label>';
+    }).join('')
+    +'</div>'
+    +'<div class="btn-row">'
+    +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
+    +'<button class="btn btn-accent" onclick="confirmMoveRider(\''+nEsc+'\',\''+fEsc+'\')">Move</button>'
+    +'</div></div></div>';
+}
+
+window.confirmMoveRider=function(riderName, fromGroupId){
+  var dest=(document.querySelector('input[name="mv-dest"]:checked')||{}).value||'__individual__';
+  // Remove rider's entry keys from source group
+  var fromGrp=G.billingGroups.find(function(g){ return g.id===fromGroupId; });
+  if(!fromGrp) return;
+  var toRemove=fromGrp.entryKeys.filter(function(k){ return k.split('|')[0]===riderName; });
+  splitFromBillingGroup(fromGroupId, toRemove);
+  // If destination is another group, add them there
+  if(dest!=='__individual__'){
+    var destGrp=G.billingGroups.find(function(g){ return g.id===dest; });
+    if(destGrp){
+      toRemove.forEach(function(k){ if(destGrp.entryKeys.indexOf(k)<0) destGrp.entryKeys.push(k); });
+      saveBillingData(); syncBillingGroupsToSupabase();
+    }
+  }
+  closeModal(); pgTabs();
+};
+
+function showTabModal(name){
+  var entries=G.entries.filter(function(e){ return e.name===name; });
+  if(!entries.length) return;
+  var refIdx=entries[0].rowIndex;
+  var e0=entries[0];
+  // For individual tabs, payment history is keyed by each entry's rowIndex
+  // We use the first entry's rowIndex as the payment key (marks all entries paid at once)
+  var payKey=refIdx;
+  var allLines=[];
+  entries.forEach(function(e){ buildTabLines(e).forEach(function(l){ allLines.push(l); }); });
+  var total=allLines.reduce(function(s,l){ return s+l.amt; },0);
+  var paid=entries.reduce(function(s,e){ return s+amtPaid(e); },0);
+  var bal=total-paid;
+  var nEscQ=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  var html='<div class="modal-bg" id="tm" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal"><h2>'+esc(name)+'</h2>'
+    +buildContactLine(e0)
+    +allLines.map(function(l){ return '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; }).join('')
+    +'<div class="tab-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
+    +'<div class="pay-status" style="margin-bottom:.5rem">'
+    +'<div style="flex:1"><div class="small">Paid</div><div class="bold" style="color:var(--green)">'+fmt$(paid)+'</div></div>'
+    +'<div style="flex:1"><div class="small">Balance</div><div class="bold" style="color:'+(bal<=0?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</div></div>'
+    +(bal<=0?'<div><span class="badge b-green">&#10003; Paid in Full</span></div>':'')
+    +'</div>'
+    +buildPaymentSection(payKey, bal, '_reopenTab')
+    +'<div class="btn-row" style="margin-top:1rem;margin-bottom:0">'
+    +'<button class="btn btn-dark" onclick="closeModal()">Close</button>'
+    +'<button class="btn btn-accent btn-sm" onclick="closeModal();showEntryModal('+refIdx+');setTimeout(function(){switchModalTab(\'fees\')},50)">&#9998; Edit Fees</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="printTabReceipt(\''+nEscQ+'\')">&#128424; Print Receipt</button>'
+    +'</div></div></div>';
   document.getElementById('modal-root').innerHTML=html;
+}
 
+window._reopenTab=function(payKey){
+  var e=G.entries.find(function(e){ return e.rowIndex===parseInt(payKey); });
+  if(e) showTabModal(e.name);
+};
+
+function markPaid(rowIdx, amount){
+  recordPayment(rowIdx, amount, 'cash', '', '');
+  closeModal(); pgTabs();
+}
+
+function markPaidByRef(refRowIdx, amount){
+  markPaid(refRowIdx, amount);
 }
 
 
@@ -13599,11 +14856,39 @@ async function syncManualEntry(entry){
 
 // ═══════════════════════ SUPABASE SYNC ═══════════════════════
 
+async function syncShowClassesToSupabase(){
+  if(!G.showId || !G.cfg.classes || !G.cfg.classes.length) return;
+  // Replace entire class list for this show atomically: delete then re-insert.
+  // show_classes is the source of truth for entry_classes FK lookups.
+  await sbDelete('show_classes?show_id=eq.'+G.showId);
+  var rows = G.cfg.classes.map(function(c, idx){
+    return {
+      show_id:      G.showId,
+      class_number: String(c.num||''),
+      class_name:   c.name||'',
+      division:     c.division||'',
+      org:          c.org||'CoWN',
+      is_cow:       !!c.isCow,
+      is_jackpot:   !!(c.jackpot && c.jackpot > 0),
+      base_fee:     c.baseFee||null,
+      cow_fee:      c.cowFee||null,
+      jackpot_fee:  c.jackpot||null,
+      added_money:  c.addedMoney||null,
+      run_order:    idx
+    };
+  });
+  // Insert in batches of 50 to stay within request limits
+  for(var i=0; i<rows.length; i+=50){
+    await sbFetch('show_classes', {method:'POST', body:JSON.stringify(rows.slice(i, i+50))});
+  }
+}
+
 async function syncEntriesToSupabase(){
 
   if(!G.showId) return;
 
-
+  // Ensure show_classes are in Supabase before creating entry_classes (FK dependency)
+  try{ await syncShowClassesToSupabase(); } catch(e){ console.warn('Class sync failed:', e); }
 
   // Get association id — prefer the already-loaded tenant id, fall back to DB lookup
   var assocId = G.assocId || null;
@@ -14208,6 +15493,7 @@ async function boot(){
           return;
         }
         if(k==='_extraFees'){ G.cfg.extraFees = show.fee_config[k]||[]; return; }
+        if(k==='_assocFees'){ G.cfg.assocFees = show.fee_config[k]||[]; return; }
         if(show.fee_config[k]!==null&&show.fee_config[k]!==undefined) G.cfg.fees[k]=show.fee_config[k];
       });
     }
@@ -14284,8 +15570,12 @@ async function boot(){
 
         var cachedBG=localStorage.getItem('gp_billinggroups_'+showId);
         var cachedHA=localStorage.getItem('gp_horsealiases_'+showId);
+        var cachedHD=localStorage.getItem('gp_horsedistinct_'+showId);
+        var cachedPH=localStorage.getItem('gp_payhistory_'+showId);
         if(cachedBG) G.billingGroups=JSON.parse(cachedBG);
         if(cachedHA) G.horseAliases=JSON.parse(cachedHA);
+        if(cachedHD) G.horseDistinct=JSON.parse(cachedHD);
+        if(cachedPH) G.paymentHistory=JSON.parse(cachedPH);
 
         toast('Loaded '+G.entries.length+' entries from cache');
 

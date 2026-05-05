@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Show Entry — Thorofare</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090f0b;
+      --card: #0e1a10;
+      --card2: #132015;
+      --border: #1e2e20;
+      --border2: #2a3f2d;
+      --text: #d4e8d0;
+      --text2: #8faa90;
+      --accent: #c8922a;
+      --accent2: #e0a830;
+      --red: #c44;
+      --green: #4a9;
+      --input-bg: #0a1a0c;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+    /* ── Header ── */
+    #app-header {
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: 12px 20px; display: flex; align-items: center; gap: 12px;
+    }
+    .logo { font-family: Oswald, sans-serif; font-size: 1.3rem; color: var(--accent); letter-spacing: 1px; }
+    #header-show-name { font-size: 0.85rem; color: var(--text2); }
+
+    /* ── Progress ── */
+    #progress-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 20px; display: none; }
+    .progress-steps { display: flex; gap: 4px; }
+    .ps { height: 4px; flex: 1; background: var(--border2); border-radius: 2px; transition: background 0.2s; }
+    .ps.done   { background: var(--accent); }
+    .ps.active { background: var(--accent2); }
+    .progress-label { margin-top: 6px; font-size: 0.75rem; color: var(--text2); }
+
+    /* ── Main content ── */
+    #main { max-width: 600px; margin: 0 auto; padding: 20px 16px 100px; }
+
+    /* ── Cards ── */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+    .step-title { font-family: Oswald, sans-serif; font-size: 1.4rem; color: var(--accent); margin-bottom: 4px; letter-spacing: 0.5px; }
+    .step-sub   { font-size: 0.85rem; color: var(--text2); margin-bottom: 20px; line-height: 1.5; }
+
+    /* ── Forms ── */
+    .form-row { margin-bottom: 16px; }
+    .form-row label { display: block; font-size: 0.8rem; color: var(--text2); margin-bottom: 4px; }
+    .form-row input, .form-row select {
+      width: 100%; background: var(--input-bg); border: 1px solid var(--border2); color: var(--text);
+      padding: 10px 12px; border-radius: 6px; font-size: 0.95rem; font-family: inherit; appearance: none;
+    }
+    .form-row input:focus, .form-row select:focus { outline: none; border-color: var(--accent); }
+    .form-row.half    { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-row.thirds  { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; }
+    .form-row input.err, .form-row select.err { border-color: var(--red); }
+    .req { color: var(--red); }
+
+    /* ── Checkboxes ── */
+    .check-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; cursor: pointer; }
+    .check-row input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent); flex-shrink: 0; margin-top: 2px; }
+    .check-row label { cursor: pointer; font-size: 0.9rem; line-height: 1.4; }
+
+    /* ── Class cards ── */
+    .class-org-section { margin-bottom: 20px; }
+    .class-org-label { font-family: Oswald, sans-serif; font-size: 1rem; color: var(--accent); margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+    .class-div-label  { font-size: 0.78rem; color: var(--text2); margin: 12px 0 5px; text-transform: uppercase; letter-spacing: 0.6px; }
+    .class-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; background: var(--card2); border: 1px solid var(--border);
+      border-radius: 6px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.15s;
+    }
+    .class-item:hover { border-color: var(--border2); }
+    .class-item.selected { border-color: var(--accent); background: #162518; }
+    .class-item input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
+    .class-item-name { flex: 1; font-size: 0.9rem; line-height: 1.3; }
+    .class-item-num  { font-size: 0.75rem; color: var(--text2); margin-bottom: 2px; }
+    .class-item-fee  { font-size: 0.85rem; color: var(--accent); white-space: nowrap; }
+
+    /* ── Membership grid ── */
+    .memb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* ── Stall/RV qty rows ── */
+    .qty-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .qty-row:last-of-type { border-bottom: none; }
+    .qty-label { flex: 1; }
+    .qty-label-name { font-size: 0.9rem; }
+    .qty-label-fee  { font-size: 0.8rem; color: var(--text2); margin-top: 1px; }
+    .qty-ctrl { display: flex; align-items: center; gap: 10px; }
+    .qty-btn {
+      width: 30px; height: 30px; background: var(--card2); border: 1px solid var(--border2);
+      color: var(--text); border-radius: 5px; font-size: 1.2rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; line-height: 1;
+    }
+    .qty-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .qty-val { min-width: 28px; text-align: center; font-size: 0.95rem; font-family: Oswald, sans-serif; }
+
+    /* ── Summary ── */
+    .sum-line { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; gap: 8px; }
+    .sum-line .sum-note { font-size: 0.78rem; color: var(--text2); }
+    .sum-line.total { font-family: Oswald, sans-serif; font-size: 1.15rem; color: var(--accent); padding-top: 12px; border-bottom: none; }
+    .pay-notice {
+      background: #162518; border: 1px solid var(--border2); border-left: 3px solid var(--accent);
+      padding: 12px 16px; border-radius: 6px; font-size: 0.85rem; color: var(--text2); margin: 16px 0; line-height: 1.6;
+    }
+    .show-info-row { display: flex; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .show-info-row:last-child { border-bottom: none; }
+    .show-info-label { color: var(--text2); width: 80px; flex-shrink: 0; font-size: 0.82rem; padding-top: 1px; }
+
+    /* ── Fixed nav bar ── */
+    #nav-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; display: none;
+      background: var(--card); border-top: 1px solid var(--border);
+      padding: 12px 20px; justify-content: space-between; align-items: center;
+    }
+    .nav-btn { padding: 10px 24px; border-radius: 6px; font-size: 0.9rem; font-family: inherit; cursor: pointer; border: none; }
+    .nav-btn.back { background: transparent; border: 1px solid var(--border2); color: var(--text2); }
+    .nav-btn.back:hover { border-color: var(--accent); color: var(--accent); }
+    .nav-btn.fwd  { background: var(--accent); color: #111; font-weight: 600; font-family: Oswald, sans-serif; letter-spacing: 0.5px; }
+    .nav-btn.fwd:hover { background: var(--accent2); }
+    .nav-btn:disabled { opacity: 0.45; cursor: default; pointer-events: none; }
+
+    /* ── Loading ── */
+    #loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 16px; color: var(--text2); }
+    .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error / Success ── */
+    #error-screen, #success-screen {
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 60vh; gap: 14px; text-align: center; padding: 20px;
+    }
+    .big-icon { font-size: 3rem; line-height: 1; }
+    #error-screen h2, #success-screen h2 { font-family: Oswald, sans-serif; font-size: 1.8rem; color: var(--accent); }
+    #error-screen p, #success-screen p { color: var(--text2); max-width: 380px; line-height: 1.6; }
+    .ref-code {
+      font-family: monospace; background: var(--card); padding: 10px 20px;
+      border-radius: 6px; font-size: 1.3rem; color: var(--accent2);
+      border: 1px solid var(--border2); letter-spacing: 2px;
+    }
+
+    /* ── Step error toast ── */
+    #step-err {
+      background: #2a1010; border: 1px solid var(--red); border-radius: 6px;
+      padding: 10px 14px; font-size: 0.85rem; color: #e88; margin-bottom: 12px; display: none;
+    }
+
+    @media (max-width: 480px) {
+      .form-row.half   { grid-template-columns: 1fr; }
+      .form-row.thirds { grid-template-columns: 1fr 1fr; }
+      .memb-grid       { grid-template-columns: 1fr; }
+      .nav-btn { padding: 10px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="app-header">
+  <div class="logo">THOROFARE</div>
+  <div id="header-show-name">Loading…</div>
+</div>
+
+<div id="progress-bar">
+  <div class="progress-steps" id="progress-steps"></div>
+  <div class="progress-label"  id="progress-label"></div>
+</div>
+
+<div id="main">
+  <div id="loading">
+    <div class="spinner"></div>
+    <div>Loading show information…</div>
+  </div>
+
+  <div id="error-screen">
+    <div class="big-icon">🚫</div>
+    <h2 id="err-title">Not Available</h2>
+    <p  id="err-msg">This entry form is not currently active.</p>
+  </div>
+
+  <div id="step-err"></div>
+  <div id="wizard" style="display:none"></div>
+
+  <div id="success-screen">
+    <div class="big-icon">✓</div>
+    <h2>Entry Submitted</h2>
+    <p id="success-msg"></p>
+    <div class="ref-code" id="success-ref"></div>
+    <p style="margin-top:4px;font-size:0.8rem;color:var(--text2)">Save this confirmation number for your records.</p>
+  </div>
+</div>
+
+<div id="nav-bar">
+  <button class="nav-btn back" id="btn-back" onclick="navBack()">← Back</button>
+  <button class="nav-btn fwd"  id="btn-next" onclick="navNext()">Continue →</button>
+</div>
+
+<script>
+// ── Supabase config ───────────────────────────────────────────────────────────
+var SB_URL  = 'https://tpurkcxtkvwpywxnuzwe.supabase.co';
+var SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwdXJrY3h0a3Z3cHl3eG51endlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MDUwMzYsImV4cCI6MjA5MjI4MTAzNn0.j1fPBjBsbIoXXosM96YtywdGiVVLWnd-YrXZ1634alU';
+
+// ── App state ─────────────────────────────────────────────────────────────────
+var SHOW    = null;   // shows row
+var CLASSES = [];     // show_classes rows
+var FEE     = {};     // fee_config flattened
+var STEP    = 0;
+var STEPS   = [];     // populated after show loads
+
+var FORM = {
+  riderFirst: '', riderLast: '', email: '', phone: '',
+  address1: '', city: '', state: '', zip: '',
+  isYouth: false, dob: '',
+  horseName: '', horseGender: '', horseOwner: '',
+  selectedClassIds: [],
+  memberships: {},
+  stall1qty: 0, stall2qty: 0, stall3qty: 0,
+  shavings: 0, rv1qty: 0, rv2qty: 0, rvCircuit: 0,
+  stallingGroup: '',
+  waiverAgreed: false
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmt$(n){ return '$'+(+n).toFixed(2); }
+
+function fmtDate(d) {
+  if(!d) return '';
+  var p = d.split('-');
+  if(p.length !== 3) return d;
+  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return mo[parseInt(p[1])-1]+' '+parseInt(p[2])+', '+p[0];
+}
+
+async function sbGet(path) {
+  var r = await fetch(SB_URL+'/rest/v1/'+path, {
+    headers: {'apikey': SB_ANON, 'Authorization': 'Bearer '+SB_ANON}
+  });
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function sbPost(table, body) {
+  var r = await fetch(SB_URL+'/rest/v1/'+table, {
+    method: 'POST',
+    headers: {
+      'apikey': SB_ANON, 'Authorization': 'Bearer '+SB_ANON,
+      'Content-Type': 'application/json', 'Prefer': 'return=representation'
+    },
+    body: JSON.stringify(body)
+  });
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  var params = new URLSearchParams(location.search);
+  var showId = params.get('show');
+  if(!showId) return showError('No Show Specified', 'This link is missing a show ID. Contact the show secretary for the correct entry link.');
+  try {
+    var shows = await sbGet('shows?id=eq.'+showId+'&select=*');
+    if(!shows || !shows.length) return showError('Show Not Found', 'This entry form link is not valid. Contact the show secretary.');
+    SHOW = shows[0];
+    if(SHOW.status === 'setup') return showError('Entries Not Open Yet', 'Online entries for '+SHOW.name+' are not open yet. Check back soon.');
+    if(SHOW.status === 'entries_closed') return showError('Entries Closed', 'The entry deadline has passed for '+SHOW.name+'.');
+    if(SHOW.status === 'complete') return showError('Show Complete', SHOW.name+' has already taken place.');
+    CLASSES = await sbGet('show_classes?show_id=eq.'+showId+'&order=run_order.asc');
+    FEE = SHOW.fee_config || {};
+    document.getElementById('header-show-name').textContent = SHOW.name;
+    document.title = SHOW.name+' — Entry Form';
+    buildSteps();
+    startWizard();
+  } catch(e) {
+    showError('Unable to Load', 'There was a problem loading this entry form. Please try again or contact the show secretary.');
+    console.error(e);
+  }
+}
+
+function showError(title, msg) {
+  document.getElementById('loading').style.display = 'none';
+  var scr = document.getElementById('error-screen');
+  scr.style.display = 'flex';
+  document.getElementById('err-title').textContent = title;
+  document.getElementById('err-msg').textContent   = msg;
+}
+
+function hasStalling() {
+  return (FEE.stall1||0) > 0 || (FEE.stall2||0) > 0 || (FEE.stall3||0) > 0
+      || (FEE.rv1||0)    > 0 || (FEE.rv2||0)    > 0 || (FEE.rvCircuit||0) > 0;
+}
+
+function buildSteps() {
+  STEPS = [
+    {id:'welcome',     title:'Welcome',        fn:renderWelcome},
+    {id:'rider',       title:'Rider Info',     fn:renderRider},
+    {id:'horse',       title:'Horse',          fn:renderHorse},
+    {id:'classes',     title:'Classes',        fn:renderClasses},
+    {id:'memberships', title:'Member Numbers', fn:renderMemberships},
+  ];
+  if(hasStalling()) STEPS.push({id:'stalling', title:'Stalling & RV', fn:renderStalling});
+  STEPS.push({id:'summary', title:'Summary', fn:renderSummary});
+}
+
+function startWizard() {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('wizard').style.display  = '';
+  document.getElementById('progress-bar').style.display = '';
+  document.getElementById('nav-bar').style.display = 'flex';
+  renderStep(0);
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function navBack() {
+  clearStepErr();
+  saveCurrentStep();
+  if(STEP > 0) renderStep(STEP - 1);
+}
+
+function navNext() {
+  clearStepErr();
+  if(!validateStep()) return;
+  saveCurrentStep();
+  if(STEP === STEPS.length - 1) { submitEntry(); return; }
+  renderStep(STEP + 1);
+}
+
+function saveCurrentStep() {
+  var id = STEPS[STEP] && STEPS[STEP].id;
+  if(id === 'rider')       saveRider();
+  if(id === 'horse')       saveHorse();
+  if(id === 'memberships') saveMemberships();
+  if(id === 'stalling')    saveStalling();
+}
+
+function renderStep(idx) {
+  STEP = idx;
+  updateProgress();
+  var wrap = document.getElementById('wizard');
+  wrap.innerHTML = '';
+  STEPS[idx].fn(wrap);
+  document.getElementById('btn-back').style.visibility = idx === 0 ? 'hidden' : 'visible';
+  var nextBtn = document.getElementById('btn-next');
+  nextBtn.textContent = idx === STEPS.length - 1 ? 'Submit Entry' : 'Continue →';
+  nextBtn.disabled = false;
+  window.scrollTo(0, 0);
+}
+
+function updateProgress() {
+  document.getElementById('progress-steps').innerHTML = STEPS.map(function(s, i) {
+    var cls = i < STEP ? 'done' : i === STEP ? 'active' : '';
+    return '<div class="ps '+cls+'"></div>';
+  }).join('');
+  document.getElementById('progress-label').textContent =
+    'Step '+(STEP+1)+' of '+STEPS.length+' — '+STEPS[STEP].title;
+}
+
+function showStepErr(msg) {
+  var el = document.getElementById('step-err');
+  el.textContent = msg;
+  el.style.display = '';
+  el.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function clearStepErr() { document.getElementById('step-err').style.display = 'none'; }
+
+// ── Validation ────────────────────────────────────────────────────────────────
+function validateStep() {
+  var id = STEPS[STEP].id;
+  if(id === 'rider')   return validateRider();
+  if(id === 'horse')   return validateHorse();
+  if(id === 'classes') return validateClasses();
+  if(id === 'summary') return validateSummary();
+  return true;
+}
+
+function requireField(fieldId) {
+  var el = document.getElementById(fieldId);
+  if(!el) return true;
+  var ok = el.value.trim() !== '';
+  el.classList.toggle('err', !ok);
+  return ok;
+}
+
+function validateRider() {
+  var ok = ['f-riderFirst','f-riderLast','f-email','f-phone'].map(requireField).every(Boolean);
+  if(FORM.isYouth) ok = requireField('f-dob') && ok;
+  if(!ok) showStepErr('Please fill in all required fields.');
+  return ok;
+}
+
+function validateHorse() {
+  var ok = ['f-horseName','f-horseGender'].map(requireField).every(Boolean);
+  if(!ok) showStepErr('Please fill in all required fields.');
+  return ok;
+}
+
+function validateClasses() {
+  if(FORM.selectedClassIds.length === 0) { showStepErr('Please select at least one class.'); return false; }
+  return true;
+}
+
+function validateSummary() {
+  if(!FORM.waiverAgreed) { showStepErr('Please agree to the waiver to submit your entry.'); return false; }
+  return true;
+}
+
+// ── Step: Welcome ─────────────────────────────────────────────────────────────
+function renderWelcome(wrap) {
+  var html = '<div class="card">';
+  html += '<div class="step-title">'+esc(SHOW.name)+'</div>';
+  html += '<div class="step-sub">Online Entry Form &mdash; complete all steps to submit your entry.</div>';
+
+  html += '<div class="show-info-row"><div class="show-info-label">Date</div><div>';
+  html += fmtDate(SHOW.show_date);
+  if(SHOW.end_date && SHOW.end_date !== SHOW.show_date) html += ' &ndash; '+fmtDate(SHOW.end_date);
+  html += '</div></div>';
+  if(SHOW.location) html += '<div class="show-info-row"><div class="show-info-label">Location</div><div>'+esc(SHOW.location)+'</div></div>';
+  if(SHOW.address)  html += '<div class="show-info-row"><div class="show-info-label">Address</div><div>'+esc(SHOW.address)+'</div></div>';
+  if(SHOW.entry_deadline) html += '<div class="show-info-row"><div class="show-info-label">Deadline</div><div>'+fmtDate(SHOW.entry_deadline)+'</div></div>';
+  html += '</div>';
+
+  if(SHOW.notes) {
+    html += '<div class="card"><div style="font-size:0.85rem;color:var(--text2);line-height:1.65">'
+      +esc(SHOW.notes).replace(/\n/g,'<br>')+'</div></div>';
+  }
+
+  html += '<div class="card" style="border-color:var(--border2)">';
+  html += '<div style="font-size:0.88rem;color:var(--text2);line-height:1.65">';
+  html += '<strong style="color:var(--text)">Payment is due at the show</strong> &mdash; nothing is charged online. ';
+  html += 'You will receive a confirmation number when you submit. Bring it to check-in along with your payment.</div>';
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+// ── Step: Rider ───────────────────────────────────────────────────────────────
+function renderRider(wrap) {
+  var f = FORM;
+  var html = '<div class="card">';
+  html += '<div class="step-title">Rider Information</div>';
+  html += '<div class="step-sub">Enter the competing rider\'s contact information.</div>';
+
+  html += '<div class="form-row half"><div>';
+  html += '<label>First Name <span class="req">*</span></label>';
+  html += '<input id="f-riderFirst" value="'+esc(f.riderFirst)+'" placeholder="First" autocomplete="given-name">';
+  html += '</div><div>';
+  html += '<label>Last Name <span class="req">*</span></label>';
+  html += '<input id="f-riderLast" value="'+esc(f.riderLast)+'" placeholder="Last" autocomplete="family-name">';
+  html += '</div></div>';
+
+  html += '<div class="form-row half"><div>';
+  html += '<label>Email <span class="req">*</span></label>';
+  html += '<input id="f-email" type="email" value="'+esc(f.email)+'" placeholder="you@example.com" autocomplete="email">';
+  html += '</div><div>';
+  html += '<label>Phone <span class="req">*</span></label>';
+  html += '<input id="f-phone" type="tel" value="'+esc(f.phone)+'" placeholder="(xxx) xxx-xxxx" autocomplete="tel">';
+  html += '</div></div>';
+
+  html += '<div class="form-row"><label>Street Address</label>';
+  html += '<input id="f-address1" value="'+esc(f.address1)+'" placeholder="123 Main St" autocomplete="street-address">';
+  html += '</div>';
+
+  html += '<div class="form-row thirds"><div>';
+  html += '<label>City</label><input id="f-city" value="'+esc(f.city)+'" placeholder="City" autocomplete="address-level2">';
+  html += '</div><div>';
+  html += '<label>State</label><input id="f-state" value="'+esc(f.state)+'" placeholder="WY" maxlength="2" style="text-transform:uppercase" autocomplete="address-level1">';
+  html += '</div><div>';
+  html += '<label>Zip</label><input id="f-zip" value="'+esc(f.zip)+'" placeholder="82001" autocomplete="postal-code">';
+  html += '</div></div>';
+
+  html += '<div class="check-row"><input type="checkbox" id="f-isYouth" '+(f.isYouth?'checked':'')+' onchange="toggleYouth(this.checked)">';
+  html += '<label for="f-isYouth">Youth competitor (under 18 as of show date)</label></div>';
+
+  html += '<div id="dob-row" style="'+(f.isYouth?'':'display:none')+'"><div class="form-row">';
+  html += '<label>Date of Birth <span class="req">*</span></label>';
+  html += '<input id="f-dob" type="date" value="'+esc(f.dob)+'">';
+  html += '</div></div>';
+
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+function toggleYouth(checked) {
+  FORM.isYouth = checked;
+  var row = document.getElementById('dob-row');
+  if(row) row.style.display = checked ? '' : 'none';
+}
+
+function saveRider() {
+  var g = function(id){ var el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  FORM.riderFirst = g('f-riderFirst');
+  FORM.riderLast  = g('f-riderLast');
+  FORM.email      = g('f-email');
+  FORM.phone      = g('f-phone');
+  FORM.address1   = g('f-address1');
+  FORM.city       = g('f-city');
+  FORM.state      = g('f-state').toUpperCase();
+  FORM.zip        = g('f-zip');
+  FORM.dob        = g('f-dob');
+  var iy = document.getElementById('f-isYouth');
+  if(iy) FORM.isYouth = iy.checked;
+}
+
+// ── Step: Horse ───────────────────────────────────────────────────────────────
+function renderHorse(wrap) {
+  var f = FORM;
+  var html = '<div class="card">';
+  html += '<div class="step-title">Horse</div>';
+  html += '<div class="step-sub">Enter the horse\'s information as it appears on registration papers.</div>';
+
+  html += '<div class="form-row"><label>Registered Name <span class="req">*</span></label>';
+  html += '<input id="f-horseName" value="'+esc(f.horseName)+'" placeholder="Horse\'s registered name">';
+  html += '</div>';
+
+  html += '<div class="form-row"><label>Gender <span class="req">*</span></label>';
+  html += '<select id="f-horseGender"><option value="">— select —</option>';
+  ['Mare','Gelding','Stallion'].forEach(function(g){
+    html += '<option'+(f.horseGender===g?' selected':'')+'>'+g+'</option>';
+  });
+  html += '</select></div>';
+
+  html += '<div class="form-row"><label>Owner (if different from rider)</label>';
+  html += '<input id="f-horseOwner" value="'+esc(f.horseOwner)+'" placeholder="Owner\'s full name">';
+  html += '</div>';
+
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+function saveHorse() {
+  var g = function(id){ var el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  FORM.horseName   = g('f-horseName');
+  FORM.horseGender = g('f-horseGender');
+  FORM.horseOwner  = g('f-horseOwner');
+}
+
+// ── Step: Classes ─────────────────────────────────────────────────────────────
+function getClassFee(c) {
+  var base = c.base_fee  != null ? +c.base_fee  : +(FEE.classBase     || 0);
+  var cow  = c.is_cow    ? (c.cow_fee  != null ? +c.cow_fee  : +(FEE.cowSurcharge || 0)) : 0;
+  var jpot = c.is_jackpot ? +(c.jackpot_fee || 0) : 0;
+  return base + cow + jpot;
+}
+
+function toggleClass(id) {
+  var idx = FORM.selectedClassIds.indexOf(id);
+  if(idx >= 0) FORM.selectedClassIds.splice(idx, 1);
+  else FORM.selectedClassIds.push(id);
+  renderClasses(document.getElementById('wizard'));
+}
+
+function renderClasses(wrap) {
+  // Group: org → division → [class]
+  var orgs = [];
+  var byOrg = {};
+  CLASSES.forEach(function(c) {
+    var org = c.org || 'General';
+    var div = c.division || 'Open';
+    if(!byOrg[org]) { byOrg[org] = {}; orgs.push(org); }
+    if(!byOrg[org][div]) byOrg[org][div] = [];
+    byOrg[org][div].push(c);
+  });
+
+  var html = '<div class="card">';
+  html += '<div class="step-title">Class Selection</div>';
+  html += '<div class="step-sub">Select the classes you\'d like to enter. Fees shown per class.</div>';
+
+  if(CLASSES.length === 0) {
+    html += '<div style="color:var(--text2);font-size:0.9rem;padding:4px 0">No classes are configured for this show yet. Contact the show secretary.</div>';
+  } else {
+    orgs.forEach(function(org) {
+      var divs = Object.keys(byOrg[org]);
+      html += '<div class="class-org-section"><div class="class-org-label">'+esc(org)+'</div>';
+      divs.forEach(function(div) {
+        if(divs.length > 1 || div !== 'Open') {
+          html += '<div class="class-div-label">'+esc(div)+'</div>';
+        }
+        byOrg[org][div].forEach(function(c) {
+          var fee = getClassFee(c);
+          var sel = FORM.selectedClassIds.indexOf(c.id) >= 0;
+          html += '<div class="class-item'+(sel?' selected':'')+'" onclick="toggleClass(\''+c.id+'\')">';
+          html += '<input type="checkbox" '+(sel?'checked':'')+' onclick="event.stopPropagation();toggleClass(\''+c.id+'\')">';
+          html += '<div class="class-item-name">';
+          if(c.class_number) html += '<div class="class-item-num">Class '+esc(c.class_number)+'</div>';
+          html += esc(c.class_name);
+          if(c.is_cow)     html += ' <span style="font-size:0.75rem;color:var(--text2)">(cow)</span>';
+          if(c.is_jackpot) html += ' <span style="font-size:0.75rem;color:var(--accent2)">(jackpot)</span>';
+          html += '</div>';
+          html += '<div class="class-item-fee">'+(fee > 0 ? fmt$(fee) : '')+'</div>';
+          html += '</div>';
+        });
+      });
+      html += '</div>';
+    });
+  }
+  html += '</div>';
+
+  // Office fee note
+  var oFee = +(FEE.officeFee || FEE.officeEntry || 0);
+  if(oFee > 0) {
+    html += '<div style="font-size:0.82rem;color:var(--text2);padding:0 4px">Note: An office/entry fee of '+fmt$(oFee)+' applies per entry in addition to class fees.</div>';
+  }
+
+  wrap.innerHTML = html;
+}
+
+function getSelectedClasses() {
+  return CLASSES.filter(function(c){ return FORM.selectedClassIds.indexOf(c.id) >= 0; });
+}
+
+function getSelectedOrgs() {
+  var seen = {};
+  var orgs = [];
+  getSelectedClasses().forEach(function(c){
+    var org = c.org || 'General';
+    if(!seen[org]) { seen[org] = true; orgs.push(org); }
+  });
+  return orgs;
+}
+
+// ── Step: Memberships ─────────────────────────────────────────────────────────
+// Derive which membership fields to show from selected class orgs + well-known parent orgs
+var PARENT_ORGS = {CoWN: ['SHTX'], AQHA: [], VRH: ['AQHA'], APHA: [], ApHC: [], NRHA: [], NRCHA: []};
+
+function getMembFields() {
+  var seen = {};
+  var fields = [];
+  function add(org, label) {
+    if(!seen[org]) { seen[org] = true; fields.push({org: org, label: label || org+' Member #'}); }
+  }
+  getSelectedOrgs().forEach(function(org) {
+    add(org);
+    var parents = PARENT_ORGS[org] || [];
+    parents.forEach(function(p){ add(p); });
+  });
+  return fields;
+}
+
+function renderMemberships(wrap) {
+  var fields = getMembFields();
+  var html = '<div class="card">';
+  html += '<div class="step-title">Membership Numbers</div>';
+  html += '<div class="step-sub">Enter your member numbers for organizations you\'re showing with. Leave blank if not yet a member — your secretary will handle membership at check-in.</div>';
+
+  if(fields.length === 0) {
+    html += '<div style="color:var(--text2);font-size:0.9rem">No membership numbers are needed for the selected classes.</div>';
+  } else {
+    html += '<div class="memb-grid">';
+    fields.forEach(function(f) {
+      var val = FORM.memberships[f.org] || '';
+      var safeId = 'memb-'+f.org.replace(/[^a-zA-Z0-9]/g,'_');
+      html += '<div class="form-row"><label>'+esc(f.label)+'</label>';
+      html += '<input id="'+safeId+'" data-org="'+esc(f.org)+'" value="'+esc(val)+'" placeholder="optional">';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+function saveMemberships() {
+  document.querySelectorAll('[data-org]').forEach(function(el) {
+    var org = el.getAttribute('data-org');
+    var val = el.value.trim();
+    if(val) FORM.memberships[org] = val;
+    else delete FORM.memberships[org];
+  });
+}
+
+// ── Step: Stalling ────────────────────────────────────────────────────────────
+function qtyRow(feeKey, formKey, label) {
+  var price = FEE[feeKey] || 0;
+  var val   = FORM[formKey] || 0;
+  return '<div class="qty-row">'
+    +'<div class="qty-label"><div class="qty-label-name">'+esc(label)+'</div>'
+    +'<div class="qty-label-fee">'+fmt$(price)+' each</div></div>'
+    +'<div class="qty-ctrl">'
+    +'<button class="qty-btn" onclick="changeQty(\''+formKey+'\',-1)" type="button">&#8722;</button>'
+    +'<div class="qty-val" id="qty-'+formKey+'">'+val+'</div>'
+    +'<button class="qty-btn" onclick="changeQty(\''+formKey+'\',1)"  type="button">&#43;</button>'
+    +'</div></div>';
+}
+
+function changeQty(formKey, delta) {
+  FORM[formKey] = Math.max(0, (FORM[formKey] || 0) + delta);
+  var el = document.getElementById('qty-'+formKey);
+  if(el) el.textContent = FORM[formKey];
+}
+
+function renderStalling(wrap) {
+  var f = FEE;
+  var html = '<div class="card">';
+  html += '<div class="step-title">Stalling &amp; RV</div>';
+  html += '<div class="step-sub">Reserve stalls and RV spots. Leave at 0 if not needed.</div>';
+
+  if((f.stall1||0)    > 0) html += qtyRow('stall1',    'stall1qty',  '1-Night Stall');
+  if((f.stall2||0)    > 0) html += qtyRow('stall2',    'stall2qty',  'Circuit Stall (2 nights)');
+  if((f.stall3||0)    > 0) html += qtyRow('stall3',    'stall3qty',  '3-Night Stall');
+  if((f.shavings||0)  > 0) html += qtyRow('shavings',  'shavings',   'Shavings (bag)');
+  if((f.rv1||0)       > 0) html += qtyRow('rv1',       'rv1qty',     'RV Spot — 1 Night');
+  if((f.rv2||0)       > 0) html += qtyRow('rv2',       'rv2qty',     'RV Spot — Circuit');
+  if((f.rvCircuit||0) > 0) html += qtyRow('rvCircuit', 'rvCircuit',  'RV Circuit Package');
+
+  html += '<div style="margin-top:16px"><div class="form-row">';
+  html += '<label>Stall Group Name <span style="color:var(--text2)">(optional — helps secretary organize stalls)</span></label>';
+  html += '<input id="f-stallingGroup" value="'+esc(FORM.stallingGroup)+'" placeholder="e.g. Smith Ranch">';
+  html += '</div></div>';
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+function saveStalling() {
+  var el = document.getElementById('f-stallingGroup');
+  if(el) FORM.stallingGroup = el.value.trim();
+}
+
+// ── Step: Summary ─────────────────────────────────────────────────────────────
+function buildFeeLines() {
+  var lines = [];
+  var f = FEE;
+  var oFee = +(f.officeFee || f.officeEntry || 0);
+  if(oFee > 0) lines.push({desc: 'Office / Entry Fee', amt: oFee});
+  getSelectedClasses().forEach(function(c) {
+    var fee = getClassFee(c);
+    var name = (c.class_number ? 'Class '+c.class_number+' — ' : '')+c.class_name;
+    lines.push({desc: name, amt: fee});
+  });
+  if((FORM.stall1qty||0) > 0 && (f.stall1||0) > 0)    lines.push({desc:'1-Night Stall × '+FORM.stall1qty,       amt: FORM.stall1qty   * f.stall1});
+  if((FORM.stall2qty||0) > 0 && (f.stall2||0) > 0)    lines.push({desc:'Circuit Stall × '+FORM.stall2qty,        amt: FORM.stall2qty   * f.stall2});
+  if((FORM.stall3qty||0) > 0 && (f.stall3||0) > 0)    lines.push({desc:'3-Night Stall × '+FORM.stall3qty,        amt: FORM.stall3qty   * f.stall3});
+  if((FORM.shavings||0)  > 0 && (f.shavings||0) > 0)  lines.push({desc:'Shavings × '+FORM.shavings,              amt: FORM.shavings    * f.shavings});
+  if((FORM.rv1qty||0)    > 0 && (f.rv1||0) > 0)       lines.push({desc:'RV 1-Night × '+FORM.rv1qty,              amt: FORM.rv1qty      * f.rv1});
+  if((FORM.rv2qty||0)    > 0 && (f.rv2||0) > 0)       lines.push({desc:'RV Circuit × '+FORM.rv2qty,              amt: FORM.rv2qty      * f.rv2});
+  if((FORM.rvCircuit||0) > 0 && (f.rvCircuit||0) > 0) lines.push({desc:'RV Circuit Package × '+FORM.rvCircuit,   amt: FORM.rvCircuit   * f.rvCircuit});
+  return lines;
+}
+
+function renderSummary(wrap) {
+  var lines = buildFeeLines();
+  var total = lines.reduce(function(s,l){ return s + (l.amt||0); }, 0);
+  var selCls = getSelectedClasses();
+
+  var html = '<div class="card">';
+  html += '<div class="step-title">Review &amp; Submit</div>';
+  html += '<div class="step-sub">Confirm your entry details below.</div>';
+
+  // Rider + horse recap
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">';
+  html += '<div><div style="font-size:0.75rem;color:var(--text2);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Rider</div>';
+  html += '<div style="font-size:0.95rem">'+esc(FORM.riderFirst+' '+FORM.riderLast)+'</div>';
+  if(FORM.isYouth) html += '<div style="font-size:0.78rem;color:var(--accent2)">Youth</div>';
+  html += '</div>';
+  html += '<div><div style="font-size:0.75rem;color:var(--text2);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Horse</div>';
+  html += '<div style="font-size:0.95rem">'+esc(FORM.horseName)+'</div>';
+  if(FORM.horseGender) html += '<div style="font-size:0.78rem;color:var(--text2)">'+esc(FORM.horseGender)+'</div>';
+  html += '</div></div>';
+
+  if(selCls.length > 0) {
+    html += '<div style="font-size:0.75rem;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Classes ('+selCls.length+')</div>';
+    html += '<div style="margin-bottom:16px">';
+    selCls.forEach(function(c){
+      html += '<div style="font-size:0.85rem;padding:3px 0;border-bottom:1px solid var(--border)">';
+      html += (c.class_number?'<span style="color:var(--text2)">'+esc(c.class_number)+'</span> — ':'')+esc(c.class_name);
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Fee breakdown
+  html += '<div style="border-top:1px solid var(--border);margin-bottom:4px"></div>';
+  lines.forEach(function(l) {
+    html += '<div class="sum-line"><span>'+esc(l.desc)+'</span><span>'+(l.amt > 0 ? fmt$(l.amt) : 'incl.')+'</span></div>';
+  });
+  if(lines.length === 0) {
+    html += '<div style="color:var(--text2);font-size:0.85rem;padding:8px 0">No fees calculated — contact the show secretary for pricing.</div>';
+  }
+  html += '<div class="sum-line total"><span>Est. Total Due at Show</span><span>'+fmt$(total)+'</span></div>';
+  html += '</div>';
+
+  html += '<div class="pay-notice">Payment is due at the show — nothing is charged online. Your confirmation number will be shown after you submit. Bring it to check-in.</div>';
+
+  // Waiver
+  html += '<div class="card">';
+  html += '<div class="check-row">';
+  html += '<input type="checkbox" id="f-waiver" '+(FORM.waiverAgreed?'checked':'')+' onchange="FORM.waiverAgreed=this.checked">';
+  html += '<label for="f-waiver">I agree to abide by all association rules and regulations, and I release show management, the hosting facility, and all officials from liability for any accident, injury, or loss that may occur during this event. I certify that the information provided is accurate.</label>';
+  html += '</div></div>';
+
+  wrap.innerHTML = html;
+}
+
+// ── Submit ────────────────────────────────────────────────────────────────────
+async function submitEntry() {
+  if(!FORM.waiverAgreed) { showStepErr('Please agree to the waiver to submit your entry.'); return; }
+
+  var btn = document.getElementById('btn-next');
+  btn.disabled    = true;
+  btn.textContent = 'Submitting…';
+
+  var selCls = getSelectedClasses();
+  var lines  = buildFeeLines();
+  var total  = lines.reduce(function(s,l){ return s+(l.amt||0); }, 0);
+
+  var data = {
+    // 4.1 Rider
+    riderNameFirst: FORM.riderFirst,
+    riderNameLast:  FORM.riderLast,
+    email:          FORM.email,
+    phone:          FORM.phone,
+    address1:       FORM.address1 || null,
+    city:           FORM.city     || null,
+    state:          FORM.state    || null,
+    zip:            FORM.zip      || null,
+    isYouth:        FORM.isYouth,
+    dob:            FORM.dob      || null,
+    // 4.3 Horse
+    horseName:      FORM.horseName,
+    horseGender:    FORM.horseGender,
+    horseOwner:     FORM.horseOwner || null,
+    // 4.4 Memberships
+    memberships:    FORM.memberships,
+    // 4.5 Classes
+    classes: selCls.map(function(c) {
+      return {
+        showClassId: c.id,
+        classNum:    c.class_number,
+        className:   c.class_name,
+        division:    c.division,
+        org:         c.org,
+        isCow:       c.is_cow,
+        isJackpot:   c.is_jackpot,
+        fee:         getClassFee(c)
+      };
+    }),
+    // 4.7 Stalling
+    stall1qty:      FORM.stall1qty  || 0,
+    stall2qty:      FORM.stall2qty  || 0,
+    stall3qty:      FORM.stall3qty  || 0,
+    shavings:       FORM.shavings   || 0,
+    rv1qty:         FORM.rv1qty     || 0,
+    rv2qty:         FORM.rv2qty     || 0,
+    rvCircuit:      FORM.rvCircuit  || 0,
+    stallingGroup:  FORM.stallingGroup || null,
+    // 4.8 Meta
+    source:         'online',
+    paymentStatus:  'unpaid',
+    estimatedTotal: Math.round(total * 100) / 100,
+    waiverAgreed:   true,
+    waiverSignedAt: new Date().toISOString()
+  };
+
+  try {
+    var result = await sbPost('online_submissions', {
+      show_id:         SHOW.id,
+      submission_data: data,
+      status:          'pending'
+    });
+
+    var refId = (result && result[0] && result[0].id)
+      ? result[0].id.substring(0, 8).toUpperCase()
+      : 'SUBMITTED';
+
+    showSuccess(refId, data, total);
+  } catch(e) {
+    btn.disabled    = false;
+    btn.textContent = 'Submit Entry';
+    showStepErr('Submission failed — please try again. If the problem continues, contact the show secretary directly.');
+    console.error('Submission error:', e);
+  }
+}
+
+function showSuccess(refId, data, total) {
+  document.getElementById('wizard').style.display      = 'none';
+  document.getElementById('progress-bar').style.display = 'none';
+  document.getElementById('nav-bar').style.display      = 'none';
+  document.getElementById('step-err').style.display     = 'none';
+
+  var scr = document.getElementById('success-screen');
+  scr.style.display = 'flex';
+  document.getElementById('success-ref').textContent = refId;
+  document.getElementById('success-msg').textContent =
+    'Entry for '+data.riderNameFirst+' '+data.riderNameLast+' on '+data.horseName
+    +' has been received. An estimated '+fmt$(total)+' is due at the show.';
+  window.scrollTo(0, 0);
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

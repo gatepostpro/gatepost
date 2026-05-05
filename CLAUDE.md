@@ -27,14 +27,33 @@ GitHub → Cloudflare Pages auto-deploy is configured (main branch = production)
 ### Data Flow
 
 ```
-Cognito Forms export (Excel)
-  → parseCognito()          [app.html]
-  → G.entries + localStorage
-  → scribe.html reads localStorage
-  → scratchpad → results
-  → syncEntriesToSupabase() → Supabase
-  → season.html reads Supabase
+Three entry pathways — all produce the same canonical Entry object:
+
+  entry-form.html (rider's browser)
+    → reads show config from Supabase (shows + show_classes, public read)
+    → rider submits → INSERT to online_submissions table (anon insert-only)
+    → appears in secretary app Entries tab as pending online entry
+    → secretary clicks Accept → converted to G.entry, synced to Supabase
+
+  Cognito / spreadsheet upload
+    → parseCognito()          [app.html]
+    → column mapper audit → merge preview (if re-import)
+    → G.entries + localStorage
+    → syncEntriesToSupabase()
+
+  Hand entry (secretary app)
+    → G.entries + localStorage
+    → syncEntriesToSupabase()
+
+Common downstream path:
+  G.entries
+    → scribe.html reads localStorage
+    → scratchpad → results
+    → syncEntriesToSupabase() → Supabase (entries + entry_classes)
+    → season.html reads Supabase
 ```
+
+**Class data chain:** `G.cfg.classes` → `syncShowClassesToSupabase()` → `show_classes` table → `entry_classes` FK lookups. Classes must be in Supabase before `syncEntriesToSupabase()` creates `entry_classes` rows. The sync runs automatically on `saveConfig()` and at the start of every `syncEntriesToSupabase()` call.
 
 ### State
 
@@ -62,9 +81,13 @@ G = {
 | `gate.html` | Gate helper app — class list, scratch/add riders, close classes |
 | `season.html` | Season Hub — standings & points from Supabase |
 | `admin.html` | TwoTop admin — org config, billing tiers, feature flags |
+| `entry-form.html` | Public rider-facing entry form — multi-step wizard (Welcome → Rider → Horse → Classes → Members → Stalling → Summary). URL: `?show=<showId>`. Submits to `online_submissions`. |
 | `index.html` | Landing / show selector with role routing |
 | `app.js` / `db.js` | Secretary logic + Supabase client helpers |
 | `schema.sql` | Full Postgres schema (reference only — run in Supabase dashboard) |
+| `rls_entry_form.sql` | RLS policies for entry form security model (run once in Supabase dashboard) |
+| `online_submissions.sql` | Schema + RLS for `online_submissions` table (run once in Supabase dashboard) |
+| `ENTRY_SYSTEM_SPEC.md` | Full spec for the entry system — canonical Entry schema, three pathways, show setup pivots, open questions |
 | `help/help.html` + `help/help-content.js` | Audience-segmented help system |
 
 `app.html` is nearly entirely self-contained (styles + HTML + JS inline). `db.js` is the Supabase helper layer shared by other pages.
@@ -153,7 +176,30 @@ where `k` is 0-indexed rank within tied group, averaged across all tied riders.
 - Helper: `sbFetch(path)` for GET, `sbPost(path, body)` for upsert/insert, `sbDelete(path)` for delete.
 - Always build the full payload **before** any DELETE to avoid data loss on network failure between DELETE and INSERT.
 - `association_id` must be resolved before any write. Use `G.assocId` first, then `G.cfg.orgAbbrev`, then look up by abbreviation. Never hardcode `'CoWN'`.
-- RLS is currently open ("allow all"). Do not tighten until multi-tenant is ready — coordinate with user.
+
+### RLS Security Model
+
+Applied via `rls_entry_form.sql` + `online_submissions.sql`. Both must be run in Supabase once.
+
+| Table | anon | authenticated |
+|---|---|---|
+| `shows` | SELECT (status in entries_open/running/complete) | full access |
+| `show_classes` | SELECT | full access |
+| `entries` | INSERT only (no read) | full access |
+| `entry_classes` | INSERT only (no read) | full access |
+| `associations` | SELECT (active only) | full access |
+| `online_submissions` | INSERT only (no read) | full access |
+| all others | none | full access |
+
+**Rider personal data is never publicly readable.** Online submissions are insert-only for anon. Only authenticated secretaries can read them.
+
+### show_classes Sync
+
+`syncShowClassesToSupabase()` — deletes and re-inserts all rows in `show_classes` for the current show from `G.cfg.classes`. Called:
+- From `saveConfig()` after the show PATCH succeeds
+- At the start of `syncEntriesToSupabase()` (prerequisite for `entry_classes` FK lookups)
+
+This was a pre-existing silent bug: `entry_classes` rows were never created because `show_classes` was always empty. Now fixed.
 
 ---
 
@@ -239,9 +285,11 @@ All show state is keyed by `showId`. Full key inventory:
 | `gp_aamoney_<showId>` | G.aaMoney |
 | `gp_tmploverride_<showId>` | tmplOverride (per-class template selection) |
 | `gp_closedclasses_<showId>` | array of classKeys marked closed by gate helpers (gate.html) |
-| `gp_billinggroups_<showId>` | G.billingGroups — merged billing groups |
+| `gp_billinggroups_<showId>` | G.billingGroups — merged billing groups (includes responsibleKey) |
 | `gp_horsealiases_<showId>` | G.horseAliases — canonical horse name map |
-| `gatepost_cfg` | G.cfg (show config, scribePin + gatePin, no showId suffix) |
+| `gp_horsedistinct_<showId>` | G.horseDistinct — `{entryKey: 'normkey_N'}` disambiguates same-name horses that are different animals |
+| `gp_payhistory_<showId>` | G.paymentHistory — payment records with method, check#, date |
+| `gatepost_cfg` | G.cfg (show config, scribePin + gatePin, logoUrl, no showId suffix) |
 
 ---
 
@@ -258,6 +306,26 @@ All show state is keyed by `showId`. Full key inventory:
 - `toggleFeeSection(cat)` collapses/expands individual category cards. Toggle chevron rotates via CSS `.collapsed` class.
 - CSS: `.fee-cat-section.collapsed` hides `.fee-sched-row`, `.fee-add-btn`, `.fee-cat-empty` children.
 
+**Fee categories (`FEE_CATS`):** `class`, `stall`, `rv`, `office`, `member`, `custom`, `import`, `assocfee`.
+
+**`import` category** — fee schedule entries with `cat:'import'` are created automatically when the entries mapper commits custom fee columns. Label is the column name from the mapper (read-only in UI). User sets the price-per-unit here; `buildTabLines()` then computes `entry.customFees[name] × price`.
+
+**`G.cfg.assocFees`** — `[{id, org, desc, amt, per:'entry'|'class', disciplines:[]}]`  
+Per-association admin fees (drug tests, trail fees, etc.). Rendered in a separate "Association Fees" card below the standard fee schedule. CRUD via `addAssocFee()` / `updateAssocFee(idx, field, val)` / `removeAssocFee(idx)`. Persisted in `fee_config._assocFees` in Supabase and in `gatepost_cfg` in localStorage. Loaded back in the `fee_config` parser alongside `_schedule` and `_extraFees`.
+
+**`buildTabLines(entry)`** applies fees in this order:
+1. Office fee
+2. Per-org manually added fees (`entry.orgFees`)
+3. Membership / license
+4. Classes (per-class base + cow surcharge + jackpot)
+5. Show-wide custom/extra fees (`G.cfg.extraFees`)
+6. Stalling: stall1qty, stall2qty, **stall3qty**, shavings
+7. RV: rv1qty, rv2qty, rvCircuit
+8. **Association admin fees** (`G.cfg.assocFees`) — per-entry or per-class, with optional discipline filter
+9. **Import/variable fees** (`entry.customFees`) — qty × price from feeSchedule `cat:'import'` entry; line carries `noPrice:true` flag if no price is set yet (so Checkout can warn)
+
+**`_getShowOrgs()`** — returns union of standard org list + orgs present in `G.cfg.classes`. Used to populate org dropdowns in assocFees UI.
+
 ### Class Fees (Show Setup → Class Fees)
 
 - `CFG_ORG_FILTER` / `setCfgOrgFilter()` / `renderCfgClassTable()` control which org's classes are shown.
@@ -272,11 +340,83 @@ All show state is keyed by `showId`. Full key inventory:
 - `drawDivTabs()` / `drawAndWireDivTabs()` render division pills below the org pills.
 - `drawClassLists()` filters by `activeDivision` when not `'All'`.
 
-### Entries Import
+### Entries Import — Column Mapper Audit Flow
 
-- After `parseCognito()` succeeds, the app immediately calls `showPage('entries')` — the user lands on the Entries page right away.
+File drop no longer commits immediately. The flow is:
+
+1. **`loadFile(file)`** in `wireImportDZ()` — reads the workbook, calls `previewEntriesFile(wb)` → `showEntriesAudit(data, wb)`. Nothing is saved yet.
+2. **`previewEntriesFile(wb)`** — scans headers, auto-detects column positions via `_autoDetectMapping()`, detects class columns. Returns `{headers, colMapping, classCols, dataRows, totalEntries}`.
+3. **`showEntriesAudit(data, wb)`** — initialises `_pendingColMapping`, `_pendingClassCols`, `_pendingCustomFields`, `_pendingAuditData`, then calls `_renderEntriesAudit()`.
+4. **`_renderEntriesAudit()`** — renders the mapper UI (called on init and after every add/delete action):
+   - **Column Mapping** — dropdown per expected field; user can reassign any column.
+   - **Class Columns** — editable division label (text input), org dropdown, ✕ delete, + Add class column picker.
+   - **Fees & Stabling** — predefined fields plus "+ Add fee / data column" for custom columns (name + column picker).
+   - **Sample Data** — first 4 rows using current mapping.
+5. **`commitEntriesImport()`** — registers any `_pendingCustomFields` into `G.cfg.feeSchedule` (cat `'import'`) so they appear in Finances for pricing, then calls `parseCognito`. **If entries already exist (re-import), shows merge preview instead of committing directly.** First import commits directly.
+6. **`cancelEntriesAudit()`** — clears all pending state including `_pendingMergeResult`.
+
+**Module-level state:**
+- `_EXPECTED_FIELDS` — array of `{cat, name, key, kw, col, required}` defining all mappable fields. `kw` = ALL keywords must appear in header (AND logic). `col` = Cognito default fallback index.
+- `_pendingColMapping` — `{fieldKey: colIndex|null}` — current user mapping.
+- `_pendingClassCols` — `[{i, header, div, org, isCow}]` — mutable class column list; div and org are user-editable.
+- `_pendingCustomFields` — `[{name, col}]` — extra columns to capture as `entry.customFees`.
+- `_pendingAuditData` — raw preview data needed for `_reRenderAudit()`.
+- `_pendingMergeResult` — `{unchanged, changed, added, missing}` — set during re-import analysis, cleared on commit or cancel.
+
+**Re-import merge strategy:**
+- Match key: entry number first, then rider last name + horse name (`_findMatchingEntry`)
+- `_analyzeMerge(newEntries)` — categorises each incoming entry as unchanged / changed / added; flags existing entries not in file as missing
+- `_renderMergeAudit(result)` — shows diff panel: changed entries with per-field checkboxes, new entries list, missing entries warning (amber, no auto-delete)
+- `window.commitMergeImport()` — applies only checked field changes, adds new entries, skips unchanged; missing entries untouched
+- `_DIFF_FIELDS` — list of fields compared in diff (rider info, stalling, membership numbers, classes)
+
+**`parseCognito(wb, colMapping, classCols, customFields)`** — updated signature:
+- `colMapping` — `{fieldKey: colIndex}` from mapper; falls back to hardcoded Cognito defaults if key absent.
+- `classCols` — explicit `[{i,div,org,isCow}]` list from audit; `null` = auto-detect from headers.
+- `customFields` — `[{name, col}]`; captured into `entry.customFees = {name: qty}`.
+
+**Entry object fields:**
+- `stall3qty` — quantity for 3-night stall
+- `memberCoWN`, `memberSHTX`, `memberAQHA`, `memberAPHA`, `memberApHC`, `memberNRHA` — per-association member numbers
+- `customFees` — `{fieldName: numericQty}` for any extra mapped columns
+- `source` — `'cognito_import'` | `'manual'` | `'online_form'` — set by pathway; `online_form` entries come via `acceptOnlineSub()`
+- `isYouth`, `dob` — captured from online form; carried through on accept
+
+- After `parseCognito()` succeeds, the app immediately calls `showPage('entries')`.
 - `syncEntriesToSupabase()` runs async in the background; result is shown via `toast()`.
 - `tryRestoreMapper()` hides the upload drop zone and shows a "Re-upload file" button when a saved column mapping already exists.
+
+---
+
+## Online Entry Form — Submission Flow
+
+`entry-form.html` is a standalone public page. URL format: `thorofare.app/entry-form.html?show=<showId>`.
+
+**entry-form.html reads:**
+- `shows?id=eq.<showId>` — show name, dates, location, notes, `fee_config`
+- `show_classes?show_id=eq.<showId>` — class list, fees, divisions, orgs
+
+**entry-form.html writes:**
+- `online_submissions` — one row per submission, `submission_data` is the canonical entry jsonb
+
+**`submission_data` canonical fields stored:**
+- Rider: `riderNameFirst`, `riderNameLast`, `email`, `phone`, `address1`, `city`, `state`, `zip`, `isYouth`, `dob`
+- Horse: `horseName`, `horseGender`, `horseOwner`
+- Classes: `[{showClassId, classNum, className, division, org, isCow, isJackpot, fee}]`
+- Memberships: `{org: memberNumber}` — keyed by org abbreviation
+- Stalling: `stall1qty`, `stall2qty`, `stall3qty`, `shavings`, `rv1qty`, `rv2qty`, `rvCircuit`, `stallingGroup`
+- Meta: `source:'online'`, `paymentStatus:'unpaid'`, `estimatedTotal`, `waiverAgreed`, `waiverSignedAt`
+
+**Secretary review (app.html Entries tab):**
+- `loadPendingSubmissions()` — fetches `online_submissions?status=eq.pending` for current show; called every time `pgEntries()` renders
+- Renders a card above the entries list with Accept / Reject per row
+- `acceptOnlineSub(id)` — maps `submission_data` → G.entry format, pushes to `G.entries`, saves to localStorage, PATCHes `status='accepted'`, calls `syncEntriesToSupabase()`
+- `rejectOnlineSub(id)` — PATCHes `status='rejected'`, re-renders page
+
+**Membership field derivation in entry-form.html:**
+`getMembFields()` derives which org fields to show from selected class orgs. Hard-wired parent-org suggestions: `CoWN → SHTX`, `VRH → AQHA`. Adding new parent-org mappings: update `PARENT_ORGS` object in entry-form.html.
+
+**Stalling step:** hidden entirely if `hasStalling()` returns false (all stall/RV rates in `fee_config` are 0 or absent).
 
 ---
 
@@ -344,11 +484,20 @@ Verify all org points formulas against `Example files/Horse ASSOCIATIONS Divisio
 ## Todo List
 
 - [x] **Horse/rider tab combining** — implemented: billing groups (merge/split), horse alias canonical names, same-horse detection badge, Supabase sync via `billing_groups` + `horse_aliases` tables
+- [x] **Entries import column mapper** — implemented: `_EXPECTED_FIELDS` list, `_autoDetectMapping`, editable class columns (div + org + delete + add), custom fee columns, `parseCognito` now accepts explicit mapping + classCols + customFields
+- [x] **Association admin fees** — implemented: `G.cfg.assocFees`, Finances UI (add/edit/delete rows with per-entry or per-class + discipline filter), `buildTabLines` applies them automatically
+- [x] **Import/variable fee columns** — mapper custom fields register in `feeSchedule` (cat `'import'`) on commit; `buildTabLines` reads qty × price from schedule
+- [x] **Checkout: warn on unpriced import fees** — `buildTabLines` sets `noPrice:true`; Checkout tab now shows Association Fees and Variable Fees sections; Variable Fees lines with `noPrice:true` show "⚠ set price in Finances" warning in amber
+- [x] **Import merge strategy** — re-import now shows diff preview (changed/new/missing) with per-field checkboxes; `_analyzeMerge`, `_renderMergeAudit`, `commitMergeImport` implemented
+- [x] **show_classes sync** — `syncShowClassesToSupabase()` wired into `saveConfig()` and `syncEntriesToSupabase()`; fixes silent `entry_classes` creation bug
+- [x] **RLS security model** — `rls_entry_form.sql` applied to Supabase; public read on shows/show_classes, public insert-only on entries/entry_classes
+- [x] **entry-form.html** — built: multi-step wizard (Welcome/Rider/Horse/Classes/Members/Stalling/Summary), submits to `online_submissions` table; `online_submissions.sql` must be run in Supabase to activate
+- [x] **Pending submissions review** — `loadPendingSubmissions()` + `_renderPendingSubsCard()` in app.html; Accept converts jsonb → G.entry format and syncs; Reject marks row rejected; both update `online_submissions.status`
+- [ ] **Submission wrapper (7.3)** — multiple horses/riders per submission; data model impact documented in spec; tackle after entry-form.html phase 1
 - [ ] **Points system verification** — audit ASHA, NVRHA, NRHA formulas against the Excel reference file (`Example files/Horse ASSOCIATIONS Divisions and classes.xlsx`)
 - [ ] **Results parser improvements** — strengthen `parseClassDivStr()` for edge-case SHTX strings; use audit panel failure patterns as test cases
 - [ ] **Feature flags → UI** — wire `enable_*` flags from `associations` table into the secretary app UI — do not implement without user present to test
 - [ ] **NRCHA scoring UI** — extend `scorePairs` system to support 7 buttons (±2 scale) for NRCHA cow work events; blocked on remaining score sheets from user
-- [ ] **Multi-tenant RLS** — tighten Supabase row-level security once multi-tenant architecture is ready; coordinate with user before any change
 
 ---
 

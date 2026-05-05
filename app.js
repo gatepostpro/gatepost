@@ -631,6 +631,15 @@ function pgSettings(){
       +'<select id="cfg-show-status"><option value="setup">Setup</option><option value="entries_open">Entries Open</option><option value="entries_closed">Entries Closed</option><option value="running">Running Now</option><option value="complete">Complete</option></select></div>'
       +'<div class="form-group"><label>Back to Show List</label>'
       +'<button class="btn btn-dark btn-sm" onclick="goToIndex()">&#8592; All Shows</button></div></div>'
+      +'<div class="form-row" style="margin-top:.5rem;align-items:flex-start">'
+      +'<div class="form-group"><label>Organization Logo <small style="color:var(--muted)">(appears on printed receipts)</small></label>'
+      +'<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">'
+      +'<label class="btn btn-dark btn-sm" style="cursor:pointer">Upload Logo<input type="file" accept="image/*" style="display:none" onchange="handleLogoUpload(this)"></label>'
+      +'<span id="logo-status" style="font-size:.78rem;color:var(--muted)"></span>'
+      +'<button class="btn btn-dark btn-sm" id="logo-clear-btn" style="display:none;color:var(--red)" onclick="clearLogo()">&#10005; Remove</button>'
+      +'</div>'
+      +'<div id="logo-preview" style="margin-top:.4rem"></div>'
+      +'</div></div>'
     )
     +settingsCard('Stalling Fees','Applied per-night per stall',
       formRow([pFg('Stall — 1 Night','fee-stall1',40),pFg('Stall — 2 Nights','fee-stall2',80),pFg('Stall — 3 Nights','fee-stall3',120),pFg('Stall — Circuit','fee-stall-circuit',150)])
@@ -1123,6 +1132,42 @@ function exportConfig(){
 
 function v(id){ var el=document.getElementById(id); return el?el.value:''; }
 
+window.handleLogoUpload=function(input){
+  if(!input.files||!input.files[0]) return;
+  var file=input.files[0];
+  if(file.size>300*1024){ toast('Logo too large — please use an image under 300 KB', true); return; }
+  var reader=new FileReader();
+  reader.onload=function(e){
+    G.cfg.logoUrl=e.target.result;
+    try{ localStorage.setItem('gatepost_cfg',JSON.stringify(G.cfg)); } catch(ex){}
+    renderLogoPreview();
+    toast('Logo saved');
+  };
+  reader.readAsDataURL(file);
+};
+
+window.clearLogo=function(){
+  G.cfg.logoUrl='';
+  try{ localStorage.setItem('gatepost_cfg',JSON.stringify(G.cfg)); } catch(e){}
+  renderLogoPreview();
+};
+
+function renderLogoPreview(){
+  var prev=document.getElementById('logo-preview');
+  var stat=document.getElementById('logo-status');
+  var clearBtn=document.getElementById('logo-clear-btn');
+  if(!prev) return;
+  if(G.cfg.logoUrl){
+    prev.innerHTML='<img src="'+G.cfg.logoUrl+'" style="max-height:60px;max-width:200px;object-fit:contain;border:1px solid var(--border);border-radius:4px;padding:3px;background:#fff">';
+    if(stat) stat.textContent='Logo set';
+    if(clearBtn) clearBtn.style.display='';
+  } else {
+    prev.innerHTML='';
+    if(stat) stat.textContent='No logo uploaded';
+    if(clearBtn) clearBtn.style.display='none';
+  }
+}
+
 function applyConfigToUI(){
   var setV=function(id,val){ var el=document.getElementById(id); if(el&&val!==undefined&&val!==null) el.value=val; };
   setV('cfg-show-name',    G.cfg.showName);
@@ -1131,6 +1176,7 @@ function applyConfigToUI(){
   setV('cfg-secretary',    G.cfg.secretary);
   setV('cfg-email',        G.cfg.email);
   setV('cfg-show-status',  G.cfg.showStatus);
+  renderLogoPreview();
   var f=G.cfg.fees||{};
   var fmap={stall1:'fee-stall1',stall2:'fee-stall2',stall3:'fee-stall3',stallCircuit:'fee-stall-circuit',
     shavings:'fee-shavings',rv1:'fee-rv1',rv2:'fee-rv2',rvCircuit:'fee-rv-circuit',
