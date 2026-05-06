@@ -138,23 +138,67 @@ tr:hover td{background:rgba(255,255,255,.03)}
 
 .btn:disabled{opacity:.4;cursor:default}
 
-.fee-cat-section{margin-bottom:.65rem}
-.fee-cat-head{display:flex;align-items:center;gap:.6rem;margin-bottom:.45rem;padding-bottom:.35rem;border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
-.fee-cat-label{font-family:'Oswald',sans-serif;font-size:.88rem;color:var(--accent);white-space:nowrap}
-.fee-cat-note{font-size:.76rem;color:var(--muted);line-height:1.3;flex:1}
-.fee-cat-toggle{margin-left:auto;color:var(--muted);font-size:.7rem;transition:transform .15s}
+/* ── Fee schedule (legacy, used by assoc-fee rows) ── */
+.fee-cat-section{margin-bottom:.5rem}
+.fee-cat-head{display:flex;align-items:center;gap:.6rem;padding:.55rem .75rem;background:var(--card2);border:1px solid var(--border2);border-radius:6px;cursor:pointer;user-select:none}
+.fee-cat-section:not(.collapsed) .fee-cat-head{border-radius:6px 6px 0 0;border-bottom:none}
+.fee-cat-label{font-family:'Oswald',sans-serif;font-size:.9rem;color:var(--accent);flex:1;letter-spacing:.02em}
+.fee-cat-note{display:none}
+.fee-cat-toggle{color:var(--muted);font-size:.7rem;transition:transform .15s}
 .fee-cat-section.collapsed .fee-cat-toggle{transform:rotate(-90deg)}
 .fee-cat-section.collapsed .fee-sched-row,.fee-cat-section.collapsed .fee-add-btn,.fee-cat-section.collapsed .fee-cat-empty{display:none}
-.fee-cat-section.collapsed .fee-cat-head{margin-bottom:0;padding-bottom:0;border-bottom:none}
-.fee-sched-row{display:grid;grid-template-columns:1fr 130px 34px;gap:.5rem;align-items:center;padding:.42rem 0;border-bottom:1px solid var(--border)}
+.fee-cat-section.collapsed .fee-cat-head{border-radius:6px;border-bottom:1px solid var(--border2)}
+.fee-sched-row{display:grid;grid-template-columns:1fr 130px 34px;gap:.5rem;align-items:center;padding:.42rem .75rem;border-bottom:1px solid var(--border);background:var(--card)}
 .fee-sched-row:last-child{border-bottom:none}
 .fee-sched-label,.fee-sched-amt{background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.32rem .55rem;font-size:.88rem;font-family:inherit}
 .fee-sched-label{width:100%}
 .fee-sched-amt{width:100%;text-align:right}
 .fee-sched-label:focus,.fee-sched-amt:focus{outline:none;border-color:var(--accent)}
+/* ── Fee schedule (new clean sections) ── */
+.fee-sec{margin-bottom:.5rem;border:1px solid var(--border2);border-radius:6px;overflow:hidden}
+.fee-sec-head{display:flex;align-items:center;gap:.6rem;padding:.6rem .85rem;background:var(--card2);cursor:pointer;user-select:none}
+.fee-sec-title{font-family:'Oswald',sans-serif;font-size:.92rem;color:var(--accent);flex:1;letter-spacing:.02em}
+.fee-sec-toggle{color:var(--muted);font-size:.7rem;transition:transform .15s}
+.fee-sec.collapsed .fee-sec-toggle{transform:rotate(-90deg)}
+.fee-sec-body{background:var(--card);padding:.2rem .85rem .6rem}
+.fee-sec.collapsed .fee-sec-body{display:none}
+.fee-row{display:flex;align-items:center;gap:.6rem;padding:.4rem 0;border-bottom:1px solid var(--border)}
+.fee-row:last-of-type{border-bottom:none}
+.fee-row-lbl{flex:1;font-size:.87rem;color:var(--text2)}
+.fee-row-lbl-inp{flex:1;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:.28rem .55rem;font-size:.87rem;font-family:inherit}
+.fee-row-lbl-inp:focus{outline:none;border-color:var(--accent)}
+.fee-sym{color:var(--muted);font-size:.85rem;flex-shrink:0}
+.fee-amt{width:90px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:.28rem .5rem;font-size:.9rem;text-align:right;font-family:inherit;flex-shrink:0}
+.fee-amt:focus{outline:none;border-color:var(--accent)}
+.fee-row-del{background:transparent;border:1px solid rgba(200,60,60,.25);color:var(--red);border-radius:4px;cursor:pointer;padding:.15rem .42rem;font-size:.88rem;line-height:1;flex-shrink:0}
+.fee-row-del:hover{border-color:var(--red)}
+.fee-add-row{display:flex;margin-top:.5rem}
+.fee-add-row button{background:transparent;border:1px dashed var(--border2);color:var(--muted);border-radius:4px;cursor:pointer;padding:.3rem .85rem;font-size:.82rem;width:100%}
+.fee-add-row button:hover{border-color:var(--accent);color:var(--accent)}
 
 .btn-row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.85rem}
 
+details>summary{color:var(--muted);font-size:.82rem;cursor:pointer;list-style:none;padding:.3rem 0;user-select:none}details>summary::-webkit-details-marker{display:none}details>summary::before{content:'▶ ';font-size:.65rem;margin-right:.3rem;transition:transform .15s}details[open]>summary::before{content:'▼ '}
+/* ── Setup Wizard ── */
+.wiz-wrap{max-width:820px;margin:0 auto;padding-bottom:3rem}
+.wiz-progress{display:flex;gap:0;margin-bottom:1.5rem;border-radius:6px;overflow:hidden;height:6px;background:var(--border)}
+.wiz-progress-bar{height:6px;background:var(--accent);transition:width .3s}
+.wiz-step-label{font-size:.72rem;color:var(--muted);margin-bottom:.75rem;letter-spacing:.04em;text-transform:uppercase}
+.wiz-nav{display:flex;gap:.6rem;margin-top:1.25rem;justify-content:space-between}
+.wiz-org-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.5rem;margin-top:.5rem}
+.wiz-org-btn{background:var(--card2);border:1px solid var(--border2);color:var(--text2);border-radius:6px;padding:.55rem .75rem;cursor:pointer;font-size:.85rem;text-align:left;transition:border-color .12s,color .12s}
+.wiz-org-btn:hover{border-color:var(--border);color:var(--fg)}
+.wiz-org-btn.selected{border-color:var(--accent);color:var(--accent);background:#162518}
+.wiz-org-section{background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem 1rem;margin-bottom:.75rem}
+.wiz-org-section-title{font-family:Oswald,sans-serif;color:var(--accent);font-size:.95rem;margin-bottom:.65rem}
+.wiz-div-grid{display:flex;flex-wrap:wrap;gap:.35rem;margin:.35rem 0}
+.wiz-div-pill{background:var(--bg);border:1px solid var(--border2);color:var(--text2);border-radius:20px;padding:.2rem .65rem;cursor:pointer;font-size:.78rem;transition:border-color .12s,color .12s}
+.wiz-div-pill.on{border-color:var(--accent);color:var(--accent);background:#162518}
+.wiz-pkg-row{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:.4rem .6rem;margin-bottom:.35rem}
+.wiz-inp{background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--fg);padding:.28rem .55rem;font-size:.85rem}
+.wiz-inp:focus{outline:none;border-color:var(--accent)}
+.wiz-review-section{margin-bottom:1rem}
+.wiz-review-section h4{font-family:Oswald,sans-serif;color:var(--accent);font-size:.92rem;margin:0 0 .35rem;border-bottom:1px solid var(--border);padding-bottom:.2rem}
 .search-wrap{position:relative;margin-bottom:.85rem}
 
 .search-ico{position:absolute;left:.75rem;top:50%;transform:translateY(-50%);color:var(--muted)}
@@ -615,7 +659,10 @@ var G = {
     orgs:['CoWN'],   // associations this show runs
 
     extraFees:[], feeSchedule:null, // feeSchedule: [{key,label,amt,cat}] array or null for defaults
-    assocFees:[]  // [{id,org,desc,amt,per:'entry'|'class',disciplines:[]}] per-org auto fees
+    assocFees:[],       // [{id,org,desc,amt,per:'entry'|'class',disciplines:[]}] per-org auto fees
+    classPkgs:[],       // [{id,org,label,minClasses,discount}] package discounts
+    practiceSessions:[], // [{id,label,price}] practice session time slots
+    clinicOptions:[]    // [{id,label,price}] clinic choices shown to riders
 
   }
 
@@ -696,6 +743,63 @@ function assocTags(raw){
 
 
 var COW_WORDS = ['cow','cut','boxing','working'];
+
+// ═══════════════════════ SHOW SETUP WIZARD ═══════════════════════
+
+var ORG_LIST = ['CoWN','VRH','AQHA Ranch','AQHA RHC','APHA','ApHC','NRHA','NRCHA','NCHA','NVRHA','ASHA','WHSR','Jackpot'];
+
+var ORG_DIVISIONS = {
+  'CoWN':       ['Open','Non-Pro','Limited','Intermediate','Novice','L1 Novice','Youth','Novice Youth','Open Jr Horse','Non-Pro Jr Horse','Non-Pro Boxing','Collegiate Non-Pro','Collegiate Limited','Collegiate Novice'],
+  'VRH':        ['Open Jr Horse (≤5yo)','Open Sr Horse (≥6yo)','Amateur','Limited Amateur','Youth','Limited Youth','Cowboy','Rookie'],
+  'AQHA Ranch': ['Open Jr (≤5yo)','Open Sr (≥6yo)','Amateur','Level 1 Amateur','Youth','Level 1 Youth','Cowboy'],
+  'AQHA RHC':   ['Open 4yo','Open 5-6yo','Open 7+','Cowboy','Amateur','Level 1 Amateur','Youth','Level 1 Youth'],
+  'APHA':       ['Open Jr (≤5yo)','Open Sr (≥6yo)','Amateur','Novice Amateur','Youth','Novice Youth','Solid Paint-Bred (SPB)'],
+  'ApHC':       ['Open Jr (≤5yo)','Open Sr (≥6yo)','Non-Pro','Non-Pro 35+','Non-Pro Masters (50+)','Novice Non-Pro','Youth','Novice Youth'],
+  'NRHA':       ['Open','Intermediate Open','Limited Open','Non-Pro','Intermediate Non-Pro','Limited Non-Pro','Youth 14-18','Youth 13 & Under','Rookie L1','Rookie L2','Prime Time (50+)','Green Reiner L1','Green Reiner L2','Ride & Slide'],
+  'NRCHA':      ['Open','Intermediate Open','Limited Open','Non-Pro','Intermediate Non-Pro','Limited Non-Pro','NP Boxing','Level 1 NP Boxing','Youth Boxing','Youth 13 & Under Boxing','Box Drive Open','Box Drive Non-Pro'],
+  'NCHA':       ['Open','Intermediate Open','Limited Open','Non-Pro','Intermediate Non-Pro','Limited Non-Pro','Amateur','Intermediate Amateur','Limited Amateur','Junior Youth (13 & Under)','Senior Youth (14-18)','Limited Rider'],
+  'NVRHA':      ['Open','Amateur','Intermediate Amateur','Limited Amateur','Novice Amateur','Youth Advanced','Youth Intermediate','Youth Limited','Youth Novice'],
+  'ASHA':       ['Open','Limited Open','Amateur','Limited Amateur','Novice','Youth 14-18','Youth 8-13','Walk-Trot'],
+  'WHSR':       ['Open'],
+  'Jackpot':    ['Open','Amateur','Youth'],
+};
+
+var ORG_DISCIPLINES = {
+  'CoWN':       ['Cow Work','Reining','Trail','Pleasure'],
+  'VRH':        ['Ranch Riding','Ranch Trail','Ranch Reining','Ranch Cutting','Ranch Cow Work'],
+  'AQHA Ranch': ['Ranch Riding','Ranch Trail','Ranch Rail Pleasure'],
+  'AQHA RHC':   ['Working Ranch Horse','Ranch Riding','Ranch Cutting'],
+  'APHA':       ['Ranch Riding','Ranch Trail','Ranch Reining','Ranch Cow Work','Ranch Cutting','Ranch Rail Pleasure'],
+  'ApHC':       ['Ranch Riding','Ranch Trail','Ranch Rail Pleasure','Ranch Reining','Ranch Cow Work'],
+  'NRHA':       ['Reining'],
+  'NRCHA':      ['Reining','Cow Work','Boxing','Box Drive'],
+  'NCHA':       ['Cutting'],
+  'NVRHA':      ['Ranch Riding','Ranch Trail','Ranch Reining','Ranch Cutting','Working Ranch Horse'],
+  'ASHA':       ['Stock Horse Pleasure/Ranch Riding','Stock Horse Trail','Stock Horse Reining','Stock Horse Cow Work','Stock Horse Cutting'],
+  'WHSR':       ['Cow Work','Reining'],
+  'Jackpot':    ['Ranch Riding','Cutting'],
+};
+
+var ORG_REQUIRES_MEMBERSHIP = {
+  'CoWN':true,'VRH':true,'AQHA Ranch':true,'AQHA RHC':true,'APHA':true,'ApHC':true,
+  'NRHA':true,'NRCHA':true,'NCHA':true,'NVRHA':true,'ASHA':true,'WHSR':false,'Jackpot':false
+};
+
+var WIZ = {
+  step: 0,
+  totalSteps: 9,
+  data: {
+    showName:'', showDate:'', showDate2:'', location:'', secretary:'', email:'', phone:'',
+    hostingOrg:'', officeAmt:15, officeNote:'Office / Administration Fee',
+    selectedOrgs: [],
+    orgConfig: {},       // {org: {requiresMembership, membPrices:{day,yr1,yr3,life}, adminFees:[{desc,amt,per}], selectedDivisions:[], selectedDisciplines:[]}}
+    fees: {classBase:30, cowSurcharge:15, cuttingSurcharge:20, jackpot:0, lateAmt:0, lateDueDate:''},
+    stallingPackages: [],
+    rvPackages:       [],
+    clinics:          [],
+    practiceSessions: [],
+  }
+};
 
 
 
@@ -792,21 +896,27 @@ function parseCognito(wb, colMapping, classCols, customFields){
       horseDob: r[12],
       assocRaw: String(gc(r,'assocRaw',13)||''),
       hasMembership: String(r[14]||'').trim(),
-      memberNum:  String(gc(r,'memberNum', 15)||'').replace(/\xa0/g,'').trim(),
-      memberCoWN: String(gc(r,'memberCoWN',null)||'').replace(/\xa0/g,'').trim(),
-      memberSHTX: String(gc(r,'memberSHTX',null)||'').replace(/\xa0/g,'').trim(),
-      memberAQHA: String(gc(r,'memberAQHA',null)||'').replace(/\xa0/g,'').trim(),
-      memberAPHA: String(gc(r,'memberAPHA',null)||'').replace(/\xa0/g,'').trim(),
-      memberApHC: String(gc(r,'memberApHC',null)||'').replace(/\xa0/g,'').trim(),
-      memberNRHA: String(gc(r,'memberNRHA',null)||'').replace(/\xa0/g,'').trim(),
+      memberNum:    String(gc(r,'memberNum',   15)||'').replace(/\xa0/g,'').trim(),
+      memberCoWN:   String(gc(r,'memberCoWN',  null)||'').replace(/\xa0/g,'').trim(),
+      memberSHTX:   String(gc(r,'memberSHTX',  null)||'').replace(/\xa0/g,'').trim(),
+      memberAQHA:   String(gc(r,'memberAQHA',  null)||'').replace(/\xa0/g,'').trim(),
+      memberAPHA:   String(gc(r,'memberAPHA',  null)||'').replace(/\xa0/g,'').trim(),
+      memberApHC:   String(gc(r,'memberApHC',  null)||'').replace(/\xa0/g,'').trim(),
+      memberNRHA:   String(gc(r,'memberNRHA',  null)||'').replace(/\xa0/g,'').trim(),
+      memberOwner:  String(gc(r,'memberOwner', 102)||'').replace(/\xa0/g,'').trim(),
       needsMembership: String(r[16]||'').trim(),
       division: String(r[17]||'').trim(),
       classes: classes,
       customFees: customFeesObj,
+      horseRegNum:  String(gc(r,'horseRegNum', 56)||'').trim(),
+      horseDob:     String(gc(r,'horseDob',    null)||'').trim(),
+      haulinQty:    gn(r,'haulin',138),
       stall1qty: gn(r,'stall1',55), stall2qty: gn(r,'stall2',57), stall3qty: gn(r,'stall3',null),
       shavings:  gn(r,'shavings',59),
       rv1qty:    gn(r,'rv1',62), rv2qty: gn(r,'rv2',64), rvCircuit: gn(r,'rvCircuit',66),
-      stallNote: r[53] ? String(r[53]) : '',
+      stallNote:    String(gc(r,'stallNote',   53)||'').trim(),
+      lateFee:      parseFloat(gc(r,'lateFee', null))||0,
+      clinicChoice: String(gc(r,'clinicChoice',85)||'').trim(),
       cognitoAmount: amount, isPaid: isPaid, orderStr: orderStr
     };
   });
@@ -816,33 +926,41 @@ function parseCognito(wb, colMapping, classCols, customFields){
 
 // ═══════════════════════ ENTRIES IMPORT AUDIT ═══════════════════════
 
-// Expected fields: kw = ALL must match in header (AND), col = Cognito default fallback
+// Expected fields: kw = ALL must match (AND), nkw = none must match (exclusions), col = Cognito default fallback
 var _EXPECTED_FIELDS = [
-  {cat:'Entry Info',      name:'Entry #',                key:'entryNum',   kw:['entry'],         col:0},
-  {cat:'Entry Info',      name:'Rider Name',             key:'riderName',  kw:['name'],          col:4,    required:true},
-  {cat:'Entry Info',      name:'Address',                key:'address',    kw:['address'],       col:5},
-  {cat:'Entry Info',      name:'Phone',                  key:'phone',      kw:['phone'],         col:6},
-  {cat:'Entry Info',      name:'Email',                  key:'email',      kw:['email'],         col:7},
-  {cat:'Entry Info',      name:'Horse Name',             key:'horseName',  kw:['horse'],         col:9,    required:true},
-  {cat:'Entry Info',      name:'Horse Owner',            key:'horseOwner', kw:['owner'],         col:11},
-  {cat:'Entry Info',      name:'Associations',           key:'assocRaw',   kw:['association'],   col:13},
-  {cat:'Member Numbers',  name:'CoWN Member #',          key:'memberCoWN', kw:['cown'],          col:null},
-  {cat:'Member Numbers',  name:'SHTX Member #',          key:'memberSHTX', kw:['shtx'],          col:null},
-  {cat:'Member Numbers',  name:'AQHA Member #',          key:'memberAQHA', kw:['aqha'],          col:null},
-  {cat:'Member Numbers',  name:'APHA Member #',          key:'memberAPHA', kw:['apha'],          col:null},
-  {cat:'Member Numbers',  name:'ApHC Member #',          key:'memberApHC', kw:['aphc'],          col:null},
-  {cat:'Member Numbers',  name:'NRHA Member #',          key:'memberNRHA', kw:['nrha'],          col:null},
-  {cat:'Member Numbers',  name:'General Member #',       key:'memberNum',  kw:['member'],        col:15},
-  {cat:'Fees & Stabling', name:'Office / Entry Fee',     key:'officeFee',  kw:['office'],        col:null},
-  {cat:'Fees & Stabling', name:'Stall – 1 Night',        key:'stall1',     kw:['stall','1'],     col:55},
-  {cat:'Fees & Stabling', name:'Stall – 2 Nights',       key:'stall2',     kw:['stall','2'],     col:57},
-  {cat:'Fees & Stabling', name:'Stall – 3 Nights',       key:'stall3',     kw:['stall','3'],     col:null},
-  {cat:'Fees & Stabling', name:'Shavings / Bedding',     key:'shavings',   kw:['shaving'],       col:59},
-  {cat:'Fees & Stabling', name:'RV – 1 Night',           key:'rv1',        kw:['rv','1'],        col:62},
-  {cat:'Fees & Stabling', name:'RV – 2 Nights',          key:'rv2',        kw:['rv','2'],        col:64},
-  {cat:'Fees & Stabling', name:'RV – Circuit/Weekend',   key:'rvCircuit',  kw:['rv','circuit'],  col:66},
-  {cat:'Fees & Stabling', name:'Drug / Testing Fee',     key:'drugFee',    kw:['drug'],          col:null},
-  {cat:'Fees & Stabling', name:'Grounds / Facility Fee', key:'groundsFee', kw:['ground'],        col:null},
+  {cat:'Entry Info',      name:'Entry #',                key:'entryNum',   kw:['entry'],                      nkw:['form','date'], col:0},
+  {cat:'Entry Info',      name:'Rider Name',             key:'riderName',  kw:['name'],                       nkw:['horse','barn','owner','registered'], col:4, required:true},
+  {cat:'Entry Info',      name:'Address',                key:'address',    kw:['address'],                    nkw:[], col:5},
+  {cat:'Entry Info',      name:'Phone',                  key:'phone',      kw:['phone'],                      nkw:[], col:6},
+  {cat:'Entry Info',      name:'Email',                  key:'email',      kw:['email'],                      nkw:[], col:7},
+  {cat:'Entry Info',      name:'Horse Name',             key:'horseName',  kw:['horse'],                      nkw:['owner','reg','dob','birth'], col:9, required:true},
+  {cat:'Entry Info',      name:'Horse Owner',            key:'horseOwner', kw:['owner'],                      nkw:['member'], col:11},
+  {cat:'Entry Info',      name:'Horse Reg #',            key:'horseRegNum',kw:['horse','reg'],                 nkw:[], col:56},
+  {cat:'Entry Info',      name:'Horse Date of Birth',    key:'horseDob',   kw:['horse','birth'],               nkw:[], col:null},
+  {cat:'Entry Info',      name:'Associations',           key:'assocRaw',   kw:['association'],                 nkw:[], col:13},
+  {cat:'Member Numbers',  name:'CoWN Member #',          key:'memberCoWN', kw:['cown'],                       nkw:['owner'], col:null},
+  {cat:'Member Numbers',  name:'SHTX Member #',          key:'memberSHTX', kw:['shtx'],                       nkw:['owner'], col:null},
+  {cat:'Member Numbers',  name:'AQHA Member #',          key:'memberAQHA', kw:['aqha'],                       nkw:['owner'], col:null},
+  {cat:'Member Numbers',  name:'APHA Member #',          key:'memberAPHA', kw:['apha'],                       nkw:['owner'], col:null},
+  {cat:'Member Numbers',  name:'ApHC Member #',          key:'memberApHC', kw:['aphc'],                       nkw:['owner'], col:null},
+  {cat:'Member Numbers',  name:'NRHA Member #',          key:'memberNRHA', kw:['nrha'],                       nkw:['owner'], col:null},
+  {cat:'Member Numbers',  name:'General Member #',       key:'memberNum',  kw:['member'],                     nkw:['cown','shtx','aqha','apha','aphc','nrha','owner'], col:15},
+  {cat:'Member Numbers',  name:'Owner Member #',         key:'memberOwner',kw:['owner','member'],              nkw:[], col:102},
+  {cat:'Entry Info',      name:'Notes / Special Requests',key:'stallNote',  kw:['note'],                       nkw:['entry','class'], col:null},
+  {cat:'Fees & Stabling', name:'Office / Entry Fee',     key:'officeFee',  kw:['office'],                    nkw:[], col:null},
+  {cat:'Fees & Stabling', name:'Late Entry Fee',         key:'lateFee',    kw:['late'],                       nkw:[], col:null},
+  {cat:'Fees & Stabling', name:'Haul-In',               key:'haulin',     kw:['haul'],                       nkw:[], col:138},
+  {cat:'Fees & Stabling', name:'Practice Session',       key:'practiceSession', kw:['practice'],              nkw:[], col:null},
+  {cat:'Fees & Stabling', name:'Clinic Choice',          key:'clinicChoice',kw:['clinic'],                    nkw:[], col:85},
+  {cat:'Fees & Stabling', name:'Stall – 1 Night',        key:'stall1',     kw:['stall'],       nkw:['circuit','weekend','2','3','two','three'], col:55},
+  {cat:'Fees & Stabling', name:'Stall – 2 Nights',       key:'stall2',     kw:['stall','2'],                  nkw:[], col:57},
+  {cat:'Fees & Stabling', name:'Stall – 3 Nights',       key:'stall3',     kw:['stall','3'],                  nkw:[], col:null},
+  {cat:'Fees & Stabling', name:'Shavings / Bedding',     key:'shavings',   kw:['shaving'],                   nkw:[], col:59},
+  {cat:'Fees & Stabling', name:'RV – 1 Night',           key:'rv1',        kw:['rv'],          nkw:['circuit','weekend','2','two'], col:62},
+  {cat:'Fees & Stabling', name:'RV – 2 Nights',          key:'rv2',        kw:['rv','2'],                     nkw:[], col:64},
+  {cat:'Fees & Stabling', name:'RV – Circuit/Weekend',   key:'rvCircuit',  kw:['rv','circuit'],               nkw:[], col:66},
+  {cat:'Fees & Stabling', name:'Drug / Testing Fee',     key:'drugFee',    kw:['drug'],                       nkw:[], col:null},
+  {cat:'Fees & Stabling', name:'Grounds / Facility Fee', key:'groundsFee', kw:['ground'],                     nkw:[], col:null},
 ];
 
 var _ENTRY_ORG_OPTIONS = ['CoWN','VRH','AQHA Ranch','AQHA RHC','APHA','WHSR','Jackpot'];
@@ -1019,6 +1137,13 @@ window.commitMergeImport = function(){
     G.payments[ne.rowIndex] = ne.isPaid ? tabTotal(ne) : 0;
   });
 
+  // Persist column mapping for next upload
+  if(_pendingColMapping && Object.keys(_pendingColMapping).length){
+    G.cfg.colMap     = Object.assign({}, _pendingColMapping);
+    if(_pendingAuditData) G.cfg.mapHeaders = _pendingAuditData.headers.slice();
+    try{ localStorage.setItem('gatepost_cfg', JSON.stringify(G.cfg)); } catch(e){}
+  }
+
   _pendingMergeResult = null;
   _pendingAuditData   = null;
 
@@ -1046,15 +1171,19 @@ function _autoDetectMapping(headers, fieldDefs){
   var mapping = {};
   fieldDefs.forEach(function(def){
     var bestCol = null, bestScore = 0;
+    var nkw = def.nkw || [];
     headers.forEach(function(h,i){
       if(!h) return;
       var hn = String(h).toLowerCase();
-      if(def.kw.every(function(k){ return hn.indexOf(k)>-1; })){
-        var score = def.kw.length;
-        if(score > bestScore){ bestScore = score; bestCol = i; }
-      }
+      // All required keywords must be present
+      if(!def.kw.every(function(k){ return hn.indexOf(k)>-1; })) return;
+      // None of the exclusion keywords may be present
+      if(nkw.some(function(k){ return hn.indexOf(k)>-1; })) return;
+      var score = def.kw.length;
+      if(score > bestScore){ bestScore = score; bestCol = i; }
     });
-    mapping[def.key] = (bestCol !== null) ? bestCol : (def.col != null ? def.col : null);
+    // Only use default column fallback when we have no keyword match AND the default col is defined
+    mapping[def.key] = (bestCol !== null) ? bestCol : (bestScore===0 && def.col!=null ? def.col : null);
   });
   return mapping;
 }
@@ -1083,7 +1212,12 @@ function _reRenderAudit(){
 function showEntriesAudit(data, wb){
   _pendingEntriesWb   = wb;
   _pendingAuditData   = data;
+  // Start from auto-detected mapping, then fill gaps from any previously saved mapping
   _pendingColMapping  = Object.assign({}, data.colMapping);
+  var saved = G.cfg.colMap || {};
+  Object.keys(saved).forEach(function(key){
+    if(_pendingColMapping[key] == null && saved[key] != null) _pendingColMapping[key] = saved[key];
+  });
   _pendingClassCols   = data.classCols.map(function(cc){ return Object.assign({},cc); });
   _pendingCustomFields= [];
   _renderEntriesAudit();
@@ -1118,10 +1252,17 @@ function _renderEntriesAudit(){
       var col = _pendingColMapping[def.key];
       var req = def.required ? '<span style="color:var(--red,#e74c3c)"> *</span>' : '';
       var hint = (col==null && def.required) ? ' <span style="color:var(--red,#e74c3c);font-size:.72rem">⚠ not mapped</span>'
-               : (col==null ? ' <span style="color:var(--muted);font-size:.72rem">not in file</span>' : '');
+               : (col==null ? ' <span style="color:var(--muted);font-size:.72rem">skip</span>' : '');
+      // Show sample value from first data row so user can verify the mapping instantly
+      var sample = '';
+      if(col!=null && data.dataRows.length){
+        var sv = String(data.dataRows[0][col]||'').trim().substring(0,28);
+        if(sv) sample = '<span style="color:var(--muted);font-size:.74rem;margin-left:.4rem">e.g. '+esc(sv)+'</span>';
+      }
       return '<tr>'
         +'<td style="padding:3px 8px;white-space:nowrap;font-size:.82rem">'+esc(def.name)+req+hint+'</td>'
-        +'<td style="padding:3px 8px">'+colSelect(def.key, col, 'window._entryMapChange(\''+def.key+'\',this.value)')+'</td>'
+        +'<td style="padding:3px 8px">'+colSelect(def.key, col, 'window._entryMapChange(\''+def.key+'\',this.value,this)')
+        +sample+'</td>'
         +'</tr>';
     }).join('');
     // After "Fees & Stabling" rows, append custom fee rows + add button
@@ -1204,6 +1345,40 @@ function _renderEntriesAudit(){
 
   var missingReq = _EXPECTED_FIELDS.filter(function(f){ return f.required && _pendingColMapping[f.key]==null; });
 
+  // Build a reverse map: colIndex → field name (what this column was detected as)
+  var colToField = {};
+  Object.keys(_pendingColMapping).forEach(function(key){
+    var col = _pendingColMapping[key];
+    if(col != null){
+      var def = _EXPECTED_FIELDS.find(function(f){ return f.key===key; });
+      colToField[col] = def ? def.name : key;
+    }
+  });
+  // Class columns
+  _pendingClassCols.forEach(function(cc){ colToField[cc.i] = 'Class: '+(cc.div||cc.header); });
+  // Custom fee columns
+  _pendingCustomFields.forEach(function(cf){ if(cf.col!=null) colToField[cf.col] = 'Fee: '+(cf.name||'?'); });
+
+  // Column overview — show every column and whether it's recognized
+  var overviewHtml = '<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.75rem">';
+  headers.forEach(function(h,i){
+    if(!h) return;
+    var label = String(h).substring(0,40);
+    var mapped = colToField[i];
+    var color = mapped ? 'var(--green)' : 'var(--accent)';
+    var bg = mapped ? 'rgba(74,153,100,.12)' : 'rgba(200,146,42,.12)';
+    var border = mapped ? 'rgba(74,153,100,.3)' : 'rgba(200,146,42,.4)';
+    overviewHtml += '<span title="'+(mapped?'Mapped as: '+esc(mapped):'Not yet assigned — see Field Mapping below')+'" '
+      +'style="font-size:.72rem;padding:.15rem .4rem;border-radius:4px;border:1px solid '+border+';'
+      +'background:'+bg+';color:'+color+';cursor:default;white-space:nowrap">'
+      +(mapped?'✓ ':'⚠ ')+esc(label)+'</span>';
+  });
+  overviewHtml += '</div>'
+    +'<div style="font-size:.74rem;color:var(--muted);margin-bottom:.75rem">'
+    +'<span style="color:var(--green)">✓ Green</span> = recognized &nbsp;|&nbsp; '
+    +'<span style="color:var(--accent)">⚠ Amber</span> = not yet assigned. '
+    +'Assign them in Field Mapping below, or add them as class columns or custom fee columns.</div>';
+
   var html = '<div id="entries-audit-panel" style="border:1px solid var(--border2);border-radius:8px;'
     +'padding:1rem;background:var(--card);margin-top:.5rem">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
@@ -1212,6 +1387,8 @@ function _renderEntriesAudit(){
     +'</div>'
     +(missingReq.length ? '<div style="color:var(--red,#e74c3c);font-size:.85rem;margin-bottom:.5rem">⚠ Required not mapped: '
       +missingReq.map(function(f){return esc(f.name);}).join(', ')+'</div>' : '')
+    +'<details open><summary style="cursor:pointer;font-weight:600;font-size:.9rem;padding:.25rem 0">All Columns in Your File</summary>'
+    +'<div style="margin-top:.4rem">'+overviewHtml+'</div></details>'
     +'<details open><summary style="cursor:pointer;font-weight:600;font-size:.9rem;padding:.25rem 0">Column Mapping'
     +'<span style="color:var(--muted);font-size:.8rem;font-weight:400"> — match each expected field to a column in your file</span>'
     +'</summary><table style="width:100%;border-collapse:collapse;margin-top:.25rem">'+mapRows+'</table></details>'
@@ -1236,8 +1413,21 @@ function _renderEntriesAudit(){
 
 // ── Handlers — all immediate-update, no re-render unless structure changes ──
 
-window._entryMapChange = function(fieldKey, colVal){
-  _pendingColMapping[fieldKey] = colVal==='' ? null : parseInt(colVal,10);
+window._entryMapChange = function(fieldKey, colVal, selectEl){
+  var col = colVal==='' ? null : parseInt(colVal,10);
+  _pendingColMapping[fieldKey] = col;
+  // Update adjacent sample value span immediately
+  if(selectEl && _pendingAuditData && _pendingAuditData.dataRows.length){
+    var span = selectEl.nextSibling;
+    if(span && span.tagName==='SPAN'){
+      if(col!=null){
+        var sv = String(_pendingAuditData.dataRows[0][col]||'').trim().substring(0,28);
+        span.textContent = sv ? 'e.g. '+sv : '';
+      } else {
+        span.textContent = '';
+      }
+    }
+  }
 };
 window._entryClassDiv = function(colIdx, val){
   var cc = _pendingClassCols.find(function(c){ return c.i===colIdx; });
@@ -1297,6 +1487,11 @@ function commitEntriesImport(){
     }
 
     // First import: replace directly
+    // Persist the column mapping so re-uploads are pre-filled
+    G.cfg.colMap     = Object.assign({}, _pendingColMapping);
+    G.cfg.mapHeaders = _pendingAuditData ? _pendingAuditData.headers.slice() : [];
+    try{ localStorage.setItem('gatepost_cfg', JSON.stringify(G.cfg)); } catch(e){}
+
     _pendingEntriesWb = null;
     G.entries  = newEntries;
     G.payments = {}; G.backNums = {};
@@ -3122,7 +3317,11 @@ function buildTabLines(entry){
 
       var isCow = cfgCls ? cfgCls.isCow : COW_WORDS.some(function(k){ return (cls.name||'').toLowerCase().indexOf(k)>-1; });
 
+      var isCutting = !isCow && /cutting/i.test(cls.name||'');
+
       var cowFee = isCow ? ((cfgCls && cfgCls.cowFee != null) ? cfgCls.cowFee : (f.cowSurcharge||0)) : 0;
+
+      var cutFee = isCutting ? (f.cuttingSurcharge||0) : 0;
 
       var jp = (cfgCls && cfgCls.jackpot) ? cfgCls.jackpot : 0;
 
@@ -3130,7 +3329,7 @@ function buildTabLines(entry){
 
       if(cls.org && cls.org !== 'CoWN') desc += ' ['+cls.org+']';
 
-      lines.push({desc:desc, amt:base+cowFee+jp, type:'class', isCow:isCow});
+      lines.push({desc:desc, amt:base+cowFee+cutFee+jp, type:'class', isCow:isCow});
 
     });
 
@@ -3148,7 +3347,30 @@ function buildTabLines(entry){
 
 
 
+  // Package discounts — best qualifying package per org
+  var pkgs = G.cfg.classPkgs || [];
+  if(pkgs.length > 0 && !isFullScratched(entry.rowIndex)) {
+    var orgCnt = {};
+    entry.classes.forEach(function(cls){
+      if(isScratched(clsKey(cls), entry.rowIndex)) return;
+      var o = cls.org || 'CoWN';
+      orgCnt[o] = (orgCnt[o]||0) + 1;
+    });
+    var bestByOrg = {};
+    pkgs.forEach(function(pkg){
+      if((orgCnt[pkg.org]||0) >= pkg.minClasses) {
+        if(!bestByOrg[pkg.org] || pkg.minClasses > bestByOrg[pkg.org].minClasses) bestByOrg[pkg.org] = pkg;
+      }
+    });
+    Object.keys(bestByOrg).forEach(function(org){
+      var pkg = bestByOrg[org];
+      if(+pkg.discount > 0) lines.push({desc: pkg.label || (org+' Package Discount'), amt: -(+pkg.discount), type:'discount'});
+    });
+  }
+
   // Stalling
+
+  if((entry.haulinQty||0) > 0) lines.push({desc:feeLabel('haulin')+' × '+entry.haulinQty, amt:(f.haulin||0)*entry.haulinQty, type:'stall'});
 
   if(entry.stall1qty > 0) lines.push({desc:feeLabel('stall1')+' × '+entry.stall1qty, amt:f.stall1*entry.stall1qty, type:'stall'});
 
@@ -3163,6 +3385,9 @@ function buildTabLines(entry){
   if(entry.rv2qty    > 0) lines.push({desc:feeLabel('rv2')+' × '+entry.rv2qty, amt:f.rv2*entry.rv2qty, type:'rv'});
 
   if(entry.rvCircuit > 0) lines.push({desc:feeLabel('rvCircuit')+' × '+entry.rvCircuit, amt:f.rvCircuit*entry.rvCircuit, type:'rv'});
+
+  // Late fee captured at import or set on entry
+  if((entry.lateFee||0) > 0) lines.push({desc:feeLabel('late'), amt:entry.lateFee, type:'office'});
 
   // Per-association admin fees — applied based on which orgs the rider entered classes in
   (G.cfg.assocFees||[]).forEach(function(af){
@@ -3722,7 +3947,7 @@ var PAGE_TITLES = {
 
   tabs:'Checkout', stalls:'Stalls & RV', results:'Results',
 
-  publish:'Publish Results', settings:'Settings'
+  publish:'Publish Results', settings:'Settings', wizard:'Show Setup Wizard'
 
 };
 
@@ -3777,6 +4002,10 @@ function showPage(p){
 
   }
 
+  if(p === 'setup' || p === 'settings' || p === 'wizard'){
+    var wb = mk('button','btn btn-dark btn-sm'); wb.innerHTML='&#9881; Setup Wizard'; wb.onclick=function(){ showPage('wizard'); }; tr.appendChild(wb);
+  }
+
   if(p === 'settings'){
 
     var sb = mk('button','btn btn-green btn-sm'); sb.innerHTML='&#10003; Save Config'; sb.onclick=saveConfig; tr.appendChild(sb);
@@ -3785,7 +4014,7 @@ function showPage(p){
 
   }
 
-  var renders = {setup:pgSetup, entries:pgEntries, classes:pgClasses, tabs:pgTabs, stalls:pgStalls, results:pgResults, publish:pgPublish, settings:pgSettings};
+  var renders = {setup:pgSetup, entries:pgEntries, classes:pgClasses, tabs:pgTabs, stalls:pgStalls, results:pgResults, publish:pgPublish, settings:pgSettings, wizard:pgWizard};
 
   if(renders[p]) renders[p]();
 
@@ -3904,6 +4133,8 @@ window.acceptOnlineSub = async function(id){
       horse:       d.horseName||'',
       horseGender: d.horseGender||'',
       horseOwner:  d.horseOwner||'',
+      horseRegNum: d.horseRegNum||'',
+      horseDob:    d.horseDob||'',
       dob:         d.dob||null,
       isYouth:     d.isYouth||false,
       memberCoWN:  mb.CoWN||'',
@@ -3912,14 +4143,20 @@ window.acceptOnlineSub = async function(id){
       memberAPHA:  mb.APHA||'',
       memberApHC:  mb.ApHC||'',
       memberNRHA:  mb.NRHA||'',
+      memberOwner: d.memberOwner||'',
       memberNum:   '',
       classes: (d.classes||[]).map(function(c){
         return {num:c.classNum||'', name:c.className||'', division:c.division||'', org:c.org||'', raw:c.className||''};
       }),
+      haulinQty:  d.haulinQty||0,
       stall1qty:  d.stall1qty||0, stall2qty: d.stall2qty||0, stall3qty: d.stall3qty||0,
       shavings:   d.shavings||0,
       rv1qty:     d.rv1qty||0, rv2qty: d.rv2qty||0, rvCircuit: d.rvCircuit||0,
+      stallingArrival: d.stallingArrival||null,
+      rvArrival:  d.rvArrival||null,
       stallNote:  d.stallingGroup||'',
+      clinicChoice: d.clinicChoice||'',
+      practiceSessions: d.practiceSessions||[],
       source:     'online_form',
       cognitoAmount: d.estimatedTotal||0,
       isPaid: false, orgFees: [], customFees: {}
@@ -3952,104 +4189,72 @@ function pgEntries(){
 
 
 
-  // ── Import section (always at top) ──────────────────────────
+  // ── Entry form link (always available) ──────────────────────
+  var efUrl = window.location.origin + '/entry-form.html?show=' + (G.showId||'');
+  var efCard = '<div class="card" style="margin-bottom:1rem">'
+    +'<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">'
+    +'<div style="flex:1;min-width:200px">'
+    +'<div style="font-family:Oswald,sans-serif;font-size:.95rem;color:var(--accent);margin-bottom:.2rem">Online Entry Form</div>'
+    +'<div style="font-size:.78rem;color:var(--muted)">Share this link with riders to collect entries online.</div>'
+    +'</div>'
+    +'<div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">'
+    +'<input id="ef-url-inp" readonly value="'+esc(efUrl)+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text2);font-size:.75rem;padding:.3rem .55rem;width:280px;max-width:100%">'
+    +'<button class="btn btn-accent btn-sm" onclick="var i=document.getElementById(\'ef-url-inp\');i.select();navigator.clipboard.writeText(i.value).then(function(){toast(\'Link copied!\');})">Copy Link</button>'
+    +'<a href="'+esc(efUrl)+'" target="_blank"><button class="btn btn-dark btn-sm">Open &#8599;</button></a>'
+    +'</div></div>'
+    +'</div>';
 
-  var importCard;
+  // ── Spreadsheet import (collapsed disclosure) ─────────────
+  var importDisc = '<details style="margin-bottom:1rem">'
+    +'<summary style="cursor:pointer;font-size:.82rem;color:var(--muted);padding:.3rem 0;user-select:none">&#128190; Import entries from spreadsheet (.xlsx)</summary>'
+    +'<div class="card" style="margin-top:.5rem">'
+    +'<div class="drop-zone" id="dz"><div class="dz-ico">&#128190;</div>'
+    +'<h3>Drop Cognito Excel file here</h3>'
+    +'<p>Or click to browse &mdash; .xlsx files exported from Cognito Forms</p>'
+    +'<input type="file" id="fi" accept=".xlsx,.xls" style="display:none"></div>'
+    +'<div id="imp-status" style="margin-top:.75rem;font-size:.85rem"></div>'
+    +'</div></details>';
 
   if(!hasEntries){
-
-    importCard='<div class="card">'
-
-      +'<div class="card-title">Import Entries</div>'
-
-      +'<div class="drop-zone" id="dz"><div class="dz-ico">&#128190;</div>'
-
-      +'<h3>Drop Cognito Excel file here</h3>'
-
-      +'<p>Or click to browse &mdash; .xlsx files exported from Cognito Forms</p>'
-
-      +'<input type="file" id="fi" accept=".xlsx,.xls" style="display:none"></div>'
-
-      +'<div id="imp-status" style="margin-top:.75rem;font-size:.85rem"></div>'
-
-      +'</div>';
-
-  } else {
-
-    importCard='<div class="card" style="padding:.75rem 1.25rem">'
-
-      +'<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">'
-
-      +'<div class="drop-zone" id="dz" style="flex:1;min-width:220px;padding:1rem 1.25rem;display:flex;align-items:center;gap:.75rem;text-align:left">'
-
-      +'<span style="font-size:1.4rem;color:var(--muted)">&#128190;</span>'
-
-      +'<div><div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.9rem">Re-import Entries</div>'
-
-      +'<div style="color:var(--muted);font-size:.75rem">Drop new Cognito .xlsx to replace current entries</div></div>'
-
-      +'<input type="file" id="fi" accept=".xlsx,.xls" style="display:none"></div>'
-
-      +'<button class="btn btn-dark btn-sm" style="color:var(--red);border-color:var(--red);flex-shrink:0" onclick="clearAllEntries()">&#10006; Clear All Entries</button>'
-
+    pg.innerHTML='<div id="pending-subs-card"></div>'
+      +efCard
+      +'<div class="card" style="margin-bottom:1rem;text-align:center;padding:1.5rem">'
+      +'<div style="color:var(--muted);margin-bottom:1rem;font-size:.9rem">No entries yet — riders can submit via the entry form above, or you can add entries manually.</div>'
+      +'<button class="btn btn-accent" onclick="showAddEntryModal()">+ Add Entry Manually</button>'
       +'</div>'
-
-      +'<div id="imp-status" style="margin-top:.5rem;font-size:.85rem"></div>'
-
-      +'</div>';
-
-  }
-
-
-
-  if(!hasEntries){
-
-    pg.innerHTML='<div id="pending-subs-card"></div>'+importCard;
-
+      +importDisc;
     wireImportDZ();
-
     loadPendingSubmissions();
-
     return;
-
   }
-
-
 
   var totalFees=G.entries.reduce(function(s,e){ return s+tabTotal(e); },0);
-
   var totalPaid=G.entries.reduce(function(s,e){ return s+amtPaid(e); },0);
-
   var uniqueRiders=new Set(G.entries.map(function(e){ return e.name; })).size;
-
   var divCounts={};
-
   G.entries.forEach(function(e){ if(e.division) divCounts[e.division]=(divCounts[e.division]||0)+1; });
 
-
-
-  pg.innerHTML=importCard
-
-    +'<div id="pending-subs-card"></div>'
-
+  pg.innerHTML='<div id="pending-subs-card"></div>'
+    +efCard
     +'<div class="stat-grid">'
-
     +'<div class="stat c-gold"><div class="n">'+G.entries.length+'</div><div class="l">Entries</div></div>'
-
     +'<div class="stat c-blue"><div class="n">'+uniqueRiders+'</div><div class="l">Riders</div></div>'
-
     +'<div class="stat c-green"><div class="n">'+fmt$(totalFees)+'</div><div class="l">Total Fees</div></div>'
-
     +'<div class="stat c-red"><div class="n">'+fmt$(totalFees-totalPaid)+'</div><div class="l">Outstanding</div></div>'
-
     +'</div><div class="card">'
-
     +'<div class="btn-row no-print">'
-
     +'<button class="btn btn-accent btn-sm" onclick="window.print()">&#128424; Print</button>'
-
     +'<button class="btn btn-dark btn-sm" onclick="showAutoBackNumDialog()">&#35; Auto Back Numbers</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="this.closest(\'.btn-row\').nextElementSibling.style.display=this.closest(\'.btn-row\').nextElementSibling.style.display===\'none\'?\'block\':\'none\'">&#128190; Import&hellip;</button>'
+    +'<button class="btn btn-dark btn-sm" style="color:var(--red);border-color:rgba(231,76,60,.4)" onclick="clearAllEntries()">&#10006; Clear All</button>'
 
+    +'</div>'
+    +'<div id="import-panel" style="display:none;background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:.75rem;margin-bottom:.5rem">'
+    +'<div class="drop-zone" id="dz" style="padding:1rem"><div class="dz-ico">&#128190;</div>'
+    +'<h3>Drop Cognito Excel file here</h3>'
+    +'<p>Or click to browse &mdash; .xlsx files exported from Cognito Forms</p>'
+    +'<input type="file" id="fi" accept=".xlsx,.xls" style="display:none"></div>'
+    +'<div id="imp-status" style="margin-top:.5rem;font-size:.85rem"></div>'
     +'</div>'
 
     +'<div id="auto-bn-form" style="display:none;background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.75rem;margin-bottom:.75rem;display:none">'
@@ -9161,10 +9366,609 @@ window.pushToSeasonHub=async function(){
 
 var CFG_ROW_ID=0;
 
+// ═══════════════════════ PAGE: SETUP WIZARD ═══════════════════════
 
+function _wizRender(){
+  var d = WIZ.data;
+  var el = document.getElementById('wiz-body');
+  if(!el) return;
+  var pct = Math.round((WIZ.step / (WIZ.totalSteps - 1)) * 100);
+  var stepFns = [_wizS0,_wizS1,_wizS2,_wizS3,_wizS4,_wizS5,_wizS6,_wizS7,_wizS8];
+  var labels = ['Show Basics','Hosting Organization','Associations Offered','Per-Org Settings','Class Selection','Fees','Stalling & RV','Extras','Review & Publish'];
+  var html = '<div class="wiz-progress"><div class="wiz-progress-bar" style="width:'+pct+'%"></div></div>';
+  html += '<div class="wiz-step-label">Step '+(WIZ.step+1)+' of '+WIZ.totalSteps+' — '+labels[WIZ.step]+'</div>';
+  el.innerHTML = html;
+  el.innerHTML += stepFns[WIZ.step]();
+  el.innerHTML += _wizNav();
+}
+
+function _wizNav(){
+  var back = WIZ.step > 0 ? '<button class="btn btn-dark" onclick="wizBack()">&#8592; Back</button>' : '<span></span>';
+  var next = WIZ.step < WIZ.totalSteps - 1
+    ? '<button class="btn btn-accent" onclick="wizNext()">Next &#8594;</button>'
+    : '<button class="btn btn-accent" onclick="commitWizard()">&#10003; Publish Show</button>';
+  return '<div class="wiz-nav">'+back+next+'</div>';
+}
+
+window.wizBack = function(){ _wizSave(); WIZ.step = Math.max(0, WIZ.step-1); _wizRender(); window.scrollTo(0,0); };
+window.wizNext = function(){ if(!_wizValidate()) return; _wizSave(); WIZ.step = Math.min(WIZ.totalSteps-1, WIZ.step+1); _wizRender(); window.scrollTo(0,0); };
+
+function _wizValidate(){
+  var d = WIZ.data;
+  if(WIZ.step === 0 && !d.showName){ alert('Show name is required.'); return false; }
+  if(WIZ.step === 0 && !d.showDate){ alert('Start date is required.'); return false; }
+  if(WIZ.step === 2 && d.selectedOrgs.length === 0){ alert('Select at least one association.'); return false; }
+  return true;
+}
+
+function _wizSave(){
+  // Read DOM values for the current step back into WIZ.data
+  var d = WIZ.data;
+  var v = function(id){ var el=document.getElementById(id); return el ? el.value : ''; };
+  if(WIZ.step === 0){
+    d.showName=v('w-showName'); d.showDate=v('w-showDate'); d.showDate2=v('w-showDate2');
+    d.location=v('w-location'); d.secretary=v('w-secretary'); d.email=v('w-email'); d.phone=v('w-phone');
+  }
+  if(WIZ.step === 1){
+    d.hostingOrg=v('w-hostingOrg'); d.officeAmt=parseFloat(v('w-officeAmt'))||0;
+    d.officeNote=v('w-officeNote')||'Office / Administration Fee';
+  }
+  if(WIZ.step === 5){
+    d.fees.classBase=parseFloat(v('w-classBase'))||0;
+    d.fees.cowSurcharge=parseFloat(v('w-cowSurcharge'))||0;
+    d.fees.cuttingSurcharge=parseFloat(v('w-cuttingSurcharge'))||0;
+    d.fees.jackpot=parseFloat(v('w-jackpot'))||0;
+    d.fees.lateAmt=parseFloat(v('w-lateAmt'))||0;
+    d.fees.lateDueDate=v('w-lateDueDate');
+  }
+}
+
+// ── Step 0: Show Basics ──────────────────────────────────────────
+function _wizS0(){
+  var d=WIZ.data;
+  var fi = function(id,label,val,type,placeholder){
+    type=type||'text';
+    return '<div class="form-group" style="margin-bottom:.65rem">'
+      +'<label style="display:block;font-size:.8rem;color:var(--muted);margin-bottom:.2rem">'+label+'</label>'
+      +'<input id="'+id+'" type="'+type+'" class="wiz-inp" style="width:100%" value="'+esc(val||'')+'" placeholder="'+(placeholder||'')+'">'
+      +'</div>';
+  };
+  return '<div class="card">'
+    +'<div class="card-title">Show Basics</div>'
+    +fi('w-showName','Show Name *',d.showName,'text','e.g. CoWN FallFest 2025')
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">'
+    +fi('w-showDate','Start Date *',d.showDate,'date')
+    +fi('w-showDate2','End Date',d.showDate2,'date')
+    +'</div>'
+    +fi('w-location','Location',d.location,'text','City, State or Arena Name')
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">'
+    +fi('w-secretary','Secretary Name',d.secretary)
+    +fi('w-email','Contact Email',d.email,'email')
+    +'</div>'
+    +fi('w-phone','Contact Phone',d.phone,'tel')
+    +'</div>';
+}
+
+// ── Step 1: Hosting Organization ────────────────────────────────
+function _wizS1(){
+  var d=WIZ.data;
+  var fi = function(id,label,val,type,placeholder){
+    type=type||'text';
+    return '<div class="form-group" style="margin-bottom:.65rem">'
+      +'<label style="display:block;font-size:.8rem;color:var(--muted);margin-bottom:.2rem">'+label+'</label>'
+      +'<input id="'+id+'" type="'+type+'" class="wiz-inp" style="width:100%" value="'+esc(val!=null?val:'')+'" placeholder="'+(placeholder||'')+'">'
+      +'</div>';
+  };
+  return '<div class="card">'
+    +'<div class="card-title">Hosting Organization</div>'
+    +'<div style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">The organization putting on this show. Riders will be asked if they\'re a current member of this organization when they enter.</div>'
+    +fi('w-hostingOrg','Hosting Organization Name *',d.hostingOrg,'text','e.g. CoWN, Lone Star Ranch Horse, etc.')
+    +'<div style="margin-top:.5rem;padding-top:.75rem;border-top:1px solid var(--border)">'
+    +'<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.9rem;margin-bottom:.5rem">Office Fee</div>'
+    +'<div style="font-size:.82rem;color:var(--text2);margin-bottom:.65rem">Assessed on every entry to cover office staff, ribbons, and administration costs.</div>'
+    +'<div style="display:grid;grid-template-columns:120px 1fr;gap:.6rem">'
+    +'<div><label style="display:block;font-size:.8rem;color:var(--muted);margin-bottom:.2rem">Amount ($)</label>'
+    +'<input id="w-officeAmt" type="number" class="wiz-inp" style="width:100%" value="'+(d.officeAmt||15)+'" min="0" step="0.01"></div>'
+    +'<div><label style="display:block;font-size:.8rem;color:var(--muted);margin-bottom:.2rem">Line item label</label>'
+    +'<input id="w-officeNote" class="wiz-inp" style="width:100%" value="'+esc(d.officeNote||'Office / Administration Fee')+'" placeholder="Office / Administration Fee"></div>'
+    +'</div></div></div>';
+}
+
+// ── Step 2: Select Associations ─────────────────────────────────
+function _wizS2(){
+  var d=WIZ.data;
+  var btns = ORG_LIST.map(function(org){
+    var sel = d.selectedOrgs.indexOf(org) >= 0;
+    return '<button type="button" class="wiz-org-btn'+(sel?' selected':'')+'" onclick="wizToggleOrg(\''+esc(org)+'\')">'+esc(org)+'</button>';
+  }).join('');
+  return '<div class="card">'
+    +'<div class="card-title">Associations Offered</div>'
+    +'<div style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Select every association whose classes you will offer at this show. This pre-populates the class list and determines what information riders must provide.</div>'
+    +'<div class="wiz-org-grid">'+btns+'</div>'
+    +'<div style="margin-top:1rem;font-size:.78rem;color:var(--muted)">Select all that apply — you can adjust individual classes in the next steps.</div>'
+    +'</div>';
+}
+
+window.wizToggleOrg = function(org){
+  var idx = WIZ.data.selectedOrgs.indexOf(org);
+  if(idx >= 0) WIZ.data.selectedOrgs.splice(idx,1);
+  else {
+    WIZ.data.selectedOrgs.push(org);
+    if(!WIZ.data.orgConfig[org]) {
+      WIZ.data.orgConfig[org] = {
+        requiresMembership: ORG_REQUIRES_MEMBERSHIP[org] || false,
+        membPrices: {day:0, yr1:0, yr3:0, life:0},
+        adminFees: [],
+        selectedDivisions: (ORG_DIVISIONS[org]||[]).slice(),
+        selectedDisciplines: (ORG_DISCIPLINES[org]||[]).slice(),
+      };
+    }
+  }
+  var btns = document.querySelectorAll('.wiz-org-btn');
+  btns.forEach(function(b){ b.classList.toggle('selected', WIZ.data.selectedOrgs.indexOf(b.textContent) >= 0); });
+};
+
+// ── Step 3: Per-org config ───────────────────────────────────────
+function _wizS3(){
+  var d=WIZ.data;
+  if(d.selectedOrgs.length === 0) return '<div class="card"><div style="color:var(--muted);padding:.5rem 0">No associations selected. Go back and select at least one.</div></div>';
+  var html = '';
+  d.selectedOrgs.forEach(function(org){
+    var cfg = d.orgConfig[org] || {};
+    var divs = ORG_DIVISIONS[org] || [];
+    var discs = ORG_DISCIPLINES[org] || [];
+    var inp = 'class="wiz-inp"';
+
+    html += '<div class="wiz-org-section">';
+    html += '<div class="wiz-org-section-title">'+esc(org)+'</div>';
+
+    // Membership required toggle
+    var memReq = cfg.requiresMembership !== false;
+    html += '<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.65rem;flex-wrap:wrap">';
+    html += '<label style="display:flex;align-items:center;gap:.4rem;font-size:.85rem;cursor:pointer">'
+      +'<input type="checkbox" '+(memReq?'checked':'')+' onchange="wizOrgCfg(\''+esc(org)+'\',\'requiresMembership\',this.checked)" style="accent-color:var(--accent)"> Membership required to participate</label>';
+    html += '</div>';
+
+    // Membership prices
+    html += '<div style="font-size:.8rem;color:var(--muted);margin-bottom:.3rem">Membership pricing (leave 0 if not sold at this show):</div>';
+    html += '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.65rem">';
+    [{key:'day',label:'Day License'},{key:'yr1',label:'1-Year'},{key:'yr3',label:'3-Year'},{key:'life',label:'Lifetime'}].forEach(function(t){
+      html += '<label style="font-size:.78rem;color:var(--text2);display:flex;align-items:center;gap:.25rem">'+t.label+' $'
+        +'<input type="number" '+inp+' style="width:68px" min="0" step="0.01" value="'+(cfg.membPrices&&cfg.membPrices[t.key]||0)+'" onchange="wizOrgMembPrice(\''+esc(org)+'\',\''+t.key+'\',this.value)"></label>';
+    });
+    html += '</div>';
+
+    // Admin fees
+    html += '<div style="font-size:.8rem;color:var(--muted);margin-bottom:.3rem">Admin fees (drug tests, trail fees, association fees — auto-applied to each entry):</div>';
+    (cfg.adminFees||[]).forEach(function(af,i){
+      html += '<div class="wiz-pkg-row" style="margin-bottom:.3rem">'
+        +'<input '+inp+' style="flex:1;min-width:140px" placeholder="Fee description" value="'+esc(af.desc||'')+'" onchange="wizOrgFee(\''+esc(org)+'\','+i+',\'desc\',this.value)">'
+        +'<span style="color:var(--muted);font-size:.85rem">$</span>'
+        +'<input type="number" '+inp+' style="width:72px" min="0" step="0.01" value="'+(af.amt||0)+'" onchange="wizOrgFee(\''+esc(org)+'\','+i+',\'amt\',this.value)">'
+        +'<select '+inp+' onchange="wizOrgFee(\''+esc(org)+'\','+i+',\'per\',this.value)">'
+        +'<option value="entry"'+(af.per==='entry'?' selected':'')+'>per entry</option>'
+        +'<option value="class"'+(af.per==='class'?' selected':'')+'>per class</option>'
+        +'</select>'
+        +'<button onclick="wizRemoveOrgFee(\''+esc(org)+'\','+i+')" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:1rem">&times;</button>'
+        +'</div>';
+    });
+    html += '<button class="btn btn-dark btn-sm" style="font-size:.77rem" onclick="wizAddOrgFee(\''+esc(org)+'\')">+ Add Admin Fee</button>';
+
+    // Division selection
+    if(divs.length > 0){
+      html += '<div style="font-size:.8rem;color:var(--muted);margin:.75rem 0 .3rem">Divisions offered (uncheck any you\'re not running):</div>';
+      html += '<div class="wiz-div-grid">';
+      divs.forEach(function(div){
+        var on = (cfg.selectedDivisions||[]).indexOf(div) >= 0;
+        html += '<button type="button" class="wiz-div-pill'+(on?' on':'')+'" onclick="wizToggleDiv(\''+esc(org)+'\',\''+esc(div)+'\')">'+esc(div)+'</button>';
+      });
+      html += '</div>';
+    }
+
+    // Discipline selection (if org has multiple)
+    if(discs.length > 1){
+      html += '<div style="font-size:.8rem;color:var(--muted);margin:.55rem 0 .3rem">Disciplines offered:</div>';
+      html += '<div class="wiz-div-grid">';
+      discs.forEach(function(disc){
+        var on = (cfg.selectedDisciplines||[]).indexOf(disc) >= 0;
+        html += '<button type="button" class="wiz-div-pill'+(on?' on':'')+'" onclick="wizToggleDisc(\''+esc(org)+'\',\''+esc(disc)+'\')">'+esc(disc)+'</button>';
+      });
+      html += '</div>';
+    }
+
+    html += '</div>';
+  });
+  return html;
+}
+
+window.wizOrgCfg = function(org, key, val){
+  if(!WIZ.data.orgConfig[org]) WIZ.data.orgConfig[org]={};
+  WIZ.data.orgConfig[org][key] = val;
+};
+window.wizOrgMembPrice = function(org, tier, val){
+  if(!WIZ.data.orgConfig[org]) WIZ.data.orgConfig[org]={};
+  if(!WIZ.data.orgConfig[org].membPrices) WIZ.data.orgConfig[org].membPrices={};
+  WIZ.data.orgConfig[org].membPrices[tier] = parseFloat(val)||0;
+};
+window.wizAddOrgFee = function(org){
+  if(!WIZ.data.orgConfig[org]) WIZ.data.orgConfig[org]={};
+  if(!WIZ.data.orgConfig[org].adminFees) WIZ.data.orgConfig[org].adminFees=[];
+  WIZ.data.orgConfig[org].adminFees.push({desc:'',amt:0,per:'entry'});
+  _wizRender();
+};
+window.wizRemoveOrgFee = function(org, idx){
+  WIZ.data.orgConfig[org].adminFees.splice(idx,1);
+  _wizRender();
+};
+window.wizOrgFee = function(org, idx, field, val){
+  var af = WIZ.data.orgConfig[org].adminFees[idx];
+  if(!af) return;
+  af[field] = field==='amt' ? parseFloat(val)||0 : val;
+};
+window.wizToggleDiv = function(org, div){
+  var cfg = WIZ.data.orgConfig[org];
+  if(!cfg) return;
+  var idx = cfg.selectedDivisions.indexOf(div);
+  if(idx >= 0) cfg.selectedDivisions.splice(idx,1);
+  else cfg.selectedDivisions.push(div);
+  event.target.classList.toggle('on', cfg.selectedDivisions.indexOf(div) >= 0);
+};
+window.wizToggleDisc = function(org, disc){
+  var cfg = WIZ.data.orgConfig[org];
+  if(!cfg) return;
+  var idx = cfg.selectedDisciplines.indexOf(disc);
+  if(idx >= 0) cfg.selectedDisciplines.splice(idx,1);
+  else cfg.selectedDisciplines.push(disc);
+  event.target.classList.toggle('on', cfg.selectedDisciplines.indexOf(disc) >= 0);
+};
+
+// ── Step 4: Class Selection ──────────────────────────────────────
+function _wizS4(){
+  var d = WIZ.data;
+  // Auto-generate class list from org selections if not yet done
+  if(!d.generatedClasses) _wizGenerateClasses();
+  var html = '<div class="card">'
+    +'<div class="card-title">Class Selection</div>'
+    +'<div style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Classes have been generated from your association and division selections. Uncheck any classes you won\'t run. You can also edit class numbers and names.</div>';
+
+  var byOrg = {};
+  (d.generatedClasses||[]).forEach(function(c){ if(!byOrg[c.org]) byOrg[c.org]=[]; byOrg[c.org].push(c); });
+  var counter = {n:0};
+
+  Object.keys(byOrg).forEach(function(org){
+    html += '<div style="margin-bottom:1rem"><div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.9rem;margin-bottom:.35rem">'+esc(org)+'</div>';
+    byOrg[org].forEach(function(c){
+      var i = counter.n++;
+      html += '<div style="display:flex;align-items:center;gap:.4rem;padding:.25rem 0;border-bottom:1px solid var(--border)">'
+        +'<input type="checkbox" '+(c.enabled!==false?'checked':'')+' onchange="wizClassToggle('+i+',this.checked)" style="accent-color:var(--accent);flex-shrink:0">'
+        +'<input class="wiz-inp" style="width:52px" value="'+esc(c.num||'')+'" placeholder="#" onchange="wizClassField('+i+',\'num\',this.value)">'
+        +'<input class="wiz-inp" style="flex:1;min-width:120px" value="'+esc(c.name||'')+'" onchange="wizClassField('+i+',\'name\',this.value)">'
+        +'<span style="font-size:.75rem;color:var(--muted);white-space:nowrap">'+esc(c.division||'')+'</span>'
+        +'<label style="font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:.2rem;white-space:nowrap">'
+        +'<input type="checkbox" '+(c.isCow?'checked':'')+' onchange="wizClassField('+i+',\'isCow\',this.checked)" style="accent-color:var(--accent)"> Cow</label>'
+        +'</div>';
+    });
+    html += '</div>';
+  });
+
+  html += '<button class="btn btn-dark btn-sm" style="margin-top:.5rem" onclick="wizRegenClasses()">&#8635; Regenerate from org selections</button>';
+  html += '</div>';
+  return html;
+}
+
+function _wizGenerateClasses(){
+  var d = WIZ.data;
+  var classes = [];
+  var num = 100;
+  d.selectedOrgs.forEach(function(org){
+    var cfg = d.orgConfig[org] || {};
+    var divs = cfg.selectedDivisions || ORG_DIVISIONS[org] || [];
+    var discs = cfg.selectedDisciplines || ORG_DISCIPLINES[org] || [];
+    divs.forEach(function(div){
+      discs.forEach(function(disc){
+        var isCow = /\b(cut|cow|boxing|box.?drive|working)\b/i.test(disc);
+        classes.push({org:org, division:div, discipline:disc, num:String(num++), name:div+' '+disc, isCow:isCow, enabled:true});
+      });
+    });
+  });
+  d.generatedClasses = classes;
+}
+
+window.wizRegenClasses = function(){
+  WIZ.data.generatedClasses = null;
+  _wizRender();
+};
+window.wizClassToggle = function(i, val){ if(WIZ.data.generatedClasses[i]) WIZ.data.generatedClasses[i].enabled = val; };
+window.wizClassField  = function(i, field, val){
+  if(!WIZ.data.generatedClasses[i]) return;
+  WIZ.data.generatedClasses[i][field] = (field==='isCow') ? val : val;
+};
+
+// ── Step 5: Fees ─────────────────────────────────────────────────
+function _wizS5(){
+  var d=WIZ.data; var f=d.fees;
+  var frow = function(id,label,val,note){
+    return '<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.6rem;flex-wrap:wrap">'
+      +'<label style="width:200px;font-size:.85rem;color:var(--text2)">'+label+'</label>'
+      +'<div style="display:flex;align-items:center;gap:.3rem"><span style="color:var(--muted)">$</span>'
+      +'<input id="'+id+'" type="number" class="wiz-inp" style="width:90px" min="0" step="0.01" value="'+(val||0)+'">'
+      +'</div>'+(note?'<span style="font-size:.75rem;color:var(--muted)">'+note+'</span>':'')
+      +'</div>';
+  };
+  return '<div class="card">'
+    +'<div class="card-title">Fee Structure</div>'
+    +'<div style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">These are global defaults. Individual class fees can be overridden in Show Setup → Class Fees after the wizard completes.</div>'
+    +frow('w-classBase','Base class fee',f.classBase,'applied to every class entry')
+    +frow('w-cowSurcharge','Cattle surcharge',f.cowSurcharge,'added for cow work / boxing classes')
+    +frow('w-cuttingSurcharge','Cutting surcharge',f.cuttingSurcharge,'added for cutting (NCHA-format) classes')
+    +frow('w-jackpot','Jackpot entry fee',f.jackpot,'for jackpot classes only')
+    +'<div style="border-top:1px solid var(--border);margin:.75rem 0 .6rem;padding-top:.6rem;font-family:Oswald,sans-serif;color:var(--accent);font-size:.9rem">Late Entry Fee</div>'
+    +frow('w-lateAmt','Late fee amount',f.lateAmt,'auto-applied to entries after the deadline')
+    +'<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.6rem;flex-wrap:wrap">'
+    +'<label style="width:200px;font-size:.85rem;color:var(--text2)">Deadline date</label>'
+    +'<input id="w-lateDueDate" type="date" class="wiz-inp" value="'+esc(f.lateDueDate||'')+'"></div>'
+    +'</div>';
+}
+
+// ── Step 6: Stalling & RV ────────────────────────────────────────
+function _wizS6(){
+  var d=WIZ.data;
+  var pkgBlock = function(label, arr, addFn, updFn, remFn){
+    var html = '<div style="margin-bottom:1.25rem">';
+    html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.9rem;margin-bottom:.4rem">'+label+'</div>';
+    var inp = 'class="wiz-inp"';
+    arr.forEach(function(p,i){
+      html += '<div class="wiz-pkg-row">'
+        +'<input '+inp+' style="flex:1;min-width:130px" placeholder="Option label (e.g. Thursday Night)" value="'+esc(p.label||'')+'" onchange="'+updFn+'('+i+',\'label\',this.value)">'
+        +'<span style="color:var(--muted);font-size:.85rem">$</span>'
+        +'<input type="number" '+inp+' style="width:78px" min="0" step="0.01" value="'+(p.price||0)+'" onchange="'+updFn+'('+i+',\'price\',this.value)" placeholder="Price">'
+        +'<label '+inp+' style="border:none;background:none;font-size:.78rem;color:var(--text2);display:flex;align-items:center;gap:.25rem;white-space:nowrap">'
+        +'<input type="checkbox" '+(p.trackDates?'checked':'')+' onchange="'+updFn+'('+i+',\'trackDates\',this.checked)"> Ask arrival/departure date</label>'
+        +'<button onclick="'+remFn+'('+i+')" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:1rem">&times;</button>'
+        +'</div>';
+    });
+    html += '<button class="btn btn-dark btn-sm" style="font-size:.77rem;margin-top:.25rem" onclick="'+addFn+'()">+ Add Option</button>';
+    html += '</div>';
+    return html;
+  };
+  return '<div class="card">'
+    +'<div class="card-title">Stalling &amp; RV</div>'
+    +'<div style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Define whatever stall and RV options your facility offers. Each option can collect arrival and departure dates from riders.</div>'
+    +pkgBlock('Stall Options', d.stallingPackages, 'wizAddStall', 'wizUpdStall', 'wizRemStall')
+    +pkgBlock('RV / Hookup Options', d.rvPackages, 'wizAddRV', 'wizUpdRV', 'wizRemRV')
+    +'</div>';
+}
+
+function _wizMakePkgHandlers(arrKey){
+  window['wizAdd'+arrKey] = function(){ WIZ.data[arrKey].push({id:arrKey+'_'+Date.now(),label:'',price:0,trackDates:true}); _wizRender(); };
+  window['wizRem'+arrKey] = function(i){ WIZ.data[arrKey].splice(i,1); _wizRender(); };
+  window['wizUpd'+arrKey] = function(i,field,val){
+    var p=WIZ.data[arrKey][i]; if(!p) return;
+    p[field] = (field==='price') ? (parseFloat(val)||0) : (field==='trackDates' ? val : val);
+  };
+}
+_wizMakePkgHandlers('stallingPackages');
+_wizMakePkgHandlers('rvPackages');
+
+// ── Step 7: Extras (clinics, warm-ups) ───────────────────────────
+function _wizS7(){
+  var d=WIZ.data;
+  var inp='class="wiz-inp"';
+  var extraBlock = function(label, arr, addFn, updFn, remFn){
+    var html='<div style="margin-bottom:1.25rem">';
+    html+='<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.9rem;margin-bottom:.4rem">'+label+'</div>';
+    arr.forEach(function(item,i){
+      html+='<div style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:.45rem .6rem;margin-bottom:.35rem">'
+        +'<div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;margin-bottom:.3rem">'
+        +'<input '+inp+' style="flex:1;min-width:180px" placeholder="Name / description" value="'+esc(item.label||'')+'" onchange="'+updFn+'('+i+',\'label\',this.value)"><button onclick="'+remFn+'('+i+')" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:1rem">&times;</button></div>'
+        +'<div style="display:flex;gap:.75rem;flex-wrap:wrap">'
+        +'<label style="font-size:.78rem;color:var(--text2);display:flex;align-items:center;gap:.3rem">Date/Time<input '+inp+' type="text" style="width:130px" placeholder="e.g. Fri 2pm" value="'+esc(item.datetime||'')+'" onchange="'+updFn+'('+i+',\'datetime\',this.value)"></label>'
+        +'<label style="font-size:.78rem;color:var(--text2);display:flex;align-items:center;gap:.3rem">Price $<input type="number" '+inp+' style="width:70px" min="0" step="0.01" value="'+(item.price||0)+'" onchange="'+updFn+'('+i+',\'price\',this.value)"></label>'
+        +'<label style="font-size:.78rem;color:var(--text2);display:flex;align-items:center;gap:.3rem">Max spots<input type="number" '+inp+' style="width:54px" min="1" placeholder="∞" value="'+(item.capacity||'')+'" onchange="'+updFn+'('+i+',\'capacity\',this.value)"></label>'
+        +'</div></div>';
+    });
+    html+='<button class="btn btn-dark btn-sm" style="font-size:.77rem" onclick="'+addFn+'()">+ Add</button></div>';
+    return html;
+  };
+  return '<div class="card">'
+    +'<div class="card-title">Extras</div>'
+    +'<div style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">These are optional. Leave both sections empty and they won\'t appear on the entry form.</div>'
+    +extraBlock('Paid Warm-Ups / Practice Sessions', d.practiceSessions, 'wizAddPrac', 'wizUpdPrac', 'wizRemPrac')
+    +extraBlock('Clinics', d.clinics, 'wizAddClin', 'wizUpdClin', 'wizRemClin')
+    +'</div>';
+}
+
+function _wizMakeExtraHandlers(arrKey, prefix){
+  window['wizAdd'+prefix] = function(){ WIZ.data[arrKey].push({id:prefix+'_'+Date.now(),label:'',price:0,capacity:null,datetime:''}); _wizRender(); };
+  window['wizRem'+prefix] = function(i){ WIZ.data[arrKey].splice(i,1); _wizRender(); };
+  window['wizUpd'+prefix] = function(i,field,val){
+    var item=WIZ.data[arrKey][i]; if(!item) return;
+    item[field] = (field==='price') ? (parseFloat(val)||0) : (field==='capacity' ? (val?parseInt(val)||null:null) : val);
+  };
+}
+_wizMakeExtraHandlers('practiceSessions','Prac');
+_wizMakeExtraHandlers('clinics','Clin');
+
+// ── Step 8: Review & Publish ─────────────────────────────────────
+function _wizS8(){
+  var d=WIZ.data;
+  var sect = function(title, lines){
+    return '<div class="wiz-review-section"><h4>'+title+'</h4>'
+      +lines.map(function(l){ return '<div style="font-size:.85rem;padding:.15rem 0;color:var(--text2)">'+l+'</div>'; }).join('')
+      +'</div>';
+  };
+  var fmtAmt = function(n){ return '$'+(+n||0).toFixed(2); };
+  var orgLines = d.selectedOrgs.map(function(org){
+    var cfg = d.orgConfig[org]||{};
+    var m = cfg.requiresMembership ? 'membership required' : 'no membership required';
+    var af = (cfg.adminFees||[]).filter(function(f){ return f.amt>0; }).map(function(f){ return f.desc+' '+fmtAmt(f.amt); });
+    return '<b>'+esc(org)+'</b> — '+m+(af.length?' · '+af.join(', '):'');
+  });
+  var clsEnabled = (d.generatedClasses||[]).filter(function(c){ return c.enabled !== false; });
+  var stallLines = (d.stallingPackages||[]).filter(function(p){ return p.label; }).map(function(p){ return esc(p.label)+' — '+fmtAmt(p.price)+(p.trackDates?' (dates collected)':''); });
+  var rvLines    = (d.rvPackages||[]).filter(function(p){ return p.label; }).map(function(p){ return esc(p.label)+' — '+fmtAmt(p.price); });
+  var extLines   = (d.practiceSessions||[]).concat(d.clinics||[]).filter(function(e){ return e.label; }).map(function(e){ return esc(e.label)+' — '+fmtAmt(e.price)+(e.capacity?' (max '+e.capacity+')':''); });
+
+  return '<div class="card">'
+    +'<div class="card-title">Review &amp; Publish</div>'
+    +'<div style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Check everything looks right. Clicking Publish creates the entry form link and opens the show for entries.</div>'
+    +sect('Show', ['<b>'+esc(d.showName)+'</b>', [d.showDate, d.showDate2].filter(Boolean).join(' – ')+' &bull; '+esc(d.location), 'Secretary: '+esc(d.secretary)+' &bull; '+esc(d.email)])
+    +sect('Hosting Org', [esc(d.hostingOrg||'—'), 'Office fee: '+fmtAmt(d.officeAmt)+' ('+esc(d.officeNote)+')'])
+    +sect('Associations ('+d.selectedOrgs.length+')', orgLines.length ? orgLines : ['None selected'])
+    +sect('Classes ('+clsEnabled.length+' enabled)', clsEnabled.length > 0 ? [clsEnabled.slice(0,6).map(function(c){ return '#'+c.num+' '+esc(c.name); }).join(', ')+(clsEnabled.length>6?' … and '+(clsEnabled.length-6)+' more':'')] : ['No classes generated'])
+    +sect('Fees', ['Base: '+fmtAmt(d.fees.classBase)+' / Cattle: '+fmtAmt(d.fees.cowSurcharge)+' / Cutting: '+fmtAmt(d.fees.cuttingSurcharge), d.fees.lateAmt > 0 ? 'Late fee: '+fmtAmt(d.fees.lateAmt)+' after '+esc(d.fees.lateDueDate) : 'No late fee'])
+    +(stallLines.length||rvLines.length ? sect('Stalling', stallLines.concat(rvLines)) : '')
+    +(extLines.length ? sect('Extras', extLines) : '')
+    +'<div style="background:rgba(200,146,42,.08);border:1px solid rgba(200,146,42,.25);border-radius:6px;padding:.75rem 1rem;margin-top:.75rem;font-size:.85rem;color:var(--accent)">&#9888; Clicking Publish will save this configuration, sync classes to the database, and set the show status to <b>entries_open</b>. The entry form link will become active.</div>'
+    +'</div>';
+}
+
+// ── Commit wizard → build G.cfg and save ────────────────────────
+window.commitWizard = function(){
+  _wizSave();
+  var d = WIZ.data;
+  if(!d.showName){ alert('Show name is required.'); return; }
+
+  // Build G.cfg from wizard data
+  G.cfg.showName  = d.showName;
+  G.cfg.showDate  = d.showDate;
+  G.cfg.showDate2 = d.showDate2 || '';
+  G.cfg.location  = d.location;
+  G.cfg.secretary = d.secretary;
+  G.cfg.email     = d.email;
+  G.cfg.hostingOrg = d.hostingOrg;
+
+  // Fee schedule
+  var fmtS = function(key,label,cat,amt){ return {key:key,label:label,cat:cat,amt:amt||0}; };
+  G.cfg.feeSchedule = [
+    fmtS('classBase','Base Class Fee','class',d.fees.classBase),
+    fmtS('cowSurcharge','Cattle Fee (Cow Work classes)','class',d.fees.cowSurcharge),
+    fmtS('cuttingSurcharge','Cutting Fee (Cutting classes)','class',d.fees.cuttingSurcharge),
+    fmtS('jackpot','Jackpot Fee','class',d.fees.jackpot),
+    fmtS('office','Office Fee (per entry)','office',d.officeAmt),
+    fmtS('late','Late Entry Fee','office',d.fees.lateAmt),
+  ];
+  // Per-org membership prices
+  d.selectedOrgs.forEach(function(org){
+    var mp = (d.orgConfig[org]||{}).membPrices||{};
+    if(mp.day  > 0) G.cfg.feeSchedule.push(fmtS('dayLicense_'+org, org+' — Day License','member',mp.day));
+    if(mp.yr1  > 0) G.cfg.feeSchedule.push(fmtS('membership1yr_'+org, org+' — 1-Year Membership','member',mp.yr1));
+    if(mp.yr3  > 0) G.cfg.feeSchedule.push(fmtS('membership3yr_'+org, org+' — 3-Year Membership','member',mp.yr3));
+    if(mp.life > 0) G.cfg.feeSchedule.push(fmtS('membershipLife_'+org, org+' — Lifetime Membership','member',mp.life));
+  });
+  // Sync fees flat object
+  G.cfg.fees = {};
+  G.cfg.feeSchedule.forEach(function(f){ if(f.key) G.cfg.fees[f.key] = f.amt; });
+  G.cfg.fees.lateEntryDeadline = d.fees.lateDueDate;
+
+  // Assoc fees from orgConfig
+  G.cfg.assocFees = [];
+  d.selectedOrgs.forEach(function(org){
+    (d.orgConfig[org]&&d.orgConfig[org].adminFees||[]).forEach(function(af){
+      if(af.desc||af.amt) G.cfg.assocFees.push({id:'af_'+Date.now()+'_'+Math.random(),org:org,desc:af.desc,amt:af.amt,per:af.per||'entry',disciplines:[]});
+    });
+  });
+
+  // Classes from wizard
+  G.cfg.classes = (d.generatedClasses||[]).filter(function(c){ return c.enabled !== false; }).map(function(c,i){
+    return {_id:'cr'+(i+1),num:c.num||String(i+1),name:c.name||'',division:c.division||'',org:c.org||'CoWN',isCow:!!c.isCow,baseFee:null,cowFee:null,jackpot:null,addedMoney:null};
+  });
+
+  // Stalling/RV packages, clinics, practice sessions
+  G.cfg.stallingPackages  = d.stallingPackages;
+  G.cfg.rvPackages        = d.rvPackages;
+  G.cfg.practiceSessions  = d.practiceSessions;
+  G.cfg.clinicOptions     = d.clinics;
+  G.cfg.classPkgs         = [];
+  G.cfg.extraFees         = [];
+
+  // Selected orgs + org config stored for entry form
+  G.cfg.selectedOrgs = d.selectedOrgs;
+  G.cfg.orgConfig    = d.orgConfig;
+  G.cfg.hostingOrg   = d.hostingOrg;
+
+  // Save locally
+  try{ localStorage.setItem('gatepost_cfg', JSON.stringify(G.cfg)); } catch(e){}
+
+  // Save as org template (for future shows)
+  try{ localStorage.setItem('gp_org_template_'+(d.hostingOrg||'default'), JSON.stringify({feeSchedule:G.cfg.feeSchedule,assocFees:G.cfg.assocFees,orgConfig:d.orgConfig,selectedOrgs:d.selectedOrgs,stallingPackages:d.stallingPackages,rvPackages:d.rvPackages})); } catch(e){}
+
+  if(!G.showId){ alert('No show is loaded. Create a show first, then run the wizard.'); return; }
+
+  var feeConfig = Object.assign({}, G.cfg.fees, {
+    _schedule:         G.cfg.feeSchedule,
+    _extraFees:        [],
+    _assocFees:        G.cfg.assocFees,
+    _classPkgs:        [],
+    _practiceSessions: G.cfg.practiceSessions,
+    _clinicOptions:    G.cfg.clinicOptions,
+    _stallingPackages: G.cfg.stallingPackages,
+    _rvPackages:       G.cfg.rvPackages,
+    _selectedOrgs:     d.selectedOrgs,
+    _orgConfig:        d.orgConfig,
+    _hostingOrg:       d.hostingOrg,
+  });
+
+  sbFetch('shows?id=eq.'+G.showId, {method:'PATCH', body:JSON.stringify({
+    name: d.showName,
+    date: d.showDate,
+    location: d.location,
+    status: 'entries_open',
+    fee_config: feeConfig,
+  })})
+  .then(function(){
+    return syncShowClassesToSupabase();
+  })
+  .then(function(){
+    toast('Show published! Entry form is now live.');
+    showPage('entries');
+  })
+  .catch(function(e){
+    toast('Saved locally — DB error: '+(e&&e.message||e), true);
+    showPage('entries');
+  });
+};
+
+function pgWizard_loadTemplate(){
+  // Load the org template saved from a previous show (if any)
+  var key = 'gp_org_template_'+(G.cfg&&G.cfg.hostingOrg||'default');
+  try {
+    var t = JSON.parse(localStorage.getItem(key)||'null');
+    if(!t) return false;
+    if(t.selectedOrgs) WIZ.data.selectedOrgs = t.selectedOrgs;
+    if(t.orgConfig) WIZ.data.orgConfig = t.orgConfig;
+    if(t.stallingPackages) WIZ.data.stallingPackages = t.stallingPackages;
+    if(t.rvPackages) WIZ.data.rvPackages = t.rvPackages;
+    if(t.feeSchedule){
+      var fee = WIZ.data.fees;
+      t.feeSchedule.forEach(function(f){
+        if(f.key==='classBase') fee.classBase=f.amt;
+        if(f.key==='cowSurcharge') fee.cowSurcharge=f.amt;
+        if(f.key==='cuttingSurcharge') fee.cuttingSurcharge=f.amt;
+        if(f.key==='office') fee.office=f.amt;
+        if(f.key==='late') fee.lateAmt=f.amt;
+      });
+    }
+    return true;
+  } catch(e){ return false; }
+}
+
+function pgWizard(){
+  // Reset wizard state for a fresh run, but try to load org template
+  WIZ.step = 0;
+  WIZ.data.showName = ''; WIZ.data.showDate = ''; WIZ.data.showDate2 = ''; WIZ.data.location = '';
+  WIZ.data.secretary = G.cfg&&G.cfg.secretary||'';
+  WIZ.data.email     = G.cfg&&G.cfg.email||'';
+  WIZ.data.hostingOrg = G.cfg&&G.cfg.hostingOrg||G.cfg&&G.cfg.orgAbbrev||'';
+  WIZ.data.generatedClasses = null;
+  var hadTemplate = pgWizard_loadTemplate();
+  var pg = document.getElementById('page');
+  pg.innerHTML = '<div class="wiz-wrap" id="wiz-body"></div>';
+  if(hadTemplate) toast('Previous org settings loaded as starting point.');
+  _wizRender();
+}
 
 function pgSettings(){
-
   var pg=document.getElementById('page');
 
   pg.innerHTML='<div class="stab-row">'
@@ -9308,18 +10112,42 @@ function pgSettings(){
     // ── ORGS ──
 
     +'<div class="ssec" id="ss-orgs">'
-
-    +'<div class="card" style="max-width:640px"><div class="card-title">Show Setup Wizard</div>'
-    +'<p style="font-size:.87rem;color:var(--muted);margin-bottom:1rem">Use the wizard to (re)configure which associations and classes are at this show, set fees, and assign the schedule.</p>'
-    +'<div class="btn-row">'
-    +'<button class="btn btn-accent" onclick="openWizard()">&#9881; Open Setup Wizard</button>'
-    +'</div>'
-    +'<div id="wiz-current-summary" style="margin-top:1rem"></div>'
-    +'</div>'
-
+    +'<div id="org-assoc-card" style="max-width:640px"></div>'
     +'<div id="org-editor-root"></div>'
-
     +'</div>'
+
+
+
+    // ── ENTRY FORM ──
+
+    +'<div class="ssec" id="ss-entryform"><div style="max-width:640px">'
+
+    // Status card
+    +'<div class="card"><div class="card-title">Show Status</div>'
+    +'<p style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">Controls what riders see when they visit the entry form link. Set to <strong style="color:var(--text)">Entries Open</strong> to accept online entries.</p>'
+    +'<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">'
+    +'<select id="ef-status" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.45rem .75rem;font-size:.9rem;min-width:180px">'
+    +'<option value="setup">Setup</option>'
+    +'<option value="entries_open">Entries Open</option>'
+    +'<option value="entries_closed">Entries Closed</option>'
+    +'<option value="running">Running</option>'
+    +'<option value="complete">Complete</option>'
+    +'</select>'
+    +'<button class="btn btn-accent btn-sm" onclick="saveShowStatus()">Save Status</button>'
+    +'</div></div>'
+
+    // Deadline card
+    +'<div class="card"><div class="card-title">Entry Deadline</div>'
+    +'<p style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">The entry form shows this date to riders. After this date the form blocks new submissions automatically.</p>'
+    +'<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">'
+    +'<input type="date" id="ef-deadline" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.45rem .75rem;font-size:.9rem">'
+    +'<button class="btn btn-accent btn-sm" onclick="saveEntryDeadline()">Save Deadline</button>'
+    +'</div></div>'
+
+    // URL card — rendered by renderEntryFormCard() after init
+    +'<div id="ef-url-card"></div>'
+
+    +'</div></div>'
 
 
 
@@ -9403,6 +10231,139 @@ function pgSettings(){
 
 
 
+function renderEntryFormStab(){
+  // Populate status dropdown
+  var sel = document.getElementById('ef-status');
+  if(sel) sel.value = G.cfg.showStatus || 'setup';
+
+  // Populate deadline
+  var dl = document.getElementById('ef-deadline');
+  if(dl) dl.value = G.cfg.entryDeadline || '';
+
+  // Render URL card
+  var card = document.getElementById('ef-url-card');
+  if(!card) return;
+  if(!G.showId){
+    card.innerHTML = '<div class="card" style="border-color:var(--border2)">'
+      +'<div style="font-size:.85rem;color:var(--muted)">Save the show to Supabase first — the entry form URL is generated when the show has a database ID.</div></div>';
+    return;
+  }
+  var url = 'https://thorofare.app/entry-form.html?show='+G.showId;
+  var statusOk = (G.cfg.showStatus === 'entries_open' || G.cfg.showStatus === 'running');
+  card.innerHTML = '<div class="card">'
+    +'<div class="card-title">Entry Form Link</div>'
+    +'<p style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Share this link with riders. The form only accepts entries when status is <strong style="color:var(--text)">Entries Open</strong>.</p>'
+    +(statusOk ? '' : '<div style="background:#2a1a08;border:1px solid #7a5020;border-radius:6px;padding:.5rem .75rem;font-size:.82rem;color:#e0a830;margin-bottom:.75rem">⚠ Status is currently <strong>'+esc(G.cfg.showStatus||'setup')+'</strong> — riders will see an &ldquo;entries not open&rdquo; message. Change status to <strong>Entries Open</strong> to activate the form.</div>')
+    +'<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">'
+    +'<input id="ef-url-input" value="'+esc(url)+'" readonly style="flex:1;min-width:240px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.45rem .75rem;font-size:.85rem;font-family:monospace">'
+    +'<button class="btn btn-accent btn-sm" onclick="copyEntryFormUrl()">&#128203; Copy</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="window.open(document.getElementById(\'ef-url-input\').value+\'&preview=1\',\'_blank\')">&#128065; Preview</button>'
+    +'</div>'
+    +'<div style="margin-top:.6rem;font-size:.78rem;color:var(--muted)">Classes must be saved to Supabase (via Save Config or the wizard) before the form can show them to riders.</div>'
+    +'</div>';
+}
+
+function saveShowStatus(){
+  var sel = document.getElementById('ef-status');
+  if(!sel) return;
+  var newStatus = sel.value;
+  if(!G.showId){ toast('No show ID — save the show first', true); return; }
+  sbFetch('shows?id=eq.'+G.showId, {method:'PATCH', body:JSON.stringify({status: newStatus})})
+    .then(function(){
+      G.cfg.showStatus = newStatus;
+      try{ localStorage.setItem('gatepost_cfg', JSON.stringify(G.cfg)); } catch(e){}
+      toast('Show status set to: '+newStatus);
+      renderEntryFormStab();
+    })
+    .catch(function(e){ toast('Save failed: '+e.message, true); });
+}
+
+function saveEntryDeadline(){
+  var dl = document.getElementById('ef-deadline');
+  if(!dl) return;
+  var val = dl.value || null;
+  if(!G.showId){ toast('No show ID — save the show first', true); return; }
+  sbFetch('shows?id=eq.'+G.showId, {method:'PATCH', body:JSON.stringify({entry_deadline: val})})
+    .then(function(){
+      G.cfg.entryDeadline = val || '';
+      try{ localStorage.setItem('gatepost_cfg', JSON.stringify(G.cfg)); } catch(e){}
+      toast(val ? 'Entry deadline set to '+val : 'Entry deadline cleared');
+    })
+    .catch(function(e){ toast('Save failed: '+e.message, true); });
+}
+
+function copyEntryFormUrl(){
+  var inp = document.getElementById('ef-url-input');
+  if(!inp) return;
+  navigator.clipboard.writeText(inp.value).then(function(){
+    toast('Entry form link copied to clipboard');
+  }).catch(function(){
+    inp.select();
+    document.execCommand('copy');
+    toast('Link copied');
+  });
+}
+
+function renderAssocTab(){
+  var card = document.getElementById('org-assoc-card');
+  if(!card) return;
+  // Current active orgs — from showOrgs config or inferred from class list
+  var activeOrgs = G.cfg.showOrgs
+    ? G.cfg.showOrgs.slice()
+    : Array.from(new Set((G.cfg.classes||[]).map(function(c){ return c.org||'CoWN'; })));
+
+  var html = '<div class="card" style="margin-bottom:1rem">'
+    + '<div class="card-title" style="margin-bottom:.2rem">Associations at This Show</div>'
+    + '<div style="font-size:.83rem;color:var(--muted);margin-bottom:1rem">Check every association running classes at this show. This controls which org tabs appear in Classes, which membership fields appear on entry forms, and which point rules apply.</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.6rem;margin-bottom:1rem">';
+
+  Object.keys(ORG_META).forEach(function(org){
+    var m = ORG_META[org];
+    var checked = activeOrgs.indexOf(org) >= 0;
+    html += '<label style="display:flex;align-items:flex-start;gap:.6rem;padding:.65rem .75rem;'
+      + 'background:var(--card2);border:1px solid '+(checked?'var(--accent)':'var(--border2)')+';'
+      + 'border-radius:7px;cursor:pointer" id="assoc-lbl-'+org+'" onclick="toggleAssocOrg(\''+esc(org)+'\')">'
+      + '<input type="checkbox" id="assoc-cb-'+org+'" '+(checked?'checked':'')+' style="accent-color:var(--accent);margin-top:.15rem" onclick="event.stopPropagation();toggleAssocOrg(\''+esc(org)+'\')">'
+      + '<div><div style="font-size:.88rem;font-weight:600">'+(m.icon?m.icon+' ':'')+esc(m.label)+'</div>'
+      + '<div style="font-size:.75rem;color:var(--muted);margin-top:.15rem;line-height:1.35">'+esc(m.desc)+'</div></div>'
+      + '</label>';
+  });
+
+  html += '</div>'
+    + '<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">'
+    + '<button class="btn btn-accent" onclick="saveAssocOrgs()">Save Associations</button>'
+    + '<button class="btn btn-dark btn-sm" onclick="openWizard()" title="Full wizard: associations + classes + fees + schedule">Full Setup Wizard&hellip;</button>'
+    + '</div>'
+    + '</div>';
+
+  card.innerHTML = html;
+}
+
+window.toggleAssocOrg = function(org){
+  var cb = document.getElementById('assoc-cb-'+org);
+  var lbl = document.getElementById('assoc-lbl-'+org);
+  if(!cb) return;
+  cb.checked = !cb.checked;
+  if(lbl) lbl.style.borderColor = cb.checked ? 'var(--accent)' : 'var(--border2)';
+};
+
+window.saveAssocOrgs = function(){
+  var checked = [];
+  Object.keys(ORG_META).forEach(function(org){
+    var cb = document.getElementById('assoc-cb-'+org);
+    if(cb && cb.checked) checked.push(org);
+  });
+  G.cfg.showOrgs = checked;
+  try{ localStorage.setItem('gatepost_cfg', JSON.stringify(G.cfg)); } catch(e){}
+  if(G.showId){
+    sbFetch('shows?id=eq.'+G.showId, {method:'PATCH', body:JSON.stringify({org_list: checked})})
+      .then(function(){ toast('Associations saved'); })
+      .catch(function(e){ toast('Saved locally (DB sync failed: '+e.message+')', true); });
+  } else {
+    toast('Associations saved locally');
+  }
+};
+
 function showStab(id,btn){
 
   document.querySelectorAll('.ssec').forEach(function(s){ s.classList.remove('active'); });
@@ -9413,7 +10374,9 @@ function showStab(id,btn){
 
   btn.classList.add('active');
 
-  if(id==='orgs'){ renderOrgEditor(); renderWizSummary(); }
+  if(id==='orgs'){ renderAssocTab(); }
+
+  if(id==='entryform') renderEntryFormStab();
 
   if(id==='mapper') tryRestoreMapper();
 
@@ -11442,12 +12405,15 @@ var DEFAULT_FEE_SCHEDULE = [
   {key:'cowSurcharge',    label:'Cattle Fee (Cow Work classes)',amt:15,  cat:'class'},
   {key:'cuttingSurcharge',label:'Cutting Fee (Cutting classes)',amt:20,  cat:'class'},
   {key:'jackpot',         label:'Jackpot Fee',                 amt:0,   cat:'class'},
+  {key:'haulin',          label:'Haul-In (per horse)',         amt:0,   cat:'stall'},
   {key:'stall1',          label:'Stall — Per Night',           amt:40,  cat:'stall'},
-  {key:'stallCircuit',    label:'Stall — Circuit',             amt:150, cat:'stall'},
-  {key:'tackRoom',        label:'Tack Room',                   amt:0,   cat:'stall'},
+  {key:'stall2',          label:'Stall — 2 Nights',           amt:80,  cat:'stall'},
+  {key:'stall3',          label:'Stall — 3 Nights',           amt:120, cat:'stall'},
+  {key:'stallCircuit',    label:'Stall — Full Circuit',        amt:150, cat:'stall'},
   {key:'shavings',        label:'Shavings (per bag)',          amt:12,  cat:'stall'},
   {key:'rv1',             label:'RV — Per Night',              amt:40,  cat:'rv'},
-  {key:'rvCircuit',       label:'RV — Circuit',                amt:110, cat:'rv'},
+  {key:'rv2',             label:'RV — 2 Nights',              amt:80,  cat:'rv'},
+  {key:'rvCircuit',       label:'RV — Full Circuit',           amt:110, cat:'rv'},
   {key:'office',          label:'Office Fee (per entry)',       amt:0,   cat:'office'},
   {key:'late',            label:'Late Entry Fee',               amt:0,   cat:'office'},
   {key:'membership1yr',   label:'Membership — 1 Year',         amt:60,  cat:'member'},
@@ -11479,14 +12445,24 @@ function feeLabel(key){
 }
 
 function initFeeSchedule(){
-  if(G.cfg.feeSchedule) return;
-  G.cfg.feeSchedule = DEFAULT_FEE_SCHEDULE.map(function(f){
-    var amt = (G.cfg.fees && G.cfg.fees[f.key]!==undefined) ? G.cfg.fees[f.key] : f.amt;
-    return {key:f.key, label:f.label, amt:amt, cat:f.cat};
-  });
-  (G.cfg.extraFees||[]).forEach(function(ef){
-    G.cfg.feeSchedule.push({key:null, label:ef.label, amt:ef.amt||0, cat:'custom'});
-  });
+  if(!G.cfg.feeSchedule){
+    G.cfg.feeSchedule = DEFAULT_FEE_SCHEDULE.map(function(f){
+      var amt = (G.cfg.fees && G.cfg.fees[f.key]!==undefined) ? G.cfg.fees[f.key] : f.amt;
+      return {key:f.key, label:f.label, amt:amt, cat:f.cat};
+    });
+    (G.cfg.extraFees||[]).forEach(function(ef){
+      G.cfg.feeSchedule.push({key:null, label:ef.label, amt:ef.amt||0, cat:'custom'});
+    });
+  } else {
+    // Backfill any DEFAULT_FEE_SCHEDULE keys missing from a previously saved schedule
+    DEFAULT_FEE_SCHEDULE.forEach(function(def){
+      var exists = G.cfg.feeSchedule.some(function(f){ return f.key === def.key; });
+      if(!exists){
+        var amt = (G.cfg.fees && G.cfg.fees[def.key]!=null) ? G.cfg.fees[def.key] : def.amt;
+        G.cfg.feeSchedule.push({key:def.key, label:def.label, amt:amt, cat:def.cat});
+      }
+    });
+  }
 }
 
 function renderFeeSchedule(){
@@ -11495,49 +12471,45 @@ function renderFeeSchedule(){
   if(!el) return;
   var sched = G.cfg.feeSchedule;
 
-  var catOrder = ['class','stall','rv','office','member','custom','import'];
-  var html = '';
+  // Build one section: title, cat key, always-open flag
+  function feeSection(id, title, cat, alwaysOpen){
+    var fees = sched.filter(function(f){ return f.cat === cat; });
+    var hasNonZero = fees.some(function(f){ return (f.amt||0) > 0; });
+    var open = alwaysOpen || hasNonZero;
+    var html = '<div class="fee-sec'+(open?'':' collapsed')+'" id="fcs-'+id+'">';
+    html += '<div class="fee-sec-head" onclick="toggleFeeSection(\''+id+'\')">'
+      +'<span class="fee-sec-title">'+title+'</span>'
+      +'<span class="fee-sec-toggle">&#9660;</span></div>';
+    html += '<div class="fee-sec-body">';
+    fees.forEach(function(f){
+      var i = sched.indexOf(f);
+      var isCustom = !f.key; // no key = user-added custom fee
+      html += '<div class="fee-row">';
+      if(isCustom){
+        html += '<input class="fee-row-lbl-inp" value="'+esc(f.label||'')+'" placeholder="Fee name" '
+          +'oninput="updateScheduleFee('+i+',\'label\',this.value)">';
+      } else {
+        html += '<span class="fee-row-lbl">'+esc(f.label)+'</span>';
+      }
+      html += '<span class="fee-sym">$</span>'
+        +'<input class="fee-amt" type="number" value="'+f.amt+'" step="0.01" min="0" '
+        +'oninput="updateScheduleFee('+i+',\'amt\',this.value)">';
+      if(isCustom){
+        html += '<button class="fee-row-del" onclick="removeScheduleFee('+i+')" title="Remove">&times;</button>';
+      }
+      html += '</div>';
+    });
+    html += '<div class="fee-add-row"><button onclick="addScheduleFee(\''+cat+'\')">+ Add custom fee</button></div>';
+    html += '</div></div>';
+    return html;
+  }
 
-  catOrder.forEach(function(cat){
-    var fees = sched.filter(function(f){ return (f.cat||'custom')===cat; });
-    if(!fees.length && cat!=='custom' && cat!=='import') return;
-    var info = FEE_CATS[cat];
-    html += '<div class="card fee-cat-section" id="fcs-'+cat+'">'
-      +'<div class="fee-cat-head" onclick="toggleFeeSection(\''+cat+'\')">'
-      +'<span class="fee-cat-label">'+info.label+'</span>'
-      +'<span class="fee-cat-note">'+info.note+'</span>'
-      +'<span class="fee-cat-toggle">&#9660;</span>'
-      +'</div>';
-    if(fees.length){
-      fees.forEach(function(f){
-        var i = sched.indexOf(f);
-        var locked = cat==='import'; // import fields: label is locked (set by mapper), only price editable
-        html += '<div class="fee-sched-row">'
-          +'<input class="fee-sched-label" value="'+esc(f.label||'')+'" placeholder="Fee name" '
-          +(locked?'readonly style="opacity:.6;cursor:default" ':''  )
-          +'onchange="updateScheduleFee('+i+',\'label\',this.value)">'
-          +'<div style="display:flex;align-items:center;gap:.3rem">'
-          +'<span style="color:var(--muted);font-size:.9rem">$</span>'
-          +'<input class="fee-sched-amt" type="number" value="'+f.amt+'" step="0.01" min="0" '
-          +'onchange="updateScheduleFee('+i+',\'amt\',this.value)">'
-          +'</div>'
-          +'<button onclick="removeScheduleFee('+i+')" title="Remove this fee" '
-          +'style="background:transparent;border:1px solid rgba(231,76,60,.3);color:var(--red);'
-          +'border-radius:4px;cursor:pointer;padding:.15rem .45rem;font-size:.9rem;line-height:1">&times;</button>'
-          +'</div>';
-      });
-    } else {
-      html += '<div class="fee-cat-empty" style="font-size:.78rem;color:var(--muted);padding:.4rem .2rem">'
-        +(cat==='import' ? 'No import fields yet. Add fee columns in the import mapper when loading entries.' : 'No custom fees yet.')
-        +'</div>';
-    }
-    if(cat==='custom'){
-      html += '<div class="fee-add-btn" style="margin-top:.4rem">'
-        +'<button class="btn btn-accent btn-sm" onclick="addScheduleFee()">+ Add Fee</button>'
-        +'</div>';
-    }
-    html += '</div>';
-  });
+  var html = '';
+  html += feeSection('class',  'Class Fees',         'class',  true);
+  html += feeSection('stall',  'Stalling & Haul-In', 'stall',  false);
+  html += feeSection('rv',     'RV Hookups',          'rv',     false);
+  html += feeSection('office', 'Office & Admin',      'office', true);
+  html += feeSection('member', 'Memberships',         'member', false);
 
   // Association Fees section
   var assocFees = G.cfg.assocFees || [];
@@ -11572,15 +12544,108 @@ function renderFeeSchedule(){
       +'</div>';
   }).join('');
 
-  html += '<div class="card fee-cat-section" id="fcs-assocfee">'
-    +'<div class="fee-cat-head" onclick="toggleFeeSection(\'assocfee\')">'
-    +'<span class="fee-cat-label">Association Admin Fees</span>'
-    +'<span class="fee-cat-note">Auto-applied per rider or per class based on which org\'s classes they entered. Drug tests, trail fees, admin fees, etc.</span>'
-    +'<span class="fee-cat-toggle">&#9660;</span>'
+  var afOpen = assocFees.length > 0;
+  html += '<div class="fee-sec'+(afOpen?'':' collapsed')+'" id="fcs-assocfee">'
+    +'<div class="fee-sec-head" onclick="this.closest(\'.fee-sec\').classList.toggle(\'collapsed\')">'
+    +'<span class="fee-sec-title">Association Admin Fees</span>'
+    +'<span style="font-size:.78rem;color:var(--muted);flex:2">Auto-applied per rider or per class. Drug tests, trail fees, admin fees, etc.</span>'
+    +'<span class="fee-sec-toggle">&#9660;</span>'
     +'</div>'
-    +(afRows || '<div class="fee-cat-empty" style="font-size:.78rem;color:var(--muted);padding:.4rem .2rem">No association fees set up yet.</div>')
-    +'<div class="fee-add-btn" style="margin-top:.4rem">'
-    +'<button class="btn btn-accent btn-sm" onclick="addAssocFee()">+ Add Association Fee</button>'
+    +'<div class="fee-sec-body">'
+    +(afRows || '<div style="font-size:.78rem;color:var(--muted);padding:.25rem 0 .5rem">No association fees set up yet.</div>')
+    +'<div style="margin-top:.35rem"><button class="btn btn-accent btn-sm" onclick="addAssocFee()">+ Add Association Fee</button></div>'
+    +'</div></div>';
+
+  // ── Package Discounts ─────────────────────────────────────────────
+  var pkgs = G.cfg.classPkgs || [];
+  var pkgRows = pkgs.map(function(pkg, idx){
+    var orgSel = _getShowOrgs().map(function(o){
+      return '<option value="'+esc(o)+'"'+(pkg.org===o?' selected':'')+'>'+esc(o)+'</option>';
+    }).join('');
+    return '<div class="fee-sched-row" style="flex-wrap:wrap;gap:.35rem;align-items:center">'
+      +'<select style="background:var(--card2,#13201a);color:var(--fg);border:1px solid var(--border2);padding:2px 6px;border-radius:4px;font-size:.82rem" onchange="updateClassPkg('+idx+',\'org\',this.value)">'+orgSel+'</select>'
+      +'<input style="background:var(--card2,#13201a);color:var(--fg);border:1px solid var(--border2);padding:2px 8px;border-radius:4px;font-size:.82rem;flex:1;min-width:140px" '
+      +'value="'+esc(pkg.label||'')+'" placeholder="Package name (e.g. 6-Class VRH Package)" oninput="updateClassPkg('+idx+',\'label\',this.value)">'
+      +'<div style="display:flex;align-items:center;gap:.25rem"><span style="color:var(--muted);font-size:.8rem">Min classes:</span>'
+      +'<input type="number" style="background:var(--card2,#13201a);color:var(--fg);border:1px solid var(--border2);padding:2px 6px;border-radius:4px;font-size:.82rem;width:56px" '
+      +'value="'+(pkg.minClasses||2)+'" min="2" max="20" oninput="updateClassPkg('+idx+',\'minClasses\',this.value)"></div>'
+      +'<div style="display:flex;align-items:center;gap:.25rem"><span style="color:var(--muted);font-size:.9rem">&#8722;$</span>'
+      +'<input type="number" style="background:var(--card2,#13201a);color:var(--fg);border:1px solid var(--border2);padding:2px 6px;border-radius:4px;font-size:.82rem;width:70px" '
+      +'value="'+(pkg.discount||0)+'" step="0.01" min="0" oninput="updateClassPkg('+idx+',\'discount\',this.value)"></div>'
+      +'<button onclick="removeClassPkg('+idx+')" style="background:transparent;border:1px solid rgba(231,76,60,.3);color:var(--red);border-radius:4px;cursor:pointer;padding:.15rem .45rem;font-size:.9rem">&times;</button>'
+      +'</div>';
+  }).join('');
+
+  var pkgOpen = pkgs.length > 0;
+  html += '<div class="fee-sec'+(pkgOpen?'':' collapsed')+'" id="fcs-classpkgs">'
+    +'<div class="fee-sec-head" onclick="this.closest(\'.fee-sec\').classList.toggle(\'collapsed\')">'
+    +'<span class="fee-sec-title">Class Package Discounts</span>'
+    +'<span style="font-size:.78rem;color:var(--muted);flex:2">Auto-applied when a rider enters N+ classes from one org (e.g. 4-class or 6-class packages).</span>'
+    +'<span class="fee-sec-toggle">&#9660;</span>'
+    +'</div>'
+    +'<div class="fee-sec-body">'
+    +(pkgRows || '<div style="font-size:.78rem;color:var(--muted);padding:.25rem 0 .5rem">No package discounts configured.</div>')
+    +'<div style="margin-top:.35rem"><button class="btn btn-accent btn-sm" onclick="addClassPkg()">+ Add Package</button></div>'
+    +'</div></div>';
+
+  // ── Practice Sessions ─────────────────────────────────────────────
+  var pracSessions = G.cfg.practiceSessions || [];
+  var pracRows = pracSessions.map(function(s, idx){
+    var inp = 'style="background:var(--card2,#13201a);color:var(--fg);border:1px solid var(--border2);padding:2px 6px;border-radius:4px;font-size:.82rem"';
+    return '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:.55rem .75rem;margin-bottom:.4rem">'
+      +'<div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-bottom:.3rem">'
+      +'<input '+inp+' style="flex:1;min-width:200px;padding:2px 8px" '
+      +'value="'+esc(s.label||'')+'" placeholder="Label — e.g. Thu 8-9am Warm-Up Arena 1" oninput="updatePracticeSession('+idx+',\'label\',this.value)">'
+      +'<button onclick="removePracticeSession('+idx+')" style="background:transparent;border:1px solid rgba(231,76,60,.3);color:var(--red);border-radius:4px;cursor:pointer;padding:.15rem .45rem;font-size:.85rem;flex-shrink:0">&times;</button>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">'
+      +'<label style="font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:.3rem">Date/Time<input '+inp+' type="text" style="width:140px" placeholder="e.g. Thu Mar 6 8:00am" value="'+esc(s.datetime||'')+'" oninput="updatePracticeSession('+idx+',\'datetime\',this.value)"></label>'
+      +'<label style="font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:.3rem">Price&nbsp;$<input '+inp+' type="number" style="width:70px" step="0.01" min="0" value="'+(s.price||0)+'" oninput="updatePracticeSession('+idx+',\'price\',this.value)"></label>'
+      +'<label style="font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:.3rem">Max slots<input '+inp+' type="number" style="width:56px" min="1" max="999" placeholder="∞" value="'+(s.capacity||'')+'" oninput="updatePracticeSession('+idx+',\'capacity\',this.value)"></label>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+
+  var pracOpen = pracSessions.length > 0;
+  html += '<div class="fee-sec'+(pracOpen?'':' collapsed')+'" id="fcs-practice">'
+    +'<div class="fee-sec-head" onclick="this.closest(\'.fee-sec\').classList.toggle(\'collapsed\')">'
+    +'<span class="fee-sec-title">Practice Sessions</span>'
+    +'<span style="font-size:.78rem;color:var(--muted);flex:2">Bookable time slots on the entry form. Entry form skips this step if none are configured.</span>'
+    +'<span class="fee-sec-toggle">&#9660;</span>'
+    +'</div>'
+    +'<div class="fee-sec-body">'
+    +(pracRows || '<div style="font-size:.78rem;color:var(--muted);padding:.25rem 0 .5rem">No practice sessions configured.</div>')
+    +'<div style="margin-top:.35rem"><button class="btn btn-accent btn-sm" onclick="addPracticeSession()">+ Add Session</button></div>'
+    +'</div></div>';
+
+  // ── Clinic Options ─────────────────────────────────────────────────
+  var clinicOpts = G.cfg.clinicOptions || [];
+  var clinicRows = clinicOpts.map(function(c, idx){
+    var inp = 'style="background:var(--card2,#13201a);color:var(--fg);border:1px solid var(--border2);padding:2px 6px;border-radius:4px;font-size:.82rem"';
+    return '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:.55rem .75rem;margin-bottom:.4rem">'
+      +'<div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-bottom:.3rem">'
+      +'<input '+inp+' style="flex:1;min-width:200px;padding:2px 8px" '
+      +'value="'+esc(c.label||'')+'" placeholder="Clinic name — e.g. Reining Clinic with Dr. Smith" oninput="updateClinicOption('+idx+',\'label\',this.value)">'
+      +'<button onclick="removeClinicOption('+idx+')" style="background:transparent;border:1px solid rgba(231,76,60,.3);color:var(--red);border-radius:4px;cursor:pointer;padding:.15rem .45rem;font-size:.85rem;flex-shrink:0">&times;</button>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">'
+      +'<label style="font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:.3rem">Date/Time<input '+inp+' type="text" style="width:140px" placeholder="e.g. Fri Mar 7 2:00pm" value="'+esc(c.datetime||'')+'" oninput="updateClinicOption('+idx+',\'datetime\',this.value)"></label>'
+      +'<label style="font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:.3rem">Price&nbsp;$<input '+inp+' type="number" style="width:70px" step="0.01" min="0" value="'+(c.price||0)+'" oninput="updateClinicOption('+idx+',\'price\',this.value)"></label>'
+      +'<label style="font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:.3rem">Max participants<input '+inp+' type="number" style="width:56px" min="1" max="999" placeholder="∞" value="'+(c.capacity||'')+'" oninput="updateClinicOption('+idx+',\'capacity\',this.value)"></label>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+
+  var clinicOpen = clinicOpts.length > 0;
+  html += '<div class="fee-sec'+(clinicOpen?'':' collapsed')+'" id="fcs-clinics">'
+    +'<div class="fee-sec-head" onclick="this.closest(\'.fee-sec\').classList.toggle(\'collapsed\')">'
+    +'<span class="fee-sec-title">Clinic Options</span>'
+    +'<span style="font-size:.78rem;color:var(--muted);flex:2">Clinics riders can sign up for — shown as a dropdown on the entry form. Entry form skips this step if none are configured.</span>'
+    +'<span class="fee-sec-toggle">&#9660;</span>'
+    +'</div>'
+    +'<div class="fee-sec-body">'
+    +(clinicRows || '<div style="font-size:.78rem;color:var(--muted);padding:.25rem 0 .5rem">No clinics configured.</div>')
+    +'<div style="margin-top:.35rem"><button class="btn btn-accent btn-sm" onclick="addClinicOption()">+ Add Clinic</button></div>'
     +'</div></div>';
 
   el.innerHTML = html;
@@ -11620,27 +12685,88 @@ window.addAssocFee = function(){
   renderFeeSchedule();
 };
 
+// ── Package Discounts ─────────────────────────────────────────────────────────
+window.updateClassPkg = function(idx, field, val){
+  if(!G.cfg.classPkgs || !G.cfg.classPkgs[idx]) return;
+  if(field==='minClasses' || field==='discount') G.cfg.classPkgs[idx][field] = parseFloat(val)||0;
+  else G.cfg.classPkgs[idx][field] = val;
+};
+window.removeClassPkg = function(idx){
+  if(!G.cfg.classPkgs) return;
+  G.cfg.classPkgs.splice(idx,1);
+  renderFeeSchedule();
+};
+window.addClassPkg = function(){
+  if(!G.cfg.classPkgs) G.cfg.classPkgs = [];
+  var firstOrg = _getShowOrgs()[0] || 'CoWN';
+  G.cfg.classPkgs.push({id:'pkg_'+Date.now(), org:firstOrg, label:'', minClasses:4, discount:0});
+  var sec=document.getElementById('fcs-classpkgs');
+  if(sec) sec.classList.remove('collapsed');
+  renderFeeSchedule();
+};
+
+// ── Practice Sessions ─────────────────────────────────────────────────────────
+window.updatePracticeSession = function(idx, field, val){
+  if(!G.cfg.practiceSessions || !G.cfg.practiceSessions[idx]) return;
+  if(field==='price') G.cfg.practiceSessions[idx][field] = parseFloat(val)||0;
+  else if(field==='capacity') G.cfg.practiceSessions[idx][field] = val ? (parseInt(val)||0) : null;
+  else G.cfg.practiceSessions[idx][field] = val;
+};
+window.removePracticeSession = function(idx){
+  if(!G.cfg.practiceSessions) return;
+  G.cfg.practiceSessions.splice(idx,1);
+  renderFeeSchedule();
+};
+window.addPracticeSession = function(){
+  if(!G.cfg.practiceSessions) G.cfg.practiceSessions = [];
+  G.cfg.practiceSessions.push({id:'ps_'+Date.now(), label:'', price:0});
+  var sec=document.getElementById('fcs-practice');
+  if(sec) sec.classList.remove('collapsed');
+  renderFeeSchedule();
+};
+
+// ── Clinic Options ─────────────────────────────────────────────────────────────
+window.updateClinicOption = function(idx, field, val){
+  if(!G.cfg.clinicOptions || !G.cfg.clinicOptions[idx]) return;
+  if(field==='price') G.cfg.clinicOptions[idx][field] = parseFloat(val)||0;
+  else if(field==='capacity') G.cfg.clinicOptions[idx][field] = val ? (parseInt(val)||0) : null;
+  else G.cfg.clinicOptions[idx][field] = val;
+};
+window.removeClinicOption = function(idx){
+  if(!G.cfg.clinicOptions) return;
+  G.cfg.clinicOptions.splice(idx,1);
+  renderFeeSchedule();
+};
+window.addClinicOption = function(){
+  if(!G.cfg.clinicOptions) G.cfg.clinicOptions = [];
+  G.cfg.clinicOptions.push({id:'co_'+Date.now(), label:'', price:0});
+  var sec=document.getElementById('fcs-clinics');
+  if(sec) sec.classList.remove('collapsed');
+  renderFeeSchedule();
+};
+
 window.removeScheduleFee = function(idx){
   if(!G.cfg.feeSchedule) return;
   G.cfg.feeSchedule.splice(idx,1);
   renderFeeSchedule();
 };
 
-window.addScheduleFee = function(){
+window.addScheduleFee = function(cat){
   initFeeSchedule();
-  G.cfg.feeSchedule.push({key:null, label:'New Fee', amt:0, cat:'custom'});
-  // Make sure custom section is open
-  var sec=document.getElementById('fcs-custom');
+  cat = cat || 'custom';
+  G.cfg.feeSchedule.push({key:null, label:'', amt:0, cat:cat});
+  var sec=document.getElementById('fcs-'+cat);
   if(sec) sec.classList.remove('collapsed');
   renderFeeSchedule();
-  var rows = document.querySelectorAll('.fee-sched-label');
-  if(rows.length) rows[rows.length-1].select();
+  var rows = document.querySelectorAll('.fee-row-lbl-inp');
+  if(rows.length){ rows[rows.length-1].focus(); rows[rows.length-1].select(); }
 };
 
 window.toggleFeeSection = function(cat){
   var sec=document.getElementById('fcs-'+cat);
   if(sec) sec.classList.toggle('collapsed');
 };
+
 
 window.saveFeeSchedule = function(){
   initFeeSchedule();
@@ -11659,9 +12785,12 @@ window.saveFeeSchedule = function(){
   try{ localStorage.setItem('gatepost_cfg', JSON.stringify(G.cfg)); } catch(e){}
   if(G.showId){
     var feeConfig = Object.assign({}, G.cfg.fees, {
-      _schedule: G.cfg.feeSchedule||null,
-      _extraFees: G.cfg.extraFees||[],
-      _assocFees: G.cfg.assocFees||[]
+      _schedule:         G.cfg.feeSchedule||null,
+      _extraFees:        G.cfg.extraFees||[],
+      _assocFees:        G.cfg.assocFees||[],
+      _classPkgs:        G.cfg.classPkgs||[],
+      _practiceSessions: G.cfg.practiceSessions||[],
+      _clinicOptions:    G.cfg.clinicOptions||[]
     });
     sbFetch('shows?id=eq.'+G.showId, {method:'PATCH', body:JSON.stringify({fee_config:feeConfig})})
       .then(function(){ toast('Fee schedule saved'); })
@@ -11670,6 +12799,7 @@ window.saveFeeSchedule = function(){
     toast('Fee schedule saved');
   }
   if(typeof renderCfgClassTable === 'function' && G.cfg.classes && G.cfg.classes.length) renderCfgClassTable();
+  if(G.showId && G.cfg.classes && G.cfg.classes.length) syncShowClassesToSupabase().catch(function(){});
 };
 
 function saveConfig(){
@@ -11702,7 +12832,7 @@ function saveConfig(){
 
       location:   G.cfg.location || null,
 
-      fee_config: Object.assign({}, G.cfg.fees, {_schedule:G.cfg.feeSchedule||null, _extraFees:G.cfg.extraFees||[], _assocFees:G.cfg.assocFees||[]}),
+      fee_config: Object.assign({}, G.cfg.fees, {_schedule:G.cfg.feeSchedule||null, _extraFees:G.cfg.extraFees||[], _assocFees:G.cfg.assocFees||[], _classPkgs:G.cfg.classPkgs||[], _practiceSessions:G.cfg.practiceSessions||[], _clinicOptions:G.cfg.clinicOptions||[]}),
 
     };
 
@@ -14438,309 +15568,377 @@ function swTab(btn,panel){
 
 // ═══════════════════════ MANUAL ENTRY ADD ═══════════════════════
 
-function showAddEntryModal(){
-
-  var root = document.getElementById('modal-root');
-
-
-
-  // Build class checkboxes from config
-
-  var classChecks = G.cfg.classes.map(function(c){
-
-    var fee = (c.baseFee||G.cfg.fees.classBase||0) + (c.isCow?(c.cowFee||G.cfg.fees.cowSurcharge||0):0);
-
-    return '<label style="display:flex;align-items:center;gap:.5rem;padding:.25rem 0;font-size:.82rem;cursor:pointer">'
-
-      +'<input type="checkbox" data-classid="'+esc(c._id)+'" style="accent-color:var(--accent)">'
-
-      +'<span><strong>'+esc(c.num)+'</strong> — '+esc(c.name)
-
-      +' <span class="small">'+esc(c.division)+'</span>'
-
-      +(c.isCow?'<span class="badge b-cow" style="margin-left:4px">Cow</span>':'')
-
-      +'<span style="color:var(--accent);margin-left:6px">'+fmtI(fee)+'</span></span>'
-
-      +'</label>';
-
-  }).join('');
-
-
-
-  var html = '<div class="modal-bg" id="add-entry-modal" onclick="if(event.target===this)closeModal()">'
-
-    +'<div class="modal" style="max-width:600px">'
-
-    +'<h2>Add Day-Of Entry</h2>'
-
-
-
-    // Rider info
-
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-bottom:.75rem">'
-
-    +'<div class="form-group"><label>Rider First Name *</label>'
-
-    +'<input type="text" id="ae-first" placeholder="First" list="rider-first-list" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
-
-    +'<datalist id="rider-first-list">'
-
-    +Array.from(new Set(G.entries.map(function(e){ return e.firstName||(e.name||'').split(/\s+/)[0]||''; }).filter(Boolean))).sort().map(function(n){ return '<option value="'+esc(n)+'">'; }).join('')
-
-    +'</datalist>'
-
-    +'<div class="form-group"><label>Rider Last Name *</label>'
-
-    +'<input type="text" id="ae-last" placeholder="Last" list="rider-last-list" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
-
-    +'<datalist id="rider-last-list">'
-
-    +Array.from(new Set(G.entries.map(function(e){ return e.lastName||(e.name||'').split(/\s+/).slice(1).join(' ')||''; }).filter(Boolean))).sort().map(function(n){ return '<option value="'+esc(n)+'">'; }).join('')
-
-    +'</datalist>'
-
-    +'<div class="form-group"><label>Email</label>'
-
-    +'<input type="email" id="ae-email" placeholder="email@example.com" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
-
-    +'<div class="form-group"><label>Phone</label>'
-
-    +'<input type="text" id="ae-phone" placeholder="(555) 555-5555" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
-
-    +'<div class="form-group"><label>CoWN #</label>'
-
-    +'<input type="text" id="ae-cown" placeholder="Member number" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
-
-    +'<div class="form-group"><label>Back #</label>'
-
-    +'<input type="number" id="ae-back" placeholder="Back number" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
-
-    +'</div>'
-
-
-
-    // Horse info
-
-    +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-bottom:.75rem">'
-
-    +'<div style="font-family:Oswald;color:var(--accent);font-size:.9rem;margin-bottom:.6rem">Horse</div>'
-
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem">'
-
-    +'<div class="form-group"><label>Horse Name *</label>'
-
-    +'<input type="text" id="ae-horse" placeholder="Registered or barn name" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
-
-    +'<div class="form-group"><label>Gender</label>'
-
-    +'<select id="ae-gender" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%">'
-
-    +'<option value="">—</option><option>Gelding</option><option>Mare</option><option>Stallion</option>'
-
-    +'</select></div>'
-
-    +'</div></div>'
-
-
-
-    // Stalling
-
-    +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-bottom:.75rem">'
-
-    +'<div style="font-family:Oswald;color:var(--accent);font-size:.9rem;margin-bottom:.6rem">Stalling / Housing</div>'
-
-    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem">'
-
-    +'<div class="form-group"><label>Stall 1-night</label><input type="number" id="ae-stall1" value="0" min="0" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%"></div>'
-
-    +'<div class="form-group"><label>Stall 2-night</label><input type="number" id="ae-stall2" value="0" min="0" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%"></div>'
-
-    +'<div class="form-group"><label>Shavings</label><input type="number" id="ae-shavings" value="0" min="0" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%"></div>'
-
-    +'<div class="form-group"><label>RV nights</label><input type="number" id="ae-rv" value="0" min="0" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .5rem;font-size:.82rem;width:100%"></div>'
-
-    +'</div></div>'
-
-
-
-    // Classes
-
-    +(G.cfg.classes.length
-
-      ? '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-bottom:.75rem">'
-
-        +'<div style="font-family:Oswald;color:var(--accent);font-size:.9rem;margin-bottom:.6rem">Classes</div>'
-
-        +'<div style="max-height:200px;overflow-y:auto">'+classChecks+'</div></div>'
-
-      : '<div class="tip" style="margin-bottom:.75rem">No classes configured — go to Show Management → Classes first.</div>')
-
-
-
-    +'<div id="ae-err" style="color:var(--red);font-size:.8rem;margin-bottom:.5rem"></div>'
-
-    +'<div class="btn-row">'
-
-    +'<button class="btn btn-accent" onclick="saveManualEntry()">Add to Show</button>'
-
-    +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
-
-    +'</div></div></div>';
-
-
-
-  root.innerHTML = html;
-
+// ── Hand Entry Modal — tabbed wizard ─────────────────────────────────────────
+
+var _aeTab = 'rider';
+
+// Which housing offerings are configured (price > 0 in fee schedule)?
+function _aeHousingOfferings(){
+  var f = G.cfg.fees || {};
+  var sched = G.cfg.feeSchedule || [];
+  function label(key, def){ var e=sched.find(function(x){return x.key===key;}); return e?e.label:def; }
+  var offers = [];
+  if(f.haulin>0)      offers.push({id:'ae-haulin',  field:'haulinQty',  label:label('haulin','Haul-In (per horse)'), price:f.haulin, min:0});
+  if(f.stall1>0)      offers.push({id:'ae-stall1',  field:'stall1qty',  label:label('stall1','Stall — Per Night'), price:f.stall1, min:0});
+  if(f.stall2>0)      offers.push({id:'ae-stall2',  field:'stall2qty',  label:label('stall2','Stall — Circuit'),   price:f.stall2, min:0});
+  if(f.stall3>0)      offers.push({id:'ae-stall3',  field:'stall3qty',  label:label('stall3','Stall — 3 Night'),   price:f.stall3, min:0});
+  if(f.shavings>0)    offers.push({id:'ae-shavings',field:'shavings',   label:label('shavings','Shavings (per bag)'),price:f.shavings, min:f.shavingsMin||0});
+  if(f.rv1>0)         offers.push({id:'ae-rv1',     field:'rv1qty',     label:label('rv1','RV — Per Night'),       price:f.rv1, min:0});
+  if(f.rv2>0)         offers.push({id:'ae-rv2',     field:'rv2qty',     label:label('rv2','RV — 2 Night'),         price:f.rv2, min:0});
+  if(f.rvCircuit>0)   offers.push({id:'ae-rvc',     field:'rvCircuit',  label:label('rvCircuit','RV — Full Circuit'), price:f.rvCircuit, min:0});
+  return offers;
 }
 
+// Which membership fields are needed for this show's orgs?
+function _aeMembFields(){
+  var orgs = Array.from(new Set((G.cfg.classes||[]).map(function(c){return c.org||'CoWN';})));
+  var fields = [];
+  var seen = {};
+  orgs.forEach(function(org){
+    if((org==='CoWN'||org==='WHSR'||org==='Jackpot') && !seen.CoWN){
+      fields.push({key:'memberNum', label:'CoWN Member #', placeholder:'CoWN member number'}); seen.CoWN=1;
+    }
+    if((org==='CoWN'||org==='WHSR') && !seen.SHTX){
+      fields.push({key:'memberSHTX', label:'SHTX Member #', placeholder:'SHTX license number'}); seen.SHTX=1;
+    }
+    if((org==='VRH'||org==='AQHA Ranch'||org==='AQHA RHC') && !seen.AQHA){
+      fields.push({key:'memberAQHA', label:'AQHA Member #', placeholder:'AQHA member number'}); seen.AQHA=1;
+    }
+    if(org==='APHA' && !seen.APHA){
+      fields.push({key:'memberAPHA', label:'APHA Member #', placeholder:'APHA member number'}); seen.APHA=1;
+    }
+    if(org==='ApHC' && !seen.ApHC){
+      fields.push({key:'memberApHC', label:'ApHC Member #', placeholder:'ApHC member number'}); seen.ApHC=1;
+    }
+    if(org==='NRHA' && !seen.NRHA){
+      fields.push({key:'memberNRHA', label:'NRHA Member #', placeholder:'NRHA member number'}); seen.NRHA=1;
+    }
+    if(org==='NRCHA' && !seen.NRCHA){
+      fields.push({key:'memberNRCHA', label:'NRCHA Member #', placeholder:'NRCHA member number'}); seen.NRCHA=1;
+    }
+  });
+  if(!fields.length) fields.push({key:'memberNum', label:'Member #', placeholder:'Member number'});
+  return fields;
+}
 
+function _aeInp(opts){
+  // opts: {id, type, placeholder, value, list}
+  return '<input type="'+(opts.type||'text')+'" id="'+opts.id+'" '
+    +(opts.list?'list="'+opts.list+'" ':'')
+    +'placeholder="'+(opts.placeholder||'')+'" value="'+(opts.value||'')+'" '
+    +'style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);'
+    +'padding:.42rem .65rem;font-size:.84rem;width:100%;box-sizing:border-box">';
+}
+
+function _aeSel(id, opts, val){
+  return '<select id="'+id+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;'
+    +'color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%;box-sizing:border-box">'
+    +opts.map(function(o){
+      var v=typeof o==='string'?o:o.v, l=typeof o==='string'?o:o.l;
+      return '<option value="'+esc(v)+'"'+(v===val?' selected':'')+'>'+esc(l)+'</option>';
+    }).join('')+'</select>';
+}
+
+function _aeFG(label, input){
+  return '<div class="form-group">'+
+    '<label style="font-size:.78rem;color:var(--muted);margin-bottom:.25rem;display:block">'+label+'</label>'
+    +input+'</div>';
+}
+
+function _aeTabBtn(id, label){
+  var active = id===_aeTab;
+  return '<button id="aebt-'+id+'" onclick="showAeTab(\''+id+'\')" '
+    +'style="flex:1;padding:.55rem .4rem;background:transparent;border:none;border-bottom:2px solid '
+    +(active?'var(--accent)':'transparent')+';color:'+(active?'var(--accent)':'var(--muted)')
+    +';font-family:Oswald;font-size:.8rem;cursor:pointer;white-space:nowrap">'+label+'</button>';
+}
+
+function _buildAeRiderTab(){
+  var firstNames = Array.from(new Set(G.entries.map(function(e){return e.firstName||(e.name||'').split(/\s+/)[0]||''}).filter(Boolean))).sort();
+  var lastNames  = Array.from(new Set(G.entries.map(function(e){return e.lastName||(e.name||'').split(/\s+/).slice(1).join(' ')||''}).filter(Boolean))).sort();
+  var html = '<datalist id="ae-fl-list">'+firstNames.map(function(n){return '<option value="'+esc(n)+'">'; }).join('')+'</datalist>'
+    +'<datalist id="ae-ll-list">'+lastNames.map(function(n){return '<option value="'+esc(n)+'">'; }).join('')+'</datalist>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-bottom:.6rem">'
+    +_aeFG('First Name *',    _aeInp({id:'ae-first', placeholder:'First', list:'ae-fl-list'}))
+    +_aeFG('Last Name *',     _aeInp({id:'ae-last',  placeholder:'Last',  list:'ae-ll-list'}))
+    +_aeFG('Email',           _aeInp({id:'ae-email', type:'email', placeholder:'email@example.com'}))
+    +_aeFG('Phone',           _aeInp({id:'ae-phone', placeholder:'(555) 555-5555'}))
+    +_aeFG('Address',         _aeInp({id:'ae-addr',  placeholder:'Street address'}))
+    +'<div style="display:grid;grid-template-columns:2fr 1fr;gap:.5rem">'
+    +_aeFG('City', _aeInp({id:'ae-city', placeholder:'City'}))
+    +_aeFG('State', _aeInp({id:'ae-state', placeholder:'TX'}))
+    +'</div>'
+    +'</div>'
+    +'<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.6rem;padding:.5rem;background:var(--card2);border-radius:6px">'
+    +'<label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.84rem">'
+    +'<input type="checkbox" id="ae-youth" onchange="document.getElementById(\'ae-dob-row\').style.display=this.checked?\'block\':\'none\'" style="accent-color:var(--accent)"> Youth Rider</label>'
+    +'<div id="ae-dob-row" style="display:none">'
+    +_aeFG('Date of Birth', _aeInp({id:'ae-dob', type:'date'}))
+    +'</div></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem">'
+    +_aeFG('Back #', _aeInp({id:'ae-back', type:'number', placeholder:'Back number'}));
+  var membFields = _aeMembFields();
+  membFields.forEach(function(f){
+    html += _aeFG(f.label, _aeInp({id:'ae-mb-'+f.key, placeholder:f.placeholder}));
+  });
+  html += '</div>';
+  return html;
+}
+
+function _buildAeHorseTab(){
+  var horseNames = Array.from(new Set(G.entries.map(function(e){return e.horse||''}).filter(Boolean))).sort();
+  return '<datalist id="ae-hn-list">'+horseNames.map(function(n){return '<option value="'+esc(n)+'">'; }).join('')+'</datalist>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-bottom:.6rem">'
+    +_aeFG('Horse Name *', _aeInp({id:'ae-horse', placeholder:'Registered or barn name', list:'ae-hn-list'}))
+    +_aeFG('Gender', _aeSel('ae-gender', [{v:'',l:'—'},'Gelding','Mare','Stallion'], ''))
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-bottom:.6rem">'
+    +_aeFG('Reg # (AQHA/breed)', _aeInp({id:'ae-hreg', placeholder:'optional'}))
+    +_aeFG('Horse Date of Birth', _aeInp({id:'ae-hdob', type:'date'}))
+    +'</div>'
+    +_aeFG('Owner (if different from rider)', _aeInp({id:'ae-howner', placeholder:'Owner name'}));
+}
+
+function _buildAeClassesTab(){
+  if(!G.cfg.classes.length)
+    return '<div class="tip">No classes configured — go to Show Setup → Classes first.</div>';
+  // Group by org then division
+  var orgs = [];
+  var byOrg = {};
+  G.cfg.classes.forEach(function(c){
+    var org = c.org||'CoWN';
+    if(!byOrg[org]){ byOrg[org]={}; orgs.push(org); }
+    var div = c.division||'General';
+    if(!byOrg[org][div]) byOrg[org][div]=[];
+    byOrg[org][div].push(c);
+  });
+  var html = '';
+  orgs.forEach(function(org){
+    var divs = byOrg[org];
+    html += '<div style="margin-bottom:.85rem">'
+      +'<div style="font-family:Oswald;color:var(--accent);font-size:.88rem;margin-bottom:.4rem;letter-spacing:.04em">'+esc(org)+'</div>';
+    Object.keys(divs).forEach(function(div){
+      html += '<div style="margin-bottom:.5rem">'
+        +'<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.25rem">'+esc(div)+'</div>';
+      divs[div].forEach(function(c){
+        var fee = (c.baseFee||G.cfg.fees.classBase||0) + (c.isCow?(c.cowFee||G.cfg.fees.cowSurcharge||0):0);
+        html += '<label style="display:flex;align-items:center;gap:.5rem;padding:.28rem .3rem;font-size:.82rem;cursor:pointer;border-radius:4px" '
+          +'onmouseover="this.style.background=\'rgba(200,146,42,.07)\'" onmouseout="this.style.background=\'\'">'
+          +'<input type="checkbox" data-classid="'+esc(c._id)+'" class="ae-cls-cb" onchange="_aeUpdateReview()" style="accent-color:var(--accent)">'
+          +'<span><strong>'+esc(c.num)+'</strong> — '+esc(c.name)
+          +(c.isCow?' <span class="badge b-cow">Cow</span>':'')
+          +'<span style="color:var(--accent);margin-left:6px">'+fmtI(fee)+'</span></span>'
+          +'</label>';
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+  return html;
+}
+
+function _buildAeHousingTab(){
+  var offers = _aeHousingOfferings();
+  if(!offers.length)
+    return '<div class="tip">No housing fees configured. Set prices in Show Setup → Finances.</div>';
+  var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.65rem">';
+  offers.forEach(function(o){
+    html += '<div class="form-group">'
+      +'<label style="font-size:.78rem;color:var(--muted);margin-bottom:.25rem;display:block">'+esc(o.label)
+      +'<span style="color:var(--accent);margin-left:5px">'+fmtI(o.price)+' each</span></label>'
+      +'<input type="number" id="'+o.id+'" value="0" min="'+(o.min||0)+'" step="1" onchange="_aeUpdateReview()" '
+      +'style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);'
+      +'padding:.42rem .65rem;font-size:.9rem;width:100%;box-sizing:border-box">'
+      +(o.min>0?'<div style="font-size:.72rem;color:var(--muted);margin-top:.15rem">Min: '+o.min+'</div>':'')
+      +'</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+function _buildAeReviewTab(){
+  return '<div id="ae-review-lines" style="min-height:60px"><div style="color:var(--muted);font-size:.84rem">Select classes and housing to see fee summary.</div></div>';
+}
+
+function _aeCollectEntry(){
+  var f = function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
+  var n = function(id){ var el=document.getElementById(id); return el?parseInt(el.value)||0:0; };
+  var first  = f('ae-first');
+  var last   = f('ae-last');
+  var horse  = f('ae-horse');
+  var selectedClasses = [];
+  document.querySelectorAll('.ae-cls-cb:checked').forEach(function(cb){
+    var cls = G.cfg.classes.find(function(c){ return c._id===cb.dataset.classid; });
+    if(cls) selectedClasses.push({
+      num:cls.num, name:cls.name, division:cls.division, org:cls.org||'CoWN', isCow:cls.isCow,
+      status:'entered',
+      feeCharged:(cls.baseFee||G.cfg.fees.classBase||0)+(cls.isCow?(cls.cowFee||G.cfg.fees.cowSurcharge||0):0)
+    });
+  });
+  var offers = _aeHousingOfferings();
+  var housing = {};
+  offers.forEach(function(o){ housing[o.field] = n(o.id); });
+  var membFields = _aeMembFields();
+  var membs = {};
+  membFields.forEach(function(mf){ membs[mf.key] = f('ae-mb-'+mf.key); });
+  var youthEl = document.getElementById('ae-youth');
+  return {
+    first:first, last:last,
+    email:f('ae-email'), phone:f('ae-phone'),
+    address:f('ae-addr'), city:f('ae-city'), state:f('ae-state'),
+    isYouth:youthEl&&youthEl.checked, dob:f('ae-dob'),
+    back:f('ae-back'),
+    horse:horse, horseGender:f('ae-gender'), horseOwner:f('ae-howner'),
+    horseRegNum:f('ae-hreg'), horseDob:f('ae-hdob'),
+    membs:membs,
+    classes:selectedClasses,
+    haulinQty:housing.haulinQty||0,
+    stall1qty:housing.stall1qty||0,
+    stall2qty:housing.stall2qty||0,
+    stall3qty:housing.stall3qty||0,
+    shavings: housing.shavings||0,
+    rv1qty:   housing.rv1qty||0,
+    rv2qty:   housing.rv2qty||0,
+    rvCircuit:housing.rvCircuit||0
+  };
+}
+
+window._aeUpdateReview = function(){
+  var rv = document.getElementById('ae-review-lines');
+  if(!rv) return;
+  var d = _aeCollectEntry();
+  if(!d.first||!d.last||!d.horse){ rv.innerHTML='<div style="color:var(--muted);font-size:.84rem">Fill in Rider and Horse tabs to see summary.</div>'; return; }
+  var tempEntry = {
+    name:d.first+' '+d.last, firstName:d.first, lastName:d.last,
+    horse:d.horse, horseGender:d.horseGender, horseOwner:d.horseOwner,
+    horseRegNum:d.horseRegNum, horseDob:d.horseDob,
+    email:d.email, phone:d.phone,
+    memberNum:d.membs.memberNum||'',
+    memberSHTX:d.membs.memberSHTX||'', memberAQHA:d.membs.memberAQHA||'',
+    memberAPHA:d.membs.memberAPHA||'', memberApHC:d.membs.memberApHC||'',
+    memberNRHA:d.membs.memberNRHA||'',
+    classes:d.classes,
+    haulinQty:d.haulinQty,
+    stall1qty:d.stall1qty, stall2qty:d.stall2qty, stall3qty:d.stall3qty,
+    shavings:d.shavings, rv1qty:d.rv1qty, rv2qty:d.rv2qty, rvCircuit:d.rvCircuit,
+    needsMembership:'', orgFees:[], customFees:{}
+  };
+  var lines = buildTabLines(tempEntry);
+  var total = lines.reduce(function(s,l){return s+(l.amt||0);},0);
+  var linesHtml = lines.map(function(l){
+    return '<div style="display:flex;justify-content:space-between;padding:.2rem 0;font-size:.83rem;border-bottom:1px solid rgba(255,255,255,.04)">'
+      +'<span>'+esc(l.desc)+'</span><span style="color:var(--accent)">'+fmtI(l.amt)+'</span></div>';
+  }).join('');
+  rv.innerHTML = (linesHtml||'<div style="color:var(--muted);font-size:.83rem">No fees yet — select classes or housing.</div>')
+    +'<div style="display:flex;justify-content:space-between;margin-top:.5rem;padding-top:.4rem;border-top:1px solid var(--border2);font-weight:700">'
+    +'<span>Estimated Total</span><span style="color:var(--accent)">'+fmtI(total)+'</span></div>';
+};
+
+window.showAeTab = function(id){
+  _aeTab = id;
+  ['rider','horse','classes','housing','review'].forEach(function(t){
+    var panel = document.getElementById('aet-'+t);
+    var btn   = document.getElementById('aebt-'+t);
+    if(panel) panel.style.display = t===id?'':'none';
+    if(btn){
+      btn.style.borderBottomColor = t===id?'var(--accent)':'transparent';
+      btn.style.color = t===id?'var(--accent)':'var(--muted)';
+    }
+  });
+  if(id==='review') _aeUpdateReview();
+};
+
+function showAddEntryModal(){
+  _aeTab = 'rider';
+  var has = _aeHousingOfferings().length > 0;
+  var tabs = '<div style="display:flex;gap:0;border-bottom:1px solid var(--border2);background:var(--card2)">'
+    +_aeTabBtn('rider','Rider')
+    +_aeTabBtn('horse','Horse')
+    +_aeTabBtn('classes','Classes')
+    +(has ? _aeTabBtn('housing','Housing') : '')
+    +_aeTabBtn('review','Review')
+    +'</div>';
+  var panels = '<div id="aet-rider">'+_buildAeRiderTab()+'</div>'
+    +'<div id="aet-horse" style="display:none">'+_buildAeHorseTab()+'</div>'
+    +'<div id="aet-classes" style="display:none">'+_buildAeClassesTab()+'</div>'
+    +(has ? '<div id="aet-housing" style="display:none">'+_buildAeHousingTab()+'</div>' : '')
+    +'<div id="aet-review" style="display:none">'+_buildAeReviewTab()+'</div>';
+  var html = '<div class="modal-bg" id="add-entry-modal" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal" style="max-width:640px;padding:0;display:flex;flex-direction:column">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.3rem .65rem;border-bottom:1px solid var(--border2)">'
+    +'<h2 style="margin:0;font-size:1.15rem">Add Entry</h2>'
+    +'<button onclick="closeModal()" style="background:transparent;border:none;color:var(--muted);font-size:1.5rem;cursor:pointer;line-height:1;padding:0">&times;</button>'
+    +'</div>'
+    +tabs
+    +'<div style="padding:1.1rem 1.3rem;max-height:60vh;overflow-y:auto">'+panels+'</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;padding:.8rem 1.3rem;border-top:1px solid var(--border2);background:var(--card2)">'
+    +'<div id="ae-err" style="color:var(--red);font-size:.82rem"></div>'
+    +'<div style="display:flex;gap:.5rem">'
+    +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
+    +'<button class="btn btn-accent" onclick="saveManualEntry()">Add to Show</button>'
+    +'</div></div>'
+    +'</div></div>';
+  document.getElementById('modal-root').innerHTML = html;
+}
 
 function saveManualEntry(){
-
-  var first  = (document.getElementById('ae-first')||{value:''}).value.trim();
-
-  var last   = (document.getElementById('ae-last')||{value:''}).value.trim();
-
-  var horse  = (document.getElementById('ae-horse')||{value:''}).value.trim();
-
-  var email  = (document.getElementById('ae-email')||{value:''}).value.trim();
-
-  var phone  = (document.getElementById('ae-phone')||{value:''}).value.trim();
-
-  var cown   = (document.getElementById('ae-cown')||{value:''}).value.trim();
-
-  var back   = (document.getElementById('ae-back')||{value:''}).value.trim();
-
-  var gender = (document.getElementById('ae-gender')||{value:''}).value;
-
-  var stall1 = parseInt((document.getElementById('ae-stall1')||{value:'0'}).value)||0;
-
-  var stall2 = parseInt((document.getElementById('ae-stall2')||{value:'0'}).value)||0;
-
-  var shavings=parseInt((document.getElementById('ae-shavings')||{value:'0'}).value)||0;
-
-  var rv     = parseInt((document.getElementById('ae-rv')||{value:'0'}).value)||0;
-
-  var errEl  = document.getElementById('ae-err');
-
-
-
-  if(!first||!last){ errEl.textContent='Rider first and last name required'; return; }
-
-  if(!horse){ errEl.textContent='Horse name required'; return; }
-
-
-
-  // Get selected classes
-
-  var selectedClasses = [];
-
-  document.querySelectorAll('#add-entry-modal input[type=checkbox]:checked').forEach(function(cb){
-
-    var cls = G.cfg.classes.find(function(c){ return c._id===cb.dataset.classid; });
-
-    if(cls) selectedClasses.push({
-
-      num:cls.num, name:cls.name, division:cls.division,
-
-      org:cls.org||'CoWN', isCow:cls.isCow,
-
-      status:'entered',
-
-      feeCharged:(cls.baseFee||G.cfg.fees.classBase||0)+(cls.isCow?(cls.cowFee||G.cfg.fees.cowSurcharge||0):0)
-
-    });
-
-  });
-
-
-
-  // Derive division from first class
-
-  var division = selectedClasses.length ? selectedClasses[0].division : '';
-
-
-
-  // Create in-memory entry
-
+  var d = _aeCollectEntry();
+  var errEl = document.getElementById('ae-err');
+  if(!d.first||!d.last){ errEl.textContent='Rider first and last name required'; showAeTab('rider'); return; }
+  if(!d.horse){ errEl.textContent='Horse name required'; showAeTab('horse'); return; }
+  var division = d.classes.length ? d.classes[0].division : '';
   var rowIndex = G.entries.length;
-
   var entry = {
-
     rowIndex:rowIndex, dbId:null,
-
-    name:first+' '+last, firstName:first, lastName:last, horse:horse,
-
-    horseGender:gender, email:email, phone:phone,
-
-    memberNum:cown, division:division, assocRaw:'CoWN',
-
-    classes:selectedClasses,
-
-    stall1qty:stall1, stall2qty:stall2, shavings:shavings,
-
-    rv1qty:rv, rv2qty:0, rvCircuit:0, stallNote:'',
-
-    needsMembership:'', cognitoAmount:0, isPaid:false,
-
-    source:'manual'
-
+    name:d.first+' '+d.last, firstName:d.first, lastName:d.last, horse:d.horse,
+    horseGender:d.horseGender, horseOwner:d.horseOwner,
+    horseRegNum:d.horseRegNum||'', horseDob:d.horseDob||'',
+    email:d.email, phone:d.phone,
+    address:d.address, city:d.city, state:d.state,
+    isYouth:d.isYouth, dob:d.dob,
+    memberNum:d.membs.memberNum||'',
+    memberSHTX:d.membs.memberSHTX||'', memberAQHA:d.membs.memberAQHA||'',
+    memberAPHA:d.membs.memberAPHA||'', memberApHC:d.membs.memberApHC||'',
+    memberNRHA:d.membs.memberNRHA||'',
+    division:division, assocRaw:d.classes.length?d.classes[0].org||'CoWN':'CoWN',
+    classes:d.classes,
+    haulinQty:d.haulinQty||0,
+    stall1qty:d.stall1qty, stall2qty:d.stall2qty, stall3qty:d.stall3qty,
+    shavings:d.shavings, rv1qty:d.rv1qty, rv2qty:d.rv2qty, rvCircuit:d.rvCircuit, stallNote:'',
+    needsMembership:'', orgFees:[], customFees:{}, cognitoAmount:0, isPaid:false, source:'manual'
   };
-
   G.entries.push(entry);
-
   G.payments[rowIndex] = 0;
-
-  G.backNums[rowIndex] = back;
-
-
-
-  // Sync to Supabase if show is loaded
-
+  G.backNums[rowIndex] = d.back;
   if(G.showId){
-
     syncManualEntry(entry).then(function(){
-
-      toast('Entry added: '+first+' '+last+' on '+horse);
-
+      toast('Entry added: '+d.first+' '+d.last+' on '+d.horse);
     }).catch(function(err){
-
       toast('Added locally. DB sync failed: '+err.message, true);
-
     });
-
   } else {
-
-    toast('Entry added: '+first+' '+last+' on '+horse);
-
+    toast('Entry added: '+d.first+' '+d.last+' on '+d.horse);
   }
-
-
-
+  saveEntriesToStorage();
   closeModal();
-
   showPage('entries');
-
 }
 
 
 
 async function syncManualEntry(entry){
 
-  // Get association
-
-  var assocRows = await sbFetch('associations?abbreviation=eq.CoWN&select=id');
-
-  var assocId = assocRows && assocRows[0] ? assocRows[0].id : null;
-
+  // Get association — prefer G.assocId, fall back to abbreviation lookup
+  var assocId = G.assocId;
+  if(!assocId){
+    var abbr = (G.cfg && G.cfg.orgAbbrev) || 'CoWN';
+    var assocRows = await sbFetch('associations?abbreviation=eq.'+encodeURIComponent(abbr)+'&select=id');
+    assocId = assocRows && assocRows[0] ? assocRows[0].id : null;
+  }
   if(!assocId) throw new Error('Association not found');
 
-
-
-  var parts = entry.name.split(' ');
-
-  var firstName = parts[0], lastName = parts.slice(1).join(' ')||'(unknown)';
+  var firstName = entry.firstName || (entry.name||'').split(' ')[0] || '';
+  var lastName  = entry.lastName  || (entry.name||'').split(' ').slice(1).join(' ') || '(unknown)';
 
 
 
@@ -14814,11 +16012,13 @@ async function syncManualEntry(entry){
 
       show_id:G.showId, member_id:memberId, horse_id:horseId,
 
-      source:'manual', status:'active',
+      source:entry.source||'manual', status:'active',
 
-      stall_1night:entry.stall1qty, stall_2night:entry.stall2qty,
+      stall_1night:entry.stall1qty||0, stall_2night:entry.stall2qty||0,
+      stall_3night:entry.stall3qty||0,
 
-      shavings:entry.shavings, rv_1night:entry.rv1qty,
+      shavings:entry.shavings||0, rv_1night:entry.rv1qty||0,
+      rv_2night:entry.rv2qty||0, rv_circuit:entry.rvCircuit||0,
 
       total_owed:tabTotal(entry), total_paid:0,
 
@@ -14869,6 +16069,7 @@ async function syncShowClassesToSupabase(){
       division:     c.division||'',
       org:          c.org||'CoWN',
       is_cow:       !!c.isCow,
+      is_cutting:   !c.isCow && /cutting/i.test(c.name||''),
       is_jackpot:   !!(c.jackpot && c.jackpot > 0),
       base_fee:     c.baseFee||null,
       cow_fee:      c.cowFee||null,
@@ -15014,9 +16215,10 @@ async function syncEntriesToSupabase(){
 
         show_id: G.showId, member_id: memberId, horse_id: horseId,
 
-        source: 'cognito_import', status: 'active',
+        source: en.source||'cognito_import', status: 'active',
 
         stall_1night: en.stall1qty||0, stall_2night: en.stall2qty||0,
+        stall_3night: en.stall3qty||0,
 
         shavings: en.shavings||0, rv_1night: en.rv1qty||0,
 
@@ -15471,7 +16673,8 @@ async function boot(){
 
     G.cfg.location   = show.location     || G.cfg.location;
 
-    G.cfg.showStatus = show.status       || '';
+    G.cfg.showStatus     = show.status         || '';
+    G.cfg.entryDeadline  = show.entry_deadline || '';
 
     G.cfg.showId     = showId;
 
@@ -15492,8 +16695,11 @@ async function boot(){
           G.cfg.feeSchedule = saved;
           return;
         }
-        if(k==='_extraFees'){ G.cfg.extraFees = show.fee_config[k]||[]; return; }
-        if(k==='_assocFees'){ G.cfg.assocFees = show.fee_config[k]||[]; return; }
+        if(k==='_extraFees')       { G.cfg.extraFees        = show.fee_config[k]||[]; return; }
+        if(k==='_assocFees')       { G.cfg.assocFees        = show.fee_config[k]||[]; return; }
+        if(k==='_classPkgs')       { G.cfg.classPkgs        = show.fee_config[k]||[]; return; }
+        if(k==='_practiceSessions'){ G.cfg.practiceSessions = show.fee_config[k]||[]; return; }
+        if(k==='_clinicOptions')   { G.cfg.clinicOptions    = show.fee_config[k]||[]; return; }
         if(show.fee_config[k]!==null&&show.fee_config[k]!==undefined) G.cfg.fees[k]=show.fee_config[k];
       });
     }
@@ -15715,7 +16921,7 @@ async function boot(){
 
           classes:  entryClasses,
 
-          stall1qty: e.stall_1night||0, stall2qty:e.stall_2night||0,
+          stall1qty: e.stall_1night||0, stall2qty:e.stall_2night||0, stall3qty:e.stall_3night||0,
 
           shavings:  e.shavings||0,
 
