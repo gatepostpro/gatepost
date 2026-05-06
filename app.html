@@ -17031,11 +17031,7 @@ var ORG_META = {
   'Jackpot':    {icon:'💰', label:'Jackpot',             desc:'Open jackpot classes — Ranch Riding, Cutting. Not part of season points.'},
 };
 
-var WIZ = {
-  step:1, orgs:[], sel:{},
-  fees:{schedule:null, extras:[]},
-  days:1, dayDates:[''], classDays:{}, presetName:''
-};
+// WIZ state is declared at top of file with the new setup wizard
 
 function wizInitSel(org){
   if(WIZ.sel[org]) return;
@@ -17047,18 +17043,7 @@ function wizInitSel(org){
 }
 
 function openWizard(){
-  if(G.cfg.showOrgs && G.cfg.showOrgs.length){
-    WIZ.orgs = G.cfg.showOrgs.slice();
-    WIZ.orgs.forEach(function(org){ wizInitSel(org); });
-  }
-  // Init fee schedule from saved config or defaults
-  var src = G.cfg.feeSchedule || DEFAULT_FEE_SCHEDULE;
-  WIZ.fees.schedule = src.map(function(f){ return {key:f.key,label:f.label,amt:f.amt||0,cat:f.cat||'custom'}; });
-  // Pre-load show date into Day 1
-  if(G.cfg.showDate && !WIZ.dayDates[0]) WIZ.dayDates[0] = G.cfg.showDate;
-  WIZ.step = 1;
-  document.getElementById('wizard-overlay').style.display = 'flex';
-  wizRender();
+  showPage('wizard');
 }
 
 function closeWizard(){
