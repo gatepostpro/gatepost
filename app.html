@@ -635,11 +635,11 @@ var G = {
 
       shavings:12, rv1:40, rv2:80, rvCircuit:110,
 
-      office:0, membership1yr:60, membership3yr:150, membershipLife:200, dayLicense:25,
+      office:0, membership1yr:60, membership3yr:150, membershipLife:200,
 
       late:0, horseLicense:20,
 
-      classBase:30, cowSurcharge:15, jackpot:0, addedMoney:0
+      classBase:30, cowSurcharge:15, cuttingSurcharge:20, jackpot:0, addedMoney:0
 
     },
 
@@ -3294,7 +3294,6 @@ function buildTabLines(entry){
 
   else if(m.indexOf('life') > -1) lines.push({desc:feeLabel('membershipLife'), amt:f.membershipLife, type:'membership'});
 
-  else if(m.indexOf('day') > -1) lines.push({desc:feeLabel('dayLicense'), amt:f.dayLicense, type:'membership'});
 
 
 
@@ -3412,6 +3411,20 @@ function buildTabLines(entry){
   });
 
   // Custom import fee columns — qty captured at import × price set in Finances
+  // ── Practice sessions ──
+  if(entry.practiceSessions && entry.practiceSessions.length){
+    entry.practiceSessions.forEach(function(p){
+      lines.push({desc:p.label||'Practice Session', amt:+(p.price||0), type:'extra'});
+    });
+  }
+
+  // ── Clinics ──
+  if(entry.clinics && entry.clinics.length){
+    entry.clinics.forEach(function(c){
+      lines.push({desc:c.label||'Clinic', amt:+(c.price||0), type:'extra'});
+    });
+  }
+
   if(entry.customFees){
     var importSched = (G.cfg.feeSchedule||[]).filter(function(s){ return s.cat==='import'; });
     Object.keys(entry.customFees).forEach(function(name){
@@ -9850,7 +9863,6 @@ window.commitWizard = function(){
   // Per-org membership prices
   d.selectedOrgs.forEach(function(org){
     var mp = (d.orgConfig[org]||{}).membPrices||{};
-    if(mp.day  > 0) G.cfg.feeSchedule.push(fmtS('dayLicense_'+org, org+' — Day License','member',mp.day));
     if(mp.yr1  > 0) G.cfg.feeSchedule.push(fmtS('membership1yr_'+org, org+' — 1-Year Membership','member',mp.yr1));
     if(mp.yr3  > 0) G.cfg.feeSchedule.push(fmtS('membership3yr_'+org, org+' — 3-Year Membership','member',mp.yr3));
     if(mp.life > 0) G.cfg.feeSchedule.push(fmtS('membershipLife_'+org, org+' — Lifetime Membership','member',mp.life));
@@ -12356,7 +12368,7 @@ var FEE_ID_MAP = {
 
   office:'fee-office', membership1yr:'fee-membership-1yr', membership3yr:'fee-membership-3yr',
 
-  membershipLife:'fee-membership-life', dayLicense:'fee-day-license',
+  membershipLife:'fee-membership-life',
 
   late:'fee-late', horseLicense:'fee-horse-license',
 
@@ -12418,7 +12430,6 @@ var DEFAULT_FEE_SCHEDULE = [
   {key:'membership1yr',   label:'Membership — 1 Year',         amt:60,  cat:'member'},
   {key:'membership3yr',   label:'Membership — 3 Years',        amt:150, cat:'member'},
   {key:'membershipLife',  label:'Membership — Lifetime',       amt:200, cat:'member'},
-  {key:'dayLicense',      label:'Day License',                  amt:25,  cat:'member'},
   {key:'horseLicense',    label:'Horse License',                amt:20,  cat:'member'}
 ];
 
@@ -12914,7 +12925,7 @@ function applyConfigToUI(){
 
     office:'fee-office',membership1yr:'fee-membership-1yr',membership3yr:'fee-membership-3yr',
 
-    membershipLife:'fee-membership-life',dayLicense:'fee-day-license',
+    membershipLife:'fee-membership-life',
 
     late:'fee-late',horseLicense:'fee-horse-license',
 
@@ -14664,7 +14675,7 @@ function autoFillFeeAmt(feeType){
 
   else if(feeType.indexOf('Membership — Lifetime') === 0) amt = f.membershipLife||200;
 
-  else if(feeType.indexOf('Day License') === 0) amt = f.dayLicense||25;
+
 
   else if(feeType.indexOf('Horse License') === 0) amt = f.horseLicense||20;
 
@@ -15695,7 +15706,8 @@ function _buildAeHorseTab(){
     +_aeFG('Reg # (AQHA/breed)', _aeInp({id:'ae-hreg', placeholder:'optional'}))
     +_aeFG('Horse Date of Birth', _aeInp({id:'ae-hdob', type:'date'}))
     +'</div>'
-    +_aeFG('Owner (if different from rider)', _aeInp({id:'ae-howner', placeholder:'Owner name'}));
+    +_aeFG('Owner (if different from rider)', _aeInp({id:'ae-howner', placeholder:'Owner name'}))
+    +(_aeMembFields().some(function(f){return f.key==='memberAQHA';}) ? _aeFG('Owner AQHA # (if different from rider)', _aeInp({id:'ae-howner-aqha', placeholder:'Owner AQHA number'})) : '');
 }
 
 function _buildAeClassesTab(){
@@ -15720,7 +15732,8 @@ function _buildAeClassesTab(){
       html += '<div style="margin-bottom:.5rem">'
         +'<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.25rem">'+esc(div)+'</div>';
       divs[div].forEach(function(c){
-        var fee = (c.baseFee||G.cfg.fees.classBase||0) + (c.isCow?(c.cowFee||G.cfg.fees.cowSurcharge||0):0);
+        var isCutting = c.isCow && /cutt/i.test(c.name||'');
+        var fee = (c.baseFee||G.cfg.fees.classBase||0) + (isCutting ? (c.cuttingFee||G.cfg.fees.cuttingSurcharge||0) : c.isCow ? (c.cowFee||G.cfg.fees.cowSurcharge||0) : 0);
         html += '<label style="display:flex;align-items:center;gap:.5rem;padding:.28rem .3rem;font-size:.82rem;cursor:pointer;border-radius:4px" '
           +'onmouseover="this.style.background=\'rgba(200,146,42,.07)\'" onmouseout="this.style.background=\'\'">'
           +'<input type="checkbox" data-classid="'+esc(c._id)+'" class="ae-cls-cb" onchange="_aeUpdateReview()" style="accent-color:var(--accent)">'
@@ -15737,23 +15750,94 @@ function _buildAeClassesTab(){
 }
 
 function _buildAeHousingTab(){
-  var offers = _aeHousingOfferings();
-  if(!offers.length)
+  var html = '';
+  var stallPkgs = G.cfg.stallingPackages || [];
+  var rvPkgs    = G.cfg.rvPackages       || [];
+  var f         = G.cfg.fees || {};
+  var hasHaulin   = (f.haulin||0) > 0;
+  var hasShavings = (f.shavings||0) > 0;
+  var hasFlatStall = (f.stall1||0)+(f.stall2||0)+(f.stall3||0)+(f.stallCircuit||0) > 0;
+  var hasFlatRV    = (f.rv1||0)+(f.rv2||0)+(f.rvCircuit||0) > 0;
+
+  if(!stallPkgs.length && !rvPkgs.length && !hasFlatStall && !hasFlatRV && !hasHaulin && !hasShavings)
     return '<div class="tip">No housing fees configured. Set prices in Show Setup → Finances.</div>';
-  var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.65rem">';
-  offers.forEach(function(o){
-    html += '<div class="form-group">'
-      +'<label style="font-size:.78rem;color:var(--muted);margin-bottom:.25rem;display:block">'+esc(o.label)
-      +'<span style="color:var(--accent);margin-left:5px">'+fmtI(o.price)+' each</span></label>'
-      +'<input type="number" id="'+o.id+'" value="0" min="'+(o.min||0)+'" step="1" onchange="_aeUpdateReview()" '
+
+  if(hasHaulin){
+    html += '<div class="form-group" style="margin-bottom:.65rem">'
+      +'<label style="font-size:.78rem;color:var(--muted);margin-bottom:.25rem;display:block">Haul-In (per horse)'
+      +'<span style="color:var(--accent);margin-left:5px">'+fmtI(f.haulin)+' each</span></label>'
+      +'<input type="number" id="ae-haulin" value="0" min="0" step="1" onchange="_aeUpdateReview()" '
       +'style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);'
-      +'padding:.42rem .65rem;font-size:.9rem;width:100%;box-sizing:border-box">'
-      +(o.min>0?'<div style="font-size:.72rem;color:var(--muted);margin-top:.15rem">Min: '+o.min+'</div>':'')
-      +'</div>';
-  });
-  html += '</div>';
+      +'padding:.42rem .65rem;font-size:.9rem;width:100%;box-sizing:border-box"></div>';
+  }
+
+  if(stallPkgs.length){
+    html += '<div style="margin-bottom:1rem"><div style="font-family:Oswald;color:var(--accent);font-size:.88rem;margin-bottom:.4rem">Stall Options</div>';
+    stallPkgs.forEach(function(p){
+      html += '<label style="display:flex;align-items:center;gap:.6rem;padding:.35rem .3rem;font-size:.83rem;cursor:pointer;border-radius:4px" '
+        +'onmouseover="this.style.background=\'rgba(200,146,42,.07)\'" onmouseout="this.style.background=\'\'">'
+        +'<input type="radio" name="ae-stall-pkg" value="'+esc(p.id||p.label)+'" onchange="_aeUpdateReview()" style="accent-color:var(--accent)">'
+        +'<span>'+esc(p.label)+(p.price>0?' — <span style="color:var(--accent)">'+fmtI(+p.price)+'</span>':'')+'</span>'
+        +'</label>';
+    });
+    html += '<label style="display:flex;align-items:center;gap:.6rem;padding:.25rem .3rem;font-size:.8rem;color:var(--muted);cursor:pointer">'
+      +'<input type="radio" name="ae-stall-pkg" value="" onchange="_aeUpdateReview()" style="accent-color:var(--accent)"> No stalling</label></div>';
+  } else if(hasFlatStall){
+    html += '<div style="margin-bottom:1rem"><div style="font-family:Oswald;color:var(--accent);font-size:.88rem;margin-bottom:.4rem">Stalling</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.5rem">';
+    if(f.stall1>0) html += _aeQtyField('ae-stall1','Stall — Per Night',f.stall1);
+    if(f.stall2>0) html += _aeQtyField('ae-stall2','Stall — 2 Nights',f.stall2);
+    if(f.stall3>0) html += _aeQtyField('ae-stall3','Stall — 3 Nights',f.stall3);
+    if(f.stallCircuit>0) html += _aeQtyField('ae-stallc','Stall — Circuit',f.stallCircuit);
+    html += '</div></div>';
+  }
+
+  if(hasShavings){
+    html += '<div class="form-group" style="margin-bottom:.65rem">'
+      +'<label style="font-size:.78rem;color:var(--muted);margin-bottom:.25rem;display:block">Shavings (bags)'
+      +'<span style="color:var(--accent);margin-left:5px">'+fmtI(f.shavings)+' each</span></label>'
+      +'<input type="number" id="ae-shavings" value="0" min="0" step="1" onchange="_aeUpdateReview()" '
+      +'style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);'
+      +'padding:.42rem .65rem;font-size:.9rem;width:100%;box-sizing:border-box"></div>';
+  }
+
+  if(rvPkgs.length){
+    html += '<div style="margin-bottom:1rem"><div style="font-family:Oswald;color:var(--accent);font-size:.88rem;margin-bottom:.4rem">RV / Hookups</div>';
+    rvPkgs.forEach(function(p){
+      html += '<label style="display:flex;align-items:center;gap:.6rem;padding:.35rem .3rem;font-size:.83rem;cursor:pointer;border-radius:4px" '
+        +'onmouseover="this.style.background=\'rgba(200,146,42,.07)\'" onmouseout="this.style.background=\'\'">'
+        +'<input type="radio" name="ae-rv-pkg" value="'+esc(p.id||p.label)+'" onchange="_aeUpdateReview()" style="accent-color:var(--accent)">'
+        +'<span>'+esc(p.label)+(p.price>0?' — <span style="color:var(--accent)">'+fmtI(+p.price)+'</span>':'')+'</span>'
+        +'</label>';
+    });
+    html += '<label style="display:flex;align-items:center;gap:.6rem;padding:.25rem .3rem;font-size:.8rem;color:var(--muted);cursor:pointer">'
+      +'<input type="radio" name="ae-rv-pkg" value="" onchange="_aeUpdateReview()" style="accent-color:var(--accent)"> No RV</label></div>';
+  } else if(hasFlatRV){
+    html += '<div style="margin-bottom:1rem"><div style="font-family:Oswald;color:var(--accent);font-size:.88rem;margin-bottom:.4rem">RV / Hookups</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.5rem">';
+    if(f.rv1>0) html += _aeQtyField('ae-rv1','RV — Per Night',f.rv1);
+    if(f.rv2>0) html += _aeQtyField('ae-rv2','RV — 2 Nights',f.rv2);
+    if(f.rvCircuit>0) html += _aeQtyField('ae-rvc','RV — Circuit',f.rvCircuit);
+    html += '</div></div>';
+  }
+
+  html += '<div class="form-group" style="margin-top:.5rem">'
+    +'<label style="font-size:.78rem;color:var(--muted);margin-bottom:.25rem;display:block">Stall Group / Label (optional)</label>'
+    +'<input type="text" id="ae-stallgroup" placeholder="e.g. barn name or aisle" '
+    +'style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%;box-sizing:border-box"></div>';
+
   return html;
 }
+
+function _aeQtyField(id, label, price){
+  return '<div class="form-group">'
+    +'<label style="font-size:.78rem;color:var(--muted);margin-bottom:.25rem;display:block">'+esc(label)
+    +'<span style="color:var(--accent);margin-left:5px">'+fmtI(price)+' each</span></label>'
+    +'<input type="number" id="'+id+'" value="0" min="0" step="1" onchange="_aeUpdateReview()" '
+    +'style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);'
+    +'padding:.42rem .65rem;font-size:.9rem;width:100%;box-sizing:border-box"></div>';
+}
+
 
 function _buildAeReviewTab(){
   return '<div id="ae-review-lines" style="min-height:60px"><div style="color:var(--muted);font-size:.84rem">Select classes and housing to see fee summary.</div></div>';
@@ -15771,12 +15855,27 @@ function _aeCollectEntry(){
     if(cls) selectedClasses.push({
       num:cls.num, name:cls.name, division:cls.division, org:cls.org||'CoWN', isCow:cls.isCow,
       status:'entered',
-      feeCharged:(cls.baseFee||G.cfg.fees.classBase||0)+(cls.isCow?(cls.cowFee||G.cfg.fees.cowSurcharge||0):0)
+      feeCharged:(cls.baseFee||G.cfg.fees.classBase||0)+(/cutt/i.test(cls.name||'')&&cls.isCow?(cls.cuttingFee||G.cfg.fees.cuttingSurcharge||0):cls.isCow?(cls.cowFee||G.cfg.fees.cowSurcharge||0):0)
     });
   });
-  var offers = _aeHousingOfferings();
-  var housing = {};
-  offers.forEach(function(o){ housing[o.field] = n(o.id); });
+  var stallPkgs = G.cfg.stallingPackages || [];
+  var rvPkgs    = G.cfg.rvPackages       || [];
+  var stallPkgEl = document.querySelector('input[name="ae-stall-pkg"]:checked');
+  var rvPkgEl    = document.querySelector('input[name="ae-rv-pkg"]:checked');
+  var housing = {
+    stallingPackageId: stallPkgs.length ? (stallPkgEl ? stallPkgEl.value : '') : '',
+    rvPackageId:       rvPkgs.length    ? (rvPkgEl    ? rvPkgEl.value    : '') : '',
+    haulinQty:    n('ae-haulin'),
+    stall1qty:    stallPkgs.length ? 0 : n('ae-stall1'),
+    stall2qty:    stallPkgs.length ? 0 : n('ae-stall2'),
+    stall3qty:    stallPkgs.length ? 0 : n('ae-stall3'),
+    stallCircuit: stallPkgs.length ? 0 : n('ae-stallc'),
+    shavings:     n('ae-shavings'),
+    rv1qty:       rvPkgs.length ? 0 : n('ae-rv1'),
+    rv2qty:       rvPkgs.length ? 0 : n('ae-rv2'),
+    rvCircuit:    rvPkgs.length ? 0 : n('ae-rvc'),
+    stallingGroup: f('ae-stallgroup')
+  };
   var membFields = _aeMembFields();
   var membs = {};
   membFields.forEach(function(mf){ membs[mf.key] = f('ae-mb-'+mf.key); });
@@ -15791,14 +15890,35 @@ function _aeCollectEntry(){
     horseRegNum:f('ae-hreg'), horseDob:f('ae-hdob'),
     membs:membs,
     classes:selectedClasses,
+    stallingPackageId:housing.stallingPackageId||'',
+    rvPackageId:housing.rvPackageId||'',
     haulinQty:housing.haulinQty||0,
     stall1qty:housing.stall1qty||0,
     stall2qty:housing.stall2qty||0,
     stall3qty:housing.stall3qty||0,
+    stallCircuit:housing.stallCircuit||0,
     shavings: housing.shavings||0,
     rv1qty:   housing.rv1qty||0,
     rv2qty:   housing.rv2qty||0,
-    rvCircuit:housing.rvCircuit||0
+    rvCircuit:housing.rvCircuit||0,
+    stallingGroup:housing.stallingGroup||'',
+    practiceSessions: (function(){
+      var sel=[];
+      document.querySelectorAll('.ae-prac-cb:checked').forEach(function(cb){
+        var p=(G.cfg.practiceSessions||[]).find(function(x){return (x.id||x.label)===cb.dataset.pracid;});
+        if(p) sel.push({id:cb.dataset.pracid, label:p.label, price:+p.price||0});
+      });
+      return sel;
+    })(),
+    clinics: (function(){
+      var sel=[];
+      document.querySelectorAll('.ae-clin-cb:checked').forEach(function(cb){
+        var c=(G.cfg.clinicOptions||[]).find(function(x){return (x.id||x.label)===cb.dataset.clinid;});
+        if(c) sel.push({id:cb.dataset.clinid, label:c.label, price:+c.price||0});
+      });
+      return sel;
+    })(),
+    ownerAqha: f('ae-howner-aqha')
   };
 }
 
@@ -15820,7 +15940,8 @@ window._aeUpdateReview = function(){
     haulinQty:d.haulinQty,
     stall1qty:d.stall1qty, stall2qty:d.stall2qty, stall3qty:d.stall3qty,
     shavings:d.shavings, rv1qty:d.rv1qty, rv2qty:d.rv2qty, rvCircuit:d.rvCircuit,
-    needsMembership:'', orgFees:[], customFees:{}
+    needsMembership:'', orgFees:[], customFees:{},
+    practiceSessions:d.practiceSessions||[], clinics:d.clinics||[]
   };
   var lines = buildTabLines(tempEntry);
   var total = lines.reduce(function(s,l){return s+(l.amt||0);},0);
@@ -15835,7 +15956,7 @@ window._aeUpdateReview = function(){
 
 window.showAeTab = function(id){
   _aeTab = id;
-  ['rider','horse','classes','housing','review'].forEach(function(t){
+  ['rider','horse','classes','housing','extras','review'].forEach(function(t){
     var panel = document.getElementById('aet-'+t);
     var btn   = document.getElementById('aebt-'+t);
     if(panel) panel.style.display = t===id?'':'none';
@@ -15850,18 +15971,20 @@ window.showAeTab = function(id){
 function showAddEntryModal(){
   _aeTab = 'rider';
   var has = _aeHousingOfferings().length > 0;
+  var hasExtras = (G.cfg.practiceSessions||[]).length > 0 || (G.cfg.clinicOptions||[]).length > 0;
   var tabs = '<div style="display:flex;gap:0;border-bottom:1px solid var(--border2);background:var(--card2)">'
     +_aeTabBtn('rider','Rider')
     +_aeTabBtn('horse','Horse')
     +_aeTabBtn('classes','Classes')
     +(has ? _aeTabBtn('housing','Housing') : '')
+    +(hasExtras ? _aeTabBtn('extras','Extras') : '')
     +_aeTabBtn('review','Review')
     +'</div>';
   var panels = '<div id="aet-rider">'+_buildAeRiderTab()+'</div>'
     +'<div id="aet-horse" style="display:none">'+_buildAeHorseTab()+'</div>'
     +'<div id="aet-classes" style="display:none">'+_buildAeClassesTab()+'</div>'
     +(has ? '<div id="aet-housing" style="display:none">'+_buildAeHousingTab()+'</div>' : '')
-    +'<div id="aet-review" style="display:none">'+_buildAeReviewTab()+'</div>';
+    +(hasExtras?'<div id="aet-extras" style="display:none">'+_buildAeExtrasTab()+'</div>':'')+'<div id="aet-review" style="display:none">'+_buildAeReviewTab()+'</div>';
   var html = '<div class="modal-bg" id="add-entry-modal" onclick="if(event.target===this)closeModal()">'
     +'<div class="modal" style="max-width:640px;padding:0;display:flex;flex-direction:column">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.3rem .65rem;border-bottom:1px solid var(--border2)">'
@@ -15901,10 +16024,15 @@ function saveManualEntry(){
     memberNRHA:d.membs.memberNRHA||'',
     division:division, assocRaw:d.classes.length?d.classes[0].org||'CoWN':'CoWN',
     classes:d.classes,
+    stallingPackageId:d.stallingPackageId||'', rvPackageId:d.rvPackageId||'',
     haulinQty:d.haulinQty||0,
     stall1qty:d.stall1qty, stall2qty:d.stall2qty, stall3qty:d.stall3qty,
-    shavings:d.shavings, rv1qty:d.rv1qty, rv2qty:d.rv2qty, rvCircuit:d.rvCircuit, stallNote:'',
-    needsMembership:'', orgFees:[], customFees:{}, cognitoAmount:0, isPaid:false, source:'manual'
+    stallCircuit:d.stallCircuit||0,
+    shavings:d.shavings, rv1qty:d.rv1qty, rv2qty:d.rv2qty, rvCircuit:d.rvCircuit,
+    stallNote:d.stallingGroup||'',
+    needsMembership:'', orgFees:[], customFees:{}, cognitoAmount:0, isPaid:false, source:'manual',
+    practiceSessions:d.practiceSessions||[], clinics:d.clinics||[],
+    ownerAqha:d.ownerAqha||''
   };
   G.entries.push(entry);
   G.payments[rowIndex] = 0;
