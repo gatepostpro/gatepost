@@ -1,10 +1,11 @@
 # Dead Code & Broken Reference Check
 
-Run a full static audit of app.html and entry-form.html to find:
-1. onclick/oninput/onchange handlers calling functions not defined in the file
-2. Any remaining references to the old WIZ shape (WIZ.fees, WIZ.orgs, WIZ.sel)
+Scans app.html and entry-form.html for:
+1. `onclick`/`oninput`/`onchange` handlers (in raw HTML **and** in JS-generated HTML strings) calling functions not defined in the file
+2. Stale WIZ shape references that would crash the wizard
+3. `_wizValidate()` called before `_wizSave()` in the same function (save must precede validate so DOM values are in WIZ.data first)
 
-Do NOT spawn a subagent. Run the Bash tool directly with this Node.js script:
+Do NOT spawn a subagent. Run the Bash tool directly with this script:
 
 ```bash
 cd "h:/My Drive/gatepost" && node -e "
@@ -14,7 +15,7 @@ function auditFile(filename) {
   const src = fs.readFileSync(filename, 'utf8');
   const issues = [];
 
-  // ── Extract all JS from <script> blocks ──
+  // ── Extract JS from <script> blocks ──
   const scriptRe = /<script[^>]*>([\s\S]*?)<\/script>/gi;
   let m;
   const jsChunks = [];
@@ -23,50 +24,46 @@ function auditFile(filename) {
 
   // ── Collect all defined function names ──
   const defined = new Set();
-  // function foo(  /  async function foo(
   let re = /(?:^|[\s;{(,])(?:async\s+)?function\s+(\w+)\s*\(/gm;
   while ((m = re.exec(fullJs)) !== null) defined.add(m[1]);
-  // var foo = function(
   re = /(?:var|let|const)\s+(\w+)\s*=\s*(?:async\s+)?function[\s(*]/gm;
   while ((m = re.exec(fullJs)) !== null) defined.add(m[1]);
-  // window['foo'] = function(  or  window.foo = function(
   re = /window\['(\w+)'\]\s*=\s*function|window\[\"(\w+)\"\]\s*=\s*function|window\.(\w+)\s*=\s*(?:async\s+)?function/gm;
   while ((m = re.exec(fullJs)) !== null) defined.add(m[1] || m[2] || m[3]);
 
-  // ── Collect global function calls from HTML event handlers ──
-  // Handlers look like: onclick=\"foo()\" or onclick=\"foo(1,2); bar()\"
-  // We want to find calls that are NOT preceded by . (method calls) or known globals
+  // ── Collect handler call names from TWO sources ──
+  // Source A: raw HTML attributes  onclick=\"foo()\"
+  // Source B: JS string literals   '...onclick=\"foo()\"...'  (dynamically generated HTML)
   const handlerCalls = new Set();
   const KNOWN_GLOBALS = new Set([
     'if','for','while','switch','function','return','typeof','instanceof',
     'parseInt','parseFloat','isNaN','isFinite','encodeURIComponent','decodeURIComponent',
     'Object','Array','JSON','Math','Date','Number','String','Boolean','RegExp','Error',
     'console','alert','confirm','prompt','setTimeout','clearTimeout','setInterval','clearInterval',
-    'fetch','Promise','Map','Set',
-    // browser globals that appear in handlers
-    'window','document','event','this','self','globalThis',
+    'fetch','Promise','Map','Set','window','document','event','this','self',
   ]);
-  const SKIP_METHOD_PREFIXES = /(?:window|document|event|this|self|console|Math|JSON|Object|Array|Number|String|Date|Promise|navigator|location|history|e|el|node|target|src|g|v|p|f|s|c|d|r|m|n|i|j|k)\s*\.\s*\$/;
 
-  const attrRe = /\bon(?:click|input|change|submit|blur|focus|keyup|keydown|mousedown|mouseup|dblclick)\s*=\s*[\"']([^\"']+)[\"']/gi;
-  while ((m = attrRe.exec(src)) !== null) {
-    const handlerStr = m[1];
-    // Find every word( pattern in the handler
+  function extractCalls(handlerStr) {
     const callRe = /([a-zA-Z_\$][\w\$]*)\s*\(/g;
     let c;
     while ((c = callRe.exec(handlerStr)) !== null) {
       const name = c[1];
-      const pos = c.index;
-      // Skip if preceded by a dot (method call)
-      const before = handlerStr.slice(0, pos).trimEnd();
-      if (before.endsWith('.')) continue;
-      // Skip known browser/JS globals
+      const before = handlerStr.slice(0, c.index).trimEnd();
+      if (before.endsWith('.')) continue;       // method call — skip
       if (KNOWN_GLOBALS.has(name)) continue;
-      // Skip single-char identifiers (likely loop vars leaked into handler)
       if (name.length === 1) continue;
       handlerCalls.add(name);
     }
   }
+
+  // Source A: raw HTML
+  const htmlAttrRe = /\bon(?:click|input|change|submit|blur|focus|keyup|keydown|mousedown|mouseup|dblclick)\s*=\s*[\"']([^\"']+)[\"']/gi;
+  while ((m = htmlAttrRe.exec(src)) !== null) extractCalls(m[1]);
+
+  // Source B: JS strings containing onclick= (dynamically built HTML)
+  // Match both single and double quoted string segments containing onclick
+  const jsStrRe = /[\"'`]([^\"'`]*on(?:click|input|change|submit|blur|focus|keyup|keydown)[^\"'`]*)[\"'`]/g;
+  while ((m = jsStrRe.exec(fullJs)) !== null) extractCalls(m[1]);
 
   // ── Check 1: Handlers calling undefined functions ──
   for (const name of handlerCalls) {
@@ -75,17 +72,29 @@ function auditFile(filename) {
     }
   }
 
-  // ── Check 2: Old WIZ shape references (would crash the new wizard) ──
+  // ── Check 2: Stale WIZ shape references ──
   const stalePatterns = [
-    { pat: 'WIZ\\.fees', label: 'WIZ.fees' },
-    { pat: 'WIZ\\.orgs\\b', label: 'WIZ.orgs' },
-    { pat: 'WIZ\\.sel\\b', label: 'WIZ.sel' },
-    { pat: 'WIZ\\.days\\b', label: 'WIZ.days' },
-    { pat: 'wizard-overlay', label: '#wizard-overlay element' },
+    { pat: 'WIZ\\.fees', label: 'WIZ.fees (old shape)' },
+    { pat: 'WIZ\\.orgs\\b', label: 'WIZ.orgs (old shape)' },
+    { pat: 'WIZ\\.sel\\b', label: 'WIZ.sel (old shape)' },
+    { pat: 'WIZ\\.days\\b', label: 'WIZ.days (old shape)' },
+    { pat: 'wizard-overlay', label: '#wizard-overlay (removed element)' },
   ];
   for (const { pat, label } of stalePatterns) {
     if (new RegExp(pat).test(src)) {
       issues.push({ sev: 'CRITICAL', msg: 'Stale reference: ' + label });
+    }
+  }
+
+  // ── Check 3: _wizValidate() called before _wizSave() in the same function ──
+  // wizNext must save DOM values into WIZ.data before validating them
+  const fnBodyRe = /(?:function\s+\w+|window\.\w+\s*=\s*(?:async\s+)?function)\s*\([^)]*\)\s*\{([^}]+)\}/g;
+  while ((m = fnBodyRe.exec(fullJs)) !== null) {
+    const body = m[1];
+    const savePos = body.indexOf('_wizSave(');
+    const valPos  = body.indexOf('_wizValidate(');
+    if (savePos !== -1 && valPos !== -1 && valPos < savePos) {
+      issues.push({ sev: 'CRITICAL', msg: '_wizValidate() called before _wizSave() — DOM values not in WIZ.data yet when validation runs' });
     }
   }
 
@@ -97,42 +106,35 @@ function auditFile(filename) {
   console.log('AUDIT: ' + file);
   console.log('='.repeat(60));
   try {
-    const { issues } = auditFile(file);
+    const { issues, defined, handlerCalls } = auditFile(file);
     const crits = issues.filter(i => i.sev === 'CRITICAL');
-    const warns = issues.filter(i => i.sev === 'WARN');
+    console.log('Functions defined: ' + defined.size + ' | Handler call sites scanned: ' + handlerCalls.size);
     if (crits.length) {
       console.log('\nCRITICAL — fix before committing:');
       crits.forEach(i => console.log('  X ' + i.msg));
+    } else {
+      console.log('  OK - no issues found');
     }
-    if (warns.length) {
-      console.log('\nWARN — verify these are truly unused:');
-      warns.forEach(i => console.log('  ? ' + i.msg));
-    }
-    if (!crits.length && !warns.length) console.log('  OK - no issues found');
-    else if (!crits.length) console.log('\n  OK - no critical issues');
   } catch(e) {
-    console.log('ERROR running audit on ' + file + ': ' + e.message);
+    console.log('ERROR: ' + e.message);
   }
 });
 "
 ```
 
-## Interpreting results
+## What each check catches
 
-**CRITICAL** — must fix before committing:
-- **Handler calls undefined function**: that button/input is silently broken at runtime (no error, just nothing happens). Either the function was renamed, never written, or the onclick string has a typo.
-- **Stale reference**: Old WIZ shape (`WIZ.fees`, `WIZ.orgs`, `WIZ.sel`) or orphaned HTML elements that will crash at runtime.
-
-**False positives to watch for:**
-- Dynamically constructed function names via `window['wizAdd'+prefix]` — the static scanner cannot see those; verify manually that the prefix matches the call site string.
-- Functions only called from `init()` startup code or from the Supabase callback chain — these have low ref counts but are real entry points.
+| Check | What it finds | Example bugs caught |
+|---|---|---|
+| Handler → undefined function (HTML) | Raw `onclick=` in markup calling a missing function | `closeWizard()` after redirect |
+| Handler → undefined function (JS strings) | `pkgBlock` / `extraBlock` / `renderFoo` generating HTML with `onclick=` calling a misnamed function | `wizAddStall` vs `wizAddstallingPackages` |
+| Stale WIZ refs | Old wizard shape properties left in code | `WIZ.fees`, `WIZ.orgs`, `#wizard-overlay` |
+| Validate-before-save | `_wizValidate()` runs before `_wizSave()` reads DOM | Show name required alert despite text entered |
 
 ## When to run
 
-Run `/dead-code-check` after any session that:
-- Adds new onclick/oninput handlers or buttons
-- Renames or removes functions
-- Replaces or rewrites major UI sections (wizard steps, page renderers)
-- Redirects `openFoo()` / `closeFoo()` style entry points
-
-The check takes under 5 seconds and catches the class of bug that previously left the entire stalling/RV package UI silently broken.
+After any session that:
+- Adds or renames `onclick`/`oninput` handlers (raw or in JS-built HTML strings)
+- Adds new wizard steps or restructures step flow
+- Renames or removes functions called from buttons
+- Redirects entry-point functions (`openWizard`, `closeWizard`, etc.)
