@@ -9390,7 +9390,7 @@ function _wizNav(){
 }
 
 window.wizBack = function(){ _wizSave(); WIZ.step = Math.max(0, WIZ.step-1); _wizRender(); window.scrollTo(0,0); };
-window.wizNext = function(){ if(!_wizValidate()) return; _wizSave(); WIZ.step = Math.min(WIZ.totalSteps-1, WIZ.step+1); _wizRender(); window.scrollTo(0,0); };
+window.wizNext = function(){ _wizSave(); if(!_wizValidate()) return; WIZ.step = Math.min(WIZ.totalSteps-1, WIZ.step+1); _wizRender(); window.scrollTo(0,0); };
 
 function _wizValidate(){
   var d = WIZ.data;
