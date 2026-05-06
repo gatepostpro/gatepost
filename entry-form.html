@@ -82,8 +82,10 @@
     .class-item-num  { font-size: 0.75rem; color: var(--text2); margin-bottom: 2px; }
     .class-item-fee  { font-size: 0.85rem; color: var(--accent); white-space: nowrap; }
 
-    /* ── Membership grid ── */
-    .memb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    /* ── Membership toggles ── */
+    .memb-toggle { background: var(--card2); border: 1px solid var(--border2); color: var(--text2); border-radius: 5px; padding: .3rem .7rem; font-size: .85rem; cursor: pointer; transition: border-color .12s, color .12s; }
+    .memb-toggle:hover { border-color: var(--accent); color: var(--fg); }
+    .memb-toggle.active { border-color: var(--accent); color: var(--accent); background: #162518; }
 
     /* ── Stall/RV qty rows ── */
     .qty-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
@@ -207,20 +209,30 @@ var SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJl
 // ── App state ─────────────────────────────────────────────────────────────────
 var SHOW    = null;   // shows row
 var CLASSES = [];     // show_classes rows
-var FEE     = {};     // fee_config flattened
-var STEP    = 0;
-var STEPS   = [];     // populated after show loads
+var FEE       = {};     // fee_config flattened
+var STEP      = 0;
+var STEPS     = [];     // populated after show loads
+var isPreview = false;  // set to true when ?preview=1 — bypasses status gates, disables submit
 
 var FORM = {
   riderFirst: '', riderLast: '', email: '', phone: '',
   address1: '', city: '', state: '', zip: '',
   isYouth: false, dob: '',
   horseName: '', horseGender: '', horseOwner: '',
+  horseRegNum: '', horseDob: '',
   selectedClassIds: [],
   memberships: {},
+  memberStatus: {},     // {org: 'current'|'notmember'|'buy_day'|'buy_1yr'|'buy_3yr'|'buy_life'}
+  memberOwner: '',
   stall1qty: 0, stall2qty: 0, stall3qty: 0,
   shavings: 0, rv1qty: 0, rv2qty: 0, rvCircuit: 0,
+  haulinQty: 0,
+  selectedOrgs: [],     // orgs the rider wants to enter (empty = all)
+  stallingPackageId: '', rvPackageId: '',
+  stallingArrival: '', stallingDeparture: '', rvArrival: '', rvDeparture: '',
   stallingGroup: '',
+  clinicChoice: '',
+  practiceSessions: [],
   waiverAgreed: false
 };
 
@@ -261,18 +273,32 @@ async function sbPost(table, body) {
 async function init() {
   var params = new URLSearchParams(location.search);
   var showId = params.get('show');
+  isPreview = params.get('preview') === '1';
   if(!showId) return showError('No Show Specified', 'This link is missing a show ID. Contact the show secretary for the correct entry link.');
   try {
     var shows = await sbGet('shows?id=eq.'+showId+'&select=*');
     if(!shows || !shows.length) return showError('Show Not Found', 'This entry form link is not valid. Contact the show secretary.');
     SHOW = shows[0];
-    if(SHOW.status === 'setup') return showError('Entries Not Open Yet', 'Online entries for '+SHOW.name+' are not open yet. Check back soon.');
-    if(SHOW.status === 'entries_closed') return showError('Entries Closed', 'The entry deadline has passed for '+SHOW.name+'.');
-    if(SHOW.status === 'complete') return showError('Show Complete', SHOW.name+' has already taken place.');
+    if(!isPreview){
+      if(SHOW.status === 'setup') return showError('Entries Not Open Yet', 'Online entries for '+SHOW.name+' are not open yet. Check back soon.');
+      if(SHOW.status === 'entries_closed') return showError('Entries Closed', 'The entry deadline has passed for '+SHOW.name+'.');
+      if(SHOW.status === 'running') return showError('Show In Progress', SHOW.name+' is currently in progress. Online entries are closed.');
+      if(SHOW.status === 'complete') return showError('Show Complete', SHOW.name+' has already taken place.');
+      if(SHOW.entry_deadline){
+        var deadline = new Date(SHOW.entry_deadline+'T23:59:59');
+        if(new Date() > deadline) return showError('Entries Closed', 'The entry deadline for '+SHOW.name+' was '+fmtDate(SHOW.entry_deadline)+'. Online entries are now closed.');
+      }
+    }
     CLASSES = await sbGet('show_classes?show_id=eq.'+showId+'&order=run_order.asc');
     FEE = SHOW.fee_config || {};
     document.getElementById('header-show-name').textContent = SHOW.name;
     document.title = SHOW.name+' — Entry Form';
+    if(isPreview){
+      var banner = document.createElement('div');
+      banner.style.cssText = 'background:#2a1a08;border-bottom:2px solid #c8922a;padding:8px 20px;font-size:.82rem;color:#e0a830;text-align:center';
+      banner.textContent = '⚠ SECRETARY PREVIEW — submissions are disabled in preview mode';
+      document.body.insertBefore(banner, document.body.firstChild);
+    }
     buildSteps();
     startWizard();
   } catch(e) {
@@ -290,19 +316,34 @@ function showError(title, msg) {
 }
 
 function hasStalling() {
-  return (FEE.stall1||0) > 0 || (FEE.stall2||0) > 0 || (FEE.stall3||0) > 0
-      || (FEE.rv1||0)    > 0 || (FEE.rv2||0)    > 0 || (FEE.rvCircuit||0) > 0;
+  var pkgs = (FEE._stallingPackages||[]).some(function(p){ return +p.price > 0; });
+  var rvPkgs = (FEE._rvPackages||[]).some(function(p){ return +p.price > 0; });
+  return pkgs || rvPkgs
+      || (FEE.stall1||0) > 0 || (FEE.stall2||0) > 0 || (FEE.stall3||0) > 0
+      || (FEE.rv1||0)    > 0 || (FEE.rv2||0)    > 0 || (FEE.rvCircuit||0) > 0
+      || (FEE.haulin||0) > 0;
+}
+
+function hasPractice() {
+  var ps = FEE._practiceSessions;
+  var co = FEE._clinicOptions;
+  return (Array.isArray(ps) && ps.length > 0) || (Array.isArray(co) && co.length > 0);
 }
 
 function buildSteps() {
+  var availOrgs = (FEE._selectedOrgs||[]).filter(function(o){ return CLASSES.some(function(c){ return (c.org||'General')===o; }); });
   STEPS = [
     {id:'welcome',     title:'Welcome',        fn:renderWelcome},
     {id:'rider',       title:'Rider Info',     fn:renderRider},
     {id:'horse',       title:'Horse',          fn:renderHorse},
-    {id:'classes',     title:'Classes',        fn:renderClasses},
-    {id:'memberships', title:'Member Numbers', fn:renderMemberships},
   ];
-  if(hasStalling()) STEPS.push({id:'stalling', title:'Stalling & RV', fn:renderStalling});
+  if(availOrgs.length > 1) STEPS.push({id:'orgs', title:'Associations', fn:renderOrgFilter});
+  STEPS.push(
+    {id:'classes',     title:'Classes',        fn:renderClasses},
+    {id:'memberships', title:'Member Numbers', fn:renderMemberships}
+  );
+  if(hasStalling())  STEPS.push({id:'stalling', title:'Stalling & RV',      fn:renderStalling});
+  if(hasPractice())  STEPS.push({id:'practice', title:'Practice & Clinics',  fn:renderPractice});
   STEPS.push({id:'summary', title:'Summary', fn:renderSummary});
 }
 
@@ -335,6 +376,7 @@ function saveCurrentStep() {
   if(id === 'horse')       saveHorse();
   if(id === 'memberships') saveMemberships();
   if(id === 'stalling')    saveStalling();
+  if(id === 'practice')    savePractice();
 }
 
 function renderStep(idx) {
@@ -515,16 +557,24 @@ function renderHorse(wrap) {
   html += '<input id="f-horseName" value="'+esc(f.horseName)+'" placeholder="Horse\'s registered name">';
   html += '</div>';
 
-  html += '<div class="form-row"><label>Gender <span class="req">*</span></label>';
+  html += '<div class="form-row half"><div>';
+  html += '<label>Gender <span class="req">*</span></label>';
   html += '<select id="f-horseGender"><option value="">— select —</option>';
   ['Mare','Gelding','Stallion'].forEach(function(g){
     html += '<option'+(f.horseGender===g?' selected':'')+'>'+g+'</option>';
   });
-  html += '</select></div>';
+  html += '</select></div><div>';
+  html += '<label>Date of Birth</label>';
+  html += '<input id="f-horseDob" type="date" value="'+esc(f.horseDob)+'">';
+  html += '</div></div>';
 
-  html += '<div class="form-row"><label>Owner (if different from rider)</label>';
+  html += '<div class="form-row half"><div>';
+  html += '<label>Registration # <span style="color:var(--text2)">(AQHA / breed reg)</span></label>';
+  html += '<input id="f-horseRegNum" value="'+esc(f.horseRegNum)+'" placeholder="optional">';
+  html += '</div><div>';
+  html += '<label>Owner (if different from rider)</label>';
   html += '<input id="f-horseOwner" value="'+esc(f.horseOwner)+'" placeholder="Owner\'s full name">';
-  html += '</div>';
+  html += '</div></div>';
 
   html += '</div>';
   wrap.innerHTML = html;
@@ -535,14 +585,17 @@ function saveHorse() {
   FORM.horseName   = g('f-horseName');
   FORM.horseGender = g('f-horseGender');
   FORM.horseOwner  = g('f-horseOwner');
+  FORM.horseRegNum = g('f-horseRegNum');
+  FORM.horseDob    = g('f-horseDob');
 }
 
 // ── Step: Classes ─────────────────────────────────────────────────────────────
 function getClassFee(c) {
-  var base = c.base_fee  != null ? +c.base_fee  : +(FEE.classBase     || 0);
-  var cow  = c.is_cow    ? (c.cow_fee  != null ? +c.cow_fee  : +(FEE.cowSurcharge || 0)) : 0;
+  var base = c.base_fee  != null ? +c.base_fee  : +(FEE.classBase      || 0);
+  var cow  = c.is_cow     ? (c.cow_fee != null ? +c.cow_fee : +(FEE.cowSurcharge   || 0)) : 0;
+  var cut  = c.is_cutting ? +(FEE.cuttingSurcharge || 0) : 0;
   var jpot = c.is_jackpot ? +(c.jackpot_fee || 0) : 0;
-  return base + cow + jpot;
+  return base + cow + cut + jpot;
 }
 
 function toggleClass(id) {
@@ -552,12 +605,47 @@ function toggleClass(id) {
   renderClasses(document.getElementById('wizard'));
 }
 
+function renderOrgFilter(wrap) {
+  var availOrgs = (FEE._selectedOrgs||[]).filter(function(o){
+    return CLASSES.some(function(c){ return (c.org||'General')===o; });
+  });
+  var selected = FORM.selectedOrgs.length > 0 ? FORM.selectedOrgs : availOrgs.slice();
+
+  var html = '<div class="card">';
+  html += '<div class="step-title">Associations</div>';
+  html += '<div class="step-sub">Choose which associations you want to enter. This narrows the class list to just what is relevant for you.</div>';
+  availOrgs.forEach(function(org) {
+    var checked = selected.indexOf(org) >= 0;
+    html += '<div class="class-item' + (checked ? ' selected' : '') + '" onclick="toggleOrgFilter(\'' + esc(org) + '\')" style="margin-bottom:6px">';
+    html += '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onclick="event.stopPropagation();toggleOrgFilter(\'' + esc(org) + '\')">'; 
+    html += '<span style="font-weight:600;font-size:1rem">' + esc(org) + '</span>';
+    var cnt = CLASSES.filter(function(c){ return (c.org||'General')===org; }).length;
+    html += '<span style="margin-left:auto;font-size:.82rem;color:var(--text2)">' + cnt + ' class' + (cnt===1?'':'es') + '</span>';
+    html += '</div>';
+  });
+  html += '<div style="margin-top:12px;font-size:.82rem;color:var(--text2)">Select all associations that apply. You can choose specific classes on the next step.</div>';
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+window.toggleOrgFilter = function(org) {
+  var idx = FORM.selectedOrgs.indexOf(org);
+  if(idx >= 0) {
+    if(FORM.selectedOrgs.length > 1) FORM.selectedOrgs.splice(idx, 1); // keep at least one
+  } else {
+    FORM.selectedOrgs.push(org);
+  }
+  renderOrgFilter(document.getElementById('wizard'));
+};
+
 function renderClasses(wrap) {
   // Group: org → division → [class]
   var orgs = [];
   var byOrg = {};
+  var orgFilter = FORM.selectedOrgs.length > 0 ? FORM.selectedOrgs : null;
   CLASSES.forEach(function(c) {
     var org = c.org || 'General';
+    if(orgFilter && orgFilter.indexOf(org) === -1) return; // skip unselected orgs
     var div = c.division || 'Open';
     if(!byOrg[org]) { byOrg[org] = {}; orgs.push(org); }
     if(!byOrg[org][div]) byOrg[org][div] = [];
@@ -639,28 +727,87 @@ function getMembFields() {
   return fields;
 }
 
+function _getMembOptions(org) {
+  // Returns [{key, label, amt}] for a specific org, using org-specific schedule keys first, then globals.
+  var sched = FEE._schedule || [];
+  var baseKeys = ['dayLicense','membership1yr','membership3yr','membershipLife'];
+  var labels = {dayLicense:'Day License', membership1yr:'1-Year Membership', membership3yr:'3-Year Membership', membershipLife:'Lifetime Membership'};
+  var opts = [];
+  baseKeys.forEach(function(k) {
+    var orgKey = org ? k + '_' + org : null;
+    var entry = (orgKey && sched.find(function(s){ return s.key === orgKey; }))
+             || sched.find(function(s){ return s.key === k; });
+    var amt = entry ? +entry.amt : +(FEE[orgKey]||FEE[k]||0);
+    if(amt > 0) {
+      var buyKey = k === 'dayLicense' ? 'buy_day' : 'buy_' + k.replace('membership','').toLowerCase();
+      opts.push({key: buyKey, label: labels[k], amt: amt});
+    }
+  });
+  return opts.filter(function(o,i,a){ return a.findIndex(function(x){ return x.key===o.key; })===i; });
+}
+
 function renderMemberships(wrap) {
   var fields = getMembFields();
-  var html = '<div class="card">';
-  html += '<div class="step-title">Membership Numbers</div>';
-  html += '<div class="step-sub">Enter your member numbers for organizations you\'re showing with. Leave blank if not yet a member — your secretary will handle membership at check-in.</div>';
+  var orgs = getSelectedOrgs();
+  var needOwnerNum = orgs.indexOf('CoWN') >= 0 || orgs.indexOf('SHTX') >= 0 || FORM.horseOwner;
+  var membOpts = _getMembOptions();
 
-  if(fields.length === 0) {
-    html += '<div style="color:var(--text2);font-size:0.9rem">No membership numbers are needed for the selected classes.</div>';
+  var html = '<div class="card">';
+  html += '<div class="step-title">Memberships</div>';
+  html += '<div class="step-sub">Most organizations require active membership to participate. Select your status for each organization below.</div>';
+
+  if(fields.length === 0 && !needOwnerNum) {
+    html += '<div style="color:var(--text2);font-size:0.9rem;padding:8px 0">No membership requirements for the selected classes.</div>';
   } else {
-    html += '<div class="memb-grid">';
     fields.forEach(function(f) {
-      var val = FORM.memberships[f.org] || '';
-      var safeId = 'memb-'+f.org.replace(/[^a-zA-Z0-9]/g,'_');
-      html += '<div class="form-row"><label>'+esc(f.label)+'</label>';
-      html += '<input id="'+safeId+'" data-org="'+esc(f.org)+'" value="'+esc(val)+'" placeholder="optional">';
+      var status = FORM.memberStatus[f.org] || '';
+      html += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem 1rem;margin-bottom:.75rem">';
+      html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.95rem;margin-bottom:.5rem">'+esc(f.org)+'</div>';
+      // Status toggle
+      html += '<div style="display:flex;gap:.5rem;margin-bottom:.5rem;flex-wrap:wrap">';
+      html += '<button type="button" class="memb-toggle'+(status==='current'?' active':'')+'" onclick="setMembStatus(\''+esc(f.org)+'\',\'current\')">Current Member</button>';
+      html += '<button type="button" class="memb-toggle'+(status&&status!=='current'?' active':'')+'" onclick="setMembStatus(\''+esc(f.org)+'\',\'notmember\')">Not a Member</button>';
+      html += '</div>';
+      if(status === 'current') {
+        var val = FORM.memberships[f.org] || '';
+        var safeId = 'memb-'+f.org.replace(/[^a-zA-Z0-9]/g,'_');
+        html += '<div class="form-row" style="margin-bottom:0"><label>'+esc(f.org)+' Member #</label>';
+        html += '<input id="'+safeId+'" data-org="'+esc(f.org)+'" value="'+esc(val)+'" placeholder="Member number">';
+        html += '</div>';
+      } else if(status && status !== 'current') {
+        var membOpts = _getMembOptions(f.org);
+        if(membOpts.length > 0) {
+          html += '<div style="font-size:.82rem;color:var(--text2);margin-bottom:.35rem">Add membership now:</div>';
+          html += '<div style="display:flex;gap:.4rem;flex-wrap:wrap">';
+          membOpts.forEach(function(opt){
+            var buyKey = 'buy_'+f.org+'_'+opt.key;
+            var isSel = FORM.memberStatus[f.org] === buyKey;
+            html += '<button type="button" class="memb-toggle'+(isSel?' active':'')+'" onclick="setMembStatus(\''+esc(f.org)+'\',\''+esc(buyKey)+'\')" style="font-size:.8rem">'+esc(opt.label)+' — '+fmt$(opt.amt)+'</button>';
+          });
+          html += '</div>';
+          if(membOpts.length > 0) html += '<div style="font-size:.75rem;color:var(--text2);margin-top:.3rem">Or you can obtain/renew membership at check-in.</div>';
+        } else {
+          html += '<div style="font-size:.78rem;color:var(--text2)">Membership can be obtained at check-in with the secretary.</div>';
+        }
+      }
       html += '</div>';
     });
-    html += '</div>';
+    if(needOwnerNum) {
+      html += '<div class="form-row"><label>Owner\'s CoWN Member # <span style="color:var(--text2)">(if owner is different from rider)</span></label>';
+      html += '<input id="f-memberOwner" value="'+esc(FORM.memberOwner)+'" placeholder="optional">';
+      html += '</div>';
+    }
   }
   html += '</div>';
   wrap.innerHTML = html;
 }
+
+window.setMembStatus = function(org, status) {
+  FORM.memberStatus[org] = status;
+  // Clear stored member number if switching to non-member
+  if(status !== 'current') delete FORM.memberships[org];
+  renderMemberships(document.getElementById('wizard'));
+};
 
 function saveMemberships() {
   document.querySelectorAll('[data-org]').forEach(function(el) {
@@ -669,9 +816,20 @@ function saveMemberships() {
     if(val) FORM.memberships[org] = val;
     else delete FORM.memberships[org];
   });
+  var ow = document.getElementById('f-memberOwner');
+  if(ow) FORM.memberOwner = ow.value.trim();
 }
 
 // ── Step: Stalling ────────────────────────────────────────────────────────────
+function feeLabelEF(key, fallback) {
+  var sched = FEE._schedule;
+  if(Array.isArray(sched)){
+    var e = sched.find(function(f){ return f.key===key; });
+    if(e && e.label) return e.label;
+  }
+  return fallback;
+}
+
 function qtyRow(feeKey, formKey, label) {
   var price = FEE[feeKey] || 0;
   var val   = FORM[formKey] || 0;
@@ -693,49 +851,235 @@ function changeQty(formKey, delta) {
 
 function renderStalling(wrap) {
   var f = FEE;
+  var stallPkgs = (f._stallingPackages || []).filter(function(p){ return +p.price > 0; });
+  var rvPkgs    = (f._rvPackages       || []).filter(function(p){ return +p.price > 0; });
+  var usePkgs   = stallPkgs.length > 0;
+  var useRvPkgs = rvPkgs.length > 0;
+  var hasOldStalls = (f.stall1||0) > 0 || (f.stall2||0) > 0 || (f.stall3||0) > 0 || (f.shavings||0) > 0;
+  var hasOldRV     = (f.rv1||0)    > 0 || (f.rv2||0)    > 0 || (f.rvCircuit||0) > 0;
+
+  function pkgCard(pkgList, selectedId, idPrefix, sectionLabel) {
+    var h = '<div style="margin-bottom:10px"><label style="font-weight:600;color:var(--text)">' + sectionLabel + '</label></div>';
+    pkgList.forEach(function(pkg) {
+      var sel = selectedId === pkg.id;
+      h += '<div class="class-item' + (sel ? ' selected' : '') + '" style="margin-bottom:8px;cursor:pointer" onclick="selectStallingPkg(\'' + idPrefix + '\',\'' + esc(pkg.id) + '\'' + (sel ? ',true' : '') + ')">';
+      h += '<input type="radio" name="' + idPrefix + 'Pkg" style="margin-right:8px"' + (sel ? ' checked' : '') + '>';
+      h += '<span style="font-weight:600">' + esc(pkg.label) + '</span>';
+      h += '<span style="margin-left:auto;color:var(--accent);font-weight:600">$' + (+pkg.price).toFixed(2) + '</span>';
+      h += '</div>';
+      if(sel && pkg.trackDates) {
+        var arrVal = idPrefix === 'stall' ? FORM.stallingArrival : FORM.rvArrival;
+        var depVal = idPrefix === 'stall' ? FORM.stallingDeparture : FORM.rvDeparture;
+        h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;padding-left:12px">';
+        h += '<div class="form-row" style="margin:0"><label>Arrival</label><input id="f-' + idPrefix + 'Arrival" type="date" value="' + esc(arrVal) + '"></div>';
+        h += '<div class="form-row" style="margin:0"><label>Departure</label><input id="f-' + idPrefix + 'Dep" type="date" value="' + esc(depVal) + '"></div>';
+        h += '</div>';
+      }
+    });
+    h += '<div style="margin-bottom:12px"><a href="#" style="font-size:.82rem;color:var(--text2)" onclick="selectStallingPkg(\'' + idPrefix + '\',null,true);return false">No stalling needed</a></div>';
+    return h;
+  }
+
   var html = '<div class="card">';
   html += '<div class="step-title">Stalling &amp; RV</div>';
-  html += '<div class="step-sub">Reserve stalls and RV spots. Leave at 0 if not needed.</div>';
+  html += '<div class="step-sub">Reserve stalls and RV spots. Leave blank if not needed.</div>';
 
-  if((f.stall1||0)    > 0) html += qtyRow('stall1',    'stall1qty',  '1-Night Stall');
-  if((f.stall2||0)    > 0) html += qtyRow('stall2',    'stall2qty',  'Circuit Stall (2 nights)');
-  if((f.stall3||0)    > 0) html += qtyRow('stall3',    'stall3qty',  '3-Night Stall');
-  if((f.shavings||0)  > 0) html += qtyRow('shavings',  'shavings',   'Shavings (bag)');
-  if((f.rv1||0)       > 0) html += qtyRow('rv1',       'rv1qty',     'RV Spot — 1 Night');
-  if((f.rv2||0)       > 0) html += qtyRow('rv2',       'rv2qty',     'RV Spot — Circuit');
-  if((f.rvCircuit||0) > 0) html += qtyRow('rvCircuit', 'rvCircuit',  'RV Circuit Package');
+  if((f.haulin||0) > 0) html += qtyRow('haulin', 'haulinQty', feeLabelEF('haulin', 'Haul-In (per horse)'));
+
+  if(usePkgs) {
+    html += pkgCard(stallPkgs, FORM.stallingPackageId, 'stall', 'Stall Package');
+  } else if(hasOldStalls) {
+    if((f.stall1||0)   > 0) html += qtyRow('stall1',   'stall1qty', feeLabelEF('stall1',   'Stall — Per Night'));
+    if((f.stall2||0)   > 0) html += qtyRow('stall2',   'stall2qty', feeLabelEF('stall2',   'Stall — Circuit'));
+    if((f.stall3||0)   > 0) html += qtyRow('stall3',   'stall3qty', feeLabelEF('stall3',   'Stall — 3 Night'));
+    if((f.shavings||0) > 0) html += qtyRow('shavings', 'shavings',  feeLabelEF('shavings', 'Shavings (per bag)'));
+    html += '<div class="form-row" style="margin-top:12px"><label>Stall Arrival Date <span style="color:var(--text2)">(optional)</span></label>';
+    html += '<input id="f-stallArrival" type="date" value="' + esc(FORM.stallingArrival) + '"></div>';
+  }
+
+  if(useRvPkgs) {
+    if(usePkgs || hasOldStalls) html += '<div style="border-top:1px solid var(--border);margin:12px 0"></div>';
+    html += pkgCard(rvPkgs, FORM.rvPackageId, 'rv', 'RV Package');
+  } else if(hasOldRV) {
+    if(usePkgs || hasOldStalls) html += '<div style="border-top:1px solid var(--border);margin:12px 0"></div>';
+    if((f.rv1||0)       > 0) html += qtyRow('rv1',       'rv1qty',    feeLabelEF('rv1',       'RV — Per Night'));
+    if((f.rv2||0)       > 0) html += qtyRow('rv2',       'rv2qty',    feeLabelEF('rv2',       'RV — 2 Night'));
+    if((f.rvCircuit||0) > 0) html += qtyRow('rvCircuit', 'rvCircuit', feeLabelEF('rvCircuit', 'RV — Circuit'));
+    html += '<div class="form-row" style="margin-top:12px"><label>RV Arrival Date <span style="color:var(--text2)">(optional)</span></label>';
+    html += '<input id="f-rvArrival" type="date" value="' + esc(FORM.rvArrival) + '"></div>';
+  }
 
   html += '<div style="margin-top:16px"><div class="form-row">';
   html += '<label>Stall Group Name <span style="color:var(--text2)">(optional — helps secretary organize stalls)</span></label>';
-  html += '<input id="f-stallingGroup" value="'+esc(FORM.stallingGroup)+'" placeholder="e.g. Smith Ranch">';
+  html += '<input id="f-stallingGroup" value="' + esc(FORM.stallingGroup) + '" placeholder="e.g. Smith Ranch">';
   html += '</div></div>';
   html += '</div>';
   wrap.innerHTML = html;
 }
 
 function saveStalling() {
-  var el = document.getElementById('f-stallingGroup');
-  if(el) FORM.stallingGroup = el.value.trim();
+  var g = function(id){ var el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  FORM.stallingGroup     = g('f-stallingGroup');
+  FORM.stallingArrival   = g('f-stallArrival');
+  FORM.stallingDeparture = g('f-stallDep');
+  FORM.rvArrival         = g('f-rvArrival');
+  FORM.rvDeparture       = g('f-rvDep');
+}
+window.selectStallingPkg = function(prefix, id, rerender) {
+  if(prefix === 'stall') FORM.stallingPackageId = (!id || FORM.stallingPackageId === id) ? '' : id;
+  else FORM.rvPackageId = (!id || FORM.rvPackageId === id) ? '' : id;
+  if(rerender) renderStalling(document.getElementById('wizard'));
+};
+
+
+// ── Step: Practice & Clinics ──────────────────────────────────────────────────
+function renderPractice(wrap) {
+  var ps = FEE._practiceSessions || [];
+  var co = FEE._clinicOptions    || [];
+  var html = '<div class="card">';
+  html += '<div class="step-title">Practice &amp; Clinics</div>';
+  html += '<div class="step-sub">Reserve practice pen time or sign up for a clinic. These are optional.</div>';
+
+  if(ps.length > 0) {
+    html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:1rem;margin-bottom:8px">Practice Sessions</div>';
+    ps.forEach(function(s) {
+      var sel = FORM.practiceSessions.indexOf(s.id) >= 0;
+      var cap = s.capacity ? parseInt(s.capacity) : null;
+      html += '<div class="class-item'+(sel?' selected':'')+'" onclick="togglePracticeSession(\''+esc(s.id)+'\')">';
+      html += '<input type="checkbox" '+(sel?'checked':'')+' onclick="event.stopPropagation();togglePracticeSession(\''+esc(s.id)+'\')">';
+      html += '<div class="class-item-name">'+esc(s.label)+(s.datetime ? '<div style="font-size:.75rem;color:var(--text2)">'+esc(s.datetime)+'</div>' : '')+'</div>';
+      html += '<div style="text-align:right">';
+      html += '<div class="class-item-fee">'+(+s.price > 0 ? fmt$(s.price) : 'incl.')+'</div>';
+      if(cap) html += '<div style="font-size:.7rem;color:var(--text2)">'+cap+' slots</div>';
+      html += '</div></div>';
+    });
+  }
+
+  if(co.length > 0) {
+    var topMargin = ps.length ? '20px' : '0';
+    html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:1rem;margin:'+topMargin+' 0 8px">Clinics</div>';
+    co.forEach(function(c) {
+      var cap = c.capacity ? parseInt(c.capacity) : null;
+      var priceStr = +c.price > 0 ? fmt$(c.price) : 'incl.';
+      html += '<div class="class-item'+(FORM.clinicChoice===c.id?' selected':'')+'" onclick="selectClinic(\''+esc(c.id)+'\')">';
+      html += '<input type="radio" name="clinicChoice" value="'+esc(c.id)+'"'+(FORM.clinicChoice===c.id?' checked':'')+' onclick="event.stopPropagation();selectClinic(\''+esc(c.id)+'\')">';
+      html += '<div class="class-item-name">'+esc(c.label)+(c.datetime ? '<div style="font-size:.75rem;color:var(--text2)">'+esc(c.datetime)+'</div>' : '')+'</div>';
+      html += '<div style="text-align:right">';
+      html += '<div class="class-item-fee">'+priceStr+'</div>';
+      if(cap) html += '<div style="font-size:.7rem;color:var(--text2)">'+cap+' spots</div>';
+      html += '</div></div>';
+    });
+    html += '<div style="font-size:.78rem;color:var(--text2);margin-top:6px"><a href="#" onclick="selectClinic(\'\');return false" style="color:var(--text2)">Clear clinic selection</a></div>';
+  }
+
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+window.togglePracticeSession = function(id) {
+  var idx = FORM.practiceSessions.indexOf(id);
+  if(idx >= 0) FORM.practiceSessions.splice(idx, 1);
+  else FORM.practiceSessions.push(id);
+  renderPractice(document.getElementById('wizard'));
+};
+
+window.selectClinic = function(id) {
+  FORM.clinicChoice = id;
+  renderPractice(document.getElementById('wizard'));
+};
+
+function savePractice() {
+  // clinicChoice already saved by selectClinic(); nothing else to read from DOM
 }
 
 // ── Step: Summary ─────────────────────────────────────────────────────────────
 function buildFeeLines() {
   var lines = [];
   var f = FEE;
+  var selCls = getSelectedClasses();
+
   var oFee = +(f.officeFee || f.officeEntry || 0);
   if(oFee > 0) lines.push({desc: 'Office / Entry Fee', amt: oFee});
-  getSelectedClasses().forEach(function(c) {
+
+  selCls.forEach(function(c) {
     var fee = getClassFee(c);
     var name = (c.class_number ? 'Class '+c.class_number+' — ' : '')+c.class_name;
     lines.push({desc: name, amt: fee});
   });
-  if((FORM.stall1qty||0) > 0 && (f.stall1||0) > 0)    lines.push({desc:'1-Night Stall × '+FORM.stall1qty,       amt: FORM.stall1qty   * f.stall1});
-  if((FORM.stall2qty||0) > 0 && (f.stall2||0) > 0)    lines.push({desc:'Circuit Stall × '+FORM.stall2qty,        amt: FORM.stall2qty   * f.stall2});
-  if((FORM.stall3qty||0) > 0 && (f.stall3||0) > 0)    lines.push({desc:'3-Night Stall × '+FORM.stall3qty,        amt: FORM.stall3qty   * f.stall3});
-  if((FORM.shavings||0)  > 0 && (f.shavings||0) > 0)  lines.push({desc:'Shavings × '+FORM.shavings,              amt: FORM.shavings    * f.shavings});
-  if((FORM.rv1qty||0)    > 0 && (f.rv1||0) > 0)       lines.push({desc:'RV 1-Night × '+FORM.rv1qty,              amt: FORM.rv1qty      * f.rv1});
-  if((FORM.rv2qty||0)    > 0 && (f.rv2||0) > 0)       lines.push({desc:'RV Circuit × '+FORM.rv2qty,              amt: FORM.rv2qty      * f.rv2});
-  if((FORM.rvCircuit||0) > 0 && (f.rvCircuit||0) > 0) lines.push({desc:'RV Circuit Package × '+FORM.rvCircuit,   amt: FORM.rvCircuit   * f.rvCircuit});
+
+  // Package discounts — best qualifying package per org
+  var pkgs = f._classPkgs || [];
+  if(pkgs.length > 0) {
+    var orgCnt = {};
+    selCls.forEach(function(c){ var o = c.org||'General'; orgCnt[o] = (orgCnt[o]||0)+1; });
+    var bestByOrg = {};
+    pkgs.forEach(function(pkg) {
+      if((orgCnt[pkg.org]||0) >= pkg.minClasses) {
+        if(!bestByOrg[pkg.org] || pkg.minClasses > bestByOrg[pkg.org].minClasses) bestByOrg[pkg.org] = pkg;
+      }
+    });
+    Object.keys(bestByOrg).forEach(function(org) {
+      var pkg = bestByOrg[org];
+      if(+pkg.discount > 0) lines.push({desc: pkg.label || (org+' Package Discount'), amt: -(+pkg.discount)});
+    });
+  }
+
+  // Membership purchases
+  var membKeyMap = {buy_day:'dayLicense', buy_1yr:'membership1yr', buy_3yr:'membership3yr', buy_life:'membershipLife'};
+  Object.keys(FORM.memberStatus).forEach(function(org) {
+    var status = FORM.memberStatus[org];
+    if(!status || status === 'current' || status === 'notmember') return;
+    var parts = status.split('_buy_');
+    var buyType = parts.length > 1 ? 'buy_'+parts[parts.length-1] : null;
+    if(!buyType) return;
+    var membOpts = _getMembOptions(org);
+    var opt = membOpts.find(function(o){ return o.key === buyType; });
+    if(opt && opt.amt > 0) lines.push({desc: org+' '+opt.label, amt: opt.amt});
+  });
+
+  // Stalling — packages (wizard-configured) take priority over flat fees
+  if((FORM.haulinQty||0)  > 0 && (f.haulin||0) > 0) lines.push({desc: feeLabelEF('haulin','Haul-In')+' × '+FORM.haulinQty, amt: FORM.haulinQty * f.haulin});
+  var stallPkgs = (f._stallingPackages||[]);
+  var rvPkgs    = (f._rvPackages||[]);
+  if(stallPkgs.length > 0) {
+    var sp = FORM.stallingPackageId && stallPkgs.find(function(p){ return p.id === FORM.stallingPackageId; });
+    if(sp) lines.push({desc: sp.label, amt: +sp.price});
+  } else {
+    if((FORM.stall1qty||0)  > 0 && (f.stall1||0)    > 0) lines.push({desc: feeLabelEF('stall1','Stall — Per Night')+' × '+FORM.stall1qty, amt: FORM.stall1qty  * f.stall1});
+    if((FORM.stall2qty||0)  > 0 && (f.stall2||0)    > 0) lines.push({desc: feeLabelEF('stall2','Stall — Circuit')+' × '+FORM.stall2qty,   amt: FORM.stall2qty  * f.stall2});
+    if((FORM.stall3qty||0)  > 0 && (f.stall3||0)    > 0) lines.push({desc: feeLabelEF('stall3','Stall — 3 Night')+' × '+FORM.stall3qty,   amt: FORM.stall3qty  * f.stall3});
+    if((FORM.shavings||0)   > 0 && (f.shavings||0)  > 0) lines.push({desc: feeLabelEF('shavings','Shavings')+' × '+FORM.shavings,         amt: FORM.shavings   * f.shavings});
+  }
+  if(rvPkgs.length > 0) {
+    var rp = FORM.rvPackageId && rvPkgs.find(function(p){ return p.id === FORM.rvPackageId; });
+    if(rp) lines.push({desc: rp.label, amt: +rp.price});
+  } else {
+    if((FORM.rv1qty||0)     > 0 && (f.rv1||0)       > 0) lines.push({desc: feeLabelEF('rv1','RV — Per Night')+' × '+FORM.rv1qty,          amt: FORM.rv1qty     * f.rv1});
+    if((FORM.rv2qty||0)     > 0 && (f.rv2||0)       > 0) lines.push({desc: feeLabelEF('rv2','RV — 2 Night')+' × '+FORM.rv2qty,            amt: FORM.rv2qty     * f.rv2});
+    if((FORM.rvCircuit||0)  > 0 && (f.rvCircuit||0) > 0) lines.push({desc: feeLabelEF('rvCircuit','RV — Circuit')+' × '+FORM.rvCircuit,   amt: FORM.rvCircuit  * f.rvCircuit});
+  }
+
+  // Practice sessions
+  var pracSessions = f._practiceSessions || [];
+  FORM.practiceSessions.forEach(function(id) {
+    var s = pracSessions.find(function(p){ return p.id === id; });
+    if(s && +s.price > 0) lines.push({desc: s.label, amt: +s.price});
+  });
+
+  // Clinic
+  var clinicOpts = f._clinicOptions || [];
+  if(FORM.clinicChoice) {
+    var clin = clinicOpts.find(function(c){ return c.id === FORM.clinicChoice; });
+    if(clin && +clin.price > 0) lines.push({desc: clin.label, amt: +clin.price});
+  }
+
+  // Late fee — if after deadline and fee is configured
+  var lateFeeAmt = +(f.lateFee || 0);
+  if(lateFeeAmt > 0 && SHOW && SHOW.entry_deadline) {
+    var deadline = new Date(SHOW.entry_deadline + 'T23:59:59');
+    if(new Date() > deadline) lines.push({desc: feeLabelEF('lateFee','Late Entry Fee'), amt: lateFeeAmt});
+  }
+
   return lines;
 }
 
@@ -795,6 +1139,7 @@ function renderSummary(wrap) {
 
 // ── Submit ────────────────────────────────────────────────────────────────────
 async function submitEntry() {
+  if(isPreview){ showStepErr('This is a preview — submissions are disabled.'); return; }
   if(!FORM.waiverAgreed) { showStepErr('Please agree to the waiver to submit your entry.'); return; }
 
   var btn = document.getElementById('btn-next');
@@ -806,24 +1151,28 @@ async function submitEntry() {
   var total  = lines.reduce(function(s,l){ return s+(l.amt||0); }, 0);
 
   var data = {
-    // 4.1 Rider
-    riderNameFirst: FORM.riderFirst,
-    riderNameLast:  FORM.riderLast,
-    email:          FORM.email,
-    phone:          FORM.phone,
-    address1:       FORM.address1 || null,
-    city:           FORM.city     || null,
-    state:          FORM.state    || null,
-    zip:            FORM.zip      || null,
-    isYouth:        FORM.isYouth,
-    dob:            FORM.dob      || null,
-    // 4.3 Horse
-    horseName:      FORM.horseName,
-    horseGender:    FORM.horseGender,
-    horseOwner:     FORM.horseOwner || null,
-    // 4.4 Memberships
-    memberships:    FORM.memberships,
-    // 4.5 Classes
+    // Rider
+    riderNameFirst:  FORM.riderFirst,
+    riderNameLast:   FORM.riderLast,
+    email:           FORM.email,
+    phone:           FORM.phone,
+    address1:        FORM.address1 || null,
+    city:            FORM.city     || null,
+    state:           FORM.state    || null,
+    zip:             FORM.zip      || null,
+    isYouth:         FORM.isYouth,
+    dob:             FORM.dob      || null,
+    // Horse
+    horseName:       FORM.horseName,
+    horseGender:     FORM.horseGender,
+    horseOwner:      FORM.horseOwner  || null,
+    horseRegNum:     FORM.horseRegNum || null,
+    horseDob:        FORM.horseDob    || null,
+    // Memberships
+    memberships:     FORM.memberships,
+    memberStatus:    FORM.memberStatus,
+    memberOwner:     FORM.memberOwner || null,
+    // Classes
     classes: selCls.map(function(c) {
       return {
         showClassId: c.id,
@@ -836,21 +1185,31 @@ async function submitEntry() {
         fee:         getClassFee(c)
       };
     }),
-    // 4.7 Stalling
-    stall1qty:      FORM.stall1qty  || 0,
-    stall2qty:      FORM.stall2qty  || 0,
-    stall3qty:      FORM.stall3qty  || 0,
-    shavings:       FORM.shavings   || 0,
-    rv1qty:         FORM.rv1qty     || 0,
-    rv2qty:         FORM.rv2qty     || 0,
-    rvCircuit:      FORM.rvCircuit  || 0,
-    stallingGroup:  FORM.stallingGroup || null,
-    // 4.8 Meta
-    source:         'online',
-    paymentStatus:  'unpaid',
-    estimatedTotal: Math.round(total * 100) / 100,
-    waiverAgreed:   true,
-    waiverSignedAt: new Date().toISOString()
+    // Stalling
+    haulinQty:       FORM.haulinQty       || 0,
+    stall1qty:       FORM.stall1qty       || 0,
+    stall2qty:       FORM.stall2qty       || 0,
+    stall3qty:       FORM.stall3qty       || 0,
+    shavings:        FORM.shavings        || 0,
+    rv1qty:          FORM.rv1qty          || 0,
+    rv2qty:          FORM.rv2qty          || 0,
+    rvCircuit:       FORM.rvCircuit       || 0,
+    stallingPackageId: FORM.stallingPackageId || null,
+    rvPackageId:       FORM.rvPackageId       || null,
+    stallingArrival:   FORM.stallingArrival   || null,
+    stallingDeparture: FORM.stallingDeparture || null,
+    rvArrival:         FORM.rvArrival         || null,
+    rvDeparture:       FORM.rvDeparture       || null,
+    stallingGroup:     FORM.stallingGroup     || null,
+    // Practice & clinics
+    practiceSessions: FORM.practiceSessions.length ? FORM.practiceSessions : null,
+    clinicChoice:    FORM.clinicChoice    || null,
+    // Meta
+    source:          'online',
+    paymentStatus:   'unpaid',
+    estimatedTotal:  Math.round(total * 100) / 100,
+    waiverAgreed:    true,
+    waiverSignedAt:  new Date().toISOString()
   };
 
   try {

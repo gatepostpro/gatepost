@@ -12832,7 +12832,7 @@ function saveConfig(){
 
       location:   G.cfg.location || null,
 
-      fee_config: Object.assign({}, G.cfg.fees, {_schedule:G.cfg.feeSchedule||null, _extraFees:G.cfg.extraFees||[], _assocFees:G.cfg.assocFees||[], _classPkgs:G.cfg.classPkgs||[], _practiceSessions:G.cfg.practiceSessions||[], _clinicOptions:G.cfg.clinicOptions||[]}),
+      fee_config: Object.assign({}, G.cfg.fees, {_schedule:G.cfg.feeSchedule||null, _extraFees:G.cfg.extraFees||[], _assocFees:G.cfg.assocFees||[], _classPkgs:G.cfg.classPkgs||[], _practiceSessions:G.cfg.practiceSessions||[], _clinicOptions:G.cfg.clinicOptions||[], _stallingPackages:G.cfg.stallingPackages||[], _rvPackages:G.cfg.rvPackages||[], _selectedOrgs:G.cfg.selectedOrgs||[]}),
 
     };
 
@@ -16700,6 +16700,9 @@ async function boot(){
         if(k==='_classPkgs')       { G.cfg.classPkgs        = show.fee_config[k]||[]; return; }
         if(k==='_practiceSessions'){ G.cfg.practiceSessions = show.fee_config[k]||[]; return; }
         if(k==='_clinicOptions')   { G.cfg.clinicOptions    = show.fee_config[k]||[]; return; }
+        if(k==='_stallingPackages'){ G.cfg.stallingPackages = show.fee_config[k]||[]; return; }
+        if(k==='_rvPackages')       { G.cfg.rvPackages       = show.fee_config[k]||[]; return; }
+        if(k==='_selectedOrgs')     { G.cfg.selectedOrgs     = show.fee_config[k]||[]; return; }
         if(show.fee_config[k]!==null&&show.fee_config[k]!==undefined) G.cfg.fees[k]=show.fee_config[k];
       });
     }
