@@ -59,7 +59,7 @@ Edit this file, then tell Claude to apply changes to app.html.
 - Ranch Reining
 - Ranch Cutting  ← CUTTING class (cuttingSurcharge applies, not cowSurcharge)
 - Ranch Cow Work ← COW class (cowSurcharge applies)
-- Ranch Conformation  ← ⚠️ USER FLAGGED: confirm this is present and correct
+- Ranch Conformation  
 
 ---
 
@@ -73,13 +73,12 @@ Edit this file, then tell Claude to apply changes to app.html.
 - Level 1 Amateur
 - Youth
 - Level 1 Youth
-- Cowboy
+
 
 **Disciplines:**
 - Ranch Riding
 - Ranch Trail
 - Ranch Rail Pleasure
-- Ranch Conformation
 
 ---
 
@@ -101,7 +100,7 @@ Edit this file, then tell Claude to apply changes to app.html.
 - Working Ranch Horse
 - Ltd. Working Ranch Horse
 - Ranch Riding
-- Ranch Cutting  ← CUTTING class
+- Ranch Cutting  ← CUTTING class(cuttingSurcharge applies, not cowSurcharge)
 - Ranching Heritage Rodeo
 
 ---
@@ -124,8 +123,9 @@ Edit this file, then tell Claude to apply changes to app.html.
 - Ranch Trail
 - Ranch Reining
 - Ranch Cow Work  ← COW class
-- Ranch Cutting   ← CUTTING class
+- Ranch Cutting   ← CUTTING class (cuttingSurcharge applies, not cowSurcharge)
 - Ranch Rail Pleasure
+- Ranch Conformation
 
 ---
 
@@ -215,7 +215,7 @@ Edit this file, then tell Claude to apply changes to app.html.
 **Disciplines:**
 - Reining
 - Cow Work  ← COW class
-- Cutting   ← CUTTING class
+- Cutting   ← CUTTING class (cuttingSurcharge applies, not cowSurcharge)
 
 ---
 
@@ -243,7 +243,7 @@ Edit this file, then tell Claude to apply changes to app.html.
 - Classic/Maturity (5-6yo)
 
 **Disciplines:**
-- Cutting  ← CUTTING class
+- Cutting  ← CUTTING class (cuttingSurcharge applies, not cowSurcharge)
 
 ---
 
@@ -292,7 +292,7 @@ Edit this file, then tell Claude to apply changes to app.html.
 - Ranch Riding
 - Ranch Trail
 - Ranch Reining
-- Ranch Cutting  ← CUTTING class
+- Ranch Cutting  ← CUTTING class (cuttingSurcharge applies, not cowSurcharge)
 - Working Ranch Horse
 - Ranch Conformation
 
@@ -317,7 +317,7 @@ Edit this file, then tell Claude to apply changes to app.html.
 - Stock Horse Trail
 - Stock Horse Reining
 - Stock Horse Cow Work  ← COW class
-- Stock Horse Cutting   ← CUTTING class
+- Stock Horse Cutting   ← CUTTING class (cuttingSurcharge applies, not cowSurcharge)
 
 ---
 

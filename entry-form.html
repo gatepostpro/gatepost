@@ -571,9 +571,16 @@ function renderHorse(wrap) {
   html += '<div class="form-row half"><div>';
   html += '<label>Registration # <span style="color:var(--text2)">(AQHA / breed reg)</span></label>';
   html += '<input id="f-horseRegNum" value="'+esc(f.horseRegNum)+'" placeholder="optional">';
-  html += '</div><div>';
-  html += '<label>Owner (if different from rider)</label>';
-  html += '<input id="f-horseOwner" value="'+esc(f.horseOwner)+'" placeholder="Owner\'s full name">';
+  html += '</div></div>';
+
+  // Owner — checkbox reveals name + per-org member numbers
+  var ownerChecked = f.ownerDiffFromRider ? 'checked' : '';
+  html += '<div style="margin-top:.5rem;padding:.65rem .75rem;background:var(--card2);border:1px solid var(--border2);border-radius:8px">';
+  html += '<label style="display:flex;align-items:center;gap:.5rem;font-size:.88rem;cursor:pointer">';
+  html += '<input type="checkbox" id="f-diffOwner" '+ownerChecked+' onchange="toggleDiffOwner(this.checked)" style="accent-color:var(--accent)"> The horse owner is different from the rider';
+  html += '</label>';
+  html += '<div id="f-owner-fields" style="margin-top:.55rem;'+(f.ownerDiffFromRider?'':'display:none')+'">';
+  html += '<div class="form-row"><label>Owner Name</label><input id="f-horseOwner" value="'+esc(f.horseOwner)+'" placeholder="Owner full name"></div>';
   html += '</div></div>';
 
   html += '</div>';
@@ -582,12 +589,20 @@ function renderHorse(wrap) {
 
 function saveHorse() {
   var g = function(id){ var el = document.getElementById(id); return el ? el.value.trim() : ''; };
-  FORM.horseName   = g('f-horseName');
-  FORM.horseGender = g('f-horseGender');
-  FORM.horseOwner  = g('f-horseOwner');
-  FORM.horseRegNum = g('f-horseRegNum');
-  FORM.horseDob    = g('f-horseDob');
+  FORM.horseName          = g('f-horseName');
+  FORM.horseGender        = g('f-horseGender');
+  FORM.horseRegNum        = g('f-horseRegNum');
+  FORM.horseDob           = g('f-horseDob');
+  var diffEl = document.getElementById('f-diffOwner');
+  FORM.ownerDiffFromRider = diffEl ? diffEl.checked : false;
+  FORM.horseOwner         = FORM.ownerDiffFromRider ? g('f-horseOwner') : '';
 }
+
+window.toggleDiffOwner = function(checked) {
+  FORM.ownerDiffFromRider = checked;
+  var el = document.getElementById('f-owner-fields');
+  if(el) el.style.display = checked ? '' : 'none';
+};
 
 // ── Step: Classes ─────────────────────────────────────────────────────────────
 function getClassFee(c) {
@@ -749,7 +764,7 @@ function _getMembOptions(org) {
 function renderMemberships(wrap) {
   var fields = getMembFields();
   var orgs = getSelectedOrgs();
-  var needOwnerNum = orgs.indexOf('CoWN') >= 0 || orgs.indexOf('SHTX') >= 0 || FORM.horseOwner;
+  // owner member numbers now shown when ownerDiffFromRider is set
   var membOpts = _getMembOptions();
 
   var html = '<div class="card">';
@@ -792,9 +807,17 @@ function renderMemberships(wrap) {
       }
       html += '</div>';
     });
-    if(needOwnerNum) {
-      html += '<div class="form-row"><label>Owner\'s CoWN Member # <span style="color:var(--text2)">(if owner is different from rider)</span></label>';
-      html += '<input id="f-memberOwner" value="'+esc(FORM.memberOwner)+'" placeholder="optional">';
+    if(FORM.ownerDiffFromRider) {
+      html += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem 1rem;margin-bottom:.75rem">';
+      html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.95rem;margin-bottom:.5rem">Owner Member Numbers</div>';
+      html += '<div style="font-size:.8rem;color:var(--text2);margin-bottom:.5rem">Enter membership numbers for the horse owner where they differ from the rider.</div>';
+      fields.forEach(function(f) {
+        var ownerKey = 'owner_'+f.org;
+        var val = FORM.ownerMembs[f.org] || '';
+        html += '<div class="form-row" style="margin-bottom:.4rem"><label>Owner '+esc(f.org)+' Member #</label>';
+        html += '<input data-ownerorg="'+esc(f.org)+'" value="'+esc(val)+'" placeholder="optional" oninput="FORM.ownerMembs[\''+esc(f.org)+'\']=this.value">';
+        html += '</div>';
+      });
       html += '</div>';
     }
   }
@@ -1166,6 +1189,8 @@ async function submitEntry() {
     horseName:       FORM.horseName,
     horseGender:     FORM.horseGender,
     horseOwner:      FORM.horseOwner  || null,
+        ownerDiffFromRider: FORM.ownerDiffFromRider || false,
+        ownerMembs:    FORM.ownerMembs || {},
     horseRegNum:     FORM.horseRegNum || null,
     horseDob:        FORM.horseDob    || null,
     // Memberships

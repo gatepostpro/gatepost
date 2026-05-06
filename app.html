@@ -1653,8 +1653,8 @@ var ORG_CLASSES = {
   },
 
   'AQHA Ranch': {
-    divisions: ['Open','Amateur','Level 1 Amateur','Youth','Level 1 Youth','Cowboy'],
-    disciplines: ['Ranch Riding','Ranch Trail','Ranch Rail Pleasure','Ranch Conformation'],
+    divisions: ['Open','Amateur','Level 1 Amateur','Youth','Level 1 Youth'],
+    disciplines: ['Ranch Riding','Ranch Trail','Ranch Rail Pleasure'],
     allAround: false,
     pointsSystem: 'aqha'
   },
@@ -1669,7 +1669,7 @@ var ORG_CLASSES = {
 
   'APHA': {
     divisions: ['Open','Amateur','Novice Amateur','Amateur Walk-Trot','Youth','Novice Youth','Youth Walk-Trot','Solid Paint-Bred'],
-    disciplines: ['Ranch Riding','Ranch Trail','Ranch Reining','Ranch Cow Work','Ranch Cutting','Ranch Rail Pleasure'],
+    disciplines: ['Ranch Riding','Ranch Trail','Ranch Reining','Ranch Cow Work','Ranch Cutting','Ranch Rail Pleasure','Ranch Conformation'],
     allAround: false,
     pointsSystem: 'aqha'  // TBD — placeholder pending research
   },
@@ -15706,8 +15706,19 @@ function _buildAeHorseTab(){
     +_aeFG('Reg # (AQHA/breed)', _aeInp({id:'ae-hreg', placeholder:'optional'}))
     +_aeFG('Horse Date of Birth', _aeInp({id:'ae-hdob', type:'date'}))
     +'</div>'
-    +_aeFG('Owner (if different from rider)', _aeInp({id:'ae-howner', placeholder:'Owner name'}))
-    +(_aeMembFields().some(function(f){return f.key==='memberAQHA';}) ? _aeFG('Owner AQHA # (if different from rider)', _aeInp({id:'ae-howner-aqha', placeholder:'Owner AQHA number'})) : '');
+    +(function(){
+    var membFields = _aeMembFields();
+    var ownerMembs = membFields.map(function(mf){
+      return _aeFG('Owner '+mf.label, _aeInp({id:'ae-ow-'+mf.key, placeholder:mf.placeholder}));
+    }).join('');
+    return '<div style="margin-top:.6rem;padding:.5rem;background:var(--card2);border-radius:6px">'  
+      +'<label style="display:flex;align-items:center;gap:.5rem;font-size:.84rem;cursor:pointer">'  
+      +'<input type="checkbox" id="ae-diff-owner" onchange="document.getElementById('ae-owner-fields').style.display=this.checked?'block':'none'" style="accent-color:var(--accent)"> Owner is different from rider</label>'  
+      +'<div id="ae-owner-fields" style="display:none;margin-top:.55rem;display:none">'  
+      +_aeFG('Owner Name', _aeInp({id:'ae-howner', placeholder:'Owner full name'}))
+      +ownerMembs
+      +'</div></div>';
+  })();
 }
 
 function _buildAeClassesTab(){
@@ -15918,7 +15929,10 @@ function _aeCollectEntry(){
       });
       return sel;
     })(),
-    ownerAqha: f('ae-howner-aqha')
+    ownerDiffFromRider: (function(){ var el=document.getElementById('ae-diff-owner'); return el&&el.checked; })(),
+    ownerMembs: (function(){
+      var ob={}; _aeMembFields().forEach(function(mf){ ob[mf.key]=f('ae-ow-'+mf.key); }); return ob;
+    })()
   };
 }
 
@@ -16032,7 +16046,7 @@ function saveManualEntry(){
     stallNote:d.stallingGroup||'',
     needsMembership:'', orgFees:[], customFees:{}, cognitoAmount:0, isPaid:false, source:'manual',
     practiceSessions:d.practiceSessions||[], clinics:d.clinics||[],
-    ownerAqha:d.ownerAqha||''
+    ownerDiffFromRider:d.ownerDiffFromRider||false, ownerMembs:d.ownerMembs||{}
   };
   G.entries.push(entry);
   G.payments[rowIndex] = 0;
