@@ -1814,109 +1814,7 @@ Object.keys(ORG_CLASSES).forEach(function(org){
 //   … (tier = floor(entries/5), capped at 9)
 //   40+ → tier 9 (max): 1st=9, 2nd=8 … 9th=1, 10th=0.5
 
-function calcAqhaPoints(rows, entries){
 
-  if(!entries||entries<1) entries=rows.length;
-
-  // Special case: 3–4 entries → only 1st gets 0.5
-  if(entries>=3 && entries<5){
-    rows.forEach(function(r,i){
-      rows[i]._pts=(r.isDQ||!r.place)?0:(r.place===1?0.5:0);
-    });
-    return rows;
-  }
-
-  var tier=Math.min(9, Math.floor(entries/5)); // cap at 9
-
-  rows.forEach(function(r,i){
-
-    if(r.isDQ||!r.place){ rows[i]._pts=0; return; }
-
-    var p=r.place;
-
-    if(tier<1){ rows[i]._pts=0; return; }
-
-    if(p<=tier) rows[i]._pts=tier-p+1;
-
-    else if(p===tier+1) rows[i]._pts=0.5;
-
-    else rows[i]._pts=0;
-
-  });
-
-  return rows;
-
-}
-
-
-
-// ── CoWN points calculator ────────────────────────────────────
-
-// entries = total horses in the class
-
-// rows = [{place, score, isDQ}, ...] for the class
-
-// Returns array of {place, pts} in same order as input rows
-
-function calcCownPoints(rows, entries){
-
-  if(!entries||entries<1) entries=rows.length;
-
-  // Group by place to find ties
-
-  var byPlace={};
-
-  rows.forEach(function(r,i){
-
-    if(r.isDQ||!r.place){ rows[i]._pts=0; return; }
-
-    if(!byPlace[r.place]) byPlace[r.place]=[];
-
-    byPlace[r.place].push(i);
-
-  });
-
-  Object.keys(byPlace).forEach(function(pl){
-
-    var idxs=byPlace[pl];
-
-    pl=parseInt(pl);
-
-    // Sum points for all tied positions
-
-    var sum=0;
-
-    for(var k=0;k<idxs.length;k++){
-
-      var pos=pl+k;  // consecutive places occupied
-
-      var pts=Math.max(0, entries-pos+1);
-
-      sum+=pts;
-
-    }
-
-    var avg=sum/idxs.length;
-
-    idxs.forEach(function(i){ rows[i]._pts=avg; });
-
-  });
-
-  return rows;
-
-}
-
-
-
-// ── NCHA fixed-top-10 points ──────────────────────────────────
-// 1st=10, 2nd=9 … 10th=1, below 10th or zero score = 0 pts
-function calcFixed10Points(rows){
-  rows.forEach(function(r,i){
-    if(r.isDQ||!r.place||!r.score){ rows[i]._pts=0; return; }
-    rows[i]._pts=Math.max(0,11-r.place);
-  });
-  return rows;
-}
 
 // ── ApHC tiered-lookup points ─────────────────────────────────
 var APHC_PTS_TABLE=[
@@ -1927,71 +1825,6 @@ var APHC_PTS_TABLE=[
   {min:5, pts:[3,2,1,0,0,0]},
   {min:2, pts:[2,1,0,0,0,0]}
 ];
-function calcAphcPoints(rows,entries){
-  if(!entries||entries<1) entries=rows.length;
-  var tier=null;
-  for(var t=0;t<APHC_PTS_TABLE.length;t++){
-    if(entries>=APHC_PTS_TABLE[t].min){ tier=APHC_PTS_TABLE[t].pts; break; }
-  }
-  rows.forEach(function(r,i){
-    if(r.isDQ||!r.place){ rows[i]._pts=0; return; }
-    var p=r.place-1;
-    rows[i]._pts=tier&&p<tier.length?tier[p]:0;
-  });
-  return rows;
-}
-
-// ── ASHA entries+1 points ─────────────────────────────────────
-// Same tie-split logic as CoWN but offset +1 (1st=N+1, last=2, no zeros)
-function calcEntriesPlusOnePoints(rows,entries){
-  if(!entries||entries<1) entries=rows.length;
-  var byPlace={};
-  rows.forEach(function(r,i){
-    if(r.isDQ||!r.place){ rows[i]._pts=0; return; }
-    if(!byPlace[r.place]) byPlace[r.place]=[];
-    byPlace[r.place].push(i);
-  });
-  Object.keys(byPlace).forEach(function(pl){
-    var idxs=byPlace[pl]; pl=parseInt(pl);
-    var sum=0;
-    for(var k=0;k<idxs.length;k++) sum+=Math.max(0,entries-(pl+k)+2);
-    var avg=sum/idxs.length;
-    idxs.forEach(function(i){ rows[i]._pts=avg; });
-  });
-  return rows;
-}
-
-// Recalculate placings from scores (higher score = better place)
-
-// Returns rows sorted and stamped with _calcPlace
-
-function calcPlacingsFromScores(rows){
-
-  var scored=rows.filter(function(r){ return r.score&&!r.isDQ; });
-
-  var dqd=rows.filter(function(r){ return r.isDQ||!r.score; });
-
-  scored.sort(function(a,b){ return (b.score||0)-(a.score||0); });
-
-  var rank=1;
-
-  scored.forEach(function(r,i){
-
-    if(i>0&&scored[i-1].score===r.score) r._calcPlace=scored[i-1]._calcPlace;
-
-    else r._calcPlace=rank;
-
-    rank=i+2;
-
-  });
-
-  dqd.forEach(function(r){ r._calcPlace=null; });
-
-  return scored.concat(dqd);
-
-}
-
-
 
 // Discipline patterns — matched against the END of the class string, in priority order
 
@@ -15662,17 +15495,6 @@ window._reopenTab=function(payKey){
   var e=G.entries.find(function(e){ return e.rowIndex===parseInt(payKey); });
   if(e) showTabModal(e.name);
 };
-
-function markPaid(rowIdx, amount){
-  recordPayment(rowIdx, amount, 'cash', '', '');
-  closeModal(); pgTabs();
-}
-
-function markPaidByRef(refRowIdx, amount){
-  markPaid(refRowIdx, amount);
-}
-
-
 
 function markPaid(rowIdx,amount){
 
