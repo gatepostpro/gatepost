@@ -12066,6 +12066,10 @@ function _getShowOrgs(){
 window.updateScheduleFee = function(idx, field, val){
   if(!G.cfg.feeSchedule || !G.cfg.feeSchedule[idx]) return;
   G.cfg.feeSchedule[idx][field] = field==='amt' ? parseFloat(val)||0 : val;
+  if(field === 'amt' && G.cfg.feeSchedule[idx].key){
+    if(!G.cfg.fees) G.cfg.fees = {};
+    G.cfg.fees[G.cfg.feeSchedule[idx].key] = parseFloat(val)||0;
+  }
 };
 
 window.updateAssocFee = function(idx, field, val){
@@ -12220,6 +12224,10 @@ function saveConfig(){
   G.cfg.email     = v('cfg-email');
 
   if(!G.cfg.feeSchedule) G.cfg.fees = readFeesFromUI();
+  if(G.cfg.feeSchedule){
+    if(!G.cfg.fees) G.cfg.fees = {};
+    G.cfg.feeSchedule.forEach(function(f){ if(f.key) G.cfg.fees[f.key] = f.amt; });
+  }
 
   try{ localStorage.setItem('gatepost_cfg',JSON.stringify(G.cfg)); } catch(e){}
 
@@ -16249,6 +16257,7 @@ async function boot(){
             });
           }
           G.cfg.feeSchedule = saved;
+          if(saved) saved.forEach(function(f){ if(f.key){ if(!G.cfg.fees) G.cfg.fees={}; G.cfg.fees[f.key]=f.amt; } });
           return;
         }
         if(k==='_extraFees')       { G.cfg.extraFees        = show.fee_config[k]||[]; return; }
