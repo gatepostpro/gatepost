@@ -16685,6 +16685,8 @@ async function boot(){
 
     }
 
+    saveEntriesToStorage();
+
     var isNewShow = G.cfg.showStatus==='setup' && !G.cfg.classes.length;
     if(isNewShow){ openWizard(); } else {
       var savedPage = localStorage.getItem('gp_lastpage_'+(G.showId||''));
