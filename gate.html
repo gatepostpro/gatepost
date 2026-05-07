@@ -196,7 +196,7 @@ var classList = [];
 var closedClasses = [];
 
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function clsKey(c){ return (c.num?c.num+'_':'')+c.name; }
+function clsKey(c){ return (c.num||'')+'|'+(c.name||''); }
 
 function backNum(ri){
   for(var k in G.backNums){ if(G.backNums[k]===ri) return k; }

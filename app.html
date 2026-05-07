@@ -4426,7 +4426,7 @@ function pgClasses(){
 
       var entryMap={};
 
-      cls.allEntries.forEach(function(e){ entryMap[e.rowIndex]=e; });
+      G.entries.forEach(function(e){ entryMap[e.rowIndex]=e; });
 
       var orderedEntries=order.map(function(ri){ return entryMap[ri]; }).filter(Boolean);
 
