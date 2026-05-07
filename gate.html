@@ -382,15 +382,27 @@ function toggleClose(){
 }
 
 // ─── Save ────────────────────────────────────────────────────
+var _bc = null;
+try{
+  _bc = new BroadcastChannel('gatepost_gate_sync');
+  _bc.onmessage = function(){ if(showId) refreshData(); };
+} catch(e){}
+
+function _notifyApp(){
+  try{ if(_bc) _bc.postMessage({showId: showId, t: Date.now()}); } catch(e){}
+}
+
 function saveData(){
   try{
     localStorage.setItem('gp_scratches_' + showId, JSON.stringify(G.scratches));
     localStorage.setItem('gp_classorder_' + showId, JSON.stringify(G.classOrder));
   } catch(e){}
+  _notifyApp();
 }
 
 function saveClosedClasses(){
   try{ localStorage.setItem('gp_closedclasses_' + showId, JSON.stringify(closedClasses)); } catch(e){}
+  _notifyApp();
 }
 
 // ─── Add modal ───────────────────────────────────────────────
@@ -479,6 +491,7 @@ function boot(){
   document.getElementById('app').style.display = 'flex';
   showList();
 }
+
 
 document.addEventListener('DOMContentLoaded', function(){
   var params = new URLSearchParams(window.location.search);

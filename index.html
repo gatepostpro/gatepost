@@ -88,6 +88,8 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 3re
 .role-card.scribe:hover{border-color:var(--blue)}
 .role-card.participant{border-color:rgba(46,204,113,.2)}
 .role-card.participant:hover{border-color:var(--green)}
+.role-card.gate{border-color:rgba(155,89,182,.25)}
+.role-card.gate:hover{border-color:#9b59b6}
 
 /* ── New show form ── */
 #new-form{display:none;margin-top:.85rem;padding-top:.85rem;border-top:1px solid var(--border)}
@@ -194,6 +196,13 @@ body{display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 3re
       <div class="role-info">
         <div class="role-name">Participant</div>
         <div class="role-desc">View results and standings</div>
+      </div>
+    </a>
+    <a class="role-card gate" id="role-gate" href="#">
+      <div class="role-icon">🚪</div>
+      <div class="role-info">
+        <div class="role-name">Gate</div>
+        <div class="role-desc">Class list, scratches, and ride order</div>
       </div>
     </a>
   </div>
@@ -358,6 +367,7 @@ function selectShow(id){
   document.getElementById('role-secretary').href  = 'app.html'+q;
   document.getElementById('role-scribe').href     = 'scribe.html'+q;
   document.getElementById('role-participant').href = 'results.html'+q;
+  document.getElementById('role-gate').href        = 'gate.html'+q;
 
   document.getElementById('shows-panel').style.display='none';
   document.getElementById('role-panel').style.display='block';

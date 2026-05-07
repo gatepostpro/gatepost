@@ -302,29 +302,64 @@ All show state is keyed by `showId`. Full key inventory:
 
 ### Fee Schedule (Show Setup → Finances)
 
-- `renderFeeSchedule()` renders each fee category as its own `.card.fee-cat-section` element — not nested inside one outer card.
-- `toggleFeeSection(cat)` collapses/expands individual category cards. Toggle chevron rotates via CSS `.collapsed` class.
-- CSS: `.fee-cat-section.collapsed` hides `.fee-sched-row`, `.fee-add-btn`, `.fee-cat-empty` children.
+`renderFeeSchedule()` uses a `feeSection(id, title, cat, alwaysOpen)` helper that renders each category as a `.fee-sec` element. Sections auto-collapse when all amounts are $0. Clicking the `.fee-sec-head` toggles `.collapsed` inline — no separate `toggleFeeSection()` needed. CSS:
 
-**Fee categories (`FEE_CATS`):** `class`, `stall`, `rv`, `office`, `member`, `custom`, `import`, `assocfee`.
+```css
+.fee-sec            /* wrapper — border, border-radius */
+.fee-sec-head       /* clickable header row */
+.fee-sec-title      /* Oswald accent label */
+.fee-sec-toggle     /* chevron, rotates -90deg when .collapsed */
+.fee-sec-body       /* display:none when .collapsed */
+.fee-row            /* preset fee row */
+.fee-amt            /* price input, 90px, right-aligned */
+```
 
-**`import` category** — fee schedule entries with `cat:'import'` are created automatically when the entries mapper commits custom fee columns. Label is the column name from the mapper (read-only in UI). User sets the price-per-unit here; `buildTabLines()` then computes `entry.customFees[name] × price`.
+**`DEFAULT_FEE_SCHEDULE`** is the canonical list of preset fee keys. `initFeeSchedule()` creates `G.cfg.feeSchedule` from it on first load and backfills any missing keys on subsequent loads. **Critical:** `buildTabLines` reads fees by these exact keys — the schedule and the billing code must stay in sync.
 
-**`G.cfg.assocFees`** — `[{id, org, desc, amt, per:'entry'|'class', disciplines:[]}]`  
-Per-association admin fees (drug tests, trail fees, etc.). Rendered in a separate "Association Fees" card below the standard fee schedule. CRUD via `addAssocFee()` / `updateAssocFee(idx, field, val)` / `removeAssocFee(idx)`. Persisted in `fee_config._assocFees` in Supabase and in `gatepost_cfg` in localStorage. Loaded back in the `fee_config` parser alongside `_schedule` and `_extraFees`.
+| Key | Label | Cat |
+|---|---|---|
+| `classBase` | Base Class Fee | class |
+| `cowSurcharge` | Cattle Fee | class |
+| `cuttingSurcharge` | Cutting Fee | class |
+| `jackpot` | Jackpot Fee | class |
+| `haulin` | Haul-In (per horse) | stall |
+| `stall1` | Stall — Per Night | stall |
+| `stall2` | Stall — 2 Nights | stall |
+| `stall3` | Stall — 3 Nights | stall |
+| `stallCircuit` | Stall — Full Circuit | stall |
+| `shavings` | Shavings (per bag) | stall |
+| `rv1` | RV — Per Night | rv |
+| `rv2` | RV — 2 Nights | rv |
+| `rvCircuit` | RV — Full Circuit | rv |
+| `office` | Office Fee (per entry) | office |
+| `late` | Late Entry Fee | office |
+| `membership1yr` | Membership — 1 Year | member |
+| `membership3yr` | Membership — 3 Years | member |
+| `membershipLife` | Membership — Lifetime | member |
+| `dayLicense` | Day License | member |
+| `horseLicense` | Horse License | member |
+
+Beyond the preset sections, `renderFeeSchedule()` also renders:
+- **Association Admin Fees** (`G.cfg.assocFees`) — `[{id, org, desc, amt, per:'entry'|'class', disciplines:[]}]`. CRUD via `addAssocFee()` / `updateAssocFee(idx, field, val)` / `removeAssocFee(idx)`. Persisted in `fee_config._assocFees`.
+- **Class Package Discounts** (`G.cfg.classPkgs`) — `[{id, org, label, minClasses, discount}]`. Auto-applied in `buildTabLines` when rider enters ≥ `minClasses` from that org. CRUD via `addClassPkg()` / `updateClassPkg()` / `removeClassPkg()`. Persisted in `fee_config._classPkgs`.
+- **Practice Sessions** (`G.cfg.practiceSessions`) — `[{id, label, price}]`. Shown on entry form when present. CRUD via `addPracticeSession()` / `updatePracticeSession()` / `removePracticeSession()`. Persisted in `fee_config._practiceSessions`.
+- **Clinic Options** (`G.cfg.clinicOptions`) — `[{id, label, price}]`. Shown as dropdown on entry form when present. CRUD via `addClinicOption()` / `updateClinicOption()` / `removeClinicOption()`. Persisted in `fee_config._clinicOptions`.
 
 **`buildTabLines(entry)`** applies fees in this order:
 1. Office fee
 2. Per-org manually added fees (`entry.orgFees`)
 3. Membership / license
 4. Classes (per-class base + cow surcharge + jackpot)
-5. Show-wide custom/extra fees (`G.cfg.extraFees`)
-6. Stalling: stall1qty, stall2qty, **stall3qty**, shavings
-7. RV: rv1qty, rv2qty, rvCircuit
-8. **Association admin fees** (`G.cfg.assocFees`) — per-entry or per-class, with optional discipline filter
-9. **Import/variable fees** (`entry.customFees`) — qty × price from feeSchedule `cat:'import'` entry; line carries `noPrice:true` flag if no price is set yet (so Checkout can warn)
+5. **Package discounts** (`G.cfg.classPkgs`) — best-matching package per org, applied as negative line
+6. Show-wide custom/extra fees (`G.cfg.extraFees`)
+7. **Haul-in** (`entry.haulinQty × f.haulin`)
+8. Stalling: stall1qty, stall2qty, stall3qty, shavings
+9. RV: rv1qty, rv2qty, rvCircuit
+10. **Association admin fees** (`G.cfg.assocFees`) — per-entry or per-class, with optional discipline filter
+11. **Late fee** (`entry.lateFee`) — set by secretary on hand entry or flagged at accept time
+12. **Import/variable fees** (`entry.customFees`) — qty × price from feeSchedule `cat:'import'` entry; `noPrice:true` flag if unpriced (Checkout warns)
 
-**`_getShowOrgs()`** — returns union of standard org list + orgs present in `G.cfg.classes`. Used to populate org dropdowns in assocFees UI.
+**`_getShowOrgs()`** — returns union of standard org list + orgs present in `G.cfg.classes`. Used to populate org dropdowns in assocFees/classPkgs UI.
 
 ### Class Fees (Show Setup → Class Fees)
 

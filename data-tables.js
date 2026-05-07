@@ -5,7 +5,7 @@
 
 // ── Association org / division / discipline tables ──────────────────────
 
-var COW_WORDS = ['cow','cut','boxing','working'];
+var COW_WORDS = [/\bcow\b/i, /\bcutting\b/i, /\bbox(ing)?\b/i, /\bworking\b/i];
 var ORG_LIST = ['CoWN','VRH','AQHA Ranch','AQHA RHC','APHA','ApHC','NRHA','NRCHA','NCHA','NVRHA','ASHA','WHSR','Jackpot'];
 var ORG_DIVISIONS = {
   'CoWN':       ['Open','Non-Pro','Limited','Intermediate','Novice','L1 Novice','Youth','Novice Youth','Open Jr Horse','Non-Pro Jr Horse','Non-Pro Boxing','Collegiate Non-Pro','Collegiate Limited','Collegiate Novice'],

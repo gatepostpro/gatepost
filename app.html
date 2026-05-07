@@ -1482,7 +1482,7 @@ function commitEntriesImport(){
       G.entries.forEach(function(en){
         en.classes.forEach(function(cls){
           if(cls.num && !classMap[cls.num]){
-            var isCow = COW_WORDS.some(function(k){ return (cls.name||'').toLowerCase().indexOf(k)>-1; });
+            var isCow = COW_WORDS.some(function(k){ return k.test(cls.name||''); });
             CFG_ROW_ID++;
             classMap[cls.num] = {_id:'cr'+CFG_ROW_ID, num:cls.num, name:cls.name,
               division:cls.division, org:cls.org||'CoWN', isCow:isCow,
@@ -2657,7 +2657,14 @@ window.commitResultsImport=function(){
   G.resultsFile=data.filename;
   _resSelOrg=''; _resSelDiv=''; _resSelClass=''; _resSearch=''; _resSortCol='place'; _resSortDir=1; _resSelShow='';
   _pendingResultsAudit=null;
-  reconcileResultsToEntries(); saveResultsToStorage();
+  reconcileResultsToEntries();
+  // Auto-rerank every class so points use the configured formula immediately
+  var _seen={};
+  G.results.forEach(function(r){
+    var k=(r.org||'')+'|'+(r.division||'')+'|'+(r.discipline||'');
+    if(!_seen[k]){ _seen[k]=1; recomputeClassPts(r.org,r.division,r.discipline); }
+  });
+  saveResultsToStorage();
   pgResults();
   toast(G.results.length+' results imported');
 };
@@ -2751,21 +2758,24 @@ function buildTabLines(entry){
 
       var base = (cfgCls && cfgCls.baseFee != null) ? cfgCls.baseFee : (f.classBase||0);
 
-      var isCow = cfgCls ? cfgCls.isCow : COW_WORDS.some(function(k){ return (cls.name||'').toLowerCase().indexOf(k)>-1; });
+      var isCutting = /cutting/i.test(cls.name||'');
 
-      var isCutting = !isCow && /cutting/i.test(cls.name||'');
+      var isCow = isCutting || (cfgCls ? cfgCls.isCow : COW_WORDS.some(function(k){ return k.test(cls.name||''); }));
 
-      var cowFee = isCow ? ((cfgCls && cfgCls.cowFee != null) ? cfgCls.cowFee : (f.cowSurcharge||0)) : 0;
-
-      var cutFee = isCutting ? (f.cuttingSurcharge||0) : 0;
+      // Per-class cowFee override takes priority; default to the rate matching the class type
+      var cowFee = isCow
+        ? ((cfgCls && cfgCls.cowFee != null)
+            ? cfgCls.cowFee
+            : (isCutting ? (f.cuttingSurcharge||0) : (f.cowSurcharge||0)))
+        : 0;
 
       var jp = (cfgCls && cfgCls.jackpot) ? cfgCls.jackpot : 0;
 
-      var desc = 'Class '+(cls.num||'?')+' \u2014 '+cls.name;
+      var desc = 'Class '+(cls.num||'?')+' — '+cls.name;
 
       if(cls.org && cls.org !== 'CoWN') desc += ' ['+cls.org+']';
 
-      lines.push({desc:desc, amt:base+cowFee+cutFee+jp, type:'class', isCow:isCow});
+      lines.push({desc:desc, amt:base+cowFee+jp, type:'class', isCow:isCow});
 
     });
 
@@ -2852,14 +2862,14 @@ function buildTabLines(entry){
   // ── Practice sessions ──
   if(entry.practiceSessions && entry.practiceSessions.length){
     entry.practiceSessions.forEach(function(p){
-      lines.push({desc:p.label||'Practice Session', amt:+(p.price||0), type:'extra'});
+      lines.push({desc:'Paid Warm-Up — '+(p.label||'Session'), amt:+(p.price||0), type:'extra'});
     });
   }
 
   // ── Clinics ──
   if(entry.clinics && entry.clinics.length){
     entry.clinics.forEach(function(c){
-      lines.push({desc:c.label||'Clinic', amt:+(c.price||0), type:'extra'});
+      lines.push({desc:'Clinic — '+(c.label||'Clinic'), amt:+(c.price||0), type:'extra'});
     });
   }
 
@@ -3404,6 +3414,10 @@ var PAGE_TITLES = {
 
 
 function showPage(p){
+
+  _currentPage = p;
+
+  if(G.showId) try{ localStorage.setItem('gp_lastpage_'+G.showId, p); }catch(e){}
 
   document.querySelectorAll('.nav-item').forEach(function(el){
 
@@ -4141,6 +4155,22 @@ window.clsFullScratch=function(rowIndex){
 
 };
 
+window.clsToggleClosed=function(key){
+
+  var sid=G.showId||'';
+
+  var stored=[]; try{ stored=JSON.parse(localStorage.getItem('gp_closedclasses_'+sid)||'[]'); }catch(e){}
+
+  var idx=stored.indexOf(key);
+
+  if(idx>=0) stored.splice(idx,1); else stored.push(key);
+
+  localStorage.setItem('gp_closedclasses_'+sid, JSON.stringify(stored));
+
+  pgClasses();
+
+};
+
 window.clsMoveUp=function(classKey, rowIndex){
 
   var order=G.classOrder[classKey];
@@ -4219,6 +4249,8 @@ window.clsDrop=function(classKey, rowIndex, ev){
 
 
 
+var _currentPage = '';
+
 var _clsCollapsed={};
 
 window.clsToggleCollapse=function(key){
@@ -4249,7 +4281,13 @@ function pgClasses(){
 
   }
 
-
+  // Always pull latest gate data from localStorage so changes from gate.html tab appear immediately
+  var _sid = G.showId||'';
+  if(_sid){
+    try{ var _sc=localStorage.getItem('gp_scratches_'+_sid);    if(_sc) G.scratches=JSON.parse(_sc); }catch(e){}
+    try{ var _co=localStorage.getItem('gp_classorder_'+_sid);   if(_co) G.classOrder=JSON.parse(_co); }catch(e){}
+    try{ var _fs=localStorage.getItem('gp_fullscratches_'+_sid);if(_fs) G.fullScratches=JSON.parse(_fs); }catch(e){}
+  }
 
   // Build class map
 
@@ -4272,6 +4310,9 @@ function pgClasses(){
 
 
   var sorted=Object.values(classMap).sort(function(a,b){ return (parseInt(a.num)||999)-(parseInt(b.num)||999); });
+
+  var _closedByGate=(function(){ try{ return JSON.parse(localStorage.getItem('gp_closedclasses_'+(G.showId||''))||'[]'); }catch(e){ return []; } })();
+
 
 
 
@@ -4302,6 +4343,7 @@ function pgClasses(){
     +'<button class="btn btn-accent btn-sm" onclick="printGoSheets()">&#128424; Print Go Sheets</button>'
 
     +'<a class="btn btn-dark btn-sm" href="scribe.html?show='+esc(G.showId||'')+'" target="_blank" style="margin-left:auto;text-decoration:none">&#9999;&#65039; Open Scribe</a>'
+    +'<a class="btn btn-dark btn-sm" href="gate.html?show='+esc(G.showId||'')+'" target="_blank" style="text-decoration:none">&#128682; Open Gate</a>'
 
     +'</div>'
 
@@ -4478,6 +4520,11 @@ function pgClasses(){
 
         +(cls.org&&cls.org!=='CoWN'?'<span class="badge b-blue" style="margin-left:4px">'+esc(cls.org)+'</span>':'')
 
+        +(_closedByGate.indexOf(key)>=0
+          ?'<button class="btn btn-sm no-print" style="background:rgba(231,76,60,.18);color:#e74c3c;padding:.15rem .5rem;font-size:.72rem;font-family:Oswald;letter-spacing:.03em;margin-left:4px" onclick="event.stopPropagation();clsToggleClosed(\''+keyEscQ+'\')" title="Class is closed — click to reopen">&#128682; CLOSED</button>'
+          :'<button class="btn btn-dark btn-sm no-print" style="padding:.15rem .4rem;font-size:.72rem;margin-left:4px" onclick="event.stopPropagation();clsToggleClosed(\''+keyEscQ+'\')" title="Close class to new entries">&#128682; Close</button>'
+        )
+
         +'</div>'
 
         +'<div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">'
@@ -4506,6 +4553,7 @@ function pgClasses(){
 
   drawClassLists();
 
+  // Poll localStorage every 3s so changes from gate show up even if storage event misfires
 }
 
 
@@ -9463,7 +9511,7 @@ function pgSettings(){
 
     +'<button class="btn btn-dark btn-sm" onclick="addCfgClass()">+ Add Manually</button>'
 
-    +'<button class="btn btn-dark btn-sm" onclick="autofillClassFees()">&#9889; Auto-fill Fees</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="autofillClassFees()" title="Fill each class with the base/cow/cutting fees from Finances">&#9889; Apply Show Fees to Classes</button>'
 
     +'<button class="btn btn-dark btn-sm" onclick="autoDetectCow()">&#128004; Detect Cow Classes</button>'
 
@@ -11343,7 +11391,13 @@ function autofillClassFees(){
 
   var f=G.cfg.fees;
 
-  G.cfg.classes.forEach(function(c){ c.baseFee=f.classBase; if(c.isCow) c.cowFee=f.cowSurcharge; c.jackpot=f.jackpot||null; });
+  G.cfg.classes.forEach(function(c){
+    var isCutting = /cutting/i.test(c.name||'');
+    c.baseFee = f.classBase;
+    if(isCutting){ c.isCow=true; c.cowFee=f.cuttingSurcharge||0; }
+    else if(c.isCow){ c.cowFee=f.cowSurcharge||0; }
+    c.jackpot = f.jackpot||null;
+  });
 
   renderCfgClassTable();
 
@@ -11357,7 +11411,9 @@ function autoDetectCow(){
 
   G.cfg.classes.forEach(function(c){
 
-    if(COW_WORDS.some(function(k){ return (c.name||'').toLowerCase().indexOf(k)>-1; })){ c.isCow=true; n++; }
+    var wasCow = c.isCow;
+    if(/cutting/i.test(c.name||'') || COW_WORDS.some(function(k){ return k.test(c.name||''); })){ c.isCow=true; }
+    if(!wasCow && c.isCow) n++;
 
   });
 
@@ -11431,7 +11487,7 @@ function loadCfgClassFile(file){
 
                 CFG_ROW_ID++;
 
-                var isCow=COW_WORDS.some(function(k){ return m[2].toLowerCase().indexOf(k)>-1; });
+                var isCow=COW_WORDS.some(function(k){ return k.test(m[2]); });
 
                 classMap[num]={_id:'cr'+CFG_ROW_ID,num:num,name:m[2].trim(),division:div,org:org,isCow:isCow,baseFee:null,cowFee:null,jackpot:null,addedMoney:null};
 
@@ -11868,6 +11924,9 @@ function initFeeSchedule(){
       }
     });
   }
+  // Always sync schedule → G.cfg.fees so buildTabLines sees current values
+  if(!G.cfg.fees) G.cfg.fees = {};
+  G.cfg.feeSchedule.forEach(function(f){ if(f.key) G.cfg.fees[f.key] = f.amt||0; });
 }
 
 function renderFeeSchedule(){
@@ -12344,6 +12403,174 @@ function applyConfigToUI(){
 
 
 
+// ── Entry modal housing edit helpers ─────────────────────────────────────────
+
+function _emQty(id, label, price, currentVal, rowIdx){
+  return '<div class="form-group" style="min-width:120px">'
+    +'<label style="font-size:.75rem;color:var(--muted);margin-bottom:.2rem;display:block">'+esc(label)
+    +' <span style="color:var(--accent)">'+fmtI(price)+'/ea</span></label>'
+    +'<input type="number" id="'+id+'" value="'+currentVal+'" min="0" step="1" '
+    +'onchange="emSaveHousing('+rowIdx+')" '
+    +'style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.35rem .55rem;font-size:.88rem;width:100%;box-sizing:border-box"></div>';
+}
+
+function _emHousingEdit(entry, rowIdx){
+  var f = G.cfg.fees || {};
+  var sched = G.cfg.feeSchedule || [];
+  function lbl(key, def){ var e=sched.find(function(x){return x.key===key;}); return e?e.label:def; }
+  var html = '';
+  var hasAnything = false;
+
+  // Stall packages (wizard-configured)
+  var stallPkgs = G.cfg.stallingPackages || [];
+  var hasFlatStall = f.stall1>0 || f.stall2>0 || f.stall3>0 || f.stallCircuit>0;
+
+  if(stallPkgs.length){
+    hasAnything = true;
+    html += '<div style="margin-bottom:.75rem">';
+    stallPkgs.forEach(function(p){
+      var val = p.id||p.label;
+      var checked = entry.stallingPkg===val ? 'checked' : '';
+      html += '<label style="display:flex;align-items:center;gap:.5rem;font-size:.83rem;padding:.2rem 0;cursor:pointer">'
+        +'<input type="radio" name="em-stall-pkg" value="'+esc(val)+'" '+checked
+        +' onchange="emSaveHousing('+rowIdx+')" style="accent-color:var(--accent)"> '
+        +esc(p.label)+(p.price>0?' <span style="color:var(--accent)">'+fmtI(+p.price)+'</span>':'')
+        +'</label>';
+    });
+    html += '<label style="display:flex;align-items:center;gap:.5rem;font-size:.83rem;padding:.2rem 0;color:var(--muted);cursor:pointer">'
+      +'<input type="radio" name="em-stall-pkg" value="" '+(!entry.stallingPkg?'checked':'')
+      +' onchange="emSaveHousing('+rowIdx+')" style="accent-color:var(--accent)"> None</label>'
+      +'</div>';
+  } else if(hasFlatStall){
+    hasAnything = true;
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:.4rem;margin-bottom:.75rem">';
+    if(f.stall1>0)      html += _emQty('em-stall1', lbl('stall1','Stall — Per Night'), f.stall1, entry.stall1qty||0, rowIdx);
+    if(f.stall2>0)      html += _emQty('em-stall2', lbl('stall2','Stall — 2 Nights'),  f.stall2, entry.stall2qty||0, rowIdx);
+    if(f.stall3>0)      html += _emQty('em-stall3', lbl('stall3','Stall — 3 Nights'),  f.stall3, entry.stall3qty||0, rowIdx);
+    if(f.stallCircuit>0) html += _emQty('em-stallc', lbl('stallCircuit','Stall — Full Circuit (entire show)'), f.stallCircuit, entry.stallCircuit||0, rowIdx);
+    html += '</div>';
+  }
+
+  if(f.shavings>0){
+    hasAnything = true;
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:.4rem;margin-bottom:.75rem">'
+      +_emQty('em-shavings', lbl('shavings','Shavings'), f.shavings, entry.shavings||0, rowIdx)
+      +'</div>';
+  }
+
+  var rvPkgs = G.cfg.rvPackages || [];
+  var hasFlatRV = f.rv1>0 || f.rv2>0 || f.rvCircuit>0;
+
+  if(rvPkgs.length){
+    hasAnything = true;
+    html += '<div style="margin-bottom:.75rem">';
+    rvPkgs.forEach(function(p){
+      var val = p.id||p.label;
+      var checked = entry.rvPkg===val ? 'checked' : '';
+      html += '<label style="display:flex;align-items:center;gap:.5rem;font-size:.83rem;padding:.2rem 0;cursor:pointer">'
+        +'<input type="radio" name="em-rv-pkg" value="'+esc(val)+'" '+checked
+        +' onchange="emSaveHousing('+rowIdx+')" style="accent-color:var(--accent)"> '
+        +esc(p.label)+(p.price>0?' <span style="color:var(--accent)">'+fmtI(+p.price)+'</span>':'')
+        +'</label>';
+    });
+    html += '<label style="display:flex;align-items:center;gap:.5rem;font-size:.83rem;padding:.2rem 0;color:var(--muted);cursor:pointer">'
+      +'<input type="radio" name="em-rv-pkg" value="" '+(!entry.rvPkg?'checked':'')
+      +' onchange="emSaveHousing('+rowIdx+')" style="accent-color:var(--accent)"> None</label>'
+      +'</div>';
+  } else if(hasFlatRV){
+    hasAnything = true;
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:.4rem;margin-bottom:.75rem">';
+    if(f.rv1>0)      html += _emQty('em-rv1', lbl('rv1','RV — Per Night'), f.rv1, entry.rv1qty||0, rowIdx);
+    if(f.rv2>0)      html += _emQty('em-rv2', lbl('rv2','RV — 2 Nights'),  f.rv2, entry.rv2qty||0, rowIdx);
+    if(f.rvCircuit>0) html += _emQty('em-rvc', lbl('rvCircuit','RV — Full Circuit (entire show)'), f.rvCircuit, entry.rvCircuit||0, rowIdx);
+    html += '</div>';
+  }
+
+  if(!hasAnything) return '<div style="font-size:.82rem;color:var(--muted);padding:.3rem 0">No stalling or RV rates configured in Finances.</div>';
+  return html;
+}
+
+window.emSaveHousing = function(rowIdx){
+  var entry = G.entries.find(function(e){ return e.rowIndex===rowIdx; });
+  if(!entry) return;
+
+  var stallPkgs = G.cfg.stallingPackages || [];
+  if(stallPkgs.length){
+    var s = document.querySelector('input[name="em-stall-pkg"]:checked');
+    entry.stallingPkg = s ? s.value : '';
+  } else {
+    if(document.getElementById('em-stall1')) entry.stall1qty   = parseInt(document.getElementById('em-stall1').value)||0;
+    if(document.getElementById('em-stall2')) entry.stall2qty   = parseInt(document.getElementById('em-stall2').value)||0;
+    if(document.getElementById('em-stall3')) entry.stall3qty   = parseInt(document.getElementById('em-stall3').value)||0;
+    if(document.getElementById('em-stallc')) entry.stallCircuit= parseInt(document.getElementById('em-stallc').value)||0;
+  }
+  if(document.getElementById('em-shavings')) entry.shavings = parseInt(document.getElementById('em-shavings').value)||0;
+
+  var rvPkgs = G.cfg.rvPackages || [];
+  if(rvPkgs.length){
+    var r = document.querySelector('input[name="em-rv-pkg"]:checked');
+    entry.rvPkg = r ? r.value : '';
+  } else {
+    if(document.getElementById('em-rv1')) entry.rv1qty    = parseInt(document.getElementById('em-rv1').value)||0;
+    if(document.getElementById('em-rv2')) entry.rv2qty    = parseInt(document.getElementById('em-rv2').value)||0;
+    if(document.getElementById('em-rvc')) entry.rvCircuit = parseInt(document.getElementById('em-rvc').value)||0;
+  }
+
+  saveEntriesToCache();
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
+function _emExtrasEdit(entry, rowIdx){
+  var pracs = G.cfg.practiceSessions || [];
+  var clins = G.cfg.clinicOptions    || [];
+  if(!pracs.length && !clins.length) return '';
+  var html = '';
+  if(pracs.length){
+    var entryPracs = entry.practiceSessions || [];
+    html += '<div style="margin-bottom:.5rem"><div style="font-size:.8rem;color:var(--muted);margin-bottom:.3rem">Practice / Warm-Up Sessions</div>';
+    pracs.forEach(function(p){
+      var pid = p.id||p.label;
+      var checked = entryPracs.some(function(ep){ return (ep.id||ep.label)===pid; });
+      html += '<label style="display:flex;align-items:center;gap:.5rem;font-size:.83rem;padding:.2rem 0;cursor:pointer">'
+        +'<input type="checkbox" name="em-prac" value="'+esc(pid)+'" '+(checked?'checked':'')+' '
+        +'onchange="emSaveExtras('+rowIdx+')" style="accent-color:var(--accent)"> '
+        +esc(p.label||'Session')+(+p.price>0?' <span style="color:var(--accent)">'+fmtI(+p.price)+'</span>':'')
+        +'</label>';
+    });
+    html += '</div>';
+  }
+  if(clins.length){
+    var entryClins = entry.clinics || [];
+    html += '<div style="margin-bottom:.5rem"><div style="font-size:.8rem;color:var(--muted);margin-bottom:.3rem">Clinics</div>';
+    clins.forEach(function(c){
+      var cid = c.id||c.label;
+      var checked = entryClins.some(function(ec){ return (ec.id||ec.label)===cid; });
+      html += '<label style="display:flex;align-items:center;gap:.5rem;font-size:.83rem;padding:.2rem 0;cursor:pointer">'
+        +'<input type="checkbox" name="em-clin" value="'+esc(cid)+'" '+(checked?'checked':'')+' '
+        +'onchange="emSaveExtras('+rowIdx+')" style="accent-color:var(--accent)"> '
+        +esc(c.label||'Clinic')+(+c.price>0?' <span style="color:var(--accent)">'+fmtI(+c.price)+'</span>':'')
+        +'</label>';
+    });
+    html += '</div>';
+  }
+  return html;
+}
+
+window.emSaveExtras = function(rowIdx){
+  var entry = G.entries.find(function(e){ return e.rowIndex===rowIdx; });
+  if(!entry) return;
+  var pracs = G.cfg.practiceSessions || [];
+  var clins = G.cfg.clinicOptions    || [];
+  var chkPracs = Array.from(document.querySelectorAll('input[name="em-prac"]:checked')).map(function(cb){ return cb.value; });
+  var chkClins = Array.from(document.querySelectorAll('input[name="em-clin"]:checked')).map(function(cb){ return cb.value; });
+  entry.practiceSessions = pracs.filter(function(p){ return chkPracs.indexOf(p.id||p.label)>=0; })
+    .map(function(p){ return {id:p.id||p.label, label:p.label, price:+(p.price||0)}; });
+  entry.clinics = clins.filter(function(c){ return chkClins.indexOf(c.id||c.label)>=0; })
+    .map(function(c){ return {id:c.id||c.label, label:c.label, price:+(c.price||0)}; });
+  saveEntriesToCache();
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
 function showEntryModal(rowIdx){
 
   var e = G.entries.find(function(x){ return x.rowIndex===rowIdx; });
@@ -12564,19 +12791,16 @@ function showEntryModal(rowIdx){
 
 
 
-    // Stalling
+    // Stalling & RV — editable
+    feesHTML += '<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:.6rem 0 .25rem">Stalling &amp; RV</div>'
+      + _emHousingEdit(entry, rowIdx);
 
-    var stallLines = lines.filter(function(l){ return l.type==='stall'||l.type==='rv'; });
-
-    if(stallLines.length){
-
-      feesHTML += '<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:.6rem 0 .25rem">Stalling & RV</div>';
-
-      stallLines.forEach(function(l){ feesHTML += '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; });
-
+    // Extras (practices / clinics) — editable checkboxes
+    var extrasEditHtml = _emExtrasEdit(entry, rowIdx);
+    if(extrasEditHtml){
+      feesHTML += '<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:.6rem 0 .25rem">Extras</div>'
+        + extrasEditHtml;
     }
-
-
 
     // Association admin fees
     var assocFeeLines = lines.filter(function(l){ return l.type==='assocfee'; });
@@ -13190,13 +13414,16 @@ function showEntryModal(rowIdx){
 
           var sel = document.getElementById('of-type');
 
-          if(sel){ sel.value = 'Discount / Credit'; orgFeeTypeChange(ri); }
+          if(sel){ sel.value = '_discount'; orgFeeTypeChange(ri); }
 
         }, 30);
 
       });
 
     });
+
+    // Restore whichever tab was active before the rebuild
+    switchModalTab(_entryModalTab);
 
   }
 
@@ -13211,6 +13438,8 @@ function showEntryModal(rowIdx){
 
 
 function switchModalTab(tab){
+
+  _entryModalTab = tab;
 
   var tabs = ['details','classes','riders','fees','stall'];
 
@@ -13770,7 +13999,7 @@ function scratchClass(rowIdx, classIdx){
 
 
 
-  var isCow = cls.isCow || COW_WORDS.some(function(k){ return (cls.name||'').toLowerCase().indexOf(k)>-1; });
+  var isCow = cls.isCow || COW_WORDS.some(function(k){ return k.test(cls.name||''); });
 
   var cowFee = isCow ? (G.cfg.fees.cowSurcharge||0) : 0;
 
@@ -13930,59 +14159,39 @@ function showAddOrgFee(rowIdx, prefillDesc, prefillAmt){
 
   if(!e) return;
 
-  var f = G.cfg.fees;
+  initFeeSchedule();
 
-  var orgs=['CoWN','AQHA','APHA','NHSRA','Other'];
+  var sched = G.cfg.feeSchedule || [];
 
-  var feeTypes=[
+  // Build option list from Finances schedule, excluding stall/rv/import (managed by housing editor)
+  var EXCLUDE = {stall:1, rv:1, import:1};
+  var CAT_ORDER = ['office','member','class'];
+  var CAT_LABELS = {office:'Office & Admin', member:'Membership & Licenses', class:'Class Fees'};
+  var grouped = {};
+  sched.forEach(function(f){
+    if(!f.key || EXCLUDE[f.cat]) return;
+    if(!grouped[f.cat]) grouped[f.cat] = [];
+    grouped[f.cat].push(f);
+  });
 
-    'Office Fee',
+  var isDiscount = prefillAmt !== undefined && prefillAmt < 0;
+  var isCustom = !!prefillDesc || isDiscount;
 
-    'Drug Test Fee',
+  var optHtml = '';
+  CAT_ORDER.forEach(function(cat){
+    var rows = grouped[cat];
+    if(!rows || !rows.length) return;
+    optHtml += '<option disabled style="color:var(--muted);background:var(--card)">── '+CAT_LABELS[cat]+' ──</option>';
+    rows.forEach(function(f){
+      var label = f.label + (f.amt > 0 ? '  ('+fmtI(f.amt)+')' : '');
+      optHtml += '<option value="'+esc(f.key)+'" data-amt="'+(f.amt||0)+'">'+esc(label)+'</option>';
+    });
+  });
+  optHtml += '<option disabled style="color:var(--muted);background:var(--card)">── Adjustments ──</option>';
+  optHtml += '<option value="_custom"'+(prefillDesc&&!isDiscount?' selected':'')+'>Custom Fee</option>';
+  optHtml += '<option value="_discount"'+(isDiscount?' selected':'')+'>Discount / Credit</option>';
 
-    'Administration Fee',
-
-    'Late Fee',
-
-    'Horse License',
-
-    'Day License',
-
-    'Membership — 1 Year',
-
-    'Membership — 3 Year',
-
-    'Membership — Lifetime',
-
-    '--- Housing ---',
-
-    'Stall — 1 Night ('+(f.stall1||40)+'/night)',
-
-    'Stall — 2 Nights ('+(f.stall2||80)+')',
-
-    'Stall — 3 Nights ('+(f.stall3||120)+')',
-
-    'Stall — Circuit ('+(f.stallCircuit||150)+')',
-
-    'Shavings — per bag ('+(f.shavings||12)+'/bag)',
-
-    'RV — 1 Night ('+(f.rv1||40)+'/night)',
-
-    'RV — 2 Nights ('+(f.rv2||80)+')',
-
-    'RV — Circuit ('+(f.rvCircuit||110)+')',
-
-    '--- Adjustments ---',
-
-    'Custom Fee',
-
-    'Discount / Credit',
-
-  ];
-
-  var isCustom = prefillDesc ? true : false;
-
-  var html='<div class="modal-bg" id="orgfee-modal" onclick="if(event.target===this){closeModal();showEntryModal('+rowIdx+')}">'
+  var html='<div class="modal-bg" id="orgfee-modal" onclick="if(event.target===this){closeModal();if(G._rebuildEntryModal)G._rebuildEntryModal();}">'
 
     +'<div class="modal" style="max-width:420px"><h2>Add Fee or Adjustment</h2>'
 
@@ -13990,17 +14199,11 @@ function showAddOrgFee(rowIdx, prefillDesc, prefillAmt){
 
     +'<select id="of-type" onchange="orgFeeTypeChange('+rowIdx+')" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%">'
 
-    +feeTypes.map(function(ft){ return '<option'+(prefillDesc&&(ft==='Custom Fee'||ft==='Discount / Credit')?' selected':'')+'>'+ft+'</option>'; }).join('')+'</select></div>'
+    +optHtml+'</select></div>'
 
     +'<div id="of-custom-wrap" class="form-group" style="margin-bottom:.65rem;'+(isCustom?'':'display:none')+'"><label>Description</label>'
 
-    +'<input type="text" id="of-custom-desc" value="'+(prefillDesc?esc(prefillDesc):'')+'" placeholder="e.g. Fee waiver, discount, correction..." style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
-
-    +'<div class="form-group" style="margin-bottom:.65rem"><label>Association</label>'
-
-    +'<select id="of-org" style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%">'
-
-    +orgs.map(function(o){ return '<option>'+o+'</option>'; }).join('')+'</select></div>'
+    +'<input type="text" id="of-custom-desc" value="'+(prefillDesc?esc(prefillDesc):'')+'" placeholder="e.g. fee waiver, discount, correction..." style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.84rem;width:100%"></div>'
 
     +'<div class="form-group" style="margin-bottom:.75rem"><label>Amount <span style="color:var(--muted);font-size:.74rem">(negative = discount/credit)</span></label>'
 
@@ -14012,7 +14215,7 @@ function showAddOrgFee(rowIdx, prefillDesc, prefillAmt){
 
     +'<button class="btn btn-accent" onclick="saveOrgFee('+rowIdx+')">Add</button>'
 
-    +'<button class="btn btn-dark" onclick="closeModal();showEntryModal('+rowIdx+')">Cancel</button>'
+    +'<button class="btn btn-dark" onclick="closeModal();if(G._rebuildEntryModal)G._rebuildEntryModal();">Cancel</button>'
 
     +'</div></div></div>';
 
@@ -14030,63 +14233,29 @@ window.orgFeeTypeChange=function(rowIdx){
 
   var amtEl=document.getElementById('of-amt');
 
-  var isCustom=sel.value==='Custom Fee'||sel.value==='Discount / Credit';
+  var key = sel.value;
 
-  var isSep=sel.value.indexOf('---')===0;
+  var isCustom = key==='_custom' || key==='_discount';
 
-  if(isSep){ sel.value=sel.options[sel.selectedIndex-1]?sel.options[sel.selectedIndex-1].value:'Office Fee'; }
+  wrap.style.display = isCustom ? 'flex' : 'none';
 
-  wrap.style.display=isCustom?'flex':'none';
+  if(key === '_discount'){
 
-  if(sel.value==='Discount / Credit'){ if(parseFloat(amtEl.value)>=0) amtEl.value='-0'; }
+    if(parseFloat(amtEl.value) >= 0) amtEl.value = '-0';
 
-  else if(sel.value==='Custom Fee'){ if(!amtEl.value||amtEl.value==='0') amtEl.value='0'; }
+  } else if(key === '_custom'){
 
-  else { autoFillFeeAmt(sel.value); }
+    // leave amt as-is
+
+  } else {
+
+    // Look up the amount from feeSchedule by key
+    var entry = (G.cfg.feeSchedule||[]).find(function(f){ return f.key===key; });
+    if(entry && entry.amt > 0) amtEl.value = entry.amt;
+
+  }
 
 };
-
-
-
-
-
-function autoFillFeeAmt(feeType){
-
-  var f = G.cfg.fees;
-
-  var amt = 0;
-
-  if(feeType.indexOf('Stall — 1 Night') === 0) amt = f.stall1||40;
-
-  else if(feeType.indexOf('Stall — 2 Nights') === 0) amt = f.stall2||80;
-
-  else if(feeType.indexOf('Stall — 3 Nights') === 0) amt = f.stall3||120;
-
-  else if(feeType.indexOf('Stall — Circuit') === 0) amt = f.stallCircuit||150;
-
-  else if(feeType.indexOf('Shavings') === 0) amt = f.shavings||12;
-
-  else if(feeType.indexOf('RV — 1 Night') === 0) amt = f.rv1||40;
-
-  else if(feeType.indexOf('RV — 2 Nights') === 0) amt = f.rv2||80;
-
-  else if(feeType.indexOf('RV — Circuit') === 0) amt = f.rvCircuit||110;
-
-  else if(feeType.indexOf('Membership — 1 Year') === 0) amt = f.membership1yr||60;
-
-  else if(feeType.indexOf('Membership — 3 Year') === 0) amt = f.membership3yr||150;
-
-  else if(feeType.indexOf('Membership — Lifetime') === 0) amt = f.membershipLife||200;
-
-
-
-  else if(feeType.indexOf('Horse License') === 0) amt = f.horseLicense||20;
-
-  var amtEl = document.getElementById('of-amt');
-
-  if(amtEl && amt > 0) amtEl.value = amt;
-
-}
 
 
 
@@ -14096,61 +14265,39 @@ function saveOrgFee(rowIdx){
 
   if(!e) return;
 
-  var org  = document.getElementById('of-org').value;
-
-  var type = document.getElementById('of-type').value;
+  var key  = document.getElementById('of-type').value;
 
   var amt  = parseFloat(document.getElementById('of-amt').value)||0;
 
-  if(type.indexOf('---') === 0){ toast('Please select a fee type', true); return; }
+  var desc;
 
-  // For custom/discount, use the free-text description
-
-  var desc = type;
-
-  if(type === 'Custom Fee' || type === 'Discount / Credit'){
+  if(key === '_custom' || key === '_discount'){
 
     var customEl = document.getElementById('of-custom-desc');
 
-    desc = (customEl&&customEl.value.trim()) || type;
+    desc = (customEl&&customEl.value.trim());
 
     if(!desc){ toast('Please enter a description', true); return; }
 
   } else {
 
-    desc = type.split('(')[0].trim();
+    var schedEntry = (G.cfg.feeSchedule||[]).find(function(f){ return f.key===key; });
+
+    desc = schedEntry ? schedEntry.label : key;
 
   }
 
   if(!e.orgFees) e.orgFees=[];
 
-  // For stall/RV fees, also update the entry quantities for tab calculation
-
-  var f = G.cfg.fees;
-
-  if(type.indexOf('Stall — 1 Night') === 0){ e.stall1qty = (e.stall1qty||0)+1; amt = f.stall1||40; }
-
-  else if(type.indexOf('Stall — 2 Nights') === 0){ e.stall2qty = (e.stall2qty||0)+1; amt = f.stall2||80; }
-
-  else if(type.indexOf('Stall — 3 Nights') === 0){ e.stall1qty = (e.stall1qty||0)+3; amt = f.stall3||120; }
-
-  else if(type.indexOf('Stall — Circuit') === 0){ e.stall1qty = (e.stall1qty||0)+1; amt = f.stallCircuit||150; }
-
-  else if(type.indexOf('Shavings') === 0){ e.shavings = (e.shavings||0)+1; amt = f.shavings||12; }
-
-  else if(type.indexOf('RV — 1 Night') === 0){ e.rv1qty = (e.rv1qty||0)+1; amt = f.rv1||40; }
-
-  else if(type.indexOf('RV — 2 Nights') === 0){ e.rv2qty = (e.rv2qty||0)+1; amt = f.rv2||80; }
-
-  else if(type.indexOf('RV — Circuit') === 0){ e.rvCircuit = (e.rvCircuit||0)+1; amt = f.rvCircuit||110; }
-
-  e.orgFees.push({org:org, desc:desc, amt:amt});
+  e.orgFees.push({desc:desc, amt:amt});
 
   saveEntriesToCache();
 
   toast((amt<0?'Discount':'Fee')+' added: '+desc+' '+fmt$(amt));
 
   closeModal();
+
+  _entryModalTab = 'fees';
 
   showEntryModal(rowIdx);
 
@@ -14973,6 +15120,7 @@ function swTab(btn,panel){
 // ── Hand Entry Modal — tabbed wizard ─────────────────────────────────────────
 
 var _aeTab = 'rider';
+var _entryModalTab = 'details'; // persists active tab across rebuild() calls
 
 // Which housing offerings are configured (price > 0 in fee schedule)?
 function _aeHousingOfferings(){
@@ -14982,7 +15130,7 @@ function _aeHousingOfferings(){
   var offers = [];
   if(f.haulin>0)      offers.push({id:'ae-haulin',  field:'haulinQty',  label:label('haulin','Haul-In (per horse)'), price:f.haulin, min:0});
   if(f.stall1>0)      offers.push({id:'ae-stall1',  field:'stall1qty',  label:label('stall1','Stall — Per Night'), price:f.stall1, min:0});
-  if(f.stall2>0)      offers.push({id:'ae-stall2',  field:'stall2qty',  label:label('stall2','Stall — Circuit'),   price:f.stall2, min:0});
+  if(f.stall2>0)      offers.push({id:'ae-stall2',  field:'stall2qty',  label:label('stall2','Stall — 2 Nights'),  price:f.stall2, min:0});
   if(f.stall3>0)      offers.push({id:'ae-stall3',  field:'stall3qty',  label:label('stall3','Stall — 3 Night'),   price:f.stall3, min:0});
   if(f.shavings>0)    offers.push({id:'ae-shavings',field:'shavings',   label:label('shavings','Shavings (per bag)'),price:f.shavings, min:f.shavingsMin||0});
   if(f.rv1>0)         offers.push({id:'ae-rv1',     field:'rv1qty',     label:label('rv1','RV — Per Night'),       price:f.rv1, min:0});
@@ -16271,6 +16419,8 @@ async function boot(){
         if(show.fee_config[k]!==null&&show.fee_config[k]!==undefined) G.cfg.fees[k]=show.fee_config[k];
       });
     }
+    // Ensure G.cfg.fees is always in sync with feeSchedule after load
+    initFeeSchedule();
 
 
 
@@ -16536,7 +16686,12 @@ async function boot(){
     }
 
     var isNewShow = G.cfg.showStatus==='setup' && !G.cfg.classes.length;
-    if(isNewShow){ openWizard(); } else { showPage(G.entries.length ? 'entries' : 'setup'); }
+    if(isNewShow){ openWizard(); } else {
+      var savedPage = localStorage.getItem('gp_lastpage_'+(G.showId||''));
+      var validPages = {entries:1,classes:1,tabs:1,stalls:1,results:1,publish:1,settings:1};
+      var startPage = (savedPage && validPages[savedPage]) ? savedPage : (G.entries.length ? 'entries' : 'setup');
+      showPage(startPage);
+    }
 
 
 
@@ -16581,6 +16736,33 @@ saveConfig = function(){
 };
 
 
+
+// ── Gate sync ─────────────────────────────────────────────────────────────────
+function _gateRefreshIfOnClasses(){
+  if(_currentPage !== 'classes' || !G.showId) return;
+  try{ pgClasses(); } catch(e){ console.error('pgClasses error:', e); }
+}
+
+// BroadcastChannel: instant notification from gate.html
+try{
+  var _gateBc = new BroadcastChannel('gatepost_gate_sync');
+  _gateBc.onmessage = function(e){
+    if(e.data && e.data.showId === G.showId) _gateRefreshIfOnClasses();
+  };
+} catch(e){}
+
+// Poll every 2s as fallback (covers same-tab refresh and browser quirks)
+var _gateSyncSnap = null;
+setInterval(function(){
+  if(_currentPage !== 'classes' || !G.showId) return;
+  var sid = G.showId;
+  try{
+    var snap = (localStorage.getItem('gp_closedclasses_'+sid)||'')
+             + '|' + (localStorage.getItem('gp_scratches_'+sid)||'')
+             + '|' + (localStorage.getItem('gp_classorder_'+sid)||'');
+    if(snap !== _gateSyncSnap){ _gateSyncSnap = snap; _gateRefreshIfOnClasses(); }
+  } catch(e){ console.error('Gate poll error:', e); }
+}, 2000);
 
 boot();
 
