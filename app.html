@@ -797,6 +797,7 @@ var WIZ = {
     rvPackages:       [],
     clinics:          [],
     practiceSessions: [],
+    customSections:   [],
   }
 };
 
@@ -9525,65 +9526,110 @@ function _wizS3(){
   var d=WIZ.data;
   if(d.selectedOrgs.length === 0) return '<div class="card"><div style="color:var(--muted);padding:.5rem 0">No associations selected. Go back and select at least one.</div></div>';
   var html = '';
+  var q = function(s){ return '&quot;'+s+'&quot;'; };
   d.selectedOrgs.forEach(function(org){
     var cfg = d.orgConfig[org] || {};
     var divs = ORG_DIVISIONS[org] || [];
     var discs = ORG_DISCIPLINES[org] || [];
     var inp = 'class="wiz-inp"';
+    var qOrg = q(esc(org));
 
     html += '<div class="wiz-org-section">';
+
+    // ── Jackpot / Custom Event special UI ────────────────────────
+    if(org === 'Jackpot'){
+      var jpName = cfg.customName || '';
+      var jpTmpl = cfg.scoringTemplate || '';
+      var jpDivs = cfg.customDivisions || [];
+      var tplOrgs = Object.keys(ORG_CLASSES).filter(function(k){ return k !== 'Jackpot'; });
+      var tplDiscs = jpTmpl ? (ORG_DISCIPLINES[jpTmpl] || []) : (ORG_DISCIPLINES['Jackpot'] || []);
+
+      html += '<div class="wiz-org-section-title" style="margin-bottom:.5rem">Jackpot / Custom Event</div>';
+
+      html += '<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem;flex-wrap:wrap">'
+        +'<label style="font-size:.82rem;color:var(--text2);white-space:nowrap">Event name</label>'
+        +'<input '+inp+' style="flex:1;max-width:260px" placeholder="e.g. Cutting Jackpot, Ranch Fun Show&hellip;" value="'+esc(jpName)+'" onchange="wizJackpotName(this.value)">'
+        +'</div>';
+
+      html += '<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem;flex-wrap:wrap">'
+        +'<label style="font-size:.82rem;color:var(--text2);white-space:nowrap">Scoring rules from</label>'
+        +'<select '+inp+' style="flex:1;max-width:260px" onchange="wizJackpotTemplate(this.value)">'
+        +'<option value="">— custom / no template —</option>';
+      tplOrgs.forEach(function(k){
+        html += '<option value="'+esc(k)+'"'+(jpTmpl===k?' selected':'')+'>'+esc(k)+'</option>';
+      });
+      html += '</select></div>';
+
+      html += '<div style="font-size:.8rem;color:var(--muted);margin:.45rem 0 .3rem">Divisions (add your own):</div>';
+      jpDivs.forEach(function(div,di){
+        html += '<div style="display:flex;gap:.4rem;align-items:center;margin-bottom:.3rem">'
+          +'<input '+inp+' style="flex:1;max-width:220px" value="'+esc(div)+'" onchange="wizJackpotDiv('+di+',this.value)" placeholder="Division name">'
+          +'<button onclick="wizJackpotRemDiv('+di+')" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:1rem">&times;</button></div>';
+      });
+      html += '<button class="btn btn-dark btn-sm" style="font-size:.77rem;margin-bottom:.75rem" onclick="wizJackpotAddDiv()">+ Add Division</button>';
+
+      if(tplDiscs.length > 0){
+        html += '<div style="font-size:.8rem;color:var(--muted);margin:.35rem 0 .3rem">Disciplines'+(jpTmpl?' (from '+esc(jpTmpl)+' — toggle to include)':' offered')+':</div>';
+        html += '<div class="wiz-div-grid">';
+        tplDiscs.forEach(function(disc){
+          var on = (cfg.selectedDisciplines||[]).indexOf(disc) >= 0;
+          html += '<button type="button" class="wiz-div-pill'+(on?' on':'') +'" onclick="wizToggleDisc(&quot;Jackpot&quot;,&quot;'+esc(disc)+'&quot;)">'+esc(disc)+'</button>';
+        });
+        html += '</div>';
+      }
+
+      html += '</div>';
+      return;
+    }
+
+    // ── Standard org UI ──────────────────────────────────────────
     html += '<div class="wiz-org-section-title">'+esc(org)+'</div>';
 
-    // Membership required toggle
     var memReq = cfg.requiresMembership !== false;
     html += '<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.65rem;flex-wrap:wrap">';
     html += '<label style="display:flex;align-items:center;gap:.4rem;font-size:.85rem;cursor:pointer">'
-      +'<input type="checkbox" '+(memReq?'checked':'')+' onchange="wizOrgCfg(\''+esc(org)+'\',\'requiresMembership\',this.checked)" style="accent-color:var(--accent)"> Membership required to participate</label>';
+      +'<input type="checkbox" '+(memReq?'checked':'')+' onchange="wizOrgCfg('+qOrg+',&quot;requiresMembership&quot;,this.checked)" style="accent-color:var(--accent)"> Membership required to participate</label>';
     html += '</div>';
 
-    // Membership prices
     html += '<div style="font-size:.8rem;color:var(--muted);margin-bottom:.3rem">Membership pricing (leave 0 if not sold at this show):</div>';
     html += '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.65rem">';
     [{key:'day',label:'Day License'},{key:'yr1',label:'1-Year'},{key:'yr3',label:'3-Year'},{key:'life',label:'Lifetime'}].forEach(function(t){
       html += '<label style="font-size:.78rem;color:var(--text2);display:flex;align-items:center;gap:.25rem">'+t.label+' $'
-        +'<input type="number" '+inp+' style="width:68px" min="0" step="0.01" value="'+(cfg.membPrices&&cfg.membPrices[t.key]||0)+'" onchange="wizOrgMembPrice(\''+esc(org)+'\',\''+t.key+'\',this.value)"></label>';
+        +'<input type="number" '+inp+' style="width:68px" min="0" step="0.01" value="'+(cfg.membPrices&&cfg.membPrices[t.key]||0)+'" onchange="wizOrgMembPrice('+qOrg+',&quot;'+t.key+'&quot;,this.value)"></label>';
     });
     html += '</div>';
 
-    // Admin fees
     html += '<div style="font-size:.8rem;color:var(--muted);margin-bottom:.3rem">Admin fees (drug tests, trail fees, association fees — auto-applied to each entry):</div>';
     (cfg.adminFees||[]).forEach(function(af,i){
       html += '<div class="wiz-pkg-row" style="margin-bottom:.3rem">'
-        +'<input '+inp+' style="flex:1;min-width:140px" placeholder="Fee description" value="'+esc(af.desc||'')+'" onchange="wizOrgFee(\''+esc(org)+'\','+i+',\'desc\',this.value)">'
+        +'<input '+inp+' style="flex:1;min-width:140px" placeholder="Fee description" value="'+esc(af.desc||'')+'" onchange="wizOrgFee('+qOrg+','+i+',&quot;desc&quot;,this.value)">'
         +'<span style="color:var(--muted);font-size:.85rem">$</span>'
-        +'<input type="number" '+inp+' style="width:72px" min="0" step="0.01" value="'+(af.amt||0)+'" onchange="wizOrgFee(\''+esc(org)+'\','+i+',\'amt\',this.value)">'
-        +'<select '+inp+' onchange="wizOrgFee(\''+esc(org)+'\','+i+',\'per\',this.value)">'
+        +'<input type="number" '+inp+' style="width:72px" min="0" step="0.01" value="'+(af.amt||0)+'" onchange="wizOrgFee('+qOrg+','+i+',&quot;amt&quot;,this.value)">'
+        +'<select '+inp+' onchange="wizOrgFee('+qOrg+','+i+',&quot;per&quot;,this.value)">'
         +'<option value="entry"'+(af.per==='entry'?' selected':'')+'>per entry</option>'
         +'<option value="class"'+(af.per==='class'?' selected':'')+'>per class</option>'
         +'</select>'
-        +'<button onclick="wizRemoveOrgFee(\''+esc(org)+'\','+i+')" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:1rem">&times;</button>'
+        +'<button onclick="wizRemoveOrgFee('+qOrg+','+i+')" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:1rem">&times;</button>'
         +'</div>';
     });
-    html += '<button class="btn btn-dark btn-sm" style="font-size:.77rem" onclick="wizAddOrgFee(\''+esc(org)+'\')">+ Add Admin Fee</button>';
+    html += '<button class="btn btn-dark btn-sm" style="font-size:.77rem" onclick="wizAddOrgFee('+qOrg+')">+ Add Admin Fee</button>';
 
-    // Division selection
     if(divs.length > 0){
       html += '<div style="font-size:.8rem;color:var(--muted);margin:.75rem 0 .3rem">Divisions offered (uncheck any you\'re not running):</div>';
       html += '<div class="wiz-div-grid">';
       divs.forEach(function(div){
         var on = (cfg.selectedDivisions||[]).indexOf(div) >= 0;
-        html += '<button type="button" class="wiz-div-pill'+(on?' on':'')+'" onclick="wizToggleDiv(\''+esc(org)+'\',\''+esc(div)+'\')">'+esc(div)+'</button>';
+        html += '<button type="button" class="wiz-div-pill'+(on?' on':'')+'" onclick="wizToggleDiv('+qOrg+',&quot;'+esc(div)+'&quot;)">'+esc(div)+'</button>';
       });
       html += '</div>';
     }
 
-    // Discipline selection (if org has multiple)
     if(discs.length > 1){
       html += '<div style="font-size:.8rem;color:var(--muted);margin:.55rem 0 .3rem">Disciplines offered:</div>';
       html += '<div class="wiz-div-grid">';
       discs.forEach(function(disc){
         var on = (cfg.selectedDisciplines||[]).indexOf(disc) >= 0;
-        html += '<button type="button" class="wiz-div-pill'+(on?' on':'')+'" onclick="wizToggleDisc(\''+esc(org)+'\',\''+esc(disc)+'\')">'+esc(disc)+'</button>';
+        html += '<button type="button" class="wiz-div-pill'+(on?' on':'')+'" onclick="wizToggleDisc('+qOrg+',&quot;'+esc(disc)+'&quot;)">'+esc(disc)+'</button>';
       });
       html += '</div>';
     }
@@ -9592,6 +9638,7 @@ function _wizS3(){
   });
   return html;
 }
+
 
 window.wizOrgCfg = function(org, key, val){
   if(!WIZ.data.orgConfig[org]) WIZ.data.orgConfig[org]={};
@@ -9628,11 +9675,41 @@ window.wizToggleDiv = function(org, div){
 window.wizToggleDisc = function(org, disc){
   var cfg = WIZ.data.orgConfig[org];
   if(!cfg) return;
+  if(!cfg.selectedDisciplines) cfg.selectedDisciplines=[];
   var idx = cfg.selectedDisciplines.indexOf(disc);
   if(idx >= 0) cfg.selectedDisciplines.splice(idx,1);
   else cfg.selectedDisciplines.push(disc);
   event.target.classList.toggle('on', cfg.selectedDisciplines.indexOf(disc) >= 0);
 };
+
+// ── Jackpot / Custom Event handlers ──────────────────────────────
+window.wizJackpotName = function(val){
+  if(!WIZ.data.orgConfig['Jackpot']) WIZ.data.orgConfig['Jackpot']={};
+  WIZ.data.orgConfig['Jackpot'].customName=val;
+};
+window.wizJackpotTemplate = function(val){
+  var cfg=WIZ.data.orgConfig['Jackpot'];
+  if(!cfg){ WIZ.data.orgConfig['Jackpot']={}; cfg=WIZ.data.orgConfig['Jackpot']; }
+  cfg.scoringTemplate=val;
+  cfg.selectedDisciplines=val?(ORG_DISCIPLINES[val]||[]).slice():[];
+  _wizRender();
+};
+window.wizJackpotAddDiv = function(){
+  var cfg=WIZ.data.orgConfig['Jackpot'];
+  if(!cfg){ WIZ.data.orgConfig['Jackpot']={}; cfg=WIZ.data.orgConfig['Jackpot']; }
+  if(!cfg.customDivisions) cfg.customDivisions=[];
+  cfg.customDivisions.push('');
+  _wizRender();
+};
+window.wizJackpotRemDiv = function(i){
+  var cfg=WIZ.data.orgConfig['Jackpot'];
+  if(cfg&&cfg.customDivisions){ cfg.customDivisions.splice(i,1); _wizRender(); }
+};
+window.wizJackpotDiv = function(i,val){
+  var cfg=WIZ.data.orgConfig['Jackpot'];
+  if(cfg&&cfg.customDivisions) cfg.customDivisions[i]=val;
+};
+
 
 // ── Step 4: Class Selection ──────────────────────────────────────
 function _wizS4(){
@@ -9648,7 +9725,14 @@ function _wizS4(){
   var counter = {n:0};
 
   Object.keys(byOrg).forEach(function(org){
-    html += '<div style="margin-bottom:1rem"><div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.9rem;margin-bottom:.35rem">'+esc(org)+'</div>';
+    var orgCfg=(d.orgConfig[org]||{});
+    var numStart=orgCfg.classNumStart!=null?String(orgCfg.classNumStart):'';
+    html += '<div style="margin-bottom:1rem">'
+      +'<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.35rem">'
+      +'<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.9rem">'+esc(org)+'</div>'
+      +'<label style="font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:.3rem;margin-left:auto">'
+      +'Starting # <input class="wiz-inp" type="number" style="width:64px;padding:.2rem .4rem" min="1" step="1" placeholder="100" value="'+esc(numStart)+'" onchange="wizOrgNumStart(&quot;'+esc(org)+'&quot;,this.value)">'
+      +'</label></div>';
     byOrg[org].forEach(function(c){
       var i = counter.n++;
       html += '<div style="display:flex;align-items:center;gap:.4rem;padding:.25rem 0;border-bottom:1px solid var(--border)">'
@@ -9669,26 +9753,46 @@ function _wizS4(){
 }
 
 function _wizGenerateClasses(){
-  var d = WIZ.data;
-  var classes = [];
-  var num = 100;
+  var d=WIZ.data;
+  var classes=[];
+  var globalNum=100;
   d.selectedOrgs.forEach(function(org){
-    var cfg = d.orgConfig[org] || {};
-    var divs = cfg.selectedDivisions || ORG_DIVISIONS[org] || [];
-    var discs = cfg.selectedDisciplines || ORG_DISCIPLINES[org] || [];
+    var cfg=d.orgConfig[org]||{};
+    var orgLabel=(org==='Jackpot'&&cfg.customName)?cfg.customName:org;
+    var numStart=cfg.classNumStart!=null?(parseInt(cfg.classNumStart)||100):null;
+    var num=numStart!=null?numStart:globalNum;
+    var divs,discs;
+    if(org==='Jackpot'){
+      divs=(cfg.customDivisions||[]).filter(function(v){return v&&v.trim();});
+      if(!divs.length) divs=['Open','Amateur','Youth'];
+      discs=cfg.selectedDisciplines||ORG_DISCIPLINES['Jackpot']||[];
+    } else {
+      divs=cfg.selectedDivisions||ORG_DIVISIONS[org]||[];
+      discs=cfg.selectedDisciplines||ORG_DISCIPLINES[org]||[];
+    }
+    var count=0;
     divs.forEach(function(div){
       discs.forEach(function(disc){
-        var isCow = /\b(cut|cow|boxing|box.?drive|working)\b/i.test(disc);
-        classes.push({org:org, division:div, discipline:disc, num:String(num++), name:div+' '+disc, isCow:isCow, enabled:true});
+        var isCow=/\b(cut|cow|boxing|box.?drive|working)\b/i.test(disc);
+        classes.push({org:orgLabel,division:div,discipline:disc,num:String(num++),name:div+' '+disc,isCow:isCow,enabled:true});
+        count++;
       });
     });
+    if(numStart==null) globalNum=num;
+    else globalNum+=count;
   });
-  d.generatedClasses = classes;
+  d.generatedClasses=classes;
 }
+
 
 window.wizRegenClasses = function(){
   WIZ.data.generatedClasses = null;
   _wizRender();
+};
+window.wizOrgNumStart = function(org,val){
+  if(!WIZ.data.orgConfig[org]) WIZ.data.orgConfig[org]={};
+  WIZ.data.orgConfig[org].classNumStart=val?(parseInt(val)||100):null;
+  WIZ.data.generatedClasses=null;
 };
 window.wizClassToggle = function(i, val){ if(WIZ.data.generatedClasses[i]) WIZ.data.generatedClasses[i].enabled = val; };
 window.wizClassField  = function(i, field, val){
@@ -9731,11 +9835,11 @@ function _wizS6(){
     var inp = 'class="wiz-inp"';
     arr.forEach(function(p,i){
       html += '<div class="wiz-pkg-row">'
-        +'<input '+inp+' style="flex:1;min-width:130px" placeholder="Option label (e.g. Thursday Night)" value="'+esc(p.label||'')+'" onchange="'+updFn+'('+i+',\'label\',this.value)">'
+        +'<input '+inp+' style="flex:1;min-width:130px" placeholder="Option label (e.g. Thursday Night)" value="'+esc(p.label||'')+'" onchange="'+updFn+'('+i+',&quot;label&quot;,this.value)">'
         +'<span style="color:var(--muted);font-size:.85rem">$</span>'
-        +'<input type="number" '+inp+' style="width:78px" min="0" step="0.01" value="'+(p.price||0)+'" onchange="'+updFn+'('+i+',\'price\',this.value)" placeholder="Price">'
+        +'<input type="number" '+inp+' style="width:78px" min="0" step="0.01" value="'+(p.price||0)+'" onchange="'+updFn+'('+i+',&quot;price&quot;,this.value)" placeholder="Price">'
         +'<label '+inp+' style="border:none;background:none;font-size:.78rem;color:var(--text2);display:flex;align-items:center;gap:.25rem;white-space:nowrap">'
-        +'<input type="checkbox" '+(p.trackDates?'checked':'')+' onchange="'+updFn+'('+i+',\'trackDates\',this.checked)"> Ask arrival/departure date</label>'
+        +'<input type="checkbox" '+(p.trackDates?'checked':'')+' onchange="'+updFn+'('+i+',&quot;trackDates&quot;,this.checked)"> Ask arrival/departure date</label>'
         +'<button onclick="'+remFn+'('+i+')" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:1rem">&times;</button>'
         +'</div>';
     });
@@ -9751,6 +9855,62 @@ function _wizS6(){
     +'</div>';
 }
 
+// ── Step 7: Extras (clinics, warm-ups, custom sections) ──────────
+function _wizS7(){
+  var d=WIZ.data;
+  if(!d.customSections) d.customSections=[];
+  var inp='class="wiz-inp"';
+  var extraBlock=function(label,arr,addFn,updFn,remFn,titleInput){
+    var html='<div style="margin-bottom:1.25rem">';
+    if(titleInput){
+      html+='<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem">'
+        +'<input '+inp+' style="flex:1;max-width:280px;font-family:Oswald,sans-serif;font-size:.9rem;color:var(--accent)" placeholder="Section name&hellip;" value="'+esc(label)+'" onchange="'+titleInput+'(this.value)">'
+        +'</div>';
+    } else {
+      html+='<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.9rem;margin-bottom:.4rem">'+esc(label)+'</div>';
+    }
+    arr.forEach(function(item,i){
+      html+='<div style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:.45rem .6rem;margin-bottom:.35rem">'
+        +'<div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;margin-bottom:.3rem">'
+        +'<input '+inp+' style="flex:1;min-width:180px" placeholder="Name / description" value="'+esc(item.label||'')+'" onchange="'+updFn+'('+i+',&quot;label&quot;,this.value)"><button onclick="'+remFn+'('+i+')" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:1rem">&times;</button></div>'
+        +'<div style="display:flex;gap:.75rem;flex-wrap:wrap">'
+        +'<label style="font-size:.78rem;color:var(--text2);display:flex;align-items:center;gap:.3rem">Date/Time<input '+inp+' type="text" style="width:130px" placeholder="e.g. Fri 2pm" value="'+esc(item.datetime||'')+'" onchange="'+updFn+'('+i+',&quot;datetime&quot;,this.value)"></label>'
+        +'<label style="font-size:.78rem;color:var(--text2);display:flex;align-items:center;gap:.3rem">Price $<input type="number" '+inp+' style="width:70px" min="0" step="0.01" value="'+(item.price||0)+'" onchange="'+updFn+'('+i+',&quot;price&quot;,this.value)"></label>'
+        +'<label style="font-size:.78rem;color:var(--text2);display:flex;align-items:center;gap:.3rem">Max spots<input type="number" '+inp+' style="width:54px" min="1" placeholder="&infin;" value="'+(item.capacity||'')+'" onchange="'+updFn+'('+i+',&quot;capacity&quot;,this.value)"></label>'
+        +'</div></div>';
+    });
+    html+='<button class="btn btn-dark btn-sm" style="font-size:.77rem" onclick="'+addFn+'()">+ Add</button></div>';
+    return html;
+  };
+
+  var customHtml='';
+  d.customSections.forEach(function(sect,si){
+    var arrKey='customSection_'+si;
+    if(!d[arrKey]) d[arrKey]=sect.items||[];
+    else sect.items=d[arrKey];
+    customHtml+='<div style="position:relative;border:1px solid var(--border2);border-radius:8px;padding:.65rem .75rem;margin-bottom:1rem">'
+      +'<button onclick="wizRemCustomSect('+si+')" title="Remove section" style="position:absolute;top:.4rem;right:.5rem;background:transparent;border:none;color:var(--red);cursor:pointer;font-size:.82rem">&times; Remove</button>'
+      +extraBlock(sect.name||'',d[arrKey],'wizAddCS'+si,'wizUpdCS'+si,'wizRemCS'+si,'wizRenameCustomSect.bind(null,'+si+')')
+      +'</div>';
+    window['wizAddCS'+si]=function(){d[arrKey].push({id:'cs'+si+'_'+Date.now(),label:'',price:0,capacity:null,datetime:''});_wizRender();};
+    window['wizRemCS'+si]=function(i){d[arrKey].splice(i,1);_wizRender();};
+    window['wizUpdCS'+si]=function(i,field,val){
+      var item=d[arrKey][i];if(!item)return;
+      item[field]=(field==='price')?(parseFloat(val)||0):(field==='capacity'?(val?parseInt(val)||null:null):val);
+    };
+  });
+
+  return '<div class="card">'
+    +'<div class="card-title">Extras</div>'
+    +'<div style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Optional add-ons riders can select. Leave empty and they won\'t appear on the entry form.</div>'
+    +extraBlock('Paid Warm-Ups / Practice Sessions',d.practiceSessions,'wizAddPrac','wizUpdPrac','wizRemPrac')
+    +extraBlock('Clinics',d.clinics,'wizAddClin','wizUpdClin','wizRemClin')
+    +customHtml
+    +'<button class="btn btn-dark" style="font-size:.8rem;margin-top:.25rem" onclick="wizAddCustomSect()">+ Add Custom Section</button>'
+    +'</div>';
+}
+
+
 function _wizMakePkgHandlers(arrKey, prefix){
   window['wizAdd'+prefix] = function(){ WIZ.data[arrKey].push({id:arrKey+'_'+Date.now(),label:'',price:0,trackDates:true}); _wizRender(); };
   window['wizRem'+prefix] = function(i){ WIZ.data[arrKey].splice(i,1); _wizRender(); };
@@ -9762,34 +9922,6 @@ function _wizMakePkgHandlers(arrKey, prefix){
 _wizMakePkgHandlers('stallingPackages', 'Stall');
 _wizMakePkgHandlers('rvPackages', 'RV');
 
-// ── Step 7: Extras (clinics, warm-ups) ───────────────────────────
-function _wizS7(){
-  var d=WIZ.data;
-  var inp='class="wiz-inp"';
-  var extraBlock = function(label, arr, addFn, updFn, remFn){
-    var html='<div style="margin-bottom:1.25rem">';
-    html+='<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.9rem;margin-bottom:.4rem">'+label+'</div>';
-    arr.forEach(function(item,i){
-      html+='<div style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:.45rem .6rem;margin-bottom:.35rem">'
-        +'<div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;margin-bottom:.3rem">'
-        +'<input '+inp+' style="flex:1;min-width:180px" placeholder="Name / description" value="'+esc(item.label||'')+'" onchange="'+updFn+'('+i+',\'label\',this.value)"><button onclick="'+remFn+'('+i+')" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:1rem">&times;</button></div>'
-        +'<div style="display:flex;gap:.75rem;flex-wrap:wrap">'
-        +'<label style="font-size:.78rem;color:var(--text2);display:flex;align-items:center;gap:.3rem">Date/Time<input '+inp+' type="text" style="width:130px" placeholder="e.g. Fri 2pm" value="'+esc(item.datetime||'')+'" onchange="'+updFn+'('+i+',\'datetime\',this.value)"></label>'
-        +'<label style="font-size:.78rem;color:var(--text2);display:flex;align-items:center;gap:.3rem">Price $<input type="number" '+inp+' style="width:70px" min="0" step="0.01" value="'+(item.price||0)+'" onchange="'+updFn+'('+i+',\'price\',this.value)"></label>'
-        +'<label style="font-size:.78rem;color:var(--text2);display:flex;align-items:center;gap:.3rem">Max spots<input type="number" '+inp+' style="width:54px" min="1" placeholder="∞" value="'+(item.capacity||'')+'" onchange="'+updFn+'('+i+',\'capacity\',this.value)"></label>'
-        +'</div></div>';
-    });
-    html+='<button class="btn btn-dark btn-sm" style="font-size:.77rem" onclick="'+addFn+'()">+ Add</button></div>';
-    return html;
-  };
-  return '<div class="card">'
-    +'<div class="card-title">Extras</div>'
-    +'<div style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">These are optional. Leave both sections empty and they won\'t appear on the entry form.</div>'
-    +extraBlock('Paid Warm-Ups / Practice Sessions', d.practiceSessions, 'wizAddPrac', 'wizUpdPrac', 'wizRemPrac')
-    +extraBlock('Clinics', d.clinics, 'wizAddClin', 'wizUpdClin', 'wizRemClin')
-    +'</div>';
-}
-
 function _wizMakeExtraHandlers(arrKey, prefix){
   window['wizAdd'+prefix] = function(){ WIZ.data[arrKey].push({id:prefix+'_'+Date.now(),label:'',price:0,capacity:null,datetime:''}); _wizRender(); };
   window['wizRem'+prefix] = function(i){ WIZ.data[arrKey].splice(i,1); _wizRender(); };
@@ -9800,6 +9932,26 @@ function _wizMakeExtraHandlers(arrKey, prefix){
 }
 _wizMakeExtraHandlers('practiceSessions','Prac');
 _wizMakeExtraHandlers('clinics','Clin');
+
+window.wizAddCustomSect = function(){
+  if(!WIZ.data.customSections) WIZ.data.customSections=[];
+  var si=WIZ.data.customSections.length;
+  WIZ.data.customSections.push({name:'',items:[]});
+  WIZ.data['customSection_'+si]=[];
+  _wizRender();
+};
+window.wizRemCustomSect = function(si){
+  if(!WIZ.data.customSections) return;
+  WIZ.data.customSections.splice(si,1);
+  WIZ.data.customSections.forEach(function(sect,i){
+    WIZ.data['customSection_'+i]=sect.items||[];
+  });
+  _wizRender();
+};
+window.wizRenameCustomSect = function(si,val){
+  if(WIZ.data.customSections&&WIZ.data.customSections[si])
+    WIZ.data.customSections[si].name=val;
+};
 
 // ── Step 8: Review & Publish ─────────────────────────────────────
 function _wizS8(){
@@ -9819,7 +9971,9 @@ function _wizS8(){
   var clsEnabled = (d.generatedClasses||[]).filter(function(c){ return c.enabled !== false; });
   var stallLines = (d.stallingPackages||[]).filter(function(p){ return p.label; }).map(function(p){ return esc(p.label)+' — '+fmtAmt(p.price)+(p.trackDates?' (dates collected)':''); });
   var rvLines    = (d.rvPackages||[]).filter(function(p){ return p.label; }).map(function(p){ return esc(p.label)+' — '+fmtAmt(p.price); });
-  var extLines   = (d.practiceSessions||[]).concat(d.clinics||[]).filter(function(e){ return e.label; }).map(function(e){ return esc(e.label)+' — '+fmtAmt(e.price)+(e.capacity?' (max '+e.capacity+')':''); });
+  var allExtras=(d.practiceSessions||[]).concat(d.clinics||[]);
+  (d.customSections||[]).forEach(function(sect,si){ allExtras=allExtras.concat(d['customSection_'+si]||sect.items||[]); });
+  var extLines=allExtras.filter(function(e){ return e.label; }).map(function(e){ return esc(e.label)+' — '+fmtAmt(e.price)+(e.capacity?' (max '+e.capacity+')':''); });
 
   return '<div class="card">'
     +'<div class="card-title">Review &amp; Publish</div>'
@@ -9885,11 +10039,14 @@ window.commitWizard = function(){
     return {_id:'cr'+(i+1),num:c.num||String(i+1),name:c.name||'',division:c.division||'',org:c.org||'CoWN',isCow:!!c.isCow,baseFee:null,cowFee:null,jackpot:null,addedMoney:null};
   });
 
-  // Stalling/RV packages, clinics, practice sessions
+  // Stalling/RV packages, clinics, practice sessions, custom sections
   G.cfg.stallingPackages  = d.stallingPackages;
   G.cfg.rvPackages        = d.rvPackages;
   G.cfg.practiceSessions  = d.practiceSessions;
   G.cfg.clinicOptions     = d.clinics;
+  G.cfg.customSections    = (d.customSections||[]).map(function(sect,si){
+    return {name:sect.name,items:(d['customSection_'+si]||sect.items||[])};
+  });
   G.cfg.classPkgs         = [];
   G.cfg.extraFees         = [];
 
@@ -9913,9 +10070,10 @@ window.commitWizard = function(){
     _classPkgs:        [],
     _practiceSessions: G.cfg.practiceSessions,
     _clinicOptions:    G.cfg.clinicOptions,
-    _stallingPackages: G.cfg.stallingPackages,
-    _rvPackages:       G.cfg.rvPackages,
-    _selectedOrgs:     d.selectedOrgs,
+    _stallingPackages:  G.cfg.stallingPackages,
+    _rvPackages:        G.cfg.rvPackages,
+    _customSections:    G.cfg.customSections,
+    _selectedOrgs:      d.selectedOrgs,
     _orgConfig:        d.orgConfig,
     _hostingOrg:       d.hostingOrg,
   });
@@ -15713,7 +15871,7 @@ function _buildAeHorseTab(){
     }).join('');
     return '<div style="margin-top:.6rem;padding:.5rem;background:var(--card2);border-radius:6px">'  
       +'<label style="display:flex;align-items:center;gap:.5rem;font-size:.84rem;cursor:pointer">'  
-      +'<input type="checkbox" id="ae-diff-owner" onchange="document.getElementById('ae-owner-fields').style.display=this.checked?'block':'none'" style="accent-color:var(--accent)"> Owner is different from rider</label>'  
+      +'<input type="checkbox" id="ae-diff-owner" onchange="document.getElementById(&quot;ae-owner-fields&quot;).style.display=this.checked?&quot;block&quot;:&quot;none&quot;" style="accent-color:var(--accent)"> Owner is different from rider</label>'
       +'<div id="ae-owner-fields" style="display:none;margin-top:.55rem;display:none">'  
       +_aeFG('Owner Name', _aeInp({id:'ae-howner', placeholder:'Owner full name'}))
       +ownerMembs
@@ -15849,6 +16007,37 @@ function _aeQtyField(id, label, price){
     +'padding:.42rem .65rem;font-size:.9rem;width:100%;box-sizing:border-box"></div>';
 }
 
+
+function _buildAeExtrasTab(){
+  var html = '';
+  var pracs = G.cfg.practiceSessions || [];
+  var clins = G.cfg.clinicOptions    || [];
+  if(!pracs.length && !clins.length) return '<div class="tip">No extras configured.</div>';
+  var inp = 'style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.9rem;width:100%;box-sizing:border-box"';
+  if(pracs.length){
+    html += '<div style="margin-bottom:1rem"><div style="font-family:Oswald;color:var(--accent);font-size:.88rem;margin-bottom:.4rem">Practice Sessions</div>';
+    pracs.forEach(function(p,i){
+      var pid = p.id||p.label||('prac'+i);
+      html += '<label style="display:flex;align-items:center;gap:.6rem;padding:.3rem .2rem;font-size:.83rem;cursor:pointer">'
+        +'<input type="checkbox" class="ae-prac-cb" data-pracid="'+esc(pid)+'" onchange="_aeUpdateReview()" style="accent-color:var(--accent)">'
+        +'<span>'+esc(p.label||'Session')+(p.price>0?' — <span style="color:var(--accent)">'+fmtI(+p.price)+'</span>':'')+'</span>'
+        +'</label>';
+    });
+    html += '</div>';
+  }
+  if(clins.length){
+    html += '<div style="margin-bottom:1rem"><div style="font-family:Oswald;color:var(--accent);font-size:.88rem;margin-bottom:.4rem">Clinics</div>';
+    clins.forEach(function(c,i){
+      var cid = c.id||c.label||('clin'+i);
+      html += '<label style="display:flex;align-items:center;gap:.6rem;padding:.3rem .2rem;font-size:.83rem;cursor:pointer">'
+        +'<input type="checkbox" class="ae-clin-cb" data-clinid="'+esc(cid)+'" onchange="_aeUpdateReview()" style="accent-color:var(--accent)">'
+        +'<span>'+esc(c.label||'Clinic')+(c.price>0?' — <span style="color:var(--accent)">'+fmtI(+c.price)+'</span>':'')+'</span>'
+        +'</label>';
+    });
+    html += '</div>';
+  }
+  return html;
+}
 
 function _buildAeReviewTab(){
   return '<div id="ae-review-lines" style="min-height:60px"><div style="color:var(--muted);font-size:.84rem">Select classes and housing to see fee summary.</div></div>';
