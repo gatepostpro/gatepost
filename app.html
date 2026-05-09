@@ -976,8 +976,27 @@ function _strSim(a, b) {
   if(a === b) return 1;
   if(!a || !b) return 0;
   var tokA = a.split(' '), tokB = b.split(' ');
+  // Token-level: exact matches
   var common = tokA.filter(function(t){ return tokB.indexOf(t) >= 0; }).length;
-  var score = common * 2 / (tokA.length + tokB.length);
+  // Token-level: near matches (char-level similarity ≥0.7 for same-position tokens)
+  var nearMatch = 0;
+  tokA.forEach(function(tA){
+    if(tokB.indexOf(tA) >= 0) return; // already counted as exact
+    tokB.forEach(function(tB){
+      if(tokB.indexOf(tA) >= 0) return;
+      // Simple char overlap (Dice coefficient on bigrams) for short name tokens
+      if(tA.length < 2 || tB.length < 2) return;
+      var longer = tA.length > tB.length ? tA : tB, shorter2 = tA.length > tB.length ? tB : tA;
+      if(shorter2.length / longer.length < 0.6) return;
+      var bg = function(s){ var r={}; for(var i=0;i<s.length-1;i++) r[s[i]+s[i+1]]=(r[s[i]+s[i+1]]||0)+1; return r; };
+      var bA=bg(tA), bB=bg(tB), inter=0;
+      Object.keys(bA).forEach(function(k){ inter+=Math.min(bA[k],bB[k]||0); });
+      var dice = 2*inter / ((tA.length-1)+(tB.length-1));
+      if(dice >= 0.5) nearMatch += dice * 0.8; // partial credit
+    });
+  });
+  var score = (common + nearMatch) * 2 / (tokA.length + tokB.length);
+  score = Math.min(score, 0.99); // never return 1 from near-match path
   // Boost for substring containment
   if(score < 0.8 && (a.indexOf(b) >= 0 || b.indexOf(a) >= 0)) {
     var shorter = a.length < b.length ? a : b, longer = a.length < b.length ? b : a;
@@ -1005,7 +1024,7 @@ function _findNameSuggestions(name, horse) {
     var eName = _normStr(e.name||''), eHorse = _normStr(e.horse||'');
     var nSim = _strSim(name, e.name||'');
     var hSim = horse ? _strSim(horse, e.horse||'') : 1;
-    if(nSim >= 0.6 && nSim < 1 && hSim >= 0.5) {
+    if(nSim >= 0.5 && nSim < 1 && hSim >= 0.4) {
       var key = eName+'|'+eHorse;
       if(!seen[key]) { seen[key]=true; suggestions.push({name:e.name||'', horse:e.horse||'', nSim:nSim, hSim:hSim}); }
     }
@@ -3638,7 +3657,7 @@ function _renderPendingSubsCard(subs){
       // Horse suggestions from existing entries
       var horseSugg = [];
       var seenH = {};
-      G.entries.forEach(function(ex){ var h = _normStr(ex.horse||''); var sim = _strSim(submittedHorse, ex.horse||''); if(sim>=0.6&&sim<1&&!seenH[h]){seenH[h]=true;horseSugg.push(ex.horse||'');} });
+      G.entries.forEach(function(ex){ var h = _normStr(ex.horse||''); var sim = _strSim(submittedHorse, ex.horse||''); if(sim>=0.5&&sim<1&&!seenH[h]){seenH[h]=true;horseSugg.push(ex.horse||'');} });
       horseSugg.slice(0,2).forEach(function(hn){
         html += '<button class="btn btn-dark btn-sm" style="font-size:.72rem;padding:2px 6px" title="Use existing name" onclick="_subApplyFix(\''+sid+'\','+ei+',\'horse\','+JSON.stringify(hn)+')">&#8593; '+esc(hn)+'</button>';
       });
@@ -3756,7 +3775,7 @@ window.acceptOnlineSub = async function(id){
     delete _subNameFixes[id];
 
     newEntries.forEach(function(e){ G.entries.push(e); });
-    saveEntries();
+    saveEntriesToStorage();
 
     // Create billing group for multi-entry submissions
     if(newEntries.length > 1) {
@@ -3777,7 +3796,7 @@ window.acceptOnlineSub = async function(id){
     var label = newEntries.length === 1 ? newEntries[0].name : newEntries.length+' entries';
     toast('Accepted — '+label);
     pgEntries();
-  } catch(e){ toast('Failed to accept entry'); console.error(e); }
+  } catch(e){ toast('Failed to accept entry: '+(e.message||String(e))); console.error(e); }
 };
 
 window.rejectOnlineSub = async function(id){
