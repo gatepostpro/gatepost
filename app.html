@@ -14090,6 +14090,8 @@ function addClassToEntry(rowIdx, classId){
 
 
 
+  saveEntriesToStorage();
+
   toast('Added Class '+cls.num+' — '+cls.name);
 
   closeModal();
@@ -14227,6 +14229,8 @@ function scratchClass(rowIdx, classIdx){
   }
 
 
+
+  saveEntriesToStorage();
 
   if(G._rebuildEntryModal) G._rebuildEntryModal();
 
