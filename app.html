@@ -3585,7 +3585,14 @@ async function loadPendingSubmissions(){
   try {
     var subs = await sbFetch('online_submissions?show_id=eq.'+G.showId+'&status=eq.pending&select=id,submission_data,submitted_at&order=submitted_at.asc');
     el.innerHTML = (subs && subs.length) ? _renderPendingSubsCard(subs) : '';
-  } catch(e){ console.warn('Could not load pending submissions:', e); }
+  } catch(e){
+    console.warn('Could not load pending submissions:', e);
+    var msg = e && e.message ? e.message : String(e);
+    var isRls = msg.indexOf('42501') >= 0 || msg.toLowerCase().indexOf('permission') >= 0 || msg.toLowerCase().indexOf('policy') >= 0;
+    el.innerHTML = '<div class="card" style="border-color:var(--red);margin-bottom:1rem">'
+      +'<div style="font-size:.82rem;color:var(--red);margin-bottom:.4rem">&#9888; Could not load online submissions'+(isRls?' — run the RLS fix SQL in Supabase (see CLAUDE.md)':'')+': '+esc(msg)+'</div>'
+      +'<button class="btn btn-dark btn-sm" onclick="loadPendingSubmissions()">Retry</button></div>';
+  }
 }
 
 function _renderPendingSubsCard(subs){

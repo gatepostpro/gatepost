@@ -1465,27 +1465,53 @@ function renderSummary(wrap) {
   var html = '<div class="card"><div class="step-title">Review &amp; Submit</div>';
   html += '<div class="step-sub">Confirm your entry details. Payment is due at the show.</div></div>';
 
-  var totalSummaryPeople = 0;
-  SUBMISSION.horses.forEach(function(h){ totalSummaryPeople += h.riders.length; });
-  SUBMISSION.horses.forEach(function(horse, hi) {
-    horse.riders.forEach(function(rider, ri) {
-      if(totalSummaryPeople > 1 && rider.billTo === false) return;
-      var name = (rider.riderFirst||'')+(rider.riderFirst&&rider.riderLast?' ':'')+( rider.riderLast||'');
-      var selCls = getSelectedClasses(rider);
-      var riderLines = buildRiderFeeLines(horse, rider);
-      var riderTotal = riderLines.reduce(function(s,l){ return s+(l.amt||0); }, 0);
-      grandTotal += riderTotal;
+  // Collect all riders in order
+  var allRiders = [];
+  SUBMISSION.horses.forEach(function(horse) { horse.riders.forEach(function(rider) { allRiders.push({horse:horse, rider:rider}); }); });
+
+  if(allRiders.length > 0) {
+    var primary = allRiders[0];
+    // Riders paying their own way (checked, not the primary)
+    var selfPay = allRiders.slice(1).filter(function(x){ return x.rider.billTo !== false; });
+    // Riders whose fees roll into the primary's tab (unchecked)
+    var merged  = allRiders.slice(1).filter(function(x){ return x.rider.billTo === false; });
+
+    // ── Primary section (includes merged riders' fees)
+    var pName = ((primary.rider.riderFirst||'')+' '+(primary.rider.riderLast||'')).trim();
+    var pLines = buildRiderFeeLines(primary.horse, primary.rider);
+    var pTotal = pLines.reduce(function(s,l){ return s+(l.amt||0); }, 0);
+    html += '<div class="card">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">';
+    html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:1.05rem">'+esc(pName||'Rider')+'</div>';
+    html += '<div style="font-size:.8rem;color:var(--text2)">on '+esc(primary.horse.horseName||'horse')+'</div></div>';
+    pLines.forEach(function(l){ html += '<div class="sum-line"><span>'+esc(l.desc)+'</span><span>'+(l.amt>=0?fmt$(l.amt):'−'+fmt$(-l.amt))+'</span></div>'; });
+    merged.forEach(function(m) {
+      var mLines = buildRiderFeeLines(m.horse, m.rider);
+      if(!mLines.length) return;
+      var mName = ((m.rider.riderFirst||'')+' '+(m.rider.riderLast||'')).trim();
+      pTotal += mLines.reduce(function(s,l){ return s+(l.amt||0); }, 0);
+      html += '<div style="font-size:.78rem;color:var(--text2);margin:.6rem 0 .2rem;font-style:italic">'+esc(mName)+' on '+esc(m.horse.horseName)+':</div>';
+      mLines.forEach(function(l){ html += '<div class="sum-line"><span>'+esc(l.desc)+'</span><span>'+(l.amt>=0?fmt$(l.amt):'−'+fmt$(-l.amt))+'</span></div>'; });
+    });
+    grandTotal += pTotal;
+    html += '<div class="sum-line total" style="font-size:1rem"><span>Subtotal</span><span>'+fmt$(pTotal)+'</span></div>';
+    html += '</div>';
+
+    // ── Self-pay sections
+    selfPay.forEach(function(sp) {
+      var spName = ((sp.rider.riderFirst||'')+' '+(sp.rider.riderLast||'')).trim();
+      var spLines = buildRiderFeeLines(sp.horse, sp.rider);
+      var spTotal = spLines.reduce(function(s,l){ return s+(l.amt||0); }, 0);
+      grandTotal += spTotal;
       html += '<div class="card">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">';
-      html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:1.05rem">'+esc(name||'Rider')+'</div>';
-      html += '<div style="font-size:.8rem;color:var(--text2)">on '+esc(horse.horseName||'horse')+'</div></div>';
-      riderLines.forEach(function(l){
-        html += '<div class="sum-line"><span>'+esc(l.desc)+'</span><span>'+(l.amt>=0?fmt$(l.amt):'−'+fmt$(-l.amt))+'</span></div>';
-      });
-      html += '<div class="sum-line total" style="font-size:1rem"><span>Subtotal</span><span>'+fmt$(riderTotal)+'</span></div>';
+      html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">';
+      html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:1.05rem">'+esc(spName||'Rider')+'</div>';
+      html += '<div style="font-size:.8rem;color:var(--text2)">on '+esc(sp.horse.horseName||'horse')+'</div></div>';
+      spLines.forEach(function(l){ html += '<div class="sum-line"><span>'+esc(l.desc)+'</span><span>'+(l.amt>=0?fmt$(l.amt):'−'+fmt$(-l.amt))+'</span></div>'; });
+      html += '<div class="sum-line total" style="font-size:1rem"><span>Subtotal</span><span>'+fmt$(spTotal)+'</span></div>';
       html += '</div>';
     });
-  });
+  }
 
   if(stallLines.length > 0) {
     var stallTotal = stallLines.reduce(function(s,l){ return s+(l.amt||0); }, 0);
@@ -1548,7 +1574,7 @@ async function submitEntry() {
   var stallLines = buildStallingFeeLines();
   var riderTotal = 0;
   SUBMISSION.horses.forEach(function(horse){ horse.riders.forEach(function(rider){
-    if(rider.billTo !== false) riderTotal += buildRiderFeeLines(horse, rider).reduce(function(s,l){ return s+(l.amt||0); }, 0);
+    riderTotal += buildRiderFeeLines(horse, rider).reduce(function(s,l){ return s+(l.amt||0); }, 0);
   }); });
   var total = riderTotal + stallLines.reduce(function(s,l){ return s+(l.amt||0); }, 0);
 
