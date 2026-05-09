@@ -11599,21 +11599,31 @@ function autofillClassFees(){
 
 };
 
+// Returns the discipline-only portion of a class name for cow detection.
+// Class names are stored as "Division Discipline" (e.g. "Non-Pro Boxing Ranch Riding").
+// Testing the full name causes "Non-Pro Boxing" to poison every class in that division.
+function _cowTestStr(c){
+  if(c.discipline) return c.discipline;
+  var name = c.name||'', div = c.division||'';
+  if(div && name.toLowerCase().indexOf(div.toLowerCase())===0)
+    return name.slice(div.length).trim();
+  return name;
+}
+
+function _isCowByName(c){
+  var t = _cowTestStr(c);
+  return /cutting/i.test(t) || COW_WORDS.some(function(k){ return k.test(t); });
+}
+
 function autoDetectCow(){
 
   var added=0, removed=0;
 
   G.cfg.classes.forEach(function(c){
-
     var wasCow = !!c.isCow;
-    // Test discipline when available — wizard classes store it separately so the
-    // division prefix ("Non-Pro Boxing") doesn't contaminate the match.
-    var testStr = c.discipline || c.name || '';
-    var shouldBeCow = /cutting/i.test(testStr) || COW_WORDS.some(function(k){ return k.test(testStr); });
-    c.isCow = shouldBeCow;
-    if(!wasCow && shouldBeCow) added++;
-    if(wasCow && !shouldBeCow) removed++;
-
+    c.isCow = _isCowByName(c);
+    if(!wasCow && c.isCow) added++;
+    if(wasCow && !c.isCow) removed++;
   });
 
   renderCfgClassTable();
@@ -16647,13 +16657,16 @@ async function boot(){
 
       G.cfg.classes = dbClasses.map(function(c,i){
 
-        return { _id:'db'+i, num:c.class_number, name:c.class_name,
+        var cls = { _id:'db'+i, num:c.class_number, name:c.class_name,
 
           division:c.division, org:c.org, isCow:c.is_cow,
 
           baseFee:c.base_fee, cowFee:c.cow_fee,
 
           jackpot:null, addedMoney:c.added_money };
+
+        cls.isCow = _isCowByName(cls); // re-derive; strips division prefix so "Non-Pro Boxing" doesn't poison non-cow classes
+        return cls;
 
       });
 
