@@ -11592,7 +11592,7 @@ function autofillClassFees(){
     c.baseFee = f.classBase;
     if(isCutting){ c.isCow=true; c.cowFee=f.cuttingSurcharge||0; }
     else if(c.isCow){ c.cowFee=f.cowSurcharge||0; }
-    c.jackpot = f.jackpot||null;
+    // jackpot is NOT applied here — use "Jackpot all" checkbox per division
   });
 
   renderCfgClassTable();
@@ -11603,19 +11603,23 @@ function autofillClassFees(){
 
 function autoDetectCow(){
 
-  var n=0;
+  var added=0, removed=0;
 
   G.cfg.classes.forEach(function(c){
 
-    var wasCow = c.isCow;
-    // Use discipline when available (wizard classes store it separately from division prefix)
+    var wasCow = !!c.isCow;
+    // Test discipline when available — wizard classes store it separately so the
+    // division prefix ("Non-Pro Boxing") doesn't contaminate the match.
     var testStr = c.discipline || c.name || '';
-    if(/cutting/i.test(testStr) || COW_WORDS.some(function(k){ return k.test(testStr); })){ c.isCow=true; }
-    if(!wasCow && c.isCow) n++;
+    var shouldBeCow = /cutting/i.test(testStr) || COW_WORDS.some(function(k){ return k.test(testStr); });
+    c.isCow = shouldBeCow;
+    if(!wasCow && shouldBeCow) added++;
+    if(wasCow && !shouldBeCow) removed++;
 
   });
 
-  renderCfgClassTable(); toast('Marked '+n+' cow classes');
+  renderCfgClassTable();
+  toast('Cow detect: +'+added+' marked, '+removed+' cleared');
 
 };
 
@@ -15984,10 +15988,10 @@ async function syncShowClassesToSupabase(){
       org:          c.org||'CoWN',
       is_cow:       !!c.isCow,
       is_cutting:   !c.isCow && /cutting/i.test(c.name||''),
-      is_jackpot:   !!(c.jackpot && c.jackpot > 0),
+      is_jackpot:   c.jackpot !== null && c.jackpot !== undefined,
       base_fee:     c.baseFee||null,
       cow_fee:      c.cowFee||null,
-      jackpot_fee:  c.jackpot||null,
+      jackpot_fee:  (c.jackpot !== null && c.jackpot !== undefined) ? c.jackpot : null,
       added_money:  c.addedMoney||null,
       run_order:    idx
     };
