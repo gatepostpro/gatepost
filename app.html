@@ -11325,12 +11325,12 @@ function renderCfgClassTable(){
   _divKeys.forEach(function(div,di){
 
     var divClasses=byDiv[div];
-    var allJp=divClasses.every(function(c){ return c.jackpot!==null&&c.jackpot!==undefined; });
-    var someJp=divClasses.some(function(c){ return c.jackpot!==null&&c.jackpot!==undefined; });
+    var jpKey=CFG_ORG_FILTER+'|'+div;
+    var isJpDiv=!!(G.cfg.jackpotDivs&&G.cfg.jackpotDivs[jpKey]!==undefined);
     html+='<tr class="div-hdr"><td colspan="10" style="display:flex;align-items:center;justify-content:space-between;padding:.3rem .6rem">'
       +'<span>'+esc(div)+'</span>'
       +'<label style="font-size:.75rem;color:var(--muted);font-weight:normal;display:flex;align-items:center;gap:.3rem;cursor:pointer;margin:0">'
-      +'<input type="checkbox" id="jp-all-div-'+di+'"'+(allJp?' checked':'')
+      +'<input type="checkbox" id="jp-all-div-'+di+'"'+(isJpDiv?' checked':'')
       +' onchange="jpAllDiv(\''+CFG_ORG_FILTER.replace(/'/g,"\\'")+'\',\''+div.replace(/'/g,"\\'")+'\',this.checked)">'
       +'Jackpot all</label>'
       +'</td></tr>';
@@ -11373,13 +11373,6 @@ function renderCfgClassTable(){
 
   tbody.innerHTML=html;
 
-  // Set indeterminate on partially-jackpotted division checkboxes
-  _divKeys.forEach(function(div,di){
-    var divClasses=byDiv[div];
-    var allJp=divClasses.every(function(c){ return c.jackpot!==null&&c.jackpot!==undefined; });
-    var someJp=divClasses.some(function(c){ return c.jackpot!==null&&c.jackpot!==undefined; });
-    if(someJp&&!allJp){ var el=document.getElementById('jp-all-div-'+di); if(el) el.indeterminate=true; }
-  });
 
   renderAAPrizeCfg();
 
@@ -11387,14 +11380,17 @@ function renderCfgClassTable(){
 
 window.jpAllDiv = function(org, div, checked) {
   var jp = parseFloat((document.getElementById('fee-jackpot')||{}).value) || G.cfg.fees.jackpot || 0;
+  var key = org+'|'+div;
+  if(!G.cfg.jackpotDivs) G.cfg.jackpotDivs = {};
+  if(checked){ G.cfg.jackpotDivs[key] = jp; }
+  else { delete G.cfg.jackpotDivs[key]; }
   G.cfg.classes.forEach(function(c){
     if((c.org||'CoWN') !== org) return;
-    if((c.division||'General') !== div) return;
+    if((c.division||'') !== div) return;
     c.jackpot = checked ? jp : null;
   });
   renderCfgClassTable();
-  // Persist immediately so the state survives session reload
-  if(G.showId) syncShowClassesToSupabase().catch(function(e){ console.warn('Jackpot save failed:', e); });
+  saveConfig();
 };
 
 function setCfgOrgFilter(org,el){
@@ -12508,7 +12504,7 @@ function saveConfig(){
 
       location:   G.cfg.location || null,
 
-      fee_config: Object.assign({}, G.cfg.fees, {_schedule:G.cfg.feeSchedule||null, _extraFees:G.cfg.extraFees||[], _assocFees:G.cfg.assocFees||[], _classPkgs:G.cfg.classPkgs||[], _practiceSessions:G.cfg.practiceSessions||[], _clinicOptions:G.cfg.clinicOptions||[], _stallingPackages:G.cfg.stallingPackages||[], _rvPackages:G.cfg.rvPackages||[], _selectedOrgs:G.cfg.selectedOrgs||[]}),
+      fee_config: Object.assign({}, G.cfg.fees, {_schedule:G.cfg.feeSchedule||null, _extraFees:G.cfg.extraFees||[], _assocFees:G.cfg.assocFees||[], _classPkgs:G.cfg.classPkgs||[], _practiceSessions:G.cfg.practiceSessions||[], _clinicOptions:G.cfg.clinicOptions||[], _stallingPackages:G.cfg.stallingPackages||[], _rvPackages:G.cfg.rvPackages||[], _selectedOrgs:G.cfg.selectedOrgs||[], _jackpotDivs:G.cfg.jackpotDivs||{}}),
 
     };
 
@@ -16624,6 +16620,7 @@ async function boot(){
         if(k==='_stallingPackages'){ G.cfg.stallingPackages = show.fee_config[k]||[]; return; }
         if(k==='_rvPackages')       { G.cfg.rvPackages       = show.fee_config[k]||[]; return; }
         if(k==='_selectedOrgs')     { G.cfg.selectedOrgs     = show.fee_config[k]||[]; return; }
+        if(k==='_jackpotDivs')     { G.cfg.jackpotDivs      = show.fee_config[k]||{}; return; }
         if(show.fee_config[k]!==null&&show.fee_config[k]!==undefined) G.cfg.fees[k]=show.fee_config[k];
       });
     }
@@ -16656,15 +16653,17 @@ async function boot(){
 
           baseFee:c.base_fee, cowFee:c.cow_fee,
 
-          jackpot:c.jackpot_fee, addedMoney:c.added_money };
+          jackpot:null, addedMoney:c.added_money };
 
       });
 
-      // Migration: if every single class has the same non-null jackpot_fee, it was
-      // bulk-set by the old autofillClassFees bug. Clear it so checkboxes start unchecked.
-      var jpVals = G.cfg.classes.map(function(c){ return c.jackpot; });
-      var allSame = jpVals.length > 0 && jpVals.every(function(v){ return v !== null && v === jpVals[0]; });
-      if(allSame){ G.cfg.classes.forEach(function(c){ c.jackpot = null; }); }
+      // Re-apply jackpot fees from the explicit jackpotDivs map (source of truth)
+      if(G.cfg.jackpotDivs){
+        G.cfg.classes.forEach(function(c){
+          var key=(c.org||'CoWN')+'|'+(c.division||'');
+          if(G.cfg.jackpotDivs[key]!==undefined) c.jackpot=G.cfg.jackpotDivs[key];
+        });
+      }
 
     }
 
