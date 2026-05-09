@@ -11320,12 +11320,22 @@ function renderCfgClassTable(){
   });
 
   var html='';
+  var _divKeys=Object.keys(byDiv).sort();
 
-  Object.keys(byDiv).sort().forEach(function(div){
+  _divKeys.forEach(function(div,di){
 
-    html+='<tr class="div-hdr"><td colspan="10">'+esc(div)+'</td></tr>';
+    var divClasses=byDiv[div];
+    var allJp=divClasses.every(function(c){ return c.jackpot&&c.jackpot>0; });
+    var someJp=divClasses.some(function(c){ return c.jackpot&&c.jackpot>0; });
+    html+='<tr class="div-hdr"><td colspan="10" style="display:flex;align-items:center;justify-content:space-between;padding:.3rem .6rem">'
+      +'<span>'+esc(div)+'</span>'
+      +'<label style="font-size:.75rem;color:var(--muted);font-weight:normal;display:flex;align-items:center;gap:.3rem;cursor:pointer;margin:0">'
+      +'<input type="checkbox" id="jp-all-div-'+di+'"'+(allJp?' checked':'')
+      +' onchange="jpAllDiv(\''+CFG_ORG_FILTER.replace(/'/g,"\\'")+'\',\''+div.replace(/'/g,"\\'")+'\',this.checked)">'
+      +'Jackpot all</label>'
+      +'</td></tr>';
 
-    byDiv[div].forEach(function(c){
+    divClasses.forEach(function(c){
 
       var total=calcCfgTotal(c);
 
@@ -11363,9 +11373,27 @@ function renderCfgClassTable(){
 
   tbody.innerHTML=html;
 
+  // Set indeterminate on partially-jackpotted division checkboxes
+  _divKeys.forEach(function(div,di){
+    var divClasses=byDiv[div];
+    var allJp=divClasses.every(function(c){ return c.jackpot&&c.jackpot>0; });
+    var someJp=divClasses.some(function(c){ return c.jackpot&&c.jackpot>0; });
+    if(someJp&&!allJp){ var el=document.getElementById('jp-all-div-'+di); if(el) el.indeterminate=true; }
+  });
+
   renderAAPrizeCfg();
 
 }
+
+window.jpAllDiv = function(org, div, checked) {
+  var jp = parseFloat((document.getElementById('fee-jackpot')||{}).value) || G.cfg.fees.jackpot || 0;
+  G.cfg.classes.forEach(function(c){
+    if((c.org||'CoWN') !== org) return;
+    if((c.division||'General') !== div) return;
+    c.jackpot = checked ? (jp || null) : null;
+  });
+  renderCfgClassTable();
+};
 
 function setCfgOrgFilter(org,el){
   CFG_ORG_FILTER=org;
@@ -11412,7 +11440,9 @@ function renderAAPrizeCfg(){
 
   aaOrgs.forEach(function(o){
 
-    var divs=classedDivs[o]||(ORG_CLASSES[o].divisions||['Open']);
+    var divs=classedDivs[o];
+
+    if(!divs||!divs.length) return; // skip orgs with no classes in this show
 
     divs.forEach(function(div){
 
@@ -11440,7 +11470,8 @@ function renderAAPrizeCfg(){
 
   });
 
-  if(html==='<p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">Enter a total added money amount — payout splits automatically based on number of eligible riders (e.g. 4 eligible → 40/30/20/10).</p>') html='<p style="font-size:.83rem;color:var(--muted)">Import entries or add classes first to see divisions here.</p>';
+  var _intro='<p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">Enter a total added money amount — payout splits automatically based on number of eligible riders (e.g. 4 eligible → 40/30/20/10).</p>';
+  if(html===_intro) html=_intro+'<p style="font-size:.83rem;color:var(--muted)">No divisions found — add classes with an All Around-enabled org first.</p>';
 
   root.innerHTML=html;
 
