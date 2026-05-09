@@ -11393,6 +11393,8 @@ window.jpAllDiv = function(org, div, checked) {
     c.jackpot = checked ? jp : null;
   });
   renderCfgClassTable();
+  // Persist immediately so the state survives session reload
+  if(G.showId) syncShowClassesToSupabase().catch(function(e){ console.warn('Jackpot save failed:', e); });
 };
 
 function setCfgOrgFilter(org,el){
@@ -16657,6 +16659,12 @@ async function boot(){
           jackpot:c.jackpot_fee, addedMoney:c.added_money };
 
       });
+
+      // Migration: if every single class has the same non-null jackpot_fee, it was
+      // bulk-set by the old autofillClassFees bug. Clear it so checkboxes start unchecked.
+      var jpVals = G.cfg.classes.map(function(c){ return c.jackpot; });
+      var allSame = jpVals.length > 0 && jpVals.every(function(v){ return v !== null && v === jpVals[0]; });
+      if(allSame){ G.cfg.classes.forEach(function(c){ c.jackpot = null; }); }
 
     }
 
