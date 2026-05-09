@@ -70,7 +70,7 @@ G = {
 }
 ```
 
-`localStorage` is the bridge between `app.html` (secretary) and `scribe.html` (ring scribe). They must run in the same browser on the same device.
+`localStorage` is the bridge between `app.html` (secretary), `scribe.html` (ring scribe), and `gate.html` (gate helper). All must run in the same browser on the same device, and must be served from the same origin (thorofare.app) — `file://` protocol gives each file a unique origin and breaks sharing.
 
 ### Files
 
@@ -284,7 +284,8 @@ All show state is keyed by `showId`. Full key inventory:
 | `gp_scorelinks_<showId>` | G.scoreLinks |
 | `gp_aamoney_<showId>` | G.aaMoney |
 | `gp_tmploverride_<showId>` | tmplOverride (per-class template selection) |
-| `gp_closedclasses_<showId>` | array of classKeys marked closed by gate helpers (gate.html) |
+| `gp_closedclasses_<showId>` | array of classKeys marked closed by gate helpers (gate.html) — key format: `"num\|name"` |
+| `gp_lastpage_<showId>` | last active page name; restored on refresh instead of defaulting to entries |
 | `gp_billinggroups_<showId>` | G.billingGroups — merged billing groups (includes responsibleKey) |
 | `gp_horsealiases_<showId>` | G.horseAliases — canonical horse name map |
 | `gp_horsedistinct_<showId>` | G.horseDistinct — `{entryKey: 'normkey_N'}` disambiguates same-name horses that are different animals |
@@ -374,6 +375,40 @@ Beyond the preset sections, `renderFeeSchedule()` also renders:
 - `getActiveDivisions()` collects distinct divisions from the current org's classes.
 - `drawDivTabs()` / `drawAndWireDivTabs()` render division pills below the org pills.
 - `drawClassLists()` filters by `activeDivision` when not `'All'`.
+
+### Gate ↔ Secretary Sync
+
+`gate.html` and `app.html` share state via localStorage. Secretary's Classes page live-polls for gate changes.
+
+**`clsKey` format** — **critical**: both files must use identical key format. Current canonical format: `(num||'')+'|'+(name||'')` — e.g. `"110|Limited Trail"`. Never change the separator without updating both files simultaneously. The previous gate.html bug used `_` and broke all sync.
+
+**Sync mechanism in app.html:**
+- `BroadcastChannel('gatepost_gate_sync')` — instant notification when gate saves; fires `_gateRefreshIfOnClasses()`
+- `setInterval` every 2s — polls `gp_closedclasses_`, `gp_scratches_`, `gp_classorder_` snapshot; calls `pgClasses()` if changed
+- `_currentPage` module-level var — poll and BroadcastChannel only fire when secretary is on the Classes page
+- `_gateSyncSnap` — snapshot string to detect changes without re-rendering unnecessarily
+
+**Sync mechanism in gate.html:**
+- `_notifyApp()` — posts to BroadcastChannel after every `saveData()` and `saveClosedClasses()` call
+- Also listens on the channel to refresh its own view if secretary makes changes
+
+**What gate writes:**
+- `gp_closedclasses_<showId>` — array of classKeys; secretary reads this to show CLOSED badge and Close/Reopen toggle
+- `gp_scratches_<showId>`, `gp_classorder_<showId>` — rider order and scratches; secretary re-reads these at top of `pgClasses()` before rendering
+
+**`pgClasses()` reads fresh gate data** at the top of every render:
+```javascript
+G.scratches = JSON.parse(localStorage.getItem('gp_scratches_'+sid));
+G.classOrder = JSON.parse(localStorage.getItem('gp_classorder_'+sid));
+G.fullScratches = JSON.parse(localStorage.getItem('gp_fullscratches_'+sid));
+```
+`drawClassLists()` uses `G.entries` (not `cls.allEntries`) so gate-added riders appear.
+
+**`clsToggleClosed(key)`** — secretary-side close/reopen; reads/writes `gp_closedclasses_<showId>`, then calls `pgClasses()`.
+
+**Page restore on refresh:** `boot()` saves current page to `gp_lastpage_<showId>` via `showPage(p)` and restores it on next load instead of always defaulting to Entries.
+
+**`boot()` calls `saveEntriesToStorage()`** before rendering so gate.html can read entries immediately after secretary loads a show from Supabase.
 
 ### Entries Import — Column Mapper Audit Flow
 
@@ -528,6 +563,7 @@ Verify all org points formulas against `Example files/Horse ASSOCIATIONS Divisio
 - [x] **RLS security model** — `rls_entry_form.sql` applied to Supabase; public read on shows/show_classes, public insert-only on entries/entry_classes
 - [x] **entry-form.html** — built: multi-step wizard (Welcome/Rider/Horse/Classes/Members/Stalling/Summary), submits to `online_submissions` table; `online_submissions.sql` must be run in Supabase to activate
 - [x] **Pending submissions review** — `loadPendingSubmissions()` + `_renderPendingSubsCard()` in app.html; Accept converts jsonb → G.entry format and syncs; Reject marks row rejected; both update `online_submissions.status`
+- [x] **Gate ↔ secretary real-time sync** — BroadcastChannel + 2s poll; secretary Classes page reads gate's closed/scratches/classOrder on every render; secretary can close/reopen classes via `clsToggleClosed()`; page position persists across refresh via `gp_lastpage_<showId>`; `clsKey` separator fixed to `|` in gate.html (was `_`, caused complete sync failure)
 - [ ] **Submission wrapper (7.3)** — multiple horses/riders per submission; data model impact documented in spec; tackle after entry-form.html phase 1
 - [ ] **Points system verification** — audit ASHA, NVRHA, NRHA formulas against the Excel reference file (`Example files/Horse ASSOCIATIONS Divisions and classes.xlsx`)
 - [ ] **Results parser improvements** — strengthen `parseClassDivStr()` for edge-case SHTX strings; use audit panel failure patterns as test cases

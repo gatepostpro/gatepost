@@ -152,6 +152,30 @@
       padding: 10px 14px; font-size: 0.85rem; color: #e88; margin-bottom: 12px; display: none;
     }
 
+    /* ── Entry overview ─────────────────────────────────────────── */
+    .entry-horse-card { background:var(--card); border:1px solid var(--border2); border-radius:8px; margin-bottom:12px; overflow:hidden; }
+    .horse-card-hdr { display:flex; align-items:center; gap:8px; padding:10px 14px; background:var(--card2); border-bottom:1px solid var(--border); }
+    .horse-card-name { font-family:Oswald,sans-serif; font-size:1rem; color:var(--accent); flex:1; }
+    .horse-card-detail { font-size:.8rem; color:var(--text2); }
+    .horse-card-remove { background:none; border:none; color:var(--text2); cursor:pointer; font-size:.9rem; padding:2px 6px; border-radius:4px; }
+    .horse-card-remove:hover { color:var(--red); background:rgba(204,68,68,.12); }
+    .rider-row { display:flex; align-items:center; gap:10px; padding:9px 14px; border-bottom:1px solid var(--border); }
+    .rider-row-info { flex:1; min-width:0; }
+    .rider-row-name { font-size:.88rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .rider-row-role { font-size:.78rem; color:var(--text2); font-weight:400; }
+    .rider-row-classes { font-size:.75rem; color:var(--text2); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .rider-row-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+    .bill-to-label { display:flex; align-items:center; gap:4px; font-size:.78rem; color:var(--text2); cursor:pointer; white-space:nowrap; }
+    .bill-to-label input[type=checkbox] { accent-color:var(--accent); width:14px; height:14px; cursor:pointer; }
+    .rider-remove-btn { background:none; border:none; color:var(--text2); cursor:pointer; font-size:.82rem; padding:2px 5px; border-radius:4px; }
+    .rider-remove-btn:hover { color:var(--red); background:rgba(204,68,68,.12); }
+    .add-rider-btn { display:block; width:100%; padding:10px 14px; background:rgba(200,146,42,.08); border:none; border-top:1px solid var(--border); color:var(--accent); font-size:.85rem; font-weight:600; cursor:pointer; text-align:left; font-family:inherit; border-radius:0 0 8px 8px; }
+    .add-rider-btn:hover { background:rgba(200,146,42,.18); }
+    .add-horse-btn { display:block; width:100%; padding:13px 16px; background:rgba(200,146,42,.07); border:2px dashed var(--accent); color:var(--accent); font-size:.9rem; font-weight:600; cursor:pointer; border-radius:8px; text-align:center; font-family:inherit; margin-bottom:16px; transition:background .15s; }
+    .add-horse-btn:hover { background:rgba(200,146,42,.18); }
+    .overview-continue { width:100%; padding:13px; background:var(--accent); color:#111; font-weight:600; font-family:Oswald,sans-serif; letter-spacing:.5px; border:none; border-radius:6px; font-size:.95rem; cursor:pointer; }
+    .overview-continue:hover { background:var(--accent2); }
+
     @media (max-width: 480px) {
       .form-row.half   { grid-template-columns: 1fr; }
       .form-row.thirds { grid-template-columns: 1fr 1fr; }
@@ -202,44 +226,50 @@
 </div>
 
 <script>
+'use strict';
 // ── Supabase config ───────────────────────────────────────────────────────────
 var SB_URL  = 'https://tpurkcxtkvwpywxnuzwe.supabase.co';
 var SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwdXJrY3h0a3Z3cHl3eG51endlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MDUwMzYsImV4cCI6MjA5MjI4MTAzNn0.j1fPBjBsbIoXXosM96YtywdGiVVLWnd-YrXZ1634alU';
 
 // ── App state ─────────────────────────────────────────────────────────────────
-var SHOW    = null;   // shows row
-var CLASSES = [];     // show_classes rows
-var FEE       = {};     // fee_config flattened
-var STEP      = 0;
-var STEPS     = [];     // populated after show loads
-var isPreview = false;  // set to true when ?preview=1 — bypasses status gates, disables submit
+var SHOW      = null;
+var CLASSES   = [];
+var FEE       = {};
+var isPreview = false;
 
-var FORM = {
-  riderFirst: '', riderLast: '', email: '', phone: '',
-  address1: '', city: '', state: '', zip: '',
-  isYouth: false, dob: '',
-  horseName: '', horseGender: '', horseOwner: '',
-  horseRegNum: '', horseDob: '',
-  selectedClassIds: [],
-  memberships: {},
-  memberStatus: {},     // {org: 'current'|'notmember'|'buy_day'|'buy_1yr'|'buy_3yr'|'buy_life'}
-  memberOwner: '',
-  stall1qty: 0, stall2qty: 0, stall3qty: 0,
+// Wizard navigation
+var CUR_STEP              = 'welcome';
+var CURR_HORSE_IDX        = 0;
+var CURR_RIDER_IDX        = 0;
+var IS_ADDING_TO_EXISTING = false;
+
+// Submission — horses[] each with riders[]; shared stalling at top level
+var SUBMISSION = {
+  horses: [],
+  haulinQty: 0, stall1qty: 0, stall2qty: 0, stall3qty: 0,
   shavings: 0, rv1qty: 0, rv2qty: 0, rvCircuit: 0,
-  haulinQty: 0,
-  selectedOrgs: [],     // orgs the rider wants to enter (empty = all)
-  stallingPackageId: '', rvPackageId: '',
-  stallingArrival: '', stallingDeparture: '', rvArrival: '', rvDeparture: '',
-  stallingGroup: '',
-  clinicChoice: '',
-  practiceSessions: [],
+  stallingGroup: '', stallingArrival: '', stallingDeparture: '',
+  rvArrival: '', rvDeparture: '', stallingPackageId: '', rvPackageId: '',
+  clinicChoice: '', practiceSessions: [],
   waiverAgreed: false
 };
+
+function newHorse() {
+  return { horseName:'', horseGender:'', horseOwner:'', horseRegNum:'', horseDob:'',
+           ownerDiffFromRider:false, ownerBillTo:false, riders:[] };
+}
+function newRider() {
+  return { riderFirst:'', riderLast:'', email:'', phone:'',
+           address1:'', city:'', state:'', zip:'',
+           isYouth:false, dob:'',
+           selectedClassIds:[], selectedOrgs:[],
+           memberships:{}, memberStatus:{}, ownerMembs:{},
+           billTo:true };
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function fmt$(n){ return '$'+(+n).toFixed(2); }
-
 function fmtDate(d) {
   if(!d) return '';
   var p = d.split('-');
@@ -248,45 +278,67 @@ function fmtDate(d) {
   return mo[parseInt(p[1])-1]+' '+parseInt(p[2])+', '+p[0];
 }
 
+function currHorse(){ return SUBMISSION.horses[CURR_HORSE_IDX]; }
+function currRider(){ var h = currHorse(); return h ? h.riders[CURR_RIDER_IDX] : null; }
+
+function getAvailOrgs() {
+  return (FEE._selectedOrgs||[]).filter(function(o){ return CLASSES.some(function(c){ return (c.org||'General')===o; }); });
+}
+function getSelectedClasses(rider) {
+  var r = rider || currRider() || {};
+  return CLASSES.filter(function(c){ return (r.selectedClassIds||[]).indexOf(c.id) >= 0; });
+}
+function getSelectedOrgs(rider) {
+  var seen = {}, orgs = [];
+  getSelectedClasses(rider).forEach(function(c){ var o = c.org||'General'; if(!seen[o]){ seen[o]=true; orgs.push(o); } });
+  return orgs;
+}
+
 async function sbGet(path) {
-  var r = await fetch(SB_URL+'/rest/v1/'+path, {
-    headers: {'apikey': SB_ANON, 'Authorization': 'Bearer '+SB_ANON}
-  });
+  var r = await fetch(SB_URL+'/rest/v1/'+path, { headers:{'apikey':SB_ANON,'Authorization':'Bearer '+SB_ANON} });
   if(!r.ok) throw new Error(await r.text());
   return r.json();
 }
-
 async function sbPost(table, body) {
   var r = await fetch(SB_URL+'/rest/v1/'+table, {
-    method: 'POST',
-    headers: {
-      'apikey': SB_ANON, 'Authorization': 'Bearer '+SB_ANON,
-      'Content-Type': 'application/json', 'Prefer': 'return=representation'
-    },
+    method:'POST',
+    headers:{'apikey':SB_ANON,'Authorization':'Bearer '+SB_ANON,'Content-Type':'application/json','Prefer':'return=representation'},
     body: JSON.stringify(body)
   });
   if(!r.ok) throw new Error(await r.text());
   return r.json();
 }
 
+function hasStalling() {
+  return (FEE._stallingPackages||[]).some(function(p){ return +p.price>0; })
+      || (FEE._rvPackages||[]).some(function(p){ return +p.price>0; })
+      || (FEE.stall1||0)>0 || (FEE.stall2||0)>0 || (FEE.stall3||0)>0
+      || (FEE.rv1||0)>0    || (FEE.rv2||0)>0    || (FEE.rvCircuit||0)>0
+      || (FEE.haulin||0)>0;
+}
+function hasPractice() {
+  return (Array.isArray(FEE._practiceSessions) && FEE._practiceSessions.length>0)
+      || (Array.isArray(FEE._clinicOptions)     && FEE._clinicOptions.length>0);
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
   var params = new URLSearchParams(location.search);
   var showId = params.get('show');
-  isPreview = params.get('preview') === '1';
-  if(!showId) return showError('No Show Specified', 'This link is missing a show ID. Contact the show secretary for the correct entry link.');
+  isPreview  = params.get('preview') === '1';
+  if(!showId) return showError('No Show Specified','This link is missing a show ID. Contact the show secretary for the correct entry link.');
   try {
     var shows = await sbGet('shows?id=eq.'+showId+'&select=*');
-    if(!shows || !shows.length) return showError('Show Not Found', 'This entry form link is not valid. Contact the show secretary.');
+    if(!shows||!shows.length) return showError('Show Not Found','This entry form link is not valid. Contact the show secretary.');
     SHOW = shows[0];
     if(!isPreview){
-      if(SHOW.status === 'setup') return showError('Entries Not Open Yet', 'Online entries for '+SHOW.name+' are not open yet. Check back soon.');
-      if(SHOW.status === 'entries_closed') return showError('Entries Closed', 'The entry deadline has passed for '+SHOW.name+'.');
-      if(SHOW.status === 'running') return showError('Show In Progress', SHOW.name+' is currently in progress. Online entries are closed.');
-      if(SHOW.status === 'complete') return showError('Show Complete', SHOW.name+' has already taken place.');
+      if(SHOW.status==='setup')          return showError('Entries Not Open Yet','Online entries for '+SHOW.name+' are not open yet. Check back soon.');
+      if(SHOW.status==='entries_closed') return showError('Entries Closed','The entry deadline has passed for '+SHOW.name+'.');
+      if(SHOW.status==='running')        return showError('Show In Progress',SHOW.name+' is currently in progress. Online entries are closed.');
+      if(SHOW.status==='complete')       return showError('Show Complete',SHOW.name+' has already taken place.');
       if(SHOW.entry_deadline){
         var deadline = new Date(SHOW.entry_deadline+'T23:59:59');
-        if(new Date() > deadline) return showError('Entries Closed', 'The entry deadline for '+SHOW.name+' was '+fmtDate(SHOW.entry_deadline)+'. Online entries are now closed.');
+        if(new Date()>deadline) return showError('Entries Closed','The entry deadline for '+SHOW.name+' was '+fmtDate(SHOW.entry_deadline)+'. Online entries are now closed.');
       }
     }
     CLASSES = await sbGet('show_classes?show_id=eq.'+showId+'&order=run_order.asc');
@@ -299,10 +351,13 @@ async function init() {
       banner.textContent = '⚠ SECRETARY PREVIEW — submissions are disabled in preview mode';
       document.body.insertBefore(banner, document.body.firstChild);
     }
-    buildSteps();
+    // Seed first horse + rider
+    var h = newHorse(); var r = newRider();
+    h.riders.push(r); SUBMISSION.horses.push(h);
+    CURR_HORSE_IDX = 0; CURR_RIDER_IDX = 0;
     startWizard();
   } catch(e) {
-    showError('Unable to Load', 'There was a problem loading this entry form. Please try again or contact the show secretary.');
+    showError('Unable to Load','There was a problem loading this entry form. Please try again or contact the show secretary.');
     console.error(e);
   }
 }
@@ -315,138 +370,152 @@ function showError(title, msg) {
   document.getElementById('err-msg').textContent   = msg;
 }
 
-function hasStalling() {
-  var pkgs = (FEE._stallingPackages||[]).some(function(p){ return +p.price > 0; });
-  var rvPkgs = (FEE._rvPackages||[]).some(function(p){ return +p.price > 0; });
-  return pkgs || rvPkgs
-      || (FEE.stall1||0) > 0 || (FEE.stall2||0) > 0 || (FEE.stall3||0) > 0
-      || (FEE.rv1||0)    > 0 || (FEE.rv2||0)    > 0 || (FEE.rvCircuit||0) > 0
-      || (FEE.haulin||0) > 0;
-}
+// ── Wizard framework ──────────────────────────────────────────────────────────
+// Steps: welcome | horse | rider | orgs | classes | memberships | overview | stalling | practice | summary
+// overview has its own Continue button; Back/Next nav bar hidden on that step.
 
-function hasPractice() {
-  var ps = FEE._practiceSessions;
-  var co = FEE._clinicOptions;
-  return (Array.isArray(ps) && ps.length > 0) || (Array.isArray(co) && co.length > 0);
-}
-
-function buildSteps() {
-  var availOrgs = (FEE._selectedOrgs||[]).filter(function(o){ return CLASSES.some(function(c){ return (c.org||'General')===o; }); });
-  STEPS = [
-    {id:'welcome',     title:'Welcome',        fn:renderWelcome},
-    {id:'rider',       title:'Rider Info',     fn:renderRider},
-    {id:'horse',       title:'Horse',          fn:renderHorse},
-  ];
-  if(availOrgs.length > 1) STEPS.push({id:'orgs', title:'Associations', fn:renderOrgFilter});
-  STEPS.push(
-    {id:'classes',     title:'Classes',        fn:renderClasses},
-    {id:'memberships', title:'Member Numbers', fn:renderMemberships}
-  );
-  if(hasStalling())  STEPS.push({id:'stalling', title:'Stalling & RV',      fn:renderStalling});
-  if(hasPractice())  STEPS.push({id:'practice', title:'Practice & Clinics',  fn:renderPractice});
-  STEPS.push({id:'summary', title:'Summary', fn:renderSummary});
-}
+var STEP_PHASE = { welcome:0, horse:0, rider:0, orgs:0, classes:0, memberships:0, overview:0, stalling:1, practice:1, summary:2 };
+var STEP_LABEL = { welcome:'Show Information', horse:'Horse', rider:'Rider', orgs:'Associations', classes:'Classes', memberships:'Member Numbers', overview:'Your Entries', stalling:'Stalling & RV', practice:'Practice & Clinics', summary:'Review & Submit' };
 
 function startWizard() {
   document.getElementById('loading').style.display = 'none';
   document.getElementById('wizard').style.display  = '';
   document.getElementById('progress-bar').style.display = '';
   document.getElementById('nav-bar').style.display = 'flex';
-  renderStep(0);
-}
-
-// ── Navigation ────────────────────────────────────────────────────────────────
-function navBack() {
-  clearStepErr();
-  saveCurrentStep();
-  if(STEP > 0) renderStep(STEP - 1);
-}
-
-function navNext() {
-  clearStepErr();
-  if(!validateStep()) return;
-  saveCurrentStep();
-  if(STEP === STEPS.length - 1) { submitEntry(); return; }
-  renderStep(STEP + 1);
-}
-
-function saveCurrentStep() {
-  var id = STEPS[STEP] && STEPS[STEP].id;
-  if(id === 'rider')       saveRider();
-  if(id === 'horse')       saveHorse();
-  if(id === 'memberships') saveMemberships();
-  if(id === 'stalling')    saveStalling();
-  if(id === 'practice')    savePractice();
-}
-
-function renderStep(idx) {
-  STEP = idx;
-  updateProgress();
-  var wrap = document.getElementById('wizard');
-  wrap.innerHTML = '';
-  STEPS[idx].fn(wrap);
-  document.getElementById('btn-back').style.visibility = idx === 0 ? 'hidden' : 'visible';
-  var nextBtn = document.getElementById('btn-next');
-  nextBtn.textContent = idx === STEPS.length - 1 ? 'Submit Entry' : 'Continue →';
-  nextBtn.disabled = false;
-  window.scrollTo(0, 0);
+  goTo('welcome');
 }
 
 function updateProgress() {
-  document.getElementById('progress-steps').innerHTML = STEPS.map(function(s, i) {
-    var cls = i < STEP ? 'done' : i === STEP ? 'active' : '';
-    return '<div class="ps '+cls+'"></div>';
+  var phase = STEP_PHASE[CUR_STEP] || 0;
+  var phases = ['Your Entries'];
+  if(hasStalling()||hasPractice()) phases.push('Stalling');
+  phases.push('Summary');
+  document.getElementById('progress-steps').innerHTML = phases.map(function(lbl,i){
+    var cls = i<phase ? 'done' : i===phase ? 'active' : '';
+    return '<div class="ps '+cls+'" title="'+esc(lbl)+'"></div>';
   }).join('');
-  document.getElementById('progress-label').textContent =
-    'Step '+(STEP+1)+' of '+STEPS.length+' — '+STEPS[STEP].title;
+  var lbl = STEP_LABEL[CUR_STEP] || CUR_STEP;
+  if(CUR_STEP==='horse'||CUR_STEP==='rider'||CUR_STEP==='orgs'||CUR_STEP==='classes'||CUR_STEP==='memberships'){
+    var h = currHorse();
+    if(h && h.horseName) lbl += ' — '+h.horseName;
+    if(SUBMISSION.horses.length>1) lbl += ' (horse '+(CURR_HORSE_IDX+1)+' of '+SUBMISSION.horses.length+')';
+  }
+  document.getElementById('progress-label').textContent = lbl;
+}
+
+function getNextStep(step) {
+  if(step==='welcome')     return 'horse';
+  if(step==='horse')       return 'rider';
+  if(step==='rider')       return getAvailOrgs().length>1 ? 'orgs' : 'classes';
+  if(step==='orgs')        return 'classes';
+  if(step==='classes')     return 'memberships';
+  if(step==='memberships') return 'overview';
+  if(step==='overview')    return hasStalling() ? 'stalling' : hasPractice() ? 'practice' : 'summary';
+  if(step==='stalling')    return hasPractice() ? 'practice' : 'summary';
+  if(step==='practice')    return 'summary';
+  return null;
+}
+function getPrevStep(step) {
+  if(step==='welcome')     return null;
+  if(step==='horse')       return SUBMISSION.horses.filter(function(h){ return h.riders.some(function(r){ return r.selectedClassIds.length>0; }); }).length>0 ? 'overview' : null;
+  if(step==='rider')       return IS_ADDING_TO_EXISTING ? 'overview' : 'horse';
+  if(step==='orgs')        return 'rider';
+  if(step==='classes')     return getAvailOrgs().length>1 ? 'orgs' : 'rider';
+  if(step==='memberships') return 'classes';
+  if(step==='overview')    return 'memberships';
+  if(step==='stalling')    return 'overview';
+  if(step==='practice')    return hasStalling() ? 'stalling' : 'overview';
+  if(step==='summary')     return hasPractice() ? 'practice' : hasStalling() ? 'stalling' : 'overview';
+  return null;
+}
+
+function goTo(step) {
+  _saveCurrentStep();
+  clearStepErr();
+  CUR_STEP = step;
+  updateProgress();
+  var wrap = document.getElementById('wizard');
+  wrap.innerHTML = '';
+  var renders = { welcome:renderWelcome, horse:renderHorse, rider:renderRider, orgs:renderOrgFilter, classes:renderClasses, memberships:renderMemberships, overview:renderOverview, stalling:renderStalling, practice:renderPractice, summary:renderSummary };
+  if(renders[step]) renders[step](wrap);
+  // Nav bar
+  var nextBtn = document.getElementById('btn-next');
+  var backBtn = document.getElementById('btn-back');
+  nextBtn.style.display = '';
+  nextBtn.textContent   = step==='summary' ? 'Submit Entry' : 'Continue →';
+  nextBtn.disabled      = false;
+  backBtn.style.visibility = getPrevStep(step) ? 'visible' : 'hidden';
+  window.scrollTo(0,0);
+}
+
+function _saveCurrentStep() {
+  if(CUR_STEP==='horse')       saveHorse();
+  if(CUR_STEP==='rider')       saveRider();
+  if(CUR_STEP==='memberships') saveMemberships();
+  if(CUR_STEP==='stalling')    saveStalling();
+  if(CUR_STEP==='practice')    savePractice();
+}
+
+function navBack() {
+  clearStepErr();
+  var prev = getPrevStep(CUR_STEP);
+  if(prev) goTo(prev);
+}
+function navNext() {
+  clearStepErr();
+  if(!validateStep()) return;
+  if(CUR_STEP==='summary'){ submitEntry(); return; }
+  var next = getNextStep(CUR_STEP);
+  if(next) goTo(next);
 }
 
 function showStepErr(msg) {
   var el = document.getElementById('step-err');
-  el.textContent = msg;
-  el.style.display = '';
-  el.scrollIntoView({behavior:'smooth', block:'nearest'});
+  el.textContent = msg; el.style.display = '';
+  window.scrollTo({top: 0, behavior: 'smooth'});
 }
-function clearStepErr() { document.getElementById('step-err').style.display = 'none'; }
+function clearStepErr(){ document.getElementById('step-err').style.display='none'; }
 
 // ── Validation ────────────────────────────────────────────────────────────────
 function validateStep() {
-  var id = STEPS[STEP].id;
-  if(id === 'rider')   return validateRider();
-  if(id === 'horse')   return validateHorse();
-  if(id === 'classes') return validateClasses();
-  if(id === 'summary') return validateSummary();
+  if(CUR_STEP==='horse')   return validateHorse();
+  if(CUR_STEP==='rider')   return validateRider();
+  if(CUR_STEP==='classes') return validateClasses();
+  if(CUR_STEP==='summary') return validateSummary();
   return true;
 }
-
-function requireField(fieldId) {
-  var el = document.getElementById(fieldId);
+function requireField(id) {
+  var el = document.getElementById(id);
   if(!el) return true;
-  var ok = el.value.trim() !== '';
-  el.classList.toggle('err', !ok);
+  var ok = el.value.trim()!=='';
+  el.classList.toggle('err',!ok);
   return ok;
 }
-
-function validateRider() {
-  var ok = ['f-riderFirst','f-riderLast','f-email','f-phone'].map(requireField).every(Boolean);
-  if(FORM.isYouth) ok = requireField('f-dob') && ok;
-  if(!ok) showStepErr('Please fill in all required fields.');
-  return ok;
-}
-
 function validateHorse() {
   var ok = ['f-horseName','f-horseGender'].map(requireField).every(Boolean);
   if(!ok) showStepErr('Please fill in all required fields.');
   return ok;
 }
-
+function validateRider() {
+  var ok = ['f-riderFirst','f-riderLast','f-email','f-phone'].map(requireField).every(Boolean);
+  var r = currRider();
+  if(r && r.isYouth) ok = requireField('f-dob') && ok;
+  if(!ok) showStepErr('Please fill in all required fields.');
+  return ok;
+}
 function validateClasses() {
-  if(FORM.selectedClassIds.length === 0) { showStepErr('Please select at least one class.'); return false; }
+  var r = currRider();
+  if(!r||r.selectedClassIds.length===0){ showStepErr('Please select at least one class.'); return false; }
   return true;
 }
-
 function validateSummary() {
-  if(!FORM.waiverAgreed) { showStepErr('Please agree to the waiver to submit your entry.'); return false; }
+  var cb = document.getElementById('f-waiver');
+  if(cb) SUBMISSION.waiverAgreed = cb.checked;
+  if(!SUBMISSION.waiverAgreed){
+    showStepErr('Please read and agree to the waiver at the bottom of this page before submitting.');
+    if(cb) { cb.closest('.card').scrollIntoView({behavior:'smooth', block:'center'}); }
+    return false;
+  }
   return true;
 }
 
@@ -478,109 +547,40 @@ function renderWelcome(wrap) {
   wrap.innerHTML = html;
 }
 
-// ── Step: Rider ───────────────────────────────────────────────────────────────
-function renderRider(wrap) {
-  var f = FORM;
-  var html = '<div class="card">';
-  html += '<div class="step-title">Rider Information</div>';
-  html += '<div class="step-sub">Enter the competing rider\'s contact information.</div>';
-
-  html += '<div class="form-row half"><div>';
-  html += '<label>First Name <span class="req">*</span></label>';
-  html += '<input id="f-riderFirst" value="'+esc(f.riderFirst)+'" placeholder="First" autocomplete="given-name">';
-  html += '</div><div>';
-  html += '<label>Last Name <span class="req">*</span></label>';
-  html += '<input id="f-riderLast" value="'+esc(f.riderLast)+'" placeholder="Last" autocomplete="family-name">';
-  html += '</div></div>';
-
-  html += '<div class="form-row half"><div>';
-  html += '<label>Email <span class="req">*</span></label>';
-  html += '<input id="f-email" type="email" value="'+esc(f.email)+'" placeholder="you@example.com" autocomplete="email">';
-  html += '</div><div>';
-  html += '<label>Phone <span class="req">*</span></label>';
-  html += '<input id="f-phone" type="tel" value="'+esc(f.phone)+'" placeholder="(xxx) xxx-xxxx" autocomplete="tel">';
-  html += '</div></div>';
-
-  html += '<div class="form-row"><label>Street Address</label>';
-  html += '<input id="f-address1" value="'+esc(f.address1)+'" placeholder="123 Main St" autocomplete="street-address">';
-  html += '</div>';
-
-  html += '<div class="form-row thirds"><div>';
-  html += '<label>City</label><input id="f-city" value="'+esc(f.city)+'" placeholder="City" autocomplete="address-level2">';
-  html += '</div><div>';
-  html += '<label>State</label><input id="f-state" value="'+esc(f.state)+'" placeholder="WY" maxlength="2" style="text-transform:uppercase" autocomplete="address-level1">';
-  html += '</div><div>';
-  html += '<label>Zip</label><input id="f-zip" value="'+esc(f.zip)+'" placeholder="82001" autocomplete="postal-code">';
-  html += '</div></div>';
-
-  html += '<div class="check-row"><input type="checkbox" id="f-isYouth" '+(f.isYouth?'checked':'')+' onchange="toggleYouth(this.checked)">';
-  html += '<label for="f-isYouth">Youth competitor (under 18 as of show date)</label></div>';
-
-  html += '<div id="dob-row" style="'+(f.isYouth?'':'display:none')+'"><div class="form-row">';
-  html += '<label>Date of Birth <span class="req">*</span></label>';
-  html += '<input id="f-dob" type="date" value="'+esc(f.dob)+'">';
-  html += '</div></div>';
-
-  html += '</div>';
-  wrap.innerHTML = html;
-}
-
-function toggleYouth(checked) {
-  FORM.isYouth = checked;
-  var row = document.getElementById('dob-row');
-  if(row) row.style.display = checked ? '' : 'none';
-}
-
-function saveRider() {
-  var g = function(id){ var el = document.getElementById(id); return el ? el.value.trim() : ''; };
-  FORM.riderFirst = g('f-riderFirst');
-  FORM.riderLast  = g('f-riderLast');
-  FORM.email      = g('f-email');
-  FORM.phone      = g('f-phone');
-  FORM.address1   = g('f-address1');
-  FORM.city       = g('f-city');
-  FORM.state      = g('f-state').toUpperCase();
-  FORM.zip        = g('f-zip');
-  FORM.dob        = g('f-dob');
-  var iy = document.getElementById('f-isYouth');
-  if(iy) FORM.isYouth = iy.checked;
-}
-
 // ── Step: Horse ───────────────────────────────────────────────────────────────
 function renderHorse(wrap) {
-  var f = FORM;
+  var h = currHorse() || {};
   var html = '<div class="card">';
   html += '<div class="step-title">Horse</div>';
   html += '<div class="step-sub">Enter the horse\'s information as it appears on registration papers.</div>';
 
   html += '<div class="form-row"><label>Registered Name <span class="req">*</span></label>';
-  html += '<input id="f-horseName" value="'+esc(f.horseName)+'" placeholder="Horse\'s registered name">';
+  html += '<input id="f-horseName" value="'+esc(h.horseName||'')+'" placeholder="Horse\'s registered name">';
   html += '</div>';
 
   html += '<div class="form-row half"><div>';
   html += '<label>Gender <span class="req">*</span></label>';
   html += '<select id="f-horseGender"><option value="">— select —</option>';
   ['Mare','Gelding','Stallion'].forEach(function(g){
-    html += '<option'+(f.horseGender===g?' selected':'')+'>'+g+'</option>';
+    html += '<option'+(h.horseGender===g?' selected':'')+'>'+g+'</option>';
   });
   html += '</select></div><div>';
   html += '<label>Date of Birth</label>';
-  html += '<input id="f-horseDob" type="date" value="'+esc(f.horseDob)+'">';
+  html += '<input id="f-horseDob" type="date" value="'+esc(h.horseDob||'')+'">';
   html += '</div></div>';
 
   html += '<div class="form-row half"><div>';
   html += '<label>Registration # <span style="color:var(--text2)">(AQHA / breed reg)</span></label>';
-  html += '<input id="f-horseRegNum" value="'+esc(f.horseRegNum)+'" placeholder="optional">';
+  html += '<input id="f-horseRegNum" value="'+esc(h.horseRegNum||'')+'" placeholder="optional">';
   html += '</div></div>';
 
-  // Owner — checkbox reveals name + per-org member numbers
-  var ownerChecked = f.ownerDiffFromRider ? 'checked' : '';
+  var ownerChecked = h.ownerDiffFromRider ? 'checked' : '';
   html += '<div style="margin-top:.5rem;padding:.65rem .75rem;background:var(--card2);border:1px solid var(--border2);border-radius:8px">';
   html += '<label style="display:flex;align-items:center;gap:.5rem;font-size:.88rem;cursor:pointer">';
   html += '<input type="checkbox" id="f-diffOwner" '+ownerChecked+' onchange="toggleDiffOwner(this.checked)" style="accent-color:var(--accent)"> The horse owner is different from the rider';
   html += '</label>';
-  html += '<div id="f-owner-fields" style="margin-top:.55rem;'+(f.ownerDiffFromRider?'':'display:none')+'">';
-  html += '<div class="form-row"><label>Owner Name</label><input id="f-horseOwner" value="'+esc(f.horseOwner)+'" placeholder="Owner full name"></div>';
+  html += '<div id="f-owner-fields" style="margin-top:.55rem;'+(h.ownerDiffFromRider?'':'display:none')+'">';
+  html += '<div class="form-row"><label>Owner Name</label><input id="f-horseOwner" value="'+esc(h.horseOwner||'')+'" placeholder="Owner full name"></div>';
   html += '</div></div>';
 
   html += '</div>';
@@ -588,20 +588,96 @@ function renderHorse(wrap) {
 }
 
 function saveHorse() {
+  var h = currHorse(); if(!h) return;
   var g = function(id){ var el = document.getElementById(id); return el ? el.value.trim() : ''; };
-  FORM.horseName          = g('f-horseName');
-  FORM.horseGender        = g('f-horseGender');
-  FORM.horseRegNum        = g('f-horseRegNum');
-  FORM.horseDob           = g('f-horseDob');
+  h.horseName          = g('f-horseName');
+  h.horseGender        = g('f-horseGender');
+  h.horseRegNum        = g('f-horseRegNum');
+  h.horseDob           = g('f-horseDob');
   var diffEl = document.getElementById('f-diffOwner');
-  FORM.ownerDiffFromRider = diffEl ? diffEl.checked : false;
-  FORM.horseOwner         = FORM.ownerDiffFromRider ? g('f-horseOwner') : '';
+  h.ownerDiffFromRider = diffEl ? diffEl.checked : false;
+  h.horseOwner         = h.ownerDiffFromRider ? g('f-horseOwner') : '';
 }
 
 window.toggleDiffOwner = function(checked) {
-  FORM.ownerDiffFromRider = checked;
+  var h = currHorse(); if(h) h.ownerDiffFromRider = checked;
   var el = document.getElementById('f-owner-fields');
   if(el) el.style.display = checked ? '' : 'none';
+};
+
+// ── Step: Rider ───────────────────────────────────────────────────────────────
+function renderRider(wrap) {
+  var r = currRider() || {};
+  var h = currHorse() || {};
+  var html = '<div class="card">';
+  html += '<div class="step-title">Rider Information</div>';
+  if(h.horseName) html += '<div class="step-sub">Rider for <strong>'+esc(h.horseName)+'</strong></div>';
+  else html += '<div class="step-sub">Enter the competing rider\'s contact information.</div>';
+
+  html += '<div class="form-row half"><div>';
+  html += '<label>First Name <span class="req">*</span></label>';
+  html += '<input id="f-riderFirst" value="'+esc(r.riderFirst||'')+'" placeholder="First" autocomplete="given-name">';
+  html += '</div><div>';
+  html += '<label>Last Name <span class="req">*</span></label>';
+  html += '<input id="f-riderLast" value="'+esc(r.riderLast||'')+'" placeholder="Last" autocomplete="family-name">';
+  html += '</div></div>';
+
+  html += '<div class="form-row half"><div>';
+  html += '<label>Email <span class="req">*</span></label>';
+  html += '<input id="f-email" type="email" value="'+esc(r.email||'')+'" placeholder="you@example.com" autocomplete="email">';
+  html += '</div><div>';
+  html += '<label>Phone <span class="req">*</span></label>';
+  html += '<input id="f-phone" type="tel" value="'+esc(r.phone||'')+'" placeholder="(xxx) xxx-xxxx" autocomplete="tel">';
+  html += '</div></div>';
+
+  html += '<div class="form-row"><label>Street Address</label>';
+  html += '<input id="f-address1" value="'+esc(r.address1||'')+'" placeholder="123 Main St" autocomplete="street-address">';
+  html += '</div>';
+  html += '<div class="form-row thirds"><div>';
+  html += '<label>City</label><input id="f-city" value="'+esc(r.city||'')+'" placeholder="City" autocomplete="address-level2">';
+  html += '</div><div>';
+  html += '<label>State</label><input id="f-state" value="'+esc(r.state||'')+'" placeholder="WY" maxlength="2" style="text-transform:uppercase" autocomplete="address-level1">';
+  html += '</div><div>';
+  html += '<label>Zip</label><input id="f-zip" value="'+esc(r.zip||'')+'" placeholder="82001" autocomplete="postal-code">';
+  html += '</div></div>';
+
+  html += '<div class="check-row"><input type="checkbox" id="f-isYouth" '+(r.isYouth?'checked':'')+' onchange="toggleYouth(this.checked)">';
+  html += '<label for="f-isYouth">Youth competitor (under 18 as of show date)</label></div>';
+  html += '<div id="dob-row" style="'+(r.isYouth?'':'display:none')+'"><div class="form-row">';
+  html += '<label>Date of Birth <span class="req">*</span></label>';
+  html += '<input id="f-dob" type="date" value="'+esc(r.dob||'')+'">';
+  html += '</div></div>';
+
+  html += '<div class="check-row" style="margin-top:.5rem"><input type="checkbox" id="f-billTo" '+(r.billTo!==false?'checked':'')+' onchange="toggleBillToSelf(this.checked)">';
+  html += '<label for="f-billTo">Bill to this rider (include in invoice)</label></div>';
+
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+function saveRider() {
+  var r = currRider(); if(!r) return;
+  var g = function(id){ var el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  r.riderFirst = g('f-riderFirst');
+  r.riderLast  = g('f-riderLast');
+  r.email      = g('f-email');
+  r.phone      = g('f-phone');
+  r.address1   = g('f-address1') || r.address1 || '';
+  r.city       = g('f-city')     || r.city     || '';
+  r.state      = (g('f-state')   || r.state    || '').toUpperCase();
+  r.zip        = g('f-zip')      || r.zip      || '';
+  r.dob        = g('f-dob');
+  var iy = document.getElementById('f-isYouth'); if(iy) r.isYouth = iy.checked;
+  var bt = document.getElementById('f-billTo');  if(bt) r.billTo  = bt.checked;
+}
+
+function toggleYouth(checked) {
+  var r = currRider(); if(r) r.isYouth = checked;
+  var row = document.getElementById('dob-row');
+  if(row) row.style.display = checked ? '' : 'none';
+}
+window.toggleBillToSelf = function(checked) {
+  var r = currRider(); if(r) r.billTo = checked;
 };
 
 // ── Step: Classes ─────────────────────────────────────────────────────────────
@@ -614,17 +690,17 @@ function getClassFee(c) {
 }
 
 function toggleClass(id) {
-  var idx = FORM.selectedClassIds.indexOf(id);
-  if(idx >= 0) FORM.selectedClassIds.splice(idx, 1);
-  else FORM.selectedClassIds.push(id);
+  var r = currRider(); if(!r) return;
+  var idx = r.selectedClassIds.indexOf(id);
+  if(idx >= 0) r.selectedClassIds.splice(idx, 1);
+  else r.selectedClassIds.push(id);
   renderClasses(document.getElementById('wizard'));
 }
 
 function renderOrgFilter(wrap) {
-  var availOrgs = (FEE._selectedOrgs||[]).filter(function(o){
-    return CLASSES.some(function(c){ return (c.org||'General')===o; });
-  });
-  var selected = FORM.selectedOrgs.length > 0 ? FORM.selectedOrgs : availOrgs.slice();
+  var r = currRider() || {};
+  var availOrgs = getAvailOrgs();
+  var selected = (r.selectedOrgs && r.selectedOrgs.length > 0) ? r.selectedOrgs : availOrgs.slice();
 
   var html = '<div class="card">';
   html += '<div class="step-title">Associations</div>';
@@ -644,20 +720,23 @@ function renderOrgFilter(wrap) {
 }
 
 window.toggleOrgFilter = function(org) {
-  var idx = FORM.selectedOrgs.indexOf(org);
+  var r = currRider(); if(!r) return;
+  if(!r.selectedOrgs) r.selectedOrgs = getAvailOrgs().slice();
+  var idx = r.selectedOrgs.indexOf(org);
   if(idx >= 0) {
-    if(FORM.selectedOrgs.length > 1) FORM.selectedOrgs.splice(idx, 1); // keep at least one
+    if(r.selectedOrgs.length > 1) r.selectedOrgs.splice(idx, 1);
   } else {
-    FORM.selectedOrgs.push(org);
+    r.selectedOrgs.push(org);
   }
   renderOrgFilter(document.getElementById('wizard'));
 };
 
 function renderClasses(wrap) {
-  // Group: org → division → [class]
+  var r = currRider() || {};
+  var h = currHorse() || {};
   var orgs = [];
   var byOrg = {};
-  var orgFilter = FORM.selectedOrgs.length > 0 ? FORM.selectedOrgs : null;
+  var orgFilter = (r.selectedOrgs && r.selectedOrgs.length > 0) ? r.selectedOrgs : null;
   CLASSES.forEach(function(c) {
     var org = c.org || 'General';
     if(orgFilter && orgFilter.indexOf(org) === -1) return; // skip unselected orgs
@@ -669,7 +748,8 @@ function renderClasses(wrap) {
 
   var html = '<div class="card">';
   html += '<div class="step-title">Class Selection</div>';
-  html += '<div class="step-sub">Select the classes you\'d like to enter. Fees shown per class.</div>';
+  if(h.horseName) html += '<div class="step-sub">Classes for <strong>'+esc(h.horseName)+'</strong></div>';
+  else html += '<div class="step-sub">Select the classes you\'d like to enter. Fees shown per class.</div>';
 
   if(CLASSES.length === 0) {
     html += '<div style="color:var(--text2);font-size:0.9rem;padding:4px 0">No classes are configured for this show yet. Contact the show secretary.</div>';
@@ -683,7 +763,7 @@ function renderClasses(wrap) {
         }
         byOrg[org][div].forEach(function(c) {
           var fee = getClassFee(c);
-          var sel = FORM.selectedClassIds.indexOf(c.id) >= 0;
+          var sel = (r.selectedClassIds||[]).indexOf(c.id) >= 0;
           html += '<div class="class-item'+(sel?' selected':'')+'" onclick="toggleClass(\''+c.id+'\')">';
           html += '<input type="checkbox" '+(sel?'checked':'')+' onclick="event.stopPropagation();toggleClass(\''+c.id+'\')">';
           html += '<div class="class-item-name">';
@@ -710,36 +790,28 @@ function renderClasses(wrap) {
   wrap.innerHTML = html;
 }
 
-function getSelectedClasses() {
-  return CLASSES.filter(function(c){ return FORM.selectedClassIds.indexOf(c.id) >= 0; });
-}
-
-function getSelectedOrgs() {
-  var seen = {};
-  var orgs = [];
-  getSelectedClasses().forEach(function(c){
-    var org = c.org || 'General';
-    if(!seen[org]) { seen[org] = true; orgs.push(org); }
-  });
-  return orgs;
-}
-
 // ── Step: Memberships ─────────────────────────────────────────────────────────
-// Derive which membership fields to show from selected class orgs + well-known parent orgs
-var PARENT_ORGS = {CoWN: ['SHTX'], AQHA: [], VRH: ['AQHA'], 'AQHA Ranch': ['AQHA'], 'AQHA RHC': ['AQHA'], APHA: [], ApHC: [], NRHA: [], NRCHA: []};
+// Maps class org → the membership org actually needed.
+// VRH/AQHA Ranch/AQHA RHC all use the same AQHA membership.
+// CoWN membership covers SHTX — never ask for both.
+var ORG_MEMBERSHIP_MAP = {
+  'CoWN': 'CoWN', 'SHTX': 'SHTX',
+  'AQHA': 'AQHA', 'AQHA Ranch': 'AQHA', 'AQHA RHC': 'AQHA', 'VRH': 'AQHA',
+  'APHA': 'APHA', 'ApHC': 'ApHC', 'NRHA': 'NRHA', 'NRCHA': 'NRCHA',
+  'WHSR': 'WHSR'
+};
 
-function getMembFields() {
+function getMembFields(rider) {
+  var r = rider || currRider();
   var seen = {};
-  var fields = [];
-  function add(org, label) {
-    if(!seen[org]) { seen[org] = true; fields.push({org: org, label: label || org+' Member #'}); }
-  }
-  getSelectedOrgs().forEach(function(org) {
-    add(org);
-    var parents = PARENT_ORGS[org] || [];
-    parents.forEach(function(p){ add(p); });
+  var membOrgs = [];
+  getSelectedOrgs(r).forEach(function(org) {
+    var m = ORG_MEMBERSHIP_MAP[org] || org;
+    if(!seen[m]) { seen[m] = true; membOrgs.push(m); }
   });
-  return fields;
+  // CoWN membership covers SHTX — drop SHTX if CoWN is present
+  if(seen['CoWN']) membOrgs = membOrgs.filter(function(o){ return o !== 'SHTX'; });
+  return membOrgs.map(function(o){ return {org: o, label: o+' Member #'}; });
 }
 
 function _getMembOptions(org) {
@@ -762,29 +834,28 @@ function _getMembOptions(org) {
 }
 
 function renderMemberships(wrap) {
-  var fields = getMembFields();
-  var orgs = getSelectedOrgs();
-  // owner member numbers now shown when ownerDiffFromRider is set
-  var membOpts = _getMembOptions();
+  var r = currRider() || {};
+  var h = currHorse() || {};
+  var fields = getMembFields(r);
 
   var html = '<div class="card">';
   html += '<div class="step-title">Memberships</div>';
-  html += '<div class="step-sub">Most organizations require active membership to participate. Select your status for each organization below.</div>';
+  if(h.horseName) html += '<div class="step-sub">Membership status for <strong>'+esc(r.riderFirst||'this rider')+'</strong> on <strong>'+esc(h.horseName)+'</strong></div>';
+  else html += '<div class="step-sub">Most organizations require active membership to participate. Select your status for each organization below.</div>';
 
-  if(fields.length === 0 && !needOwnerNum) {
+  if(fields.length === 0) {
     html += '<div style="color:var(--text2);font-size:0.9rem;padding:8px 0">No membership requirements for the selected classes.</div>';
   } else {
     fields.forEach(function(f) {
-      var status = FORM.memberStatus[f.org] || '';
+      var status = (r.memberStatus||{})[f.org] || '';
       html += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem 1rem;margin-bottom:.75rem">';
       html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.95rem;margin-bottom:.5rem">'+esc(f.org)+'</div>';
-      // Status toggle
       html += '<div style="display:flex;gap:.5rem;margin-bottom:.5rem;flex-wrap:wrap">';
       html += '<button type="button" class="memb-toggle'+(status==='current'?' active':'')+'" onclick="setMembStatus(\''+esc(f.org)+'\',\'current\')">Current Member</button>';
       html += '<button type="button" class="memb-toggle'+(status&&status!=='current'?' active':'')+'" onclick="setMembStatus(\''+esc(f.org)+'\',\'notmember\')">Not a Member</button>';
       html += '</div>';
       if(status === 'current') {
-        var val = FORM.memberships[f.org] || '';
+        var val = (r.memberships||{})[f.org] || '';
         var safeId = 'memb-'+f.org.replace(/[^a-zA-Z0-9]/g,'_');
         html += '<div class="form-row" style="margin-bottom:0"><label>'+esc(f.org)+' Member #</label>';
         html += '<input id="'+safeId+'" data-org="'+esc(f.org)+'" value="'+esc(val)+'" placeholder="Member number">';
@@ -796,26 +867,25 @@ function renderMemberships(wrap) {
           html += '<div style="display:flex;gap:.4rem;flex-wrap:wrap">';
           membOpts.forEach(function(opt){
             var buyKey = 'buy_'+f.org+'_'+opt.key;
-            var isSel = FORM.memberStatus[f.org] === buyKey;
+            var isSel = (r.memberStatus||{})[f.org] === buyKey;
             html += '<button type="button" class="memb-toggle'+(isSel?' active':'')+'" onclick="setMembStatus(\''+esc(f.org)+'\',\''+esc(buyKey)+'\')" style="font-size:.8rem">'+esc(opt.label)+' — '+fmt$(opt.amt)+'</button>';
           });
           html += '</div>';
-          if(membOpts.length > 0) html += '<div style="font-size:.75rem;color:var(--text2);margin-top:.3rem">Or you can obtain/renew membership at check-in.</div>';
+          html += '<div style="font-size:.75rem;color:var(--text2);margin-top:.3rem">Or you can obtain/renew membership at check-in.</div>';
         } else {
           html += '<div style="font-size:.78rem;color:var(--text2)">Membership can be obtained at check-in with the secretary.</div>';
         }
       }
       html += '</div>';
     });
-    if(FORM.ownerDiffFromRider) {
+    if(h.ownerDiffFromRider && h.horseOwner) {
       html += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem 1rem;margin-bottom:.75rem">';
       html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.95rem;margin-bottom:.5rem">Owner Member Numbers</div>';
       html += '<div style="font-size:.8rem;color:var(--text2);margin-bottom:.5rem">Enter membership numbers for the horse owner where they differ from the rider.</div>';
       fields.forEach(function(f) {
-        var ownerKey = 'owner_'+f.org;
-        var val = FORM.ownerMembs[f.org] || '';
+        var val = (r.ownerMembs||{})[f.org] || '';
         html += '<div class="form-row" style="margin-bottom:.4rem"><label>Owner '+esc(f.org)+' Member #</label>';
-        html += '<input data-ownerorg="'+esc(f.org)+'" value="'+esc(val)+'" placeholder="optional" oninput="FORM.ownerMembs[\''+esc(f.org)+'\']=this.value">';
+        html += '<input data-ownerorg="'+esc(f.org)+'" value="'+esc(val)+'" placeholder="optional" oninput="var rc=currRider();if(rc){rc.ownerMembs=rc.ownerMembs||{};rc.ownerMembs[\''+esc(f.org)+'\']=this.value;}">';
         html += '</div>';
       });
       html += '</div>';
@@ -826,22 +896,118 @@ function renderMemberships(wrap) {
 }
 
 window.setMembStatus = function(org, status) {
-  FORM.memberStatus[org] = status;
-  // Clear stored member number if switching to non-member
-  if(status !== 'current') delete FORM.memberships[org];
+  var r = currRider(); if(!r) return;
+  if(!r.memberStatus) r.memberStatus = {};
+  r.memberStatus[org] = status;
+  if(status !== 'current' && r.memberships) delete r.memberships[org];
   renderMemberships(document.getElementById('wizard'));
 };
 
 function saveMemberships() {
+  var r = currRider(); if(!r) return;
+  if(!r.memberships) r.memberships = {};
   document.querySelectorAll('[data-org]').forEach(function(el) {
     var org = el.getAttribute('data-org');
     var val = el.value.trim();
-    if(val) FORM.memberships[org] = val;
-    else delete FORM.memberships[org];
+    if(val) r.memberships[org] = val;
+    else delete r.memberships[org];
   });
-  var ow = document.getElementById('f-memberOwner');
-  if(ow) FORM.memberOwner = ow.value.trim();
 }
+
+// ── Step: Overview ────────────────────────────────────────────────────────────
+function renderOverview(wrap) {
+  try { _renderOverview(wrap); }
+  catch(err) { wrap.innerHTML = '<div class="card" style="color:var(--red)">Overview error: '+esc(err.message||String(err))+'</div>'; console.error('renderOverview error', err); }
+}
+function _renderOverview(wrap) {
+  var html = '<div class="card"><div class="step-title">Your Entries</div>';
+  html += '<div class="step-sub">Review horses and riders. Add more or continue when ready.</div></div>';
+
+  SUBMISSION.horses.forEach(function(horse, hi) {
+    html += '<div class="entry-horse-card">';
+    html += '<div class="horse-card-hdr">';
+    html += '<div class="horse-card-name">'+(horse.horseName ? esc(horse.horseName) : '<em style="color:var(--text2)">Unnamed horse</em>')+'</div>';
+    if(horse.horseGender) html += '<div class="horse-card-detail">'+esc(horse.horseGender)+'</div>';
+    html += '<button class="horse-card-remove" onclick="editHorse('+hi+')" title="Edit horse" style="font-size:.78rem;padding:2px 7px">Edit</button>';
+    if(SUBMISSION.horses.length > 1) {
+      html += '<button class="horse-card-remove" onclick="removeHorse('+hi+')" title="Remove horse">&#215;</button>';
+    }
+    html += '</div>';
+
+    horse.riders.forEach(function(rider, ri) {
+      var name = (rider.riderFirst||'') + (rider.riderFirst&&rider.riderLast?' ':'') + (rider.riderLast||'');
+      var selCls = getSelectedClasses(rider);
+      var clsSummary = selCls.length === 0 ? 'No classes selected' : selCls.map(function(c){ return (c.class_number?c.class_number+' ':'')+c.class_name; }).join(', ');
+      html += '<div class="rider-row">';
+      html += '<div class="rider-row-info">';
+      html += '<div class="rider-row-name">'+(name||'<em style="font-weight:400;color:var(--text2)">Unnamed rider</em>')+(rider.isYouth?' <span class="rider-row-role">· Youth</span>':'')+'</div>';
+      html += '<div class="rider-row-classes">'+esc(clsSummary)+'</div>';
+      html += '</div>';
+      html += '<div class="rider-row-actions">';
+      html += '<label class="bill-to-label"><input type="checkbox" '+(rider.billTo!==false?'checked':'')+' onchange="toggleBillTo('+hi+','+ri+',this.checked)"> Bill to</label>';
+      html += '<button class="rider-remove-btn" onclick="editRider('+hi+','+ri+')" title="Edit">Edit</button>';
+      if(horse.riders.length > 1) {
+        html += '<button class="rider-remove-btn" onclick="removeRider('+hi+','+ri+')" title="Remove rider">&#215;</button>';
+      }
+      html += '</div></div>';
+    });
+
+    if(horse.ownerDiffFromRider && horse.horseOwner) {
+      html += '<div class="rider-row" style="background:rgba(200,146,42,.05)">';
+      html += '<div class="rider-row-info"><div class="rider-row-name">'+esc(horse.horseOwner)+' <span class="rider-row-role">· Owner</span></div></div>';
+      html += '<div class="rider-row-actions">';
+      html += '<label class="bill-to-label"><input type="checkbox" '+(horse.ownerBillTo?'checked':'')+' onchange="toggleOwnerBillTo('+hi+',this.checked)"> Bill to</label>';
+      html += '</div></div>';
+    }
+
+    html += '<button class="add-rider-btn" onclick="addRiderToHorse('+hi+')">+ Add another rider to this horse</button>';
+    html += '</div>';
+  });
+
+  html += '<button class="add-horse-btn" onclick="addAnotherHorse()">+ Add another horse</button>';
+  wrap.innerHTML = html;
+}
+
+window.editHorse = function(hi) {
+  CURR_HORSE_IDX = hi; CURR_RIDER_IDX = 0; IS_ADDING_TO_EXISTING = true; goTo('horse');
+};
+window.editRider = function(hi, ri) {
+  CURR_HORSE_IDX = hi; CURR_RIDER_IDX = ri; IS_ADDING_TO_EXISTING = true; goTo('rider');
+};
+window.addAnotherHorse = function() {
+  var h = newHorse(); var r = newRider();
+  h.riders.push(r); SUBMISSION.horses.push(h);
+  CURR_HORSE_IDX = SUBMISSION.horses.length - 1; CURR_RIDER_IDX = 0;
+  IS_ADDING_TO_EXISTING = false; goTo('horse');
+};
+window.addRiderToHorse = function(hi) {
+  CURR_HORSE_IDX = hi;
+  var r = newRider();
+  var first = SUBMISSION.horses[hi] && SUBMISSION.horses[hi].riders[0];
+  if(first){ r.address1=first.address1; r.city=first.city; r.state=first.state; r.zip=first.zip; }
+  SUBMISSION.horses[hi].riders.push(r);
+  CURR_RIDER_IDX = SUBMISSION.horses[hi].riders.length - 1;
+  IS_ADDING_TO_EXISTING = true; goTo('rider');
+};
+window.removeHorse = function(hi) {
+  if(SUBMISSION.horses.length <= 1) return;
+  SUBMISSION.horses.splice(hi, 1);
+  if(CURR_HORSE_IDX >= SUBMISSION.horses.length) CURR_HORSE_IDX = SUBMISSION.horses.length - 1;
+  renderOverview(document.getElementById('wizard'));
+};
+window.removeRider = function(hi, ri) {
+  var horse = SUBMISSION.horses[hi];
+  if(!horse || horse.riders.length <= 1) return;
+  horse.riders.splice(ri, 1);
+  renderOverview(document.getElementById('wizard'));
+};
+window.toggleBillTo = function(hi, ri, checked) {
+  var horse = SUBMISSION.horses[hi];
+  if(horse && horse.riders[ri]) horse.riders[ri].billTo = checked;
+};
+window.toggleOwnerBillTo = function(hi, checked) {
+  var horse = SUBMISSION.horses[hi]; if(horse) horse.ownerBillTo = checked;
+};
 
 // ── Step: Stalling ────────────────────────────────────────────────────────────
 function feeLabelEF(key, fallback) {
@@ -853,23 +1019,23 @@ function feeLabelEF(key, fallback) {
   return fallback;
 }
 
-function qtyRow(feeKey, formKey, label) {
+function qtyRow(feeKey, subKey, label) {
   var price = FEE[feeKey] || 0;
-  var val   = FORM[formKey] || 0;
+  var val   = SUBMISSION[subKey] || 0;
   return '<div class="qty-row">'
     +'<div class="qty-label"><div class="qty-label-name">'+esc(label)+'</div>'
     +'<div class="qty-label-fee">'+fmt$(price)+' each</div></div>'
     +'<div class="qty-ctrl">'
-    +'<button class="qty-btn" onclick="changeQty(\''+formKey+'\',-1)" type="button">&#8722;</button>'
-    +'<div class="qty-val" id="qty-'+formKey+'">'+val+'</div>'
-    +'<button class="qty-btn" onclick="changeQty(\''+formKey+'\',1)"  type="button">&#43;</button>'
+    +'<button class="qty-btn" onclick="changeQty(\''+subKey+'\',-1)" type="button">&#8722;</button>'
+    +'<div class="qty-val" id="qty-'+subKey+'">'+val+'</div>'
+    +'<button class="qty-btn" onclick="changeQty(\''+subKey+'\',1)"  type="button">&#43;</button>'
     +'</div></div>';
 }
 
-function changeQty(formKey, delta) {
-  FORM[formKey] = Math.max(0, (FORM[formKey] || 0) + delta);
-  var el = document.getElementById('qty-'+formKey);
-  if(el) el.textContent = FORM[formKey];
+function changeQty(subKey, delta) {
+  SUBMISSION[subKey] = Math.max(0, (SUBMISSION[subKey] || 0) + delta);
+  var el = document.getElementById('qty-'+subKey);
+  if(el) el.textContent = SUBMISSION[subKey];
 }
 
 function renderStalling(wrap) {
@@ -891,8 +1057,8 @@ function renderStalling(wrap) {
       h += '<span style="margin-left:auto;color:var(--accent);font-weight:600">$' + (+pkg.price).toFixed(2) + '</span>';
       h += '</div>';
       if(sel && pkg.trackDates) {
-        var arrVal = idPrefix === 'stall' ? FORM.stallingArrival : FORM.rvArrival;
-        var depVal = idPrefix === 'stall' ? FORM.stallingDeparture : FORM.rvDeparture;
+        var arrVal = idPrefix === 'stall' ? SUBMISSION.stallingArrival : SUBMISSION.rvArrival;
+        var depVal = idPrefix === 'stall' ? SUBMISSION.stallingDeparture : SUBMISSION.rvDeparture;
         h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;padding-left:12px">';
         h += '<div class="form-row" style="margin:0"><label>Arrival</label><input id="f-' + idPrefix + 'Arrival" type="date" value="' + esc(arrVal) + '"></div>';
         h += '<div class="form-row" style="margin:0"><label>Departure</label><input id="f-' + idPrefix + 'Dep" type="date" value="' + esc(depVal) + '"></div>';
@@ -910,31 +1076,31 @@ function renderStalling(wrap) {
   if((f.haulin||0) > 0) html += qtyRow('haulin', 'haulinQty', feeLabelEF('haulin', 'Haul-In (per horse)'));
 
   if(usePkgs) {
-    html += pkgCard(stallPkgs, FORM.stallingPackageId, 'stall', 'Stall Package');
+    html += pkgCard(stallPkgs, SUBMISSION.stallingPackageId, 'stall', 'Stall Package');
   } else if(hasOldStalls) {
     if((f.stall1||0)   > 0) html += qtyRow('stall1',   'stall1qty', feeLabelEF('stall1',   'Stall — Per Night'));
     if((f.stall2||0)   > 0) html += qtyRow('stall2',   'stall2qty', feeLabelEF('stall2',   'Stall — Circuit'));
     if((f.stall3||0)   > 0) html += qtyRow('stall3',   'stall3qty', feeLabelEF('stall3',   'Stall — 3 Night'));
     if((f.shavings||0) > 0) html += qtyRow('shavings', 'shavings',  feeLabelEF('shavings', 'Shavings (per bag)'));
     html += '<div class="form-row" style="margin-top:12px"><label>Stall Arrival Date <span style="color:var(--text2)">(optional)</span></label>';
-    html += '<input id="f-stallArrival" type="date" value="' + esc(FORM.stallingArrival) + '"></div>';
+    html += '<input id="f-stallArrival" type="date" value="' + esc(SUBMISSION.stallingArrival) + '"></div>';
   }
 
   if(useRvPkgs) {
     if(usePkgs || hasOldStalls) html += '<div style="border-top:1px solid var(--border);margin:12px 0"></div>';
-    html += pkgCard(rvPkgs, FORM.rvPackageId, 'rv', 'RV Package');
+    html += pkgCard(rvPkgs, SUBMISSION.rvPackageId, 'rv', 'RV Package');
   } else if(hasOldRV) {
     if(usePkgs || hasOldStalls) html += '<div style="border-top:1px solid var(--border);margin:12px 0"></div>';
     if((f.rv1||0)       > 0) html += qtyRow('rv1',       'rv1qty',    feeLabelEF('rv1',       'RV — Per Night'));
     if((f.rv2||0)       > 0) html += qtyRow('rv2',       'rv2qty',    feeLabelEF('rv2',       'RV — 2 Night'));
     if((f.rvCircuit||0) > 0) html += qtyRow('rvCircuit', 'rvCircuit', feeLabelEF('rvCircuit', 'RV — Circuit'));
     html += '<div class="form-row" style="margin-top:12px"><label>RV Arrival Date <span style="color:var(--text2)">(optional)</span></label>';
-    html += '<input id="f-rvArrival" type="date" value="' + esc(FORM.rvArrival) + '"></div>';
+    html += '<input id="f-rvArrival" type="date" value="' + esc(SUBMISSION.rvArrival) + '"></div>';
   }
 
   html += '<div style="margin-top:16px"><div class="form-row">';
   html += '<label>Stall Group Name <span style="color:var(--text2)">(optional — helps secretary organize stalls)</span></label>';
-  html += '<input id="f-stallingGroup" value="' + esc(FORM.stallingGroup) + '" placeholder="e.g. Smith Ranch">';
+  html += '<input id="f-stallingGroup" value="' + esc(SUBMISSION.stallingGroup) + '" placeholder="e.g. Smith Ranch">';
   html += '</div></div>';
   html += '</div>';
   wrap.innerHTML = html;
@@ -942,15 +1108,15 @@ function renderStalling(wrap) {
 
 function saveStalling() {
   var g = function(id){ var el = document.getElementById(id); return el ? el.value.trim() : ''; };
-  FORM.stallingGroup     = g('f-stallingGroup');
-  FORM.stallingArrival   = g('f-stallArrival');
-  FORM.stallingDeparture = g('f-stallDep');
-  FORM.rvArrival         = g('f-rvArrival');
-  FORM.rvDeparture       = g('f-rvDep');
+  SUBMISSION.stallingGroup     = g('f-stallingGroup');
+  SUBMISSION.stallingArrival   = g('f-stallArrival');
+  SUBMISSION.stallingDeparture = g('f-stallDep');
+  SUBMISSION.rvArrival         = g('f-rvArrival');
+  SUBMISSION.rvDeparture       = g('f-rvDep');
 }
 window.selectStallingPkg = function(prefix, id, rerender) {
-  if(prefix === 'stall') FORM.stallingPackageId = (!id || FORM.stallingPackageId === id) ? '' : id;
-  else FORM.rvPackageId = (!id || FORM.rvPackageId === id) ? '' : id;
+  if(prefix === 'stall') SUBMISSION.stallingPackageId = (!id || SUBMISSION.stallingPackageId === id) ? '' : id;
+  else SUBMISSION.rvPackageId = (!id || SUBMISSION.rvPackageId === id) ? '' : id;
   if(rerender) renderStalling(document.getElementById('wizard'));
 };
 
@@ -966,7 +1132,7 @@ function renderPractice(wrap) {
   if(ps.length > 0) {
     html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:1rem;margin-bottom:8px">Practice Sessions</div>';
     ps.forEach(function(s) {
-      var sel = FORM.practiceSessions.indexOf(s.id) >= 0;
+      var sel = SUBMISSION.practiceSessions.indexOf(s.id) >= 0;
       var cap = s.capacity ? parseInt(s.capacity) : null;
       html += '<div class="class-item'+(sel?' selected':'')+'" onclick="togglePracticeSession(\''+esc(s.id)+'\')">';
       html += '<input type="checkbox" '+(sel?'checked':'')+' onclick="event.stopPropagation();togglePracticeSession(\''+esc(s.id)+'\')">';
@@ -984,8 +1150,8 @@ function renderPractice(wrap) {
     co.forEach(function(c) {
       var cap = c.capacity ? parseInt(c.capacity) : null;
       var priceStr = +c.price > 0 ? fmt$(c.price) : 'incl.';
-      html += '<div class="class-item'+(FORM.clinicChoice===c.id?' selected':'')+'" onclick="selectClinic(\''+esc(c.id)+'\')">';
-      html += '<input type="radio" name="clinicChoice" value="'+esc(c.id)+'"'+(FORM.clinicChoice===c.id?' checked':'')+' onclick="event.stopPropagation();selectClinic(\''+esc(c.id)+'\')">';
+      html += '<div class="class-item'+(SUBMISSION.clinicChoice===c.id?' selected':'')+'" onclick="selectClinic(\''+esc(c.id)+'\')">';
+      html += '<input type="radio" name="clinicChoice" value="'+esc(c.id)+'"'+(SUBMISSION.clinicChoice===c.id?' checked':'')+' onclick="event.stopPropagation();selectClinic(\''+esc(c.id)+'\')">';
       html += '<div class="class-item-name">'+esc(c.label)+(c.datetime ? '<div style="font-size:.75rem;color:var(--text2)">'+esc(c.datetime)+'</div>' : '')+'</div>';
       html += '<div style="text-align:right">';
       html += '<div class="class-item-fee">'+priceStr+'</div>';
@@ -1000,14 +1166,14 @@ function renderPractice(wrap) {
 }
 
 window.togglePracticeSession = function(id) {
-  var idx = FORM.practiceSessions.indexOf(id);
-  if(idx >= 0) FORM.practiceSessions.splice(idx, 1);
-  else FORM.practiceSessions.push(id);
+  var idx = SUBMISSION.practiceSessions.indexOf(id);
+  if(idx >= 0) SUBMISSION.practiceSessions.splice(idx, 1);
+  else SUBMISSION.practiceSessions.push(id);
   renderPractice(document.getElementById('wizard'));
 };
 
 window.selectClinic = function(id) {
-  FORM.clinicChoice = id;
+  SUBMISSION.clinicChoice = id;
   renderPractice(document.getElementById('wizard'));
 };
 
@@ -1015,11 +1181,11 @@ function savePractice() {
   // clinicChoice already saved by selectClinic(); nothing else to read from DOM
 }
 
-// ── Step: Summary ─────────────────────────────────────────────────────────────
-function buildFeeLines() {
+// ── Fee helpers ───────────────────────────────────────────────────────────────
+function buildRiderFeeLines(horse, rider) {
   var lines = [];
   var f = FEE;
-  var selCls = getSelectedClasses();
+  var selCls = getSelectedClasses(rider);
 
   var oFee = +(f.officeFee || f.officeEntry || 0);
   if(oFee > 0) lines.push({desc: 'Office / Entry Fee', amt: oFee});
@@ -1048,9 +1214,8 @@ function buildFeeLines() {
   }
 
   // Membership purchases
-  var membKeyMap = {buy_day:'dayLicense', buy_1yr:'membership1yr', buy_3yr:'membership3yr', buy_life:'membershipLife'};
-  Object.keys(FORM.memberStatus).forEach(function(org) {
-    var status = FORM.memberStatus[org];
+  Object.keys(rider.memberStatus||{}).forEach(function(org) {
+    var status = (rider.memberStatus||{})[org];
     if(!status || status === 'current' || status === 'notmember') return;
     var parts = status.split('_buy_');
     var buyType = parts.length > 1 ? 'buy_'+parts[parts.length-1] : null;
@@ -1060,215 +1225,197 @@ function buildFeeLines() {
     if(opt && opt.amt > 0) lines.push({desc: org+' '+opt.label, amt: opt.amt});
   });
 
-  // Stalling — packages (wizard-configured) take priority over flat fees
-  if((FORM.haulinQty||0)  > 0 && (f.haulin||0) > 0) lines.push({desc: feeLabelEF('haulin','Haul-In')+' × '+FORM.haulinQty, amt: FORM.haulinQty * f.haulin});
-  var stallPkgs = (f._stallingPackages||[]);
-  var rvPkgs    = (f._rvPackages||[]);
-  if(stallPkgs.length > 0) {
-    var sp = FORM.stallingPackageId && stallPkgs.find(function(p){ return p.id === FORM.stallingPackageId; });
-    if(sp) lines.push({desc: sp.label, amt: +sp.price});
-  } else {
-    if((FORM.stall1qty||0)  > 0 && (f.stall1||0)    > 0) lines.push({desc: feeLabelEF('stall1','Stall — Per Night')+' × '+FORM.stall1qty, amt: FORM.stall1qty  * f.stall1});
-    if((FORM.stall2qty||0)  > 0 && (f.stall2||0)    > 0) lines.push({desc: feeLabelEF('stall2','Stall — Circuit')+' × '+FORM.stall2qty,   amt: FORM.stall2qty  * f.stall2});
-    if((FORM.stall3qty||0)  > 0 && (f.stall3||0)    > 0) lines.push({desc: feeLabelEF('stall3','Stall — 3 Night')+' × '+FORM.stall3qty,   amt: FORM.stall3qty  * f.stall3});
-    if((FORM.shavings||0)   > 0 && (f.shavings||0)  > 0) lines.push({desc: feeLabelEF('shavings','Shavings')+' × '+FORM.shavings,         amt: FORM.shavings   * f.shavings});
-  }
-  if(rvPkgs.length > 0) {
-    var rp = FORM.rvPackageId && rvPkgs.find(function(p){ return p.id === FORM.rvPackageId; });
-    if(rp) lines.push({desc: rp.label, amt: +rp.price});
-  } else {
-    if((FORM.rv1qty||0)     > 0 && (f.rv1||0)       > 0) lines.push({desc: feeLabelEF('rv1','RV — Per Night')+' × '+FORM.rv1qty,          amt: FORM.rv1qty     * f.rv1});
-    if((FORM.rv2qty||0)     > 0 && (f.rv2||0)       > 0) lines.push({desc: feeLabelEF('rv2','RV — 2 Night')+' × '+FORM.rv2qty,            amt: FORM.rv2qty     * f.rv2});
-    if((FORM.rvCircuit||0)  > 0 && (f.rvCircuit||0) > 0) lines.push({desc: feeLabelEF('rvCircuit','RV — Circuit')+' × '+FORM.rvCircuit,   amt: FORM.rvCircuit  * f.rvCircuit});
-  }
-
-  // Practice sessions
-  var pracSessions = f._practiceSessions || [];
-  FORM.practiceSessions.forEach(function(id) {
-    var s = pracSessions.find(function(p){ return p.id === id; });
-    if(s && +s.price > 0) lines.push({desc: s.label, amt: +s.price});
-  });
-
-  // Clinic
-  var clinicOpts = f._clinicOptions || [];
-  if(FORM.clinicChoice) {
-    var clin = clinicOpts.find(function(c){ return c.id === FORM.clinicChoice; });
-    if(clin && +clin.price > 0) lines.push({desc: clin.label, amt: +clin.price});
-  }
-
-  // Late fee — if after deadline and fee is configured
+  // Late fee
   var lateFeeAmt = +(f.lateFee || 0);
   if(lateFeeAmt > 0 && SHOW && SHOW.entry_deadline) {
     var deadline = new Date(SHOW.entry_deadline + 'T23:59:59');
     if(new Date() > deadline) lines.push({desc: feeLabelEF('lateFee','Late Entry Fee'), amt: lateFeeAmt});
   }
-
   return lines;
 }
 
+function buildStallingFeeLines() {
+  var lines = [];
+  var f = FEE;
+  var stallPkgs = (f._stallingPackages||[]);
+  var rvPkgs    = (f._rvPackages||[]);
+
+  if((SUBMISSION.haulinQty||0) > 0 && (f.haulin||0) > 0)
+    lines.push({desc: feeLabelEF('haulin','Haul-In')+' × '+SUBMISSION.haulinQty, amt: SUBMISSION.haulinQty * f.haulin});
+
+  if(stallPkgs.length > 0) {
+    var sp = SUBMISSION.stallingPackageId && stallPkgs.find(function(p){ return p.id === SUBMISSION.stallingPackageId; });
+    if(sp) lines.push({desc: sp.label, amt: +sp.price});
+  } else {
+    if((SUBMISSION.stall1qty||0) > 0 && (f.stall1||0) > 0) lines.push({desc: feeLabelEF('stall1','Stall — Per Night')+' × '+SUBMISSION.stall1qty, amt: SUBMISSION.stall1qty * f.stall1});
+    if((SUBMISSION.stall2qty||0) > 0 && (f.stall2||0) > 0) lines.push({desc: feeLabelEF('stall2','Stall — Circuit')+' × '+SUBMISSION.stall2qty, amt: SUBMISSION.stall2qty * f.stall2});
+    if((SUBMISSION.stall3qty||0) > 0 && (f.stall3||0) > 0) lines.push({desc: feeLabelEF('stall3','Stall — 3 Night')+' × '+SUBMISSION.stall3qty, amt: SUBMISSION.stall3qty * f.stall3});
+    if((SUBMISSION.shavings||0)  > 0 && (f.shavings||0) > 0) lines.push({desc: feeLabelEF('shavings','Shavings')+' × '+SUBMISSION.shavings, amt: SUBMISSION.shavings * f.shavings});
+  }
+  if(rvPkgs.length > 0) {
+    var rp = SUBMISSION.rvPackageId && rvPkgs.find(function(p){ return p.id === SUBMISSION.rvPackageId; });
+    if(rp) lines.push({desc: rp.label, amt: +rp.price});
+  } else {
+    if((SUBMISSION.rv1qty||0)    > 0 && (f.rv1||0)       > 0) lines.push({desc: feeLabelEF('rv1','RV — Per Night')+' × '+SUBMISSION.rv1qty, amt: SUBMISSION.rv1qty * f.rv1});
+    if((SUBMISSION.rv2qty||0)    > 0 && (f.rv2||0)       > 0) lines.push({desc: feeLabelEF('rv2','RV — 2 Night')+' × '+SUBMISSION.rv2qty, amt: SUBMISSION.rv2qty * f.rv2});
+    if((SUBMISSION.rvCircuit||0) > 0 && (f.rvCircuit||0) > 0) lines.push({desc: feeLabelEF('rvCircuit','RV — Circuit')+' × '+SUBMISSION.rvCircuit, amt: SUBMISSION.rvCircuit * f.rvCircuit});
+  }
+  (f._practiceSessions||[]).forEach(function(s){
+    if(SUBMISSION.practiceSessions.indexOf(s.id) >= 0 && +s.price > 0) lines.push({desc: s.label, amt: +s.price});
+  });
+  if(SUBMISSION.clinicChoice) {
+    var clin = (f._clinicOptions||[]).find(function(c){ return c.id === SUBMISSION.clinicChoice; });
+    if(clin && +clin.price > 0) lines.push({desc: clin.label, amt: +clin.price});
+  }
+  return lines;
+}
+
+// ── Step: Summary ─────────────────────────────────────────────────────────────
 function renderSummary(wrap) {
-  var lines = buildFeeLines();
-  var total = lines.reduce(function(s,l){ return s + (l.amt||0); }, 0);
-  var selCls = getSelectedClasses();
+  var stallLines = buildStallingFeeLines();
+  var grandTotal = 0;
+  var html = '<div class="card"><div class="step-title">Review &amp; Submit</div>';
+  html += '<div class="step-sub">Confirm your entry details. Payment is due at the show.</div></div>';
 
-  var html = '<div class="card">';
-  html += '<div class="step-title">Review &amp; Submit</div>';
-  html += '<div class="step-sub">Confirm your entry details below.</div>';
-
-  // Rider + horse recap
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">';
-  html += '<div><div style="font-size:0.75rem;color:var(--text2);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Rider</div>';
-  html += '<div style="font-size:0.95rem">'+esc(FORM.riderFirst+' '+FORM.riderLast)+'</div>';
-  if(FORM.isYouth) html += '<div style="font-size:0.78rem;color:var(--accent2)">Youth</div>';
-  html += '</div>';
-  html += '<div><div style="font-size:0.75rem;color:var(--text2);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px">Horse</div>';
-  html += '<div style="font-size:0.95rem">'+esc(FORM.horseName)+'</div>';
-  if(FORM.horseGender) html += '<div style="font-size:0.78rem;color:var(--text2)">'+esc(FORM.horseGender)+'</div>';
-  html += '</div></div>';
-
-  if(selCls.length > 0) {
-    html += '<div style="font-size:0.75rem;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Classes ('+selCls.length+')</div>';
-    html += '<div style="margin-bottom:16px">';
-    selCls.forEach(function(c){
-      html += '<div style="font-size:0.85rem;padding:3px 0;border-bottom:1px solid var(--border)">';
-      html += (c.class_number?'<span style="color:var(--text2)">'+esc(c.class_number)+'</span> — ':'')+esc(c.class_name);
+  SUBMISSION.horses.forEach(function(horse, hi) {
+    horse.riders.forEach(function(rider, ri) {
+      if(rider.billTo === false) return;
+      var name = (rider.riderFirst||'')+(rider.riderFirst&&rider.riderLast?' ':'')+( rider.riderLast||'');
+      var selCls = getSelectedClasses(rider);
+      var riderLines = buildRiderFeeLines(horse, rider);
+      var riderTotal = riderLines.reduce(function(s,l){ return s+(l.amt||0); }, 0);
+      grandTotal += riderTotal;
+      html += '<div class="card">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">';
+      html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:1.05rem">'+esc(name||'Rider')+'</div>';
+      html += '<div style="font-size:.8rem;color:var(--text2)">on '+esc(horse.horseName||'horse')+'</div></div>';
+      if(selCls.length > 0) {
+        html += '<div style="font-size:.75rem;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Classes</div>';
+        html += '<div style="margin-bottom:10px">';
+        selCls.forEach(function(c){
+          html += '<div style="font-size:.85rem;padding:3px 0;border-bottom:1px solid var(--border)">';
+          html += (c.class_number?'<span style="color:var(--text2)">'+esc(c.class_number)+'</span> — ':'')+esc(c.class_name);
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+      riderLines.forEach(function(l){
+        html += '<div class="sum-line"><span>'+esc(l.desc)+'</span><span>'+(l.amt>=0?fmt$(l.amt):'−'+fmt$(-l.amt))+'</span></div>';
+      });
+      html += '<div class="sum-line total" style="font-size:1rem"><span>Subtotal</span><span>'+fmt$(riderTotal)+'</span></div>';
       html += '</div>';
     });
+  });
+
+  if(stallLines.length > 0) {
+    var stallTotal = stallLines.reduce(function(s,l){ return s+(l.amt||0); }, 0);
+    grandTotal += stallTotal;
+    html += '<div class="card">';
+    html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:1.05rem;margin-bottom:8px">Stalling &amp; RV</div>';
+    stallLines.forEach(function(l){ html += '<div class="sum-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; });
+    html += '<div class="sum-line total" style="font-size:1rem"><span>Subtotal</span><span>'+fmt$(stallTotal)+'</span></div>';
     html += '</div>';
   }
 
-  // Fee breakdown
-  html += '<div style="border-top:1px solid var(--border);margin-bottom:4px"></div>';
-  lines.forEach(function(l) {
-    html += '<div class="sum-line"><span>'+esc(l.desc)+'</span><span>'+(l.amt > 0 ? fmt$(l.amt) : 'incl.')+'</span></div>';
-  });
-  if(lines.length === 0) {
-    html += '<div style="color:var(--text2);font-size:0.85rem;padding:8px 0">No fees calculated — contact the show secretary for pricing.</div>';
-  }
-  html += '<div class="sum-line total"><span>Est. Total Due at Show</span><span>'+fmt$(total)+'</span></div>';
+  html += '<div class="card" style="border-color:var(--accent)">';
+  html += '<div class="sum-line total"><span>Est. Total Due at Show</span><span>'+fmt$(grandTotal)+'</span></div>';
+  html += '<div style="font-size:.8rem;color:var(--text2);margin-top:6px">Nothing is charged online — payment due at check-in.</div>';
   html += '</div>';
 
-  html += '<div class="pay-notice">Payment is due at the show — nothing is charged online. Your confirmation number will be shown after you submit. Bring it to check-in.</div>';
+  html += '<div class="pay-notice">Your confirmation number will be shown after you submit. Bring it to check-in along with payment.</div>';
 
-  // Waiver
-  html += '<div class="card">';
-  html += '<div class="check-row">';
-  html += '<input type="checkbox" id="f-waiver" '+(FORM.waiverAgreed?'checked':'')+' onchange="FORM.waiverAgreed=this.checked">';
+  html += '<div class="card"><div class="check-row">';
+  html += '<input type="checkbox" id="f-waiver" '+(SUBMISSION.waiverAgreed?'checked':'')+' onchange="SUBMISSION.waiverAgreed=this.checked">';
   html += '<label for="f-waiver">I agree to abide by all association rules and regulations, and I release show management, the hosting facility, and all officials from liability for any accident, injury, or loss that may occur during this event. I certify that the information provided is accurate.</label>';
   html += '</div></div>';
-
   wrap.innerHTML = html;
 }
 
 // ── Submit ────────────────────────────────────────────────────────────────────
 async function submitEntry() {
   if(isPreview){ showStepErr('This is a preview — submissions are disabled.'); return; }
-  if(!FORM.waiverAgreed) { showStepErr('Please agree to the waiver to submit your entry.'); return; }
+  if(!SUBMISSION.waiverAgreed) { showStepErr('Please agree to the waiver to submit your entry.'); return; }
 
   var btn = document.getElementById('btn-next');
-  btn.disabled    = true;
-  btn.textContent = 'Submitting…';
+  btn.disabled = true; btn.textContent = 'Submitting…';
 
-  var selCls = getSelectedClasses();
-  var lines  = buildFeeLines();
-  var total  = lines.reduce(function(s,l){ return s+(l.amt||0); }, 0);
+  var entries = [];
+  SUBMISSION.horses.forEach(function(horse) {
+    horse.riders.forEach(function(rider) {
+      var selCls = getSelectedClasses(rider);
+      entries.push({
+        riderNameFirst: rider.riderFirst,   riderNameLast: rider.riderLast,
+        email:          rider.email,         phone:         rider.phone,
+        address1:       rider.address1||null, city:         rider.city||null,
+        state:          rider.state||null,    zip:          rider.zip||null,
+        isYouth:        rider.isYouth||false, dob:          rider.dob||null,
+        billTo:         rider.billTo !== false,
+        horseName:      horse.horseName,      horseGender:  horse.horseGender,
+        horseOwner:     horse.ownerDiffFromRider ? (horse.horseOwner||null) : null,
+        ownerDiffFromRider: horse.ownerDiffFromRider||false,
+        ownerBillTo:    horse.ownerBillTo||false,
+        ownerMembs:     rider.ownerMembs||{},
+        horseRegNum:    horse.horseRegNum||null, horseDob: horse.horseDob||null,
+        memberships:    rider.memberships||{},   memberStatus: rider.memberStatus||{},
+        classes: selCls.map(function(c){
+          return {showClassId:c.id, classNum:c.class_number, className:c.class_name,
+                  division:c.division, org:c.org, isCow:c.is_cow, isJackpot:c.is_jackpot, fee:getClassFee(c)};
+        })
+      });
+    });
+  });
+
+  var stallLines = buildStallingFeeLines();
+  var riderTotal = 0;
+  SUBMISSION.horses.forEach(function(horse){ horse.riders.forEach(function(rider){
+    if(rider.billTo !== false) riderTotal += buildRiderFeeLines(horse, rider).reduce(function(s,l){ return s+(l.amt||0); }, 0);
+  }); });
+  var total = riderTotal + stallLines.reduce(function(s,l){ return s+(l.amt||0); }, 0);
 
   var data = {
-    // Rider
-    riderNameFirst:  FORM.riderFirst,
-    riderNameLast:   FORM.riderLast,
-    email:           FORM.email,
-    phone:           FORM.phone,
-    address1:        FORM.address1 || null,
-    city:            FORM.city     || null,
-    state:           FORM.state    || null,
-    zip:             FORM.zip      || null,
-    isYouth:         FORM.isYouth,
-    dob:             FORM.dob      || null,
-    // Horse
-    horseName:       FORM.horseName,
-    horseGender:     FORM.horseGender,
-    horseOwner:      FORM.horseOwner  || null,
-        ownerDiffFromRider: FORM.ownerDiffFromRider || false,
-        ownerMembs:    FORM.ownerMembs || {},
-    horseRegNum:     FORM.horseRegNum || null,
-    horseDob:        FORM.horseDob    || null,
-    // Memberships
-    memberships:     FORM.memberships,
-    memberStatus:    FORM.memberStatus,
-    memberOwner:     FORM.memberOwner || null,
-    // Classes
-    classes: selCls.map(function(c) {
-      return {
-        showClassId: c.id,
-        classNum:    c.class_number,
-        className:   c.class_name,
-        division:    c.division,
-        org:         c.org,
-        isCow:       c.is_cow,
-        isJackpot:   c.is_jackpot,
-        fee:         getClassFee(c)
-      };
-    }),
-    // Stalling
-    haulinQty:       FORM.haulinQty       || 0,
-    stall1qty:       FORM.stall1qty       || 0,
-    stall2qty:       FORM.stall2qty       || 0,
-    stall3qty:       FORM.stall3qty       || 0,
-    shavings:        FORM.shavings        || 0,
-    rv1qty:          FORM.rv1qty          || 0,
-    rv2qty:          FORM.rv2qty          || 0,
-    rvCircuit:       FORM.rvCircuit       || 0,
-    stallingPackageId: FORM.stallingPackageId || null,
-    rvPackageId:       FORM.rvPackageId       || null,
-    stallingArrival:   FORM.stallingArrival   || null,
-    stallingDeparture: FORM.stallingDeparture || null,
-    rvArrival:         FORM.rvArrival         || null,
-    rvDeparture:       FORM.rvDeparture       || null,
-    stallingGroup:     FORM.stallingGroup     || null,
-    // Practice & clinics
-    practiceSessions: FORM.practiceSessions.length ? FORM.practiceSessions : null,
-    clinicChoice:    FORM.clinicChoice    || null,
-    // Meta
-    source:          'online',
-    paymentStatus:   'unpaid',
-    estimatedTotal:  Math.round(total * 100) / 100,
-    waiverAgreed:    true,
-    waiverSignedAt:  new Date().toISOString()
+    entries: entries,
+    haulinQty:         SUBMISSION.haulinQty||0,   stall1qty:  SUBMISSION.stall1qty||0,
+    stall2qty:         SUBMISSION.stall2qty||0,   stall3qty:  SUBMISSION.stall3qty||0,
+    shavings:          SUBMISSION.shavings||0,    rv1qty:     SUBMISSION.rv1qty||0,
+    rv2qty:            SUBMISSION.rv2qty||0,       rvCircuit:  SUBMISSION.rvCircuit||0,
+    stallingPackageId: SUBMISSION.stallingPackageId||null,
+    rvPackageId:       SUBMISSION.rvPackageId||null,
+    stallingArrival:   SUBMISSION.stallingArrival||null,   stallingDeparture: SUBMISSION.stallingDeparture||null,
+    rvArrival:         SUBMISSION.rvArrival||null,         rvDeparture:       SUBMISSION.rvDeparture||null,
+    stallingGroup:     SUBMISSION.stallingGroup||null,
+    practiceSessions:  SUBMISSION.practiceSessions.length ? SUBMISSION.practiceSessions : null,
+    clinicChoice:      SUBMISSION.clinicChoice||null,
+    source: 'online', paymentStatus: 'unpaid',
+    estimatedTotal: Math.round(total * 100) / 100,
+    waiverAgreed: true, waiverSignedAt: new Date().toISOString()
   };
 
   try {
-    var result = await sbPost('online_submissions', {
-      show_id:         SHOW.id,
-      submission_data: data,
-      status:          'pending'
-    });
-
-    var refId = (result && result[0] && result[0].id)
-      ? result[0].id.substring(0, 8).toUpperCase()
-      : 'SUBMITTED';
-
+    var result = await sbPost('online_submissions', {show_id: SHOW.id, submission_data: data, status: 'pending'});
+    var refId = (result && result[0] && result[0].id) ? result[0].id.substring(0,8).toUpperCase() : 'SUBMITTED';
     showSuccess(refId, data, total);
   } catch(e) {
-    btn.disabled    = false;
-    btn.textContent = 'Submit Entry';
+    btn.disabled = false; btn.textContent = 'Submit Entry';
     showStepErr('Submission failed — please try again. If the problem continues, contact the show secretary directly.');
     console.error('Submission error:', e);
   }
 }
 
 function showSuccess(refId, data, total) {
-  document.getElementById('wizard').style.display      = 'none';
+  document.getElementById('wizard').style.display       = 'none';
   document.getElementById('progress-bar').style.display = 'none';
   document.getElementById('nav-bar').style.display      = 'none';
   document.getElementById('step-err').style.display     = 'none';
-
   var scr = document.getElementById('success-screen');
   scr.style.display = 'flex';
   document.getElementById('success-ref').textContent = refId;
-  document.getElementById('success-msg').textContent =
-    'Entry for '+data.riderNameFirst+' '+data.riderNameLast+' on '+data.horseName
-    +' has been received. An estimated '+fmt$(total)+' is due at the show.';
+  var entryCount = data.entries ? data.entries.length : 1;
+  var first = data.entries ? data.entries[0] : data;
+  var msg = entryCount === 1
+    ? 'Entry for '+first.riderNameFirst+' '+first.riderNameLast+' on '+first.horseName+' has been received.'
+    : entryCount+' entries have been received.';
+  msg += ' An estimated '+fmt$(total)+' is due at the show.';
+  document.getElementById('success-msg').textContent = msg;
   window.scrollTo(0, 0);
 }
 

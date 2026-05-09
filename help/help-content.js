@@ -18,7 +18,7 @@ var HELP_CONTENT = {
   meta: {
     appName:  'Thorofare',
     byline:   'by TwoTop',
-    updated:  'April 2026'
+    updated:  'May 2026'
   },
 
   // ════════════════════════════════════════════════════════════
@@ -104,6 +104,45 @@ var HELP_CONTENT = {
             title: 'How do I view season standings?',
             body:  `
 <p>Season standings are published on the Standings page. Your show organizer will share the link. Standings update after each show's results are finalized and submitted.</p>`
+          }
+        ]
+      },
+
+      {
+        id:    'online-entry',
+        label: 'Entering Online',
+        icon:  '📝',
+        title: 'Submitting an Online Entry',
+        intro: '<p>How to enter a show online before it starts.</p>',
+        topics: [
+          {
+            id:    'entry-form-how',
+            title: 'How to submit an online entry',
+            body:  `
+<p>If the show is accepting online entries, your show organizer will share a link that takes you directly to the entry form. The URL looks like: <em>thorofare.app/entry-form.html?show=…</em></p>
+<p>The form walks you through five steps:</p>
+<ol>
+  <li><strong>Rider info</strong> — your name, contact details, and whether you're entering as Youth.</li>
+  <li><strong>Horse</strong> — horse name, gender, and owner name.</li>
+  <li><strong>Classes</strong> — select the classes you want to enter from this show's class list. Classes are grouped by organization and division.</li>
+  <li><strong>Memberships</strong> — any association member numbers the show requires (CoWN, SHTX, AQHA, etc.).</li>
+  <li><strong>Stalling</strong> — stall nights, shavings, and RV if applicable. This step is skipped if the show doesn't offer stalling.</li>
+  <li><strong>Summary</strong> — review your entry and estimated fees before submitting.</li>
+</ol>
+<p>After you submit, the show secretary reviews your entry and officially accepts it. You don't need an account to submit.</p>`
+          },
+          {
+            id:    'entry-form-fees',
+            title: 'What fees am I agreeing to?',
+            body:  `
+<p>The Summary step shows an estimated total based on the class fees and stalling charges configured by the show. This is an estimate — the secretary may adjust it (for example, if you added a late entry after the deadline).</p>
+<p>Payment is collected at the show, not through the entry form. The online entry is a reservation — you pay when you arrive.</p>`
+          },
+          {
+            id:    'entry-form-changes',
+            title: 'I need to change my entry after submitting',
+            body:  `
+<p>Online submissions can't be edited after they're sent. Contact the show secretary directly and they can make the changes on their end once your entry has been accepted.</p>`
           }
         ]
       },
@@ -341,7 +380,7 @@ var HELP_CONTENT = {
     <tr><td><strong>Entries</strong></td><td>Import, view, and manage show entries. Who's in which class.</td></tr>
     <tr><td><strong>Results</strong></td><td>Import SHTX files, enter scores manually, review placings and points per class.</td></tr>
     <tr><td><strong>Points Summary</strong></td><td>Season standings and All Around totals across all shows.</td></tr>
-    <tr><td><strong>Tabs &amp; Payments</strong></td><td>Track money owed and collected — entry fees, added money, charges.</td></tr>
+    <tr><td><strong>Checkout</strong></td><td>Track money owed and collected — entry fees, stall charges, membership fees. Record payments and see each rider's balance.</td></tr>
     <tr><td><strong>Setup</strong></td><td>Show configuration, class list, organization settings, association editor.</td></tr>
   </tbody>
 </table>`
@@ -510,13 +549,13 @@ var HELP_CONTENT = {
             body:  `
 <p>If your show uses Cognito Forms for online entry, you can export the entries as a CSV and import them directly into Thorofare.</p>
 <ol>
-  <li>In Cognito, export your entries as a CSV file.</li>
-  <li>In Thorofare, go to the <strong>Entries tab</strong> and click <strong>Import Entries</strong>.</li>
-  <li>Select the CSV file from your computer.</li>
-  <li>Map the columns — the system will try to auto-detect standard column names (rider name, horse name, class, back number, etc.). Review and correct any that didn't auto-match.</li>
-  <li>Click <strong>Import</strong>. Entries are added to your show.</li>
+  <li>In Cognito, export your entries as a CSV or Excel file.</li>
+  <li>In Thorofare, go to the <strong>Entries tab</strong> and drag the file onto the import drop zone.</li>
+  <li>The <strong>Column Mapper</strong> opens — review how columns were detected. The system auto-detects standard fields (rider name, horse name, back number, etc.). Correct any mismatches and assign class columns to the right division and org.</li>
+  <li>Optionally add any extra fee/data columns (stall qty, shavings, custom charges) using <strong>+ Add fee / data column</strong>.</li>
+  <li>Click <strong>Commit Import</strong>. Entries are added to your show and synced to Supabase.</li>
 </ol>
-<p>Duplicate entries (same rider + horse + class) are flagged for your review. You can merge or delete duplicates before finalizing.</p>`
+<p><strong>Re-importing:</strong> If you drop a new file after entries already exist, you get a <strong>merge preview</strong> showing what changed, what's new, and what's missing. Check the fields you want to update and click <strong>Apply Changes</strong>. Existing entries not in the new file are flagged but never auto-deleted.</p>`
           },
           {
             id:    'manual-entry',
@@ -552,6 +591,91 @@ var HELP_CONTENT = {
             body:  `
 <p>If a horse scratches before their class runs, remove their entry from that specific class or mark them as scratched. They won't appear in the results for that class.</p>
 <p>If a horse scratches mid-show (after some classes have already run), their completed classes stand. Only remove entries for classes that haven't run yet.</p>`
+          }
+        ]
+      },
+
+      // ── Online Entry Submissions ────────────────────────────
+      {
+        id:    'online-submissions',
+        label: 'Online Entry Submissions',
+        icon:  '📬',
+        title: 'Reviewing Online Entry Submissions',
+        intro: '<p>When your show is accepting online entries via the public entry form, submissions land here for you to review before they become official entries.</p>',
+        topics: [
+          {
+            id:    'pending-subs',
+            title: 'Where to find pending submissions',
+            body:  `
+<p>Pending online submissions appear as a card at the top of the <strong>Entries tab</strong> whenever there are unreviewed entries. Each card shows the rider name, horse, classes requested, and estimated fees.</p>
+<p>The card reloads automatically each time you visit the Entries tab — you don't need to refresh.</p>`
+          },
+          {
+            id:    'accept-reject',
+            title: 'Accepting or rejecting a submission',
+            body:  `
+<p><strong>Accept:</strong> Click <strong>Accept</strong> on a pending submission to convert it into a real entry. It's added to your entry list, saved to local storage, and synced to Supabase. You can then edit it like any other entry (add back number, adjust classes, record payment).</p>
+<p><strong>Reject:</strong> Click <strong>Reject</strong> if the submission shouldn't be accepted (duplicate, ineligible, wrong show, etc.). Rejected submissions are removed from your pending list and won't appear again. The system doesn't currently send a notification to the rider — contact them directly if needed.</p>`
+          },
+          {
+            id:    'online-entry-link',
+            title: 'Sharing the entry form link',
+            body:  `
+<p>The online entry form URL for your show is: <em>thorofare.app/entry-form.html?show=&lt;showId&gt;</em></p>
+<p>Your show ID appears in the app URL when you have the show open. Share that link with riders so they can submit entries before the show.</p>
+<p>The form is only available while the show status is <strong>Entries Open</strong>. Set the show status to Entries Closed when you're done accepting online entries.</p>`
+          },
+          {
+            id:    'online-entry-late-flag',
+            title: 'Late entries from the form',
+            body:  `
+<p>If you accept an online submission after your regular entry deadline, you can flag it as a late entry on the entry record. This adds the late fee to the rider's tab automatically based on your fee schedule.</p>`
+          }
+        ]
+      },
+
+      // ── Gate Helper ─────────────────────────────────────────
+      {
+        id:    'gate',
+        label: 'Gate Helper',
+        icon:  '🚪',
+        title: 'Gate Helper App',
+        intro: '<p>The Gate Helper is a separate app for the person working the in-gate on show day. It lets them manage class order, scratch riders, add last-minute entries to a class, and close classes — without needing access to the full secretary app.</p>',
+        topics: [
+          {
+            id:    'gate-access',
+            title: 'Opening the Gate Helper',
+            body:  `
+<p>The Gate Helper lives at <em>thorofare.app/gate.html</em>. It requires the <strong>gate PIN</strong> set in your show configuration (Setup → General → Gate PIN).</p>
+<p>Open it on any phone or tablet at the gate. The gate helper and the secretary app share data automatically — changes in gate appear in the secretary's Classes page within a few seconds.</p>
+<div class="help-note">Both the secretary app and the gate helper must be open on the <strong>same network and same origin</strong> (thorofare.app) for syncing to work. Opening gate.html as a local file won't sync.</div>`
+          },
+          {
+            id:    'gate-close',
+            title: 'Closing a class',
+            body:  `
+<p>When a class is full or about to run and you're not accepting any more riders, tap <strong>Close Class</strong> on that class in the Gate Helper. The class shows as <strong>CLOSED</strong> in both the gate app and the secretary's Classes page.</p>
+<p>Closing a class is informational — it doesn't prevent the secretary from editing it, and you can reopen it at any time by tapping <strong>Reopen</strong>.</p>`
+          },
+          {
+            id:    'gate-scratch',
+            title: 'Scratching a rider at the gate',
+            body:  `
+<p>If a rider pulls out after the class has started drawing, find them in the class list on the gate app and tap the scratch button. Scratched riders are marked but their entry stays in the system — they're not removed from other classes.</p>`
+          },
+          {
+            id:    'gate-add',
+            title: 'Adding a rider to a class at the gate',
+            body:  `
+<p>To add a walk-up or last-minute rider to a class, tap <strong>+ Add Rider</strong> in the Gate Helper for that class. Select the rider from the show's entry list. They're added to the draw order for that class.</p>
+<p>Adding a rider via the gate only adds them to the class draw order — it doesn't create a new entry or change their tab. Make sure to also add the class in the secretary app if they need to be charged for it.</p>`
+          },
+          {
+            id:    'gate-sync',
+            title: 'How gate and secretary stay in sync',
+            body:  `
+<p>The secretary's <strong>Classes page</strong> automatically picks up gate changes — closed classes, scratches, and added riders appear within about 2 seconds. No manual refresh needed.</p>
+<p>The secretary can also close and reopen classes from the Classes page using the same Close/Reopen button. Changes flow back to the gate app the same way.</p>`
           }
         ]
       },
@@ -908,8 +1032,9 @@ var HELP_CONTENT = {
             body:  `
 <p><strong>Used by: AQHA Ranch, APHA</strong></p>
 <p>AQHA's system rewards larger classes more generously. First, calculate the <strong>tier</strong> by dividing the number of entries by 5 and dropping any remainder. That tier number is the most points anyone can earn in that class.</p>
-<p><strong>Formula:</strong> Tier = floor(entries ÷ 5). Then: 1st = tier pts, 2nd = tier-1, 3rd = tier-2, … next place = 0.5 pts, everyone below = 0 pts.</p>
-<p><strong>Minimum: You need at least 5 horses for any points to be awarded.</strong></p>
+<p><strong>Formula:</strong> Tier = floor(entries ÷ 5), capped at 9. Then: 1st = tier pts, 2nd = tier-1, 3rd = tier-2, … next place = 0.5 pts, everyone below = 0 pts.</p>
+<p><strong>Special case — 3 or 4 entries:</strong> 1st place earns 0.5 points only. No other places earn points.</p>
+<p><strong>Minimum: You need at least 3 horses for any points to be awarded.</strong> With 1 or 2 horses, no points.</p>
 <p><strong>Examples:</strong></p>
 <table>
   <thead><tr><th>Class size</th><th>Tier</th><th>1st</th><th>2nd</th><th>3rd</th><th>4th (½-pt place)</th></tr></thead>
@@ -1068,12 +1193,12 @@ var HELP_CONTENT = {
         ]
       },
 
-      // ── Tabs & Payments ─────────────────────────────────────
+      // ── Checkout ────────────────────────────────────────────
       {
         id:    'payments',
-        label: 'Tabs & Payments',
+        label: 'Checkout',
         icon:  '💳',
-        title: 'Tabs & Payments',
+        title: 'Checkout — Tabs & Payments',
         intro: '<p>Tracking entry fees, charges, and collections for your show.</p>',
         topics: [
           {

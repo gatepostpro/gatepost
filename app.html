@@ -3575,61 +3575,99 @@ function _renderPendingSubsCard(subs){
   return html;
 }
 
+function _onlineSubToEntry(e, d, isFirst) {
+  // Converts one entry record from submission_data to a G.entry object.
+  // e = per-rider entry object (new format) or flat d (old format)
+  // d = top-level submission_data (for shared stalling fields)
+  // isFirst = true → attach stalling qtys; false → leave at 0 to avoid double-counting
+  var mb = e.memberships || {};
+  return {
+    rowIndex:    G.entries.length,
+    entryNum:    null,
+    name:        ((e.riderNameFirst||'')+' '+(e.riderNameLast||'')).trim(),
+    firstName:   e.riderNameFirst||'',
+    lastName:    e.riderNameLast||'',
+    email:       e.email||'',
+    phone:       e.phone||'',
+    address:     e.address1||'',
+    city:        e.city||'',
+    state:       e.state||'',
+    zip:         e.zip||'',
+    horse:       e.horseName||'',
+    horseGender: e.horseGender||'',
+    horseOwner:  e.horseOwner||'',
+    horseRegNum: e.horseRegNum||'',
+    horseDob:    e.horseDob||'',
+    dob:         e.dob||null,
+    isYouth:     e.isYouth||false,
+    memberCoWN:  mb.CoWN||'',
+    memberSHTX:  mb.SHTX||'',
+    memberAQHA:  mb.AQHA||'',
+    memberAPHA:  mb.APHA||'',
+    memberApHC:  mb.ApHC||'',
+    memberNRHA:  mb.NRHA||'',
+    memberNum:   '',
+    classes: (e.classes||[]).map(function(c){
+      return {num:c.classNum||'', name:c.className||'', division:c.division||'', org:c.org||'', raw:c.className||''};
+    }),
+    haulinQty:  isFirst ? (d.haulinQty||0) : 0,
+    stall1qty:  isFirst ? (d.stall1qty||0) : 0,
+    stall2qty:  isFirst ? (d.stall2qty||0) : 0,
+    stall3qty:  isFirst ? (d.stall3qty||0) : 0,
+    shavings:   isFirst ? (d.shavings||0)  : 0,
+    rv1qty:     isFirst ? (d.rv1qty||0)    : 0,
+    rv2qty:     isFirst ? (d.rv2qty||0)    : 0,
+    rvCircuit:  isFirst ? (d.rvCircuit||0) : 0,
+    stallingArrival: isFirst ? (d.stallingArrival||null) : null,
+    rvArrival:       isFirst ? (d.rvArrival||null)       : null,
+    stallNote:  isFirst ? (d.stallingGroup||'') : '',
+    clinicChoice:     isFirst ? (d.clinicChoice||'')      : '',
+    practiceSessions: isFirst ? (d.practiceSessions||[])  : [],
+    source:    'online_form',
+    cognitoAmount: isFirst ? (d.estimatedTotal||0) : 0,
+    isPaid: false, orgFees: [], customFees: {}
+  };
+}
+
 window.acceptOnlineSub = async function(id){
   if(!confirm('Accept this entry and add it to the list?')) return;
   try {
     var subs = await sbFetch('online_submissions?id=eq.'+id+'&select=*');
     if(!subs || !subs.length){ toast('Submission not found'); return; }
     var d = subs[0].submission_data || {};
-    var mb = d.memberships || {};
-    var entry = {
-      rowIndex:    G.entries.length,
-      entryNum:    null,
-      name:        ((d.riderNameFirst||'')+' '+(d.riderNameLast||'')).trim(),
-      firstName:   d.riderNameFirst||'',
-      lastName:    d.riderNameLast||'',
-      email:       d.email||'',
-      phone:       d.phone||'',
-      address:     d.address1||'',
-      city:        d.city||'',
-      state:       d.state||'',
-      zip:         d.zip||'',
-      horse:       d.horseName||'',
-      horseGender: d.horseGender||'',
-      horseOwner:  d.horseOwner||'',
-      horseRegNum: d.horseRegNum||'',
-      horseDob:    d.horseDob||'',
-      dob:         d.dob||null,
-      isYouth:     d.isYouth||false,
-      memberCoWN:  mb.CoWN||'',
-      memberSHTX:  mb.SHTX||'',
-      memberAQHA:  mb.AQHA||'',
-      memberAPHA:  mb.APHA||'',
-      memberApHC:  mb.ApHC||'',
-      memberNRHA:  mb.NRHA||'',
-      memberOwner: d.memberOwner||'',
-      memberNum:   '',
-      classes: (d.classes||[]).map(function(c){
-        return {num:c.classNum||'', name:c.className||'', division:c.division||'', org:c.org||'', raw:c.className||''};
-      }),
-      haulinQty:  d.haulinQty||0,
-      stall1qty:  d.stall1qty||0, stall2qty: d.stall2qty||0, stall3qty: d.stall3qty||0,
-      shavings:   d.shavings||0,
-      rv1qty:     d.rv1qty||0, rv2qty: d.rv2qty||0, rvCircuit: d.rvCircuit||0,
-      stallingArrival: d.stallingArrival||null,
-      rvArrival:  d.rvArrival||null,
-      stallNote:  d.stallingGroup||'',
-      clinicChoice: d.clinicChoice||'',
-      practiceSessions: d.practiceSessions||[],
-      source:     'online_form',
-      cognitoAmount: d.estimatedTotal||0,
-      isPaid: false, orgFees: [], customFees: {}
-    };
-    G.entries.push(entry);
+
+    var newEntries = [];
+    if(Array.isArray(d.entries) && d.entries.length > 0) {
+      // New multi-entry format
+      d.entries.forEach(function(e, i) {
+        newEntries.push(_onlineSubToEntry(e, d, i === 0));
+      });
+    } else {
+      // Old flat format (backward compat)
+      newEntries.push(_onlineSubToEntry(d, d, true));
+    }
+
+    newEntries.forEach(function(e){ G.entries.push(e); });
     saveEntries();
+
+    // Create billing group for multi-entry submissions
+    if(newEntries.length > 1) {
+      var dEntries = Array.isArray(d.entries) ? d.entries : [];
+      var billToIdx = -1;
+      dEntries.forEach(function(e, i){ if(billToIdx < 0 && e.billTo !== false) billToIdx = i; });
+      var responsibleEntry = newEntries[billToIdx >= 0 ? billToIdx : 0];
+      var responsibleKey = entryKey(responsibleEntry);
+      var entryKeys = newEntries.map(function(e){ return entryKey(e); });
+      var payerName = responsibleEntry.name || entryKeys[0];
+      var grp = createBillingGroup(payerName, entryKeys, '');
+      grp.responsibleKey = responsibleKey;
+      saveBillingData();
+    }
+
     await sbFetch('online_submissions?id=eq.'+id, {method:'PATCH', body:JSON.stringify({status:'accepted', reviewed_at:new Date().toISOString()})});
     syncEntriesToSupabase().catch(function(e){ console.warn('Sync error:', e); });
-    toast('Entry accepted — '+entry.name);
+    var label = newEntries.length === 1 ? newEntries[0].name : newEntries.length+' entries';
+    toast('Accepted — '+label);
     pgEntries();
   } catch(e){ toast('Failed to accept entry'); console.error(e); }
 };
