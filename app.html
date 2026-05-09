@@ -970,6 +970,50 @@ var _DIFF_FIELDS = [
 
 function _normStr(s){ return String(s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
 
+// Rough string similarity (0–1); 1 = identical, 0 = no overlap
+function _strSim(a, b) {
+  a = _normStr(a); b = _normStr(b);
+  if(a === b) return 1;
+  if(!a || !b) return 0;
+  var tokA = a.split(' '), tokB = b.split(' ');
+  var common = tokA.filter(function(t){ return tokB.indexOf(t) >= 0; }).length;
+  var score = common * 2 / (tokA.length + tokB.length);
+  // Boost for substring containment
+  if(score < 0.8 && (a.indexOf(b) >= 0 || b.indexOf(a) >= 0)) {
+    var shorter = a.length < b.length ? a : b, longer = a.length < b.length ? b : a;
+    score = Math.max(score, shorter.length / longer.length * 0.9);
+  }
+  return score;
+}
+
+// Secretary name-fix overrides for pending submissions: {subId: {entryIdx: {name, horse}}}
+var _subNameFixes = {};
+window._subApplyFix = function(subId, entryIdx, field, val) {
+  if(!_subNameFixes[subId]) _subNameFixes[subId] = {};
+  if(!_subNameFixes[subId][entryIdx]) _subNameFixes[subId][entryIdx] = {};
+  _subNameFixes[subId][entryIdx][field] = val;
+  // Update the input in-place
+  var inp = document.getElementById('subfx-'+subId+'-'+entryIdx+'-'+field);
+  if(inp) inp.value = val;
+};
+
+function _findNameSuggestions(name, horse) {
+  // Returns up to 2 close but non-exact matches from G.entries
+  var suggestions = [];
+  var seen = {};
+  G.entries.forEach(function(e) {
+    var eName = _normStr(e.name||''), eHorse = _normStr(e.horse||'');
+    var nSim = _strSim(name, e.name||'');
+    var hSim = horse ? _strSim(horse, e.horse||'') : 1;
+    if(nSim >= 0.6 && nSim < 1 && hSim >= 0.5) {
+      var key = eName+'|'+eHorse;
+      if(!seen[key]) { seen[key]=true; suggestions.push({name:e.name||'', horse:e.horse||'', nSim:nSim, hSim:hSim}); }
+    }
+  });
+  suggestions.sort(function(a,b){ return (b.nSim+b.hSim)-(a.nSim+a.hSim); });
+  return suggestions.slice(0, 2);
+}
+
 function _findMatchingEntry(ne){
   // Try entry number first
   if(ne.entryNum){
@@ -3547,29 +3591,72 @@ async function loadPendingSubmissions(){
 function _renderPendingSubsCard(subs){
   var html = '<div class="card" style="border-color:var(--accent);margin-bottom:1rem">';
   html += '<div class="card-title" style="color:var(--accent)">&#9654; '+subs.length+' Pending Online Entr'+(subs.length===1?'y':'ies')+'</div>';
-  html += '<div style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem">Review and accept each submission to add it to the entry list.</div>';
+  html += '<div style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem">Review names below — correct any typos before accepting.</div>';
   subs.forEach(function(s){
     var d = s.submission_data || {};
-    var clsNames = (d.classes||[]).map(function(c){ return c.className; }).join(', ');
+    var sid = s.id;
+    // Normalise to entries[] array regardless of format
+    var entries = (Array.isArray(d.entries) && d.entries.length) ? d.entries : [{
+      riderNameFirst:d.riderNameFirst, riderNameLast:d.riderNameLast,
+      horseName:d.horseName, horseGender:d.horseGender, classes:d.classes||[]
+    }];
+
     html += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:6px;padding:.75rem 1rem;margin-bottom:.5rem">';
-    html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;flex-wrap:wrap">';
-    html += '<div>';
-    html += '<div style="font-size:.95rem">'+esc(((d.riderNameFirst||'')+' '+(d.riderNameLast||'')).trim())+'</div>';
-    html += '<div style="font-size:.82rem;color:var(--muted)">'+esc(d.horseName||'')+(d.horseGender?' &bull; '+esc(d.horseGender):'')+'</div>';
-    if(clsNames) html += '<div style="font-size:.8rem;margin-top:.2rem">'+esc(clsNames)+'</div>';
+
+    entries.forEach(function(e, ei) {
+      var submittedName = ((e.riderNameFirst||'')+' '+(e.riderNameLast||'')).trim();
+      var submittedHorse = (e.horseName||'').trim();
+      var fixes = (_subNameFixes[sid]||{})[ei] || {};
+      var curName  = fixes.name  !== undefined ? fixes.name  : submittedName;
+      var curHorse = fixes.horse !== undefined ? fixes.horse : submittedHorse;
+      var nameSugg  = _findNameSuggestions(submittedName, submittedHorse);
+
+      html += '<div style="margin-bottom:'+(entries.length>1?'.75rem':'0')+';'+(ei>0?'padding-top:.6rem;border-top:1px solid var(--border2);':'')+'">';
+
+      // Rider name row
+      html += '<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.3rem;flex-wrap:wrap">';
+      html += '<label style="font-size:.75rem;color:var(--muted);min-width:42px">Rider</label>';
+      html += '<input id="subfx-'+sid+'-'+ei+'-name" value="'+esc(curName)+'" oninput="_subApplyFix(\''+sid+'\','+ei+',\'name\',this.value)" style="flex:1;min-width:120px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:.25rem .4rem;font-size:.85rem">';
+      if(nameSugg.length) {
+        nameSugg.forEach(function(sg){
+          html += '<button class="btn btn-dark btn-sm" style="font-size:.72rem;padding:2px 6px" title="Use existing name" onclick="_subApplyFix(\''+sid+'\','+ei+',\'name\','+JSON.stringify(sg.name)+')">&#8593; '+esc(sg.name)+'</button>';
+        });
+      }
+      html += '</div>';
+
+      // Horse name row
+      html += '<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.3rem;flex-wrap:wrap">';
+      html += '<label style="font-size:.75rem;color:var(--muted);min-width:42px">Horse</label>';
+      html += '<input id="subfx-'+sid+'-'+ei+'-horse" value="'+esc(curHorse)+'" oninput="_subApplyFix(\''+sid+'\','+ei+',\'horse\',this.value)" style="flex:1;min-width:120px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:.25rem .4rem;font-size:.85rem">';
+      // Horse suggestions from existing entries
+      var horseSugg = [];
+      var seenH = {};
+      G.entries.forEach(function(ex){ var h = _normStr(ex.horse||''); var sim = _strSim(submittedHorse, ex.horse||''); if(sim>=0.6&&sim<1&&!seenH[h]){seenH[h]=true;horseSugg.push(ex.horse||'');} });
+      horseSugg.slice(0,2).forEach(function(hn){
+        html += '<button class="btn btn-dark btn-sm" style="font-size:.72rem;padding:2px 6px" title="Use existing name" onclick="_subApplyFix(\''+sid+'\','+ei+',\'horse\','+JSON.stringify(hn)+')">&#8593; '+esc(hn)+'</button>';
+      });
+      html += '</div>';
+
+      // Classes summary
+      var clsNames = (e.classes||[]).map(function(c){ return c.className; }).filter(Boolean).join(', ');
+      if(clsNames) html += '<div style="font-size:.78rem;color:var(--muted)">'+esc(clsNames)+'</div>';
+      html += '</div>';
+    });
+
+    // Stalling summary (top-level)
     if(d.stall1qty||d.stall2qty||d.stall3qty||d.rv1qty){
       var stall=[];
       if(d.stall1qty) stall.push(d.stall1qty+'×&thinsp;1-night stall');
       if(d.stall2qty) stall.push(d.stall2qty+'×&thinsp;circuit stall');
       if(d.stall3qty) stall.push(d.stall3qty+'×&thinsp;3-night stall');
       if(d.rv1qty)    stall.push(d.rv1qty+'×&thinsp;RV');
-      html += '<div style="font-size:.78rem;color:var(--muted);margin-top:.2rem">'+stall.join(', ')+'</div>';
+      html += '<div style="font-size:.78rem;color:var(--muted);margin-top:.4rem;padding-top:.4rem;border-top:1px solid var(--border2)">'+stall.join(', ')+'</div>';
     }
-    html += '</div>';
-    html += '<div style="display:flex;gap:.4rem;flex-shrink:0;margin-top:.25rem">';
-    html += '<button class="btn btn-accent btn-sm" onclick="acceptOnlineSub(\''+s.id+'\')">&#10003; Accept</button>';
-    html += '<button class="btn btn-dark btn-sm" style="color:var(--red);border-color:var(--red)" onclick="rejectOnlineSub(\''+s.id+'\')">&#10005; Reject</button>';
-    html += '</div></div></div>';
+
+    html += '<div style="display:flex;gap:.4rem;margin-top:.6rem">';
+    html += '<button class="btn btn-accent btn-sm" onclick="acceptOnlineSub(\''+sid+'\')">&#10003; Accept</button>';
+    html += '<button class="btn btn-dark btn-sm" style="color:var(--red);border-color:var(--red)" onclick="rejectOnlineSub(\''+sid+'\')">&#10005; Reject</button>';
+    html += '</div></div>';
   });
   html += '</div>';
   return html;
@@ -3636,16 +3723,30 @@ window.acceptOnlineSub = async function(id){
     if(!subs || !subs.length){ toast('Submission not found'); return; }
     var d = subs[0].submission_data || {};
 
+    // Apply any name corrections the secretary made in the pending card
+    var fixes = _subNameFixes[id] || {};
+    function _applyFixes(e, ei) {
+      var f = fixes[ei] || {};
+      var out = Object.assign({}, e);
+      if(f.name !== undefined) {
+        var parts = (f.name||'').trim().split(/\s+/);
+        out.riderNameFirst = parts[0]||''; out.riderNameLast = parts.slice(1).join(' ')||'';
+      }
+      if(f.horse !== undefined) out.horseName = f.horse;
+      return out;
+    }
+
     var newEntries = [];
     if(Array.isArray(d.entries) && d.entries.length > 0) {
       // New multi-entry format
       d.entries.forEach(function(e, i) {
-        newEntries.push(_onlineSubToEntry(e, d, i === 0));
+        newEntries.push(_onlineSubToEntry(_applyFixes(e, i), d, i === 0));
       });
     } else {
       // Old flat format (backward compat)
-      newEntries.push(_onlineSubToEntry(d, d, true));
+      newEntries.push(_onlineSubToEntry(_applyFixes(d, 0), d, true));
     }
+    delete _subNameFixes[id];
 
     newEntries.forEach(function(e){ G.entries.push(e); });
     saveEntries();

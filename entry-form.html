@@ -173,6 +173,10 @@
     .add-rider-btn:hover { background:rgba(200,146,42,.18); }
     .add-horse-btn { display:block; width:100%; padding:13px 16px; background:rgba(200,146,42,.07); border:2px dashed var(--accent); color:var(--accent); font-size:.9rem; font-weight:600; cursor:pointer; border-radius:8px; text-align:center; font-family:inherit; margin-bottom:16px; transition:background .15s; }
     .add-horse-btn:hover { background:rgba(200,146,42,.18); }
+    .pick-rider-row { display:block; width:100%; padding:.9rem 1rem; background:var(--card2); border:1px solid var(--border2); border-radius:8px; color:var(--text); font-family:inherit; font-size:.92rem; cursor:pointer; text-align:left; margin-bottom:.5rem; transition:border-color .15s,background .15s; }
+    .pick-rider-row:hover { border-color:var(--accent); background:rgba(200,146,42,.07); }
+    .pick-rider-name { font-weight:600; }
+    .pick-rider-meta { font-size:.78rem; color:var(--text2); margin-top:.2rem; }
     .overview-continue { width:100%; padding:13px; background:var(--accent); color:#111; font-weight:600; font-family:Oswald,sans-serif; letter-spacing:.5px; border:none; border-radius:6px; font-size:.95rem; cursor:pointer; }
     .overview-continue:hover { background:var(--accent2); }
 
@@ -242,6 +246,7 @@ var CUR_STEP              = 'welcome';
 var CURR_HORSE_IDX        = 0;
 var CURR_RIDER_IDX        = 0;
 var IS_ADDING_TO_EXISTING = false;
+var _cameFromPickRider    = false; // true when user chose "New person" from the pick-rider step
 
 // Submission — horses[] each with riders[]; shared stalling at top level
 var SUBMISSION = {
@@ -292,6 +297,18 @@ function getSelectedOrgs(rider) {
   var seen = {}, orgs = [];
   getSelectedClasses(rider).forEach(function(c){ var o = c.org||'General'; if(!seen[o]){ seen[o]=true; orgs.push(o); } });
   return orgs;
+}
+function getExistingNamedRiders() {
+  // Returns all named rider slots in SUBMISSION, excluding the current one being filled
+  var riders = [];
+  SUBMISSION.horses.forEach(function(horse, hi) {
+    horse.riders.forEach(function(rider, ri) {
+      if(hi === CURR_HORSE_IDX && ri === CURR_RIDER_IDX) return;
+      var name = ((rider.riderFirst||'')+' '+(rider.riderLast||'')).trim();
+      if(name) riders.push({hi:hi, ri:ri, name:name, rider:rider});
+    });
+  });
+  return riders;
 }
 
 async function sbGet(path) {
@@ -405,7 +422,8 @@ function updateProgress() {
 
 function getNextStep(step) {
   if(step==='welcome')     return 'horse';
-  if(step==='horse')       return 'rider';
+  if(step==='horse')       return getExistingNamedRiders().length > 0 ? 'pickrider' : 'rider';
+  if(step==='pickrider')   return 'rider'; // fallback; normally handled by pick/new buttons
   if(step==='rider')       return getAvailOrgs().length>1 ? 'orgs' : 'classes';
   if(step==='orgs')        return 'classes';
   if(step==='classes')     return 'memberships';
@@ -417,8 +435,9 @@ function getNextStep(step) {
 }
 function getPrevStep(step) {
   if(step==='welcome')     return null;
-  if(step==='horse')       return SUBMISSION.horses.filter(function(h){ return h.riders.some(function(r){ return r.selectedClassIds.length>0; }); }).length>0 ? 'overview' : null;
-  if(step==='rider')       return IS_ADDING_TO_EXISTING ? 'overview' : 'horse';
+  if(step==='horse')       return getExistingNamedRiders().length > 0 ? 'overview' : null;
+  if(step==='pickrider')   return IS_ADDING_TO_EXISTING ? 'overview' : 'horse';
+  if(step==='rider')       return _cameFromPickRider ? 'pickrider' : (IS_ADDING_TO_EXISTING ? 'overview' : 'horse');
   if(step==='orgs')        return 'rider';
   if(step==='classes')     return getAvailOrgs().length>1 ? 'orgs' : 'rider';
   if(step==='memberships') return 'classes';
@@ -436,7 +455,7 @@ function goTo(step) {
   updateProgress();
   var wrap = document.getElementById('wizard');
   wrap.innerHTML = '';
-  var renders = { welcome:renderWelcome, horse:renderHorse, rider:renderRider, orgs:renderOrgFilter, classes:renderClasses, memberships:renderMemberships, overview:renderOverview, stalling:renderStalling, practice:renderPractice, summary:renderSummary };
+  var renders = { welcome:renderWelcome, horse:renderHorse, pickrider:renderPickRider, rider:renderRider, orgs:renderOrgFilter, classes:renderClasses, memberships:renderMemberships, overview:renderOverview, stalling:renderStalling, practice:renderPractice, summary:renderSummary };
   if(renders[step]) renders[step](wrap);
   // Nav bar
   var nextBtn = document.getElementById('btn-next');
@@ -458,6 +477,16 @@ function _saveCurrentStep() {
 
 function navBack() {
   clearStepErr();
+  // Backing out of pickrider while adding a rider: remove the empty slot we reserved
+  if(CUR_STEP === 'pickrider' && IS_ADDING_TO_EXISTING) {
+    var horse = SUBMISSION.horses[CURR_HORSE_IDX];
+    if(horse) {
+      var r = horse.riders[CURR_RIDER_IDX];
+      if(r && !r.riderFirst && !r.riderLast) horse.riders.splice(CURR_RIDER_IDX, 1);
+    }
+    goTo('overview');
+    return;
+  }
   var prev = getPrevStep(CUR_STEP);
   if(prev) goTo(prev);
 }
@@ -914,6 +943,44 @@ function saveMemberships() {
   });
 }
 
+// ── Step: Pick Rider ─────────────────────────────────────────────────────────
+function renderPickRider(wrap) {
+  var existing = getExistingNamedRiders();
+  var html = '<div class="card"><div class="step-title">Who is riding?</div>';
+  html += '<div class="step-sub">Select someone already on this entry, or add a new person.</div></div>';
+  if(existing.length > 0) {
+    existing.forEach(function(p) {
+      var clsCount = (p.rider.selectedClassIds||[]).length;
+      html += '<button type="button" class="pick-rider-row" onclick="pickExistingRider('+p.hi+','+p.ri+')">';
+      html += '<div class="pick-rider-name">'+esc(p.name)+'</div>';
+      if(clsCount) html += '<div class="pick-rider-meta">'+clsCount+' class'+(clsCount!==1?'es':'')+'  already entered — classes will be selected separately for this horse</div>';
+      html += '</button>';
+    });
+  }
+  html += '<button type="button" class="add-horse-btn" style="margin-top:.5rem" onclick="pickNewRider()">+ New person</button>';
+  wrap.innerHTML = html;
+  // Hide Next — selection is via the buttons
+  document.getElementById('btn-next').style.display = 'none';
+}
+window.pickExistingRider = function(hi, ri) {
+  var src = SUBMISSION.horses[hi].riders[ri];
+  var dst = SUBMISSION.horses[CURR_HORSE_IDX].riders[CURR_RIDER_IDX];
+  // Copy contact + membership — classes stay empty (new horse, new class selection)
+  dst.riderFirst = src.riderFirst; dst.riderLast = src.riderLast;
+  dst.email = src.email; dst.phone = src.phone;
+  dst.address1 = src.address1; dst.city = src.city; dst.state = src.state; dst.zip = src.zip;
+  dst.isYouth = src.isYouth; dst.dob = src.dob;
+  dst.memberships = JSON.parse(JSON.stringify(src.memberships||{}));
+  dst.memberStatus = JSON.parse(JSON.stringify(src.memberStatus||{}));
+  dst.billTo = false; // existing billing contact already set
+  _cameFromPickRider = false;
+  goTo(getAvailOrgs().length > 1 ? 'orgs' : 'classes');
+};
+window.pickNewRider = function() {
+  _cameFromPickRider = true;
+  goTo('rider');
+};
+
 // ── Step: Overview ────────────────────────────────────────────────────────────
 function renderOverview(wrap) {
   try { _renderOverview(wrap); }
@@ -944,7 +1011,7 @@ function _renderOverview(wrap) {
       html += '<div class="rider-row-classes">'+esc(clsSummary)+'</div>';
       html += '</div>';
       html += '<div class="rider-row-actions">';
-      html += '<label class="bill-to-label"><input type="checkbox" '+(rider.billTo!==false?'checked':'')+' onchange="toggleBillTo('+hi+','+ri+',this.checked)"> Bill to</label>';
+      html += '<label class="bill-to-label" title="Send invoice to this person"><input type="checkbox" '+(rider.billTo!==false?'checked':'')+' onchange="toggleBillTo('+hi+','+ri+',this.checked)"> Invoice</label>';
       html += '<button class="rider-remove-btn" onclick="editRider('+hi+','+ri+')" title="Edit">Edit</button>';
       if(horse.riders.length > 1) {
         html += '<button class="rider-remove-btn" onclick="removeRider('+hi+','+ri+')" title="Remove rider">&#215;</button>';
@@ -956,7 +1023,7 @@ function _renderOverview(wrap) {
       html += '<div class="rider-row" style="background:rgba(200,146,42,.05)">';
       html += '<div class="rider-row-info"><div class="rider-row-name">'+esc(horse.horseOwner)+' <span class="rider-row-role">· Owner</span></div></div>';
       html += '<div class="rider-row-actions">';
-      html += '<label class="bill-to-label"><input type="checkbox" '+(horse.ownerBillTo?'checked':'')+' onchange="toggleOwnerBillTo('+hi+',this.checked)"> Bill to</label>';
+      html += '<label class="bill-to-label" title="Send invoice to this person"><input type="checkbox" '+(horse.ownerBillTo?'checked':'')+' onchange="toggleOwnerBillTo('+hi+',this.checked)"> Invoice</label>';
       html += '</div></div>';
     }
 
@@ -976,18 +1043,21 @@ window.editRider = function(hi, ri) {
 };
 window.addAnotherHorse = function() {
   var h = newHorse(); var r = newRider();
+  r.billTo = false; // first rider already holds bill-to
   h.riders.push(r); SUBMISSION.horses.push(h);
   CURR_HORSE_IDX = SUBMISSION.horses.length - 1; CURR_RIDER_IDX = 0;
-  IS_ADDING_TO_EXISTING = false; goTo('horse');
+  IS_ADDING_TO_EXISTING = false; _cameFromPickRider = false; goTo('horse');
 };
 window.addRiderToHorse = function(hi) {
   CURR_HORSE_IDX = hi;
   var r = newRider();
-  var first = SUBMISSION.horses[hi] && SUBMISSION.horses[hi].riders[0];
-  if(first){ r.address1=first.address1; r.city=first.city; r.state=first.state; r.zip=first.zip; }
+  r.billTo = false; // only one bill-to allowed
   SUBMISSION.horses[hi].riders.push(r);
   CURR_RIDER_IDX = SUBMISSION.horses[hi].riders.length - 1;
-  IS_ADDING_TO_EXISTING = true; goTo('rider');
+  IS_ADDING_TO_EXISTING = true; _cameFromPickRider = false;
+  // Show picker if there are already named riders they could reuse
+  var existing = getExistingNamedRiders();
+  goTo(existing.length > 0 ? 'pickrider' : 'rider');
 };
 window.removeHorse = function(hi) {
   if(SUBMISSION.horses.length <= 1) return;
@@ -1002,11 +1072,23 @@ window.removeRider = function(hi, ri) {
   renderOverview(document.getElementById('wizard'));
 };
 window.toggleBillTo = function(hi, ri, checked) {
-  var horse = SUBMISSION.horses[hi];
-  if(horse && horse.riders[ri]) horse.riders[ri].billTo = checked;
+  if(checked) {
+    // Clear all others — only one bill-to at a time
+    SUBMISSION.horses.forEach(function(h){ h.riders.forEach(function(r){ r.billTo = false; }); h.ownerBillTo = false; });
+    SUBMISSION.horses[hi].riders[ri].billTo = true;
+  } else {
+    SUBMISSION.horses[hi].riders[ri].billTo = false;
+  }
+  _renderOverview(document.getElementById('wizard'));
 };
 window.toggleOwnerBillTo = function(hi, checked) {
-  var horse = SUBMISSION.horses[hi]; if(horse) horse.ownerBillTo = checked;
+  if(checked) {
+    SUBMISSION.horses.forEach(function(h){ h.riders.forEach(function(r){ r.billTo = false; }); h.ownerBillTo = false; });
+    SUBMISSION.horses[hi].ownerBillTo = true;
+  } else {
+    SUBMISSION.horses[hi].ownerBillTo = false;
+  }
+  _renderOverview(document.getElementById('wizard'));
 };
 
 // ── Step: Stalling ────────────────────────────────────────────────────────────
