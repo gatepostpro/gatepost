@@ -11325,8 +11325,8 @@ function renderCfgClassTable(){
   _divKeys.forEach(function(div,di){
 
     var divClasses=byDiv[div];
-    var allJp=divClasses.every(function(c){ return c.jackpot&&c.jackpot>0; });
-    var someJp=divClasses.some(function(c){ return c.jackpot&&c.jackpot>0; });
+    var allJp=divClasses.every(function(c){ return c.jackpot!==null&&c.jackpot!==undefined; });
+    var someJp=divClasses.some(function(c){ return c.jackpot!==null&&c.jackpot!==undefined; });
     html+='<tr class="div-hdr"><td colspan="10" style="display:flex;align-items:center;justify-content:space-between;padding:.3rem .6rem">'
       +'<span>'+esc(div)+'</span>'
       +'<label style="font-size:.75rem;color:var(--muted);font-weight:normal;display:flex;align-items:center;gap:.3rem;cursor:pointer;margin:0">'
@@ -11376,8 +11376,8 @@ function renderCfgClassTable(){
   // Set indeterminate on partially-jackpotted division checkboxes
   _divKeys.forEach(function(div,di){
     var divClasses=byDiv[div];
-    var allJp=divClasses.every(function(c){ return c.jackpot&&c.jackpot>0; });
-    var someJp=divClasses.some(function(c){ return c.jackpot&&c.jackpot>0; });
+    var allJp=divClasses.every(function(c){ return c.jackpot!==null&&c.jackpot!==undefined; });
+    var someJp=divClasses.some(function(c){ return c.jackpot!==null&&c.jackpot!==undefined; });
     if(someJp&&!allJp){ var el=document.getElementById('jp-all-div-'+di); if(el) el.indeterminate=true; }
   });
 
@@ -11390,7 +11390,7 @@ window.jpAllDiv = function(org, div, checked) {
   G.cfg.classes.forEach(function(c){
     if((c.org||'CoWN') !== org) return;
     if((c.division||'General') !== div) return;
-    c.jackpot = checked ? (jp || null) : null;
+    c.jackpot = checked ? jp : null;
   });
   renderCfgClassTable();
 };
@@ -11608,7 +11608,9 @@ function autoDetectCow(){
   G.cfg.classes.forEach(function(c){
 
     var wasCow = c.isCow;
-    if(/cutting/i.test(c.name||'') || COW_WORDS.some(function(k){ return k.test(c.name||''); })){ c.isCow=true; }
+    // Use discipline when available (wizard classes store it separately from division prefix)
+    var testStr = c.discipline || c.name || '';
+    if(/cutting/i.test(testStr) || COW_WORDS.some(function(k){ return k.test(testStr); })){ c.isCow=true; }
     if(!wasCow && c.isCow) n++;
 
   });
