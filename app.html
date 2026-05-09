@@ -16892,6 +16892,11 @@ try{
   };
 } catch(e){}
 
+// Poll pending online submissions every 15s when on Entries page
+setInterval(function(){
+  if(_currentPage === 'entries' && G.showId) loadPendingSubmissions();
+}, 15000);
+
 // Poll every 2s as fallback (covers same-tab refresh and browser quirks)
 var _gateSyncSnap = null;
 setInterval(function(){

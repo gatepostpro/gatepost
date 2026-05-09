@@ -566,12 +566,15 @@ function requireField(id) {
   return ok;
 }
 function validateHorse() {
-  var ok = ['f-horseName','f-horseGender'].map(requireField).every(Boolean);
+  var fields = ['f-horseName','f-horseGender'];
+  var orgFilter = SUBMISSION.orgFilter.length ? SUBMISSION.orgFilter : getAvailOrgs();
+  if(orgFilter.some(function(o){ return OWNER_REQUIRED_ORGS.indexOf(o) >= 0; })) fields.push('f-horseOwner');
+  var ok = fields.map(requireField).every(Boolean);
   if(!ok) showStepErr('Please fill in all required fields.');
   return ok;
 }
 function validateRider() {
-  var ok = ['f-riderFirst','f-riderLast','f-email','f-phone'].map(requireField).every(Boolean);
+  var ok = ['f-riderFirst','f-riderLast','f-email','f-phone','f-address1','f-city','f-state','f-zip'].map(requireField).every(Boolean);
   var r = currRider();
   if(r && r.isYouth) ok = requireField('f-dob') && ok;
   if(!ok) showStepErr('Please fill in all required fields.');
@@ -649,8 +652,11 @@ window.toggleOrgFilterWelcome = function(org) {
 };
 
 // ── Step: Horse ───────────────────────────────────────────────────────────────
+var OWNER_REQUIRED_ORGS = ['SHTX','AQHA','AQHA Ranch','AQHA RHC','VRH','APHA','ApHC'];
 function renderHorse(wrap) {
   var h = currHorse() || {};
+  var orgFilter = SUBMISSION.orgFilter.length ? SUBMISSION.orgFilter : getAvailOrgs();
+  var ownerRequired = orgFilter.some(function(o){ return OWNER_REQUIRED_ORGS.indexOf(o) >= 0; });
   var html = '<div class="card">';
   html += '<div class="step-title">Horse</div>';
   html += '<div class="step-sub">Enter the horse\'s information as it appears on registration papers.</div>';
@@ -666,14 +672,25 @@ function renderHorse(wrap) {
   });
   html += '</select></div>';
 
-  var ownerChecked = h.ownerDiffFromRider ? 'checked' : '';
-  html += '<div style="margin-top:.5rem;padding:.65rem .75rem;background:var(--card2);border:1px solid var(--border2);border-radius:8px">';
-  html += '<label style="display:flex;align-items:center;gap:.5rem;font-size:.88rem;cursor:pointer">';
-  html += '<input type="checkbox" id="f-diffOwner" '+ownerChecked+' onchange="toggleDiffOwner(this.checked)" style="accent-color:var(--accent)"> The horse owner is different from the rider';
-  html += '</label>';
-  html += '<div id="f-owner-fields" style="margin-top:.55rem;'+(h.ownerDiffFromRider?'':'display:none')+'">';
-  html += '<div class="form-row"><label>Owner Name</label><input id="f-horseOwner" value="'+esc(h.horseOwner||'')+'" placeholder="Owner full name"></div>';
-  html += '</div></div>';
+  if(ownerRequired) {
+    // Owner is required — always show the field, pre-fill with rider name if blank
+    var r0 = currRider();
+    var defaultOwner = h.horseOwner || (r0 ? ((r0.riderFirst||'')+' '+(r0.riderLast||'')).trim() : '');
+    html += '<div class="form-row">';
+    html += '<label>Registered Owner <span class="req">*</span></label>';
+    html += '<div style="font-size:.78rem;color:var(--text2);margin-bottom:.3rem">Required for SHTX, AQHA, APHA, and ApHC. If rider owns the horse, enter the rider\'s name.</div>';
+    html += '<input id="f-horseOwner" value="'+esc(defaultOwner)+'" placeholder="Owner\'s registered name">';
+    html += '</div>';
+  } else {
+    var ownerChecked = h.ownerDiffFromRider ? 'checked' : '';
+    html += '<div style="margin-top:.5rem;padding:.65rem .75rem;background:var(--card2);border:1px solid var(--border2);border-radius:8px">';
+    html += '<label style="display:flex;align-items:center;gap:.5rem;font-size:.88rem;cursor:pointer">';
+    html += '<input type="checkbox" id="f-diffOwner" '+ownerChecked+' onchange="toggleDiffOwner(this.checked)" style="accent-color:var(--accent)"> The horse owner is different from the rider';
+    html += '</label>';
+    html += '<div id="f-owner-fields" style="margin-top:.55rem;'+(h.ownerDiffFromRider?'':'display:none')+'">';
+    html += '<div class="form-row"><label>Owner Name</label><input id="f-horseOwner" value="'+esc(h.horseOwner||'')+'" placeholder="Owner full name"></div>';
+    html += '</div></div>';
+  }
 
   html += '</div>';
   wrap.innerHTML = html;
@@ -684,9 +701,16 @@ function saveHorse() {
   var g = function(id){ var el = document.getElementById(id); return el ? el.value.trim() : ''; };
   h.horseName          = g('f-horseName');
   h.horseGender        = g('f-horseGender');
-  var diffEl = document.getElementById('f-diffOwner');
-  h.ownerDiffFromRider = diffEl ? diffEl.checked : false;
-  h.horseOwner         = h.ownerDiffFromRider ? g('f-horseOwner') : '';
+  var ownerVal         = g('f-horseOwner');
+  var diffEl           = document.getElementById('f-diffOwner');
+  if(ownerVal) {
+    h.horseOwner = ownerVal; h.ownerDiffFromRider = true;
+  } else if(diffEl) {
+    h.ownerDiffFromRider = diffEl.checked;
+    h.horseOwner         = h.ownerDiffFromRider ? g('f-horseOwner') : '';
+  } else {
+    h.ownerDiffFromRider = false; h.horseOwner = '';
+  }
 }
 
 window.toggleDiffOwner = function(checked) {
@@ -720,15 +744,15 @@ function renderRider(wrap) {
   html += '<input id="f-phone" type="tel" value="'+esc(r.phone||'')+'" placeholder="(xxx) xxx-xxxx" autocomplete="tel">';
   html += '</div></div>';
 
-  html += '<div class="form-row"><label>Street Address</label>';
+  html += '<div class="form-row"><label>Street Address <span class="req">*</span></label>';
   html += '<input id="f-address1" value="'+esc(r.address1||'')+'" placeholder="123 Main St" autocomplete="street-address">';
   html += '</div>';
   html += '<div class="form-row thirds"><div>';
-  html += '<label>City</label><input id="f-city" value="'+esc(r.city||'')+'" placeholder="City" autocomplete="address-level2">';
+  html += '<label>City <span class="req">*</span></label><input id="f-city" value="'+esc(r.city||'')+'" placeholder="City" autocomplete="address-level2">';
   html += '</div><div>';
-  html += '<label>State</label><input id="f-state" value="'+esc(r.state||'')+'" placeholder="WY" maxlength="2" style="text-transform:uppercase" autocomplete="address-level1">';
+  html += '<label>State <span class="req">*</span></label><input id="f-state" value="'+esc(r.state||'')+'" placeholder="WY" maxlength="2" style="text-transform:uppercase" autocomplete="address-level1">';
   html += '</div><div>';
-  html += '<label>Zip</label><input id="f-zip" value="'+esc(r.zip||'')+'" placeholder="82001" autocomplete="postal-code">';
+  html += '<label>Zip <span class="req">*</span></label><input id="f-zip" value="'+esc(r.zip||'')+'" placeholder="82001" autocomplete="postal-code">';
   html += '</div></div>';
 
   html += '<div class="check-row"><input type="checkbox" id="f-isYouth" '+(r.isYouth?'checked':'')+' onchange="toggleYouth(this.checked)">';
@@ -738,8 +762,11 @@ function renderRider(wrap) {
   html += '<input id="f-dob" type="date" value="'+esc(r.dob||'')+'">';
   html += '</div></div>';
 
-  html += '<div class="check-row" style="margin-top:.5rem"><input type="checkbox" id="f-billTo" '+(r.billTo!==false?'checked':'')+' onchange="toggleBillToSelf(this.checked)">';
-  html += '<label for="f-billTo">Bill to this rider (include in invoice)</label></div>';
+  // Only show billing choice when adding a second+ rider (not needed for sole rider)
+  if(IS_ADDING_TO_EXISTING || !_INITIAL_FLOW) {
+    html += '<div class="check-row" style="margin-top:.5rem"><input type="checkbox" id="f-billTo" '+(r.billTo!==false?'checked':'')+' onchange="toggleBillToSelf(this.checked)">';
+    html += '<label for="f-billTo">Include in invoice</label></div>';
+  }
 
   html += '</div>';
   wrap.innerHTML = html;
@@ -933,17 +960,19 @@ function renderMemberships(wrap) {
   if(h.horseName) html += '<div class="step-sub">Membership status for <strong>'+esc(r.riderFirst||'this rider')+'</strong> on <strong>'+esc(h.horseName)+'</strong></div>';
   else html += '<div class="step-sub">Most organizations require active membership to participate. Select your status for each organization below.</div>';
 
-  // Horse registration details — moved here from horse step
-  html += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem 1rem;margin-bottom:.75rem">';
-  html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.9rem;margin-bottom:.6rem">Horse Registration</div>';
-  html += '<div class="form-row half"><div>';
-  html += '<label>Registration # <span style="color:var(--text2);font-size:.78rem">(AQHA, APHA, breed reg)</span></label>';
-  html += '<input id="f-horseRegNum" value="'+esc(h.horseRegNum||'')+'" placeholder="optional">';
-  html += '</div><div>';
-  html += '<label>Date of Birth</label>';
-  html += '<input id="f-horseDob" type="date" value="'+esc(h.horseDob||'')+'">';
-  html += '</div></div>';
-  html += '</div>';
+  // Horse registration details — only show for the first rider on each horse (already saved after that)
+  if(CURR_RIDER_IDX === 0) {
+    html += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem 1rem;margin-bottom:.75rem">';
+    html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:.9rem;margin-bottom:.6rem">Horse Registration</div>';
+    html += '<div class="form-row half"><div>';
+    html += '<label>Registration # <span style="color:var(--text2);font-size:.78rem">(AQHA, APHA, breed reg)</span></label>';
+    html += '<input id="f-horseRegNum" value="'+esc(h.horseRegNum||'')+'" placeholder="optional">';
+    html += '</div><div>';
+    html += '<label>Date of Birth</label>';
+    html += '<input id="f-horseDob" type="date" value="'+esc(h.horseDob||'')+'">';
+    html += '</div></div>';
+    html += '</div>';
+  }
 
   if(fields.length === 0) {
     html += '<div style="color:var(--text2);font-size:0.9rem;padding:8px 0">No membership requirements for the selected classes.</div>';
@@ -1008,11 +1037,13 @@ window.setMembStatus = function(org, status) {
 function saveMemberships() {
   var r = currRider(); if(!r) return;
   if(!r.memberships) r.memberships = {};
-  // Save horse reg# and DOB (captured in this step)
-  var h = currHorse();
-  if(h) {
-    var hReg = document.getElementById('f-horseRegNum'); if(hReg) h.horseRegNum = hReg.value.trim();
-    var hDob = document.getElementById('f-horseDob'); if(hDob) h.horseDob = hDob.value;
+  // Save horse reg# and DOB — only asked for first rider on each horse
+  if(CURR_RIDER_IDX === 0) {
+    var h = currHorse();
+    if(h) {
+      var hReg = document.getElementById('f-horseRegNum'); if(hReg) h.horseRegNum = hReg.value.trim();
+      var hDob = document.getElementById('f-horseDob'); if(hDob) h.horseDob = hDob.value;
+    }
   }
   document.querySelectorAll('[data-org]').forEach(function(el) {
     var org = el.getAttribute('data-org');
@@ -1066,6 +1097,14 @@ function renderOverview(wrap) {
   catch(err) { wrap.innerHTML = '<div class="card" style="color:var(--red)">Overview error: '+esc(err.message||String(err))+'</div>'; console.error('renderOverview error', err); }
 }
 function _renderOverview(wrap) {
+  // Count total billable people to decide whether to show Invoice checkboxes
+  var totalPeople = 0;
+  SUBMISSION.horses.forEach(function(h){ totalPeople += h.riders.length + (h.ownerDiffFromRider&&h.horseOwner?1:0); });
+  var showInvoice = totalPeople > 1;
+  // If sole rider, ensure they're always marked billTo
+  if(!showInvoice && SUBMISSION.horses.length > 0 && SUBMISSION.horses[0].riders.length > 0) {
+    SUBMISSION.horses[0].riders[0].billTo = true;
+  }
   var html = '<div class="card"><div class="step-title">Your Entries</div>';
   html += '<div class="step-sub">Review horses and riders. Add more or continue when ready.</div></div>';
 
@@ -1090,7 +1129,7 @@ function _renderOverview(wrap) {
       html += '<div class="rider-row-classes">'+esc(clsSummary)+'</div>';
       html += '</div>';
       html += '<div class="rider-row-actions">';
-      html += '<label class="bill-to-label" title="Send invoice to this person"><input type="checkbox" '+(rider.billTo!==false?'checked':'')+' onchange="toggleBillTo('+hi+','+ri+',this.checked)"> Invoice</label>';
+      if(showInvoice) html += '<label class="bill-to-label" title="Include in invoice"><input type="checkbox" '+(rider.billTo!==false?'checked':'')+' onchange="toggleBillTo('+hi+','+ri+',this.checked)"> Invoice</label>';
       html += '<button class="rider-remove-btn" onclick="editRider('+hi+','+ri+')" title="Edit">Edit</button>';
       if(horse.riders.length > 1) {
         html += '<button class="rider-remove-btn" onclick="removeRider('+hi+','+ri+')" title="Remove rider">&#215;</button>';
@@ -1102,7 +1141,7 @@ function _renderOverview(wrap) {
       html += '<div class="rider-row" style="background:rgba(200,146,42,.05)">';
       html += '<div class="rider-row-info"><div class="rider-row-name">'+esc(horse.horseOwner)+' <span class="rider-row-role">· Owner</span></div></div>';
       html += '<div class="rider-row-actions">';
-      html += '<label class="bill-to-label" title="Send invoice to this person"><input type="checkbox" '+(horse.ownerBillTo?'checked':'')+' onchange="toggleOwnerBillTo('+hi+',this.checked)"> Invoice</label>';
+      if(showInvoice) html += '<label class="bill-to-label" title="Include in invoice"><input type="checkbox" '+(horse.ownerBillTo?'checked':'')+' onchange="toggleOwnerBillTo('+hi+',this.checked)"> Invoice</label>';
       html += '</div></div>';
     }
 
@@ -1426,9 +1465,11 @@ function renderSummary(wrap) {
   var html = '<div class="card"><div class="step-title">Review &amp; Submit</div>';
   html += '<div class="step-sub">Confirm your entry details. Payment is due at the show.</div></div>';
 
+  var totalSummaryPeople = 0;
+  SUBMISSION.horses.forEach(function(h){ totalSummaryPeople += h.riders.length; });
   SUBMISSION.horses.forEach(function(horse, hi) {
     horse.riders.forEach(function(rider, ri) {
-      if(rider.billTo === false) return;
+      if(totalSummaryPeople > 1 && rider.billTo === false) return;
       var name = (rider.riderFirst||'')+(rider.riderFirst&&rider.riderLast?' ':'')+( rider.riderLast||'');
       var selCls = getSelectedClasses(rider);
       var riderLines = buildRiderFeeLines(horse, rider);
@@ -1438,16 +1479,6 @@ function renderSummary(wrap) {
       html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">';
       html += '<div style="font-family:Oswald,sans-serif;color:var(--accent);font-size:1.05rem">'+esc(name||'Rider')+'</div>';
       html += '<div style="font-size:.8rem;color:var(--text2)">on '+esc(horse.horseName||'horse')+'</div></div>';
-      if(selCls.length > 0) {
-        html += '<div style="font-size:.75rem;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Classes</div>';
-        html += '<div style="margin-bottom:10px">';
-        selCls.forEach(function(c){
-          html += '<div style="font-size:.85rem;padding:3px 0;border-bottom:1px solid var(--border)">';
-          html += (c.class_number?'<span style="color:var(--text2)">'+esc(c.class_number)+'</span> — ':'')+esc(c.class_name);
-          html += '</div>';
-        });
-        html += '</div>';
-      }
       riderLines.forEach(function(l){
         html += '<div class="sum-line"><span>'+esc(l.desc)+'</span><span>'+(l.amt>=0?fmt$(l.amt):'−'+fmt$(-l.amt))+'</span></div>';
       });
