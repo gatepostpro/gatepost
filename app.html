@@ -4633,7 +4633,7 @@ function pgClasses(){
 
           +'</div>'
 
-          +'<span class="gs-backnum">'+(G.backNums[ri]||'—')+'</span>'
+          +(G.backNums[ri]?'<span class="gs-backnum">'+esc(String(G.backNums[ri]))+'</span>':'')
 
           +'<span class="gs-name">'+esc(e.name)+'</span>'
 
@@ -4665,6 +4665,20 @@ function pgClasses(){
 
 
 
+      // Score status
+      var _spData=G.scratchpad[key]||{};
+      var _inProg=Object.keys(_spData).filter(function(ri){ return _spData[ri]&&Object.keys(_spData[ri]).length; }).length;
+      var _posted=G.results.filter(function(r){
+        return r.discipline===cls.name&&(r.division||'')===(cls.division||'')&&(r.org||'CoWN')===(cls.org||'CoWN');
+      }).length;
+      var _scoreBadge='';
+      if(_posted>0&&_posted>=activeCount)
+        _scoreBadge='<span class="badge" style="background:rgba(46,213,115,.15);color:#2ed573;margin-left:2px">&#10003; All scored</span>';
+      else if(_posted>0)
+        _scoreBadge='<span class="badge" style="background:rgba(200,146,42,.15);color:var(--accent);margin-left:2px">'+_posted+'/'+activeCount+' scored</span>';
+      else if(_inProg>0)
+        _scoreBadge='<span class="badge b-blue" style="margin-left:2px">'+_inProg+' scoring&hellip;</span>';
+
       var safeKey=key.replace(/[^a-zA-Z0-9]/g,'_');
 
       var keyEscQ=key.replace(/'/g,"\\'");
@@ -4695,6 +4709,7 @@ function pgClasses(){
         +'<div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">'
 
         +'<span class="badge b-blue">'+activeCount+' going'+(scratchCount?' &middot; '+scratchCount+' scratched':'')+'</span>'
+        +_scoreBadge
 
         +'<button class="btn btn-dark btn-sm no-print" onclick="event.stopPropagation();openScoreEntry(\''+keyEscQ+'\')">&#9998; Scores</button>'
 
