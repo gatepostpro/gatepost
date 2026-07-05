@@ -16942,15 +16942,46 @@ async function boot(){
 
     console.error('Boot error:', err);
 
-    document.getElementById('show-pill').innerHTML =
+    var isNetwork = err.message && (err.message.indexOf('fetch')>=0 || err.message.indexOf('network')>=0 || err.message.indexOf('connect')>=0 || err.name==='TypeError');
 
-      '<div class="sp-name" style="color:var(--red)">Error loading show</div>'
+    // If we have cached entries, let the user keep working offline
+    var hasCachedEntries = G.entries.length > 0;
 
-      +'<div class="sp-meta">'+esc(err.message)+'</div>';
+    if(isNetwork && hasCachedEntries){
 
-    // Still show the app — just without data
+      G.showId = showId;
 
-    showPage('setup');
+      document.getElementById('show-pill').innerHTML =
+        '<div class="sp-name" style="color:var(--accent)">'+(G.cfg.showName||'Show')+'</div>'
+        +'<div class="sp-meta" style="color:#e74c3c">&#9888; Offline — cached data</div>';
+
+      // Show retry banner at top of page
+      var banner = document.createElement('div');
+      banner.id = 'offline-banner';
+      banner.style.cssText = 'background:#2d1a00;border-bottom:2px solid #e74c3c;padding:.55rem 1rem;display:flex;align-items:center;gap:.75rem;font-size:.85rem;color:#e74c3c;position:sticky;top:0;z-index:999';
+      banner.innerHTML = '&#9888; Can\'t reach the database ('+esc(err.message)+').'
+        +'&nbsp;&nbsp;<button class="btn btn-sm" onclick="window.location.reload()" style="background:#e74c3c;color:#fff;border:none;padding:.2rem .6rem;border-radius:4px;cursor:pointer">Retry</button>';
+      document.body.insertBefore(banner, document.body.firstChild);
+
+      var savedPage = localStorage.getItem('gp_lastpage_'+(showId||''));
+      var validPages = {entries:1,classes:1,tabs:1,stalls:1,results:1,publish:1,settings:1};
+      showPage((savedPage && validPages[savedPage]) ? savedPage : 'entries');
+
+    } else {
+
+      document.getElementById('show-pill').innerHTML =
+        '<div class="sp-name" style="color:var(--red)">Cannot connect</div>'
+        +'<div class="sp-meta">'+esc(err.message)+'</div>';
+
+      var pg = document.getElementById('page');
+      if(pg) pg.innerHTML = '<div class="card" style="margin:2rem auto;max-width:480px;text-align:center">'
+        +'<p style="color:var(--red);font-size:1.1rem;margin-bottom:.5rem">&#9888; Failed to connect to database</p>'
+        +'<p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem">'+esc(err.message)+'</p>'
+        +'<p style="color:var(--muted);font-size:.82rem;margin-bottom:1.25rem">Check your internet connection and that the Supabase project is active at <a href="https://supabase.com/dashboard" target="_blank" style="color:var(--accent)">supabase.com/dashboard</a>.</p>'
+        +'<button class="btn btn-accent" onclick="window.location.reload()" style="margin:0 auto">&#8635; Retry</button>'
+        +'</div>';
+
+    }
 
   }
 
