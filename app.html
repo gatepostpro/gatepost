@@ -941,6 +941,8 @@ var _pendingClassCols   = [];  // [{i, header, div, org, isCow}] — user-editab
 var _pendingCustomFields= [];  // [{name, col}] — extra columns to capture
 var _pendingAuditData   = null;// {headers, dataRows, ...} for re-render
 var _pendingMergeResult = null;// {unchanged, changed, added, missing} — set before merge preview
+var _riderDivExpanded  = {};   // key: rowIdx+'_'+ri+'_'+div → boolean; persists across modal re-renders
+var _riderExtraDivs    = {};   // key: rowIdx+'_'+ri → [div, ...]; divisions added via "+ add division"
 
 // Fields compared during re-import merge diff
 var _DIFF_FIELDS = [
@@ -2838,7 +2840,7 @@ function buildTabLines(entry){
 
       if(cls.org && cls.org !== 'CoWN') desc += ' ['+cls.org+']';
 
-      lines.push({desc:desc, amt:base+cowFee+jp, type:'class', isCow:isCow});
+      lines.push({desc:desc, amt:base+cowFee+jp, type:'class', isCow:isCow, classNum:cls.num});
 
     });
 
@@ -6320,8 +6322,13 @@ function pgTabs(){
       var hasSameHorse=!!sameHorseBadge[name];
       var badgeHtml=hasSameHorse?'<span style="font-size:.62rem;margin-left:.35rem;padding:1px 5px;border-radius:3px;background:rgba(200,146,42,.18);color:var(--accent);cursor:help" title="Same horse as another rider — consider merging tabs">&#9660; same horse</span>':'';
       var nEsc=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      // Show responsible party if any entry has one that differs from rider name
+      var _billedNames = [...new Set(entries.map(function(e){ return e.billedTo||e.name; }).filter(function(n){ return n!==name; }))];
+      var _billedBadge = _billedNames.length
+        ? '<div style="font-size:.7rem;color:var(--muted);font-weight:400;margin-top:1px">Billed to: <span style="color:var(--text)">'+esc(_billedNames.join(', '))+'</span></div>'
+        : '';
       t+='<tr>'
-        +'<td class="bold" style="cursor:pointer" onclick="showTabModalByIdx('+refIdx+')">'+esc(name)+badgeHtml+'</td>'
+        +'<td class="bold" style="cursor:pointer" onclick="showTabModalByIdx('+refIdx+')">'+esc(name)+badgeHtml+_billedBadge+'</td>'
         +'<td class="small">'+esc(horses)+'</td>'
         +'<td class="ctr">'+entries.length+'</td>'
         +'<td>'+fmt$(owed)+'</td>'
@@ -12909,58 +12916,188 @@ function showEntryModal(rowIdx){
 
 
     // Riders tab content
+    // Block key format: "org|div" (e.g. "CoWN|Open") so same-named divisions from different orgs stay separate
+    var _allDivOpts = Array.from(new Set(G.cfg.classes.map(function(c){
+      return (c.org||'CoWN')+'|'+(c.division||'');
+    }).filter(function(k){ return k !== '|' && k.split('|')[1]; })));
 
-    var riderHTML = riders.map(function(r, ri){
+    // Helper: parse org|div key → display label "Open · CoWN"
+    function _divLabel(orgDiv){
+      var p = orgDiv.indexOf('|');
+      var org = p>=0 ? orgDiv.slice(0,p) : '';
+      var div = p>=0 ? orgDiv.slice(p+1) : orgDiv;
+      return div + (org ? ' · '+org : '');
+    }
 
-      return '<div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid var(--border)">'
+    var riderHTML = '';
 
-        +'<div style="flex:1"><div class="bold" style="font-size:.85rem">'+esc(r.name)+'</div>'
+    riders.forEach(function(r, ri){
+      var rKey = rowIdx+'_'+ri;
 
-        +'<div class="small">'+esc(r.division||'')+(r.isPrimary?' · Primary':'')+'</div></div>'
+      // Classes assigned to this rider
+      var assigned = (entry.classes||[]).filter(function(c){
+        return c.status !== 'scratched' && (
+          c.rider === r.name || (r.isPrimary && (!c.rider || c.rider === entry.name))
+        );
+      });
 
+      // Blocks keyed by "org|div"
+      var assignedOrgDivs = Array.from(new Set(assigned.map(function(c){
+        return (c.org||'CoWN')+'|'+(c.division||'');
+      }).filter(function(k){ return k.split('|')[1]; })));
+
+      // Rider's stored division may be "org|div" (new) or bare "div" (legacy)
+      if(r.division){
+        var rdKey = r.division.indexOf('|')>=0 ? r.division : (r.divOrg||'CoWN')+'|'+r.division;
+        if(rdKey.split('|')[1] && assignedOrgDivs.indexOf(rdKey)<0) assignedOrgDivs.push(rdKey);
+      }
+      (_riderExtraDivs[rKey]||[]).forEach(function(k){ if(assignedOrgDivs.indexOf(k)<0) assignedOrgDivs.push(k); });
+
+      riderHTML += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.75rem;margin-bottom:.5rem">';
+
+      // Name + badge/remove
+      riderHTML += '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem">'
+        +'<strong style="flex:1;font-size:.88rem">'+esc(r.name)+'</strong>'
         +(r.isPrimary
-
           ? '<span class="badge b-gold">Primary</span>'
-
           : '<button class="btn btn-red btn-sm" onclick="removeRider('+rowIdx+','+ri+')">Remove</button>')
-
         +'</div>';
 
-    }).join('');
+      if(!assignedOrgDivs.length){
+        riderHTML += '<div style="font-size:.8rem;color:var(--muted);margin-bottom:.4rem">No division selected. Add one below.</div>';
+      }
 
+      assignedOrgDivs.forEach(function(orgDiv){
+        var expKey = rKey+'_'+orgDiv;
+        if(_riderDivExpanded[expKey] === undefined){
+          _riderDivExpanded[expKey] = assigned.some(function(c){
+            return (c.org||'CoWN')+'|'+(c.division||'') === orgDiv;
+          });
+        }
+        var isExp = _riderDivExpanded[expKey];
 
+        // Parse org and div from key
+        var pipeIdx = orgDiv.indexOf('|');
+        var blockOrg = pipeIdx>=0 ? orgDiv.slice(0,pipeIdx) : 'CoWN';
+        var blockDiv = pipeIdx>=0 ? orgDiv.slice(pipeIdx+1) : orgDiv;
 
-    // Get all unique divisions from classes for datalist
+        var divClasses = G.cfg.classes.filter(function(c){
+          return (c.org||'CoWN')===blockOrg && (c.division||'')===blockDiv;
+        });
+        var checkedNums = assigned.filter(function(c){
+          return (c.org||'CoWN')===blockOrg && (c.division||'')===blockDiv;
+        }).map(function(c){ return String(c.num); });
+        var allChk = divClasses.length>0 && divClasses.every(function(c){ return checkedNums.indexOf(String(c.num))>=0; });
+        var hasAssigned = checkedNums.length > 0;
+        var label = _divLabel(orgDiv);
+        var odEscJs = orgDiv.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 
-    var divOptions = Array.from(new Set(G.cfg.classes.map(function(c){ return c.division||''; }).filter(Boolean)));
+        riderHTML += '<div style="border:1px solid var(--border);border-radius:6px;margin-bottom:.35rem;overflow:hidden">';
 
+        // Block header
+        riderHTML += '<div style="display:flex;align-items:center;gap:.4rem;padding:.4rem .6rem;background:var(--card);cursor:pointer" onclick="toggleRiderDivBlock('+rowIdx+','+ri+',\''+odEscJs+'\')">'
+          +'<span style="flex:1;font-size:.83rem;font-weight:600">'+esc(label)+'</span>';
+        if(checkedNums.length>0){
+          riderHTML += '<span class="badge b-gray" style="font-size:.71rem">'+checkedNums.length+'/'+divClasses.length+'</span>';
+        }
+        riderHTML += '<span style="color:var(--muted);font-size:.9rem;width:1rem;text-align:center">'+(isExp?'−':'+')+'</span>';
+        if(!hasAssigned){
+          riderHTML += '<button class="btn btn-sm" style="padding:.1rem .35rem;font-size:.72rem;background:transparent;border:none;color:var(--muted);line-height:1" onclick="event.stopPropagation();removeRiderDivBlock('+rowIdx+','+ri+',\''+odEscJs+'\')">✕</button>';
+        }
+        riderHTML += '</div>';
 
+        // Expanded class list
+        if(isExp){
+          riderHTML += '<div style="padding:.45rem .6rem;background:var(--bg)">';
+          riderHTML += '<label style="display:flex;align-items:center;gap:.5rem;padding:.18rem 0;border-bottom:1px solid var(--border);margin-bottom:.2rem;cursor:pointer;font-size:.82rem;font-weight:600">'
+            +'<input type="checkbox"'+(allChk?' checked':'')+' onchange="toggleRiderAllInDiv('+rowIdx+','+ri+',\''+odEscJs+'\',this.checked)"> All</label>';
+          if(!divClasses.length){
+            riderHTML += '<div style="font-size:.8rem;color:var(--muted)">No classes configured for this division</div>';
+          } else {
+            divClasses.forEach(function(c){
+              var isChk = checkedNums.indexOf(String(c.num)) >= 0;
+              riderHTML += '<label style="display:flex;align-items:center;gap:.45rem;padding:.18rem 0;cursor:pointer">'
+                +'<input type="checkbox"'+(isChk?' checked':'')+' onchange="toggleRiderClass('+rowIdx+','+ri+','+JSON.stringify(String(c.num))+',this.checked)">'
+                +'<span class="badge b-gray" style="font-size:.71rem">'+esc(String(c.num))+'</span>'
+                +'<span style="font-size:.81rem;flex:1">'+esc(c.name)+'</span>'
+                +(c.isCow ? '<span style="font-size:.7rem;color:var(--accent)">cattle fee</span>' : '')
+                +'</label>';
+            });
+          }
+          riderHTML += '</div>';
+        }
 
+        riderHTML += '</div>';
+      });
+
+      // Add another division picker
+      var availODs = _allDivOpts.filter(function(k){ return assignedOrgDivs.indexOf(k)<0; });
+      if(availODs.length){
+        riderHTML += '<div style="display:flex;align-items:center;gap:.4rem;margin-top:.3rem">'
+          +'<select id="rdiv-add-'+rKey+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.28rem .45rem;font-size:.79rem;flex:1">'
+          +'<option value="">+ add classes in another division…</option>'
+          +availODs.map(function(k){ return '<option value="'+esc(k)+'">'+esc(_divLabel(k))+'</option>'; }).join('')
+          +'</select>'
+          +'<button class="btn btn-sm" style="border:1px solid var(--accent);color:var(--accent);background:transparent;padding:.28rem .6rem;font-size:.79rem;border-radius:5px;white-space:nowrap" onclick="addRiderDivBlock('+rowIdx+','+ri+',\'rdiv-add-'+rKey+'\')">Add</button>'
+          +'</div>';
+      }
+
+      riderHTML += '</div>';
+    });
+
+    // Add rider form — division select value is "org|div" format
     riderHTML += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-top:.75rem">'
-
       +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Add a rider to this horse</div>'
-
       +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;align-items:flex-end">'
-
       +'<div class="form-group"><label>First Name</label><input type="text" id="nrf" placeholder="First" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.82rem;width:100%"></div>'
-
       +'<div class="form-group"><label>Last Name</label><input type="text" id="nrl" placeholder="Last" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.82rem;width:100%"></div>'
-
-      +'<div class="form-group"><label>Division</label><input type="text" id="nrd" placeholder="e.g. Open" list="rider-div-opts" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.82rem;width:100%">'
-
-      +'<datalist id="rider-div-opts">'+divOptions.map(function(d){ return '<option value="'+esc(d)+'">'; }).join('')+'</datalist></div>'
-
+      +'<div class="form-group"><label>Division</label>'
+      +'<select id="nrd" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.82rem;width:100%">'
+      +'<option value="">— select —</option>'
+      +_allDivOpts.map(function(k){ return '<option value="'+esc(k)+'">'+esc(_divLabel(k))+'</option>'; }).join('')
+      +'</select></div>'
       +'<button class="btn btn-accent btn-sm" style="margin-bottom:1px" onclick="addRider('+rowIdx+')">Add</button>'
-
       +'</div></div>';
 
 
 
     // Fees tab content
 
-    var feesHTML = '';
+    // ── Responsible Party section ──
+    var _billerOpts = [];
+    _billerOpts.push({val: entry.name, label: entry.name + ' (Primary Rider)'});
+    if(entry.horseOwner && entry.horseOwner.trim() && entry.horseOwner.trim().toLowerCase() !== (entry.name||'').toLowerCase()){
+      _billerOpts.push({val: entry.horseOwner.trim(), label: entry.horseOwner.trim() + ' (Horse Owner)'});
+    }
+    (entry.riders||[]).forEach(function(r){
+      if(!r.isPrimary && r.name && r.name !== entry.name){
+        if(!_billerOpts.find(function(o){ return o.val===r.name; }))
+          _billerOpts.push({val:r.name, label:r.name+' (Rider)'});
+      }
+    });
+    var _curBiller = entry.billedTo || entry.name;
+    var _isCustomBiller = !_billerOpts.find(function(o){ return o.val===_curBiller; });
 
+    var _rpSelStyle = 'background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.32rem .5rem;font-size:.82rem;flex:1';
 
+    var feesHTML = '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.6rem .75rem;margin-bottom:.65rem">'
+      +'<div style="font-size:.72rem;color:var(--accent);font-family:Oswald;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">Responsible Party</div>'
+      +'<div style="display:flex;align-items:center;gap:.4rem">'
+      +'<select id="billed-to-sel-'+rowIdx+'" style="'+_rpSelStyle+'" onchange="setBilledTo('+rowIdx+',this.value)">'
+      +_billerOpts.map(function(o){
+        return '<option value="'+esc(o.val)+'"'+(!_isCustomBiller&&o.val===_curBiller?' selected':'')+'>'+esc(o.label)+'</option>';
+      }).join('')
+      +'<option value="__custom__"'+(_isCustomBiller?' selected':'')+'>Custom name…</option>'
+      +'</select>'
+      +'</div>'
+      +(_isCustomBiller
+        ? '<input type="text" id="billed-to-custom-'+rowIdx+'" value="'+esc(_curBiller)+'" placeholder="Enter name" '
+          +'style="'+_rpSelStyle+';margin-top:.35rem;width:100%;box-sizing:border-box" '
+          +'onblur="setBilledToCustom('+rowIdx+',this.value)" onkeydown="if(event.key===\'Enter\')setBilledToCustom('+rowIdx+',this.value)">'
+        : '<div id="billed-to-custom-'+rowIdx+'" style="display:none"><input type="text" placeholder="Enter name" '
+          +'style="'+_rpSelStyle+';margin-top:.35rem;width:100%;box-sizing:border-box" '
+          +'onblur="setBilledToCustom('+rowIdx+',this.value)" onkeydown="if(event.key===\'Enter\')setBilledToCustom('+rowIdx+',this.value)"></div>')
+      +'</div>';
 
     // Membership
 
@@ -12976,9 +13113,10 @@ function showEntryModal(rowIdx){
 
 
 
-    // Classes
-
+    // Classes — with per-class billed-to selector
     var classLines = lines.filter(function(l){ return l.type==='class'; });
+    var _classBilling = entry.classBilling || {};
+    var _hasSplitBilling = classLines.some(function(l){ return _classBilling[String(l.classNum)] && _classBilling[String(l.classNum)] !== _curBiller; });
 
     if(classLines.length){
 
@@ -12986,24 +13124,29 @@ function showEntryModal(rowIdx){
 
         +'<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Classes</div>'
 
-        +'<span style="font-size:.7rem;color:var(--muted)">click amt to waive</span></div>';
+        +'<span style="font-size:.7rem;color:var(--muted)">click $ to waive · click name to reassign</span></div>';
 
       classLines.forEach(function(l){
+        var cBiller = _classBilling[String(l.classNum)] || _curBiller;
+        var diffBiller = cBiller !== _curBiller;
+        // Build a small inline biller selector (hidden until hovered, always visible if different)
+        var billerSelId = 'cbl-'+rowIdx+'-'+String(l.classNum);
+        var billerSelHtml = '<select id="'+billerSelId+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:1px 3px;font-size:.72rem;max-width:130px" onchange="setClassBilledTo('+rowIdx+','+JSON.stringify(String(l.classNum))+',this.value)">'
+          +_billerOpts.map(function(o){
+            return '<option value="'+esc(o.val)+'"'+(o.val===cBiller?' selected':'')+'>'+esc(o.val)+'</option>';
+          }).join('')
+          +'</select>';
 
-        feesHTML += '<div class="tab-line"><span>'+esc(l.desc)+'</span>'
-
+        feesHTML += '<div class="tab-line"><span style="display:flex;align-items:center;gap:.35rem;flex:1;flex-wrap:wrap">'+esc(l.desc)
+          +(diffBiller ? '<span style="font-size:.7rem;color:var(--accent);background:rgba(200,146,42,.1);border:1px solid rgba(200,146,42,.3);border-radius:3px;padding:0 4px">→ '+esc(cBiller)+'</span>' : '')
+          +'</span>'
           +'<span style="display:flex;align-items:center;gap:.35rem">'
-
+          +(_billerOpts.length > 1 ? billerSelHtml : '')
           +'<span class="waive-amt" style="cursor:pointer;color:var(--text);padding:1px 4px;border-radius:3px;border:1px solid transparent" '
-
           +'data-rowidx="'+rowIdx+'" data-desc="'+esc(l.desc)+'" data-amt="'+l.amt+'" '
-
           +'title="Click to add a waiver or override for this class" '
-
           +'onmouseenter="this.style.borderColor=\'var(--border2)\'" onmouseleave="this.style.borderColor=\'transparent\'">'
-
           +fmt$(l.amt)+'</span>'
-
           +'</span></div>';
 
       });
@@ -13069,9 +13212,28 @@ function showEntryModal(rowIdx){
 
     feesHTML += '<div style="margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border)">'
 
-      +'<button class="btn btn-dark btn-sm" onclick="showAddOrgFee('+rowIdx+')">+ Add Fee / Discount</button></div>'
+      +'<button class="btn btn-dark btn-sm" onclick="showAddOrgFee('+rowIdx+')">+ Add Fee / Discount</button></div>';
 
-      +'<div class="tab-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
+    // Per-payer sub-totals (only shown when classes are split across payers)
+    if(_hasSplitBilling && classLines.length > 1){
+      var _payerTotals = {};
+      classLines.forEach(function(l){
+        var p = _classBilling[String(l.classNum)] || _curBiller;
+        _payerTotals[p] = (_payerTotals[p]||0) + l.amt;
+      });
+      var _payerNames = Object.keys(_payerTotals);
+      if(_payerNames.length > 1){
+        feesHTML += '<div style="margin:.4rem 0;padding:.4rem .5rem;background:rgba(200,146,42,.06);border:1px solid rgba(200,146,42,.2);border-radius:6px">'
+          +'<div style="font-size:.72rem;color:var(--accent);font-family:Oswald;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem">Class fees by payer</div>';
+        _payerNames.forEach(function(p){
+          feesHTML += '<div style="display:flex;justify-content:space-between;font-size:.8rem;padding:.15rem 0">'
+            +'<span>'+esc(p)+'</span><span>'+fmt$(_payerTotals[p])+'</span></div>';
+        });
+        feesHTML += '</div>';
+      }
+    }
+
+    feesHTML += '<div class="tab-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
 
       +'<div class="pay-status">'
 
@@ -14304,11 +14466,11 @@ function addRider(rowIdx){
 
   if(!e) return;
 
-  var first = (document.getElementById('new-rider-first')||{value:''}).value.trim();
+  var first = (document.getElementById('nrf')||{value:''}).value.trim();
 
-  var last  = (document.getElementById('new-rider-last')||{value:''}).value.trim();
+  var last  = (document.getElementById('nrl')||{value:''}).value.trim();
 
-  var div   = (document.getElementById('new-rider-div')||{value:''}).value.trim();
+  var div   = (document.getElementById('nrd')||{value:''}).value.trim();
 
   if(!first||!last){ toast('Enter first and last name', true); return; }
 
@@ -14317,6 +14479,11 @@ function addRider(rowIdx){
   if(!e.riders) e.riders = [{name:e.name, division:e.division, isPrimary:true}];
 
   e.riders.push({name:name, division:div, isPrimary:false});
+
+  var newRiIdx = e.riders.length - 1;
+  if(div) _riderDivExpanded[rowIdx+'_'+newRiIdx+'_'+div] = true;
+
+  saveEntriesToStorage();
 
   toast('Added rider: '+name);
 
@@ -14334,11 +14501,140 @@ function removeRider(rowIdx, riderIdx){
 
   e.riders.splice(riderIdx,1);
 
+  saveEntriesToStorage();
+
   if(G._rebuildEntryModal) G._rebuildEntryModal();
 
 };
 
 
+
+window.toggleRiderDivBlock = function(rowIdx, ri, div){
+  var k = rowIdx+'_'+ri+'_'+div;
+  _riderDivExpanded[k] = !_riderDivExpanded[k];
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
+window.addRiderDivBlock = function(rowIdx, ri, selId){
+  var div = (document.getElementById(selId)||{value:''}).value;
+  if(!div) return;
+  var k = rowIdx+'_'+ri;
+  if(!_riderExtraDivs[k]) _riderExtraDivs[k] = [];
+  if(_riderExtraDivs[k].indexOf(div) < 0) _riderExtraDivs[k].push(div);
+  _riderDivExpanded[k+'_'+div] = true;
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
+window.removeRiderDivBlock = function(rowIdx, ri, div){
+  var k = rowIdx+'_'+ri;
+  var ed = _riderExtraDivs[k]||[];
+  var idx = ed.indexOf(div);
+  if(idx >= 0) ed.splice(idx, 1);
+  delete _riderDivExpanded[k+'_'+div];
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
+window.toggleRiderClass = function(rowIdx, ri, classNum, checked){
+  var e = G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e) return;
+  var riders2 = e.riders || [{name:e.name, division:e.division, isPrimary:true}];
+  var rider = riders2[ri];
+  if(!rider) return;
+
+  var cfgCls = G.cfg.classes.find(function(c){ return String(c.num)===String(classNum); });
+  var isCow = cfgCls && cfgCls.isCow;
+  if(!e.classes) e.classes = [];
+
+  if(checked){
+    var existing = e.classes.find(function(c){ return String(c.num)===String(classNum) && c.status!=='scratched'; });
+    if(existing){
+      existing.rider = rider.name;
+    } else {
+      var scratched2 = e.classes.find(function(c){ return String(c.num)===String(classNum) && c.status==='scratched'; });
+      if(scratched2){
+        scratched2.status = 'active';
+        scratched2.rider  = rider.name;
+      } else {
+        var fee2 = cfgCls
+          ? ((cfgCls.baseFee||G.cfg.fees.classBase||0)
+             + (isCow ? (cfgCls.cowFee!=null ? cfgCls.cowFee : (G.cfg.fees.cowSurcharge||0)) : 0)
+             + (cfgCls.jackpot||0))
+          : 0;
+        e.classes.push({num:cfgCls?cfgCls.num:classNum, name:cfgCls?cfgCls.name:String(classNum),
+          division:cfgCls?(cfgCls.division||''):'', org:cfgCls?(cfgCls.org||'CoWN'):'CoWN',
+          isCow:!!isCow, fee:fee2, rider:rider.name, status:'active'});
+      }
+    }
+  } else {
+    var rmIdx = e.classes.findIndex(function(c){
+      return String(c.num)===String(classNum) && c.status!=='scratched' && (
+        c.rider===rider.name || (rider.isPrimary && (!c.rider || c.rider===e.name))
+      );
+    });
+    if(rmIdx >= 0){
+      var paid2 = typeof amtPaid==='function' && amtPaid(e) > 0;
+      var lateStr = G.cfg.fees && G.cfg.fees.lateDueDate;
+      var pastLate = lateStr && new Date() > new Date(lateStr);
+      if(isCow && (paid2 || pastLate)){
+        e.classes[rmIdx].status = 'scratched';
+        toast('Cattle fee retained — remove manually in billing if needed.');
+      } else {
+        e.classes.splice(rmIdx, 1);
+      }
+    }
+  }
+
+  saveEntriesToStorage();
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
+window.toggleRiderAllInDiv = function(rowIdx, ri, orgDiv, checked){
+  var e = G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e) return;
+  var riders2 = e.riders || [{name:e.name, division:e.division, isPrimary:true}];
+  var rider = riders2[ri];
+  if(!rider) return;
+
+  var pipeIdx = orgDiv.indexOf('|');
+  var blockOrg = pipeIdx>=0 ? orgDiv.slice(0,pipeIdx) : 'CoWN';
+  var blockDiv = pipeIdx>=0 ? orgDiv.slice(pipeIdx+1) : orgDiv;
+  var divClasses = G.cfg.classes.filter(function(c){ return (c.org||'CoWN')===blockOrg && (c.division||'')===blockDiv; });
+  var paid2 = typeof amtPaid==='function' && amtPaid(e) > 0;
+  var lateStr = G.cfg.fees && G.cfg.fees.lateDueDate;
+  var pastLate = lateStr && new Date() > new Date(lateStr);
+  var cowWarn = false;
+
+  if(!e.classes) e.classes = [];
+
+  divClasses.forEach(function(c){
+    var isCow = c.isCow;
+    if(checked){
+      var ex = e.classes.find(function(x){ return String(x.num)===String(c.num) && x.status!=='scratched'; });
+      if(ex){ ex.rider = rider.name; return; }
+      var sc = e.classes.find(function(x){ return String(x.num)===String(c.num) && x.status==='scratched'; });
+      if(sc){ sc.status='active'; sc.rider=rider.name; return; }
+      var fee2 = (c.baseFee||G.cfg.fees.classBase||0)
+        + (isCow ? (c.cowFee!=null ? c.cowFee : (G.cfg.fees.cowSurcharge||0)) : 0)
+        + (c.jackpot||0);
+      e.classes.push({num:c.num, name:c.name, division:c.division||'', org:c.org||'CoWN',
+        isCow:!!isCow, fee:fee2, rider:rider.name, status:'active'});
+    } else {
+      var rmIdx = e.classes.findIndex(function(x){
+        return String(x.num)===String(c.num) && x.status!=='scratched' && (
+          x.rider===rider.name || (rider.isPrimary && (!x.rider || x.rider===e.name))
+        );
+      });
+      if(rmIdx >= 0){
+        if(isCow && (paid2 || pastLate)){ e.classes[rmIdx].status='scratched'; cowWarn=true; }
+        else { e.classes.splice(rmIdx, 1); }
+      }
+    }
+  });
+
+  if(cowWarn) toast('Cattle fee retained for scratched cow classes — remove manually in billing if needed.');
+  saveEntriesToStorage();
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
 
 function saveEntryInfo(rowIdx){
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
@@ -14533,6 +14829,42 @@ function saveOrgFee(rowIdx){
 };
 
 
+
+window.setBilledTo = function(rowIdx, val){
+  var e = G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e) return;
+  // "Custom..." option selected — show text input inline, don't save yet
+  if(val === '__custom__'){
+    var inp = document.getElementById('billed-to-custom-'+rowIdx);
+    if(inp) inp.style.display = '';
+    return;
+  }
+  e.billedTo = val || e.name;
+  saveEntriesToStorage();
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
+window.setBilledToCustom = function(rowIdx, val){
+  var e = G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e) return;
+  e.billedTo = val.trim() || e.name;
+  saveEntriesToStorage();
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
+
+window.setClassBilledTo = function(rowIdx, classNum, val){
+  var e = G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e) return;
+  if(!e.classBilling) e.classBilling = {};
+  var defaultBiller = e.billedTo || e.name;
+  if(!val || val === defaultBiller){
+    delete e.classBilling[String(classNum)];
+  } else {
+    e.classBilling[String(classNum)] = val;
+  }
+  saveEntriesToStorage();
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
 
 function removeOrgFee(rowIdx, feeIdx){
 
