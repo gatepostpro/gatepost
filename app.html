@@ -6836,7 +6836,7 @@ function pgTabs(){
         +'<td style="color:var(--green)">'+fmt$(paid)+'</td>'
         +'<td class="bold" style="color:'+(isPaid?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</td>'
         +'<td>'+(isPaid?'<span class="badge b-green">Paid</span>':'<span class="badge b-red">Due</span>')+'</td>'
-        +'<td>'+(hasSameHorse?'<button class="btn btn-sm" style="font-size:.68rem;background:rgba(200,146,42,.12);border:1px solid rgba(200,146,42,.3);color:var(--accent)" onclick="event.stopPropagation();promptMergeForRider(\''+nEsc+'\')">Merge</button>':'')+'</td>'
+        +'<td></td>'
         +'</tr>';
       // Own horse sub-rows — rider is already the parent row; show horse + class badges
       entries.forEach(function(e){
