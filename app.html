@@ -334,6 +334,16 @@ details>summary{color:var(--muted);font-size:.82rem;cursor:pointer;list-style:no
 
 .at-apha{background:rgba(142,68,173,.15);color:#a569bd}
 
+.at-vrh{background:rgba(39,174,96,.15);color:#58d68d}
+
+.at-aphc{background:rgba(231,76,60,.15);color:#e98880}
+
+.at-nrha{background:rgba(52,152,219,.12);color:#85c1e9}
+
+.at-whsr{background:rgba(0,128,128,.15);color:#45b7b7}
+
+.at-nrcha{background:rgba(155,89,182,.12);color:#c39bd3}
+
 .at-other{background:rgba(154,143,126,.1);color:var(--muted)}
 
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:150}
@@ -608,6 +618,10 @@ var G = {
 
   billingGroups: [], // [{id, payerName, responsibleKey, entryKeys:['Rider|Horse',...], notes}]
 
+  riderStalls: {},   // {riderName: {stall1qty,stall2qty,stall3qty,stallCircuit,shavings,rv1qty,rv2qty,rvCircuit,stallingPkg,rvPkg,stallNote,stallingArrival,rvArrival,haulinQty}}
+
+  horsePrimary: {},  // {canonicalHorse: riderName} — designated billing-primary per horse; settable from Riders tab
+
   horseAliases: {},  // {normKey: canonicalSpelling} — Cognito spelling wins
 
   horseDistinct: {}, // {entryKey: 'normKey_N'} — disambiguates same-name horses that are different animals
@@ -723,21 +737,27 @@ function detectOrg(h){
 
 
 function assocTags(raw){
-
   var s = String(raw||'');
-
   var out = '';
-
   if(/cown/i.test(s)) out += '<span class="assoc-tag at-cown">CoWN</span>';
-
-  if(/aqha/i.test(s)) out += '<span class="assoc-tag at-aqha">AQHA</span>';
-
-  if(/apha/i.test(s)) out += '<span class="assoc-tag at-apha">APHA</span>';
-
+  if(/\bvrh\b/i.test(s)) out += '<span class="assoc-tag at-vrh">VRH</span>';
+  if(/\baqha\b/i.test(s)) out += '<span class="assoc-tag at-aqha">AQHA</span>';
+  if(/\bapha\b/i.test(s)) out += '<span class="assoc-tag at-apha">APHA</span>';
+  if(/\baphc\b/i.test(s)) out += '<span class="assoc-tag at-aphc">ApHC</span>';
+  if(/\bnrcha\b/i.test(s)) out += '<span class="assoc-tag at-nrcha">NRCHA</span>';
+  if(/\bnrha\b/i.test(s)) out += '<span class="assoc-tag at-nrha">NRHA</span>';
+  if(/\bwhsr\b/i.test(s)) out += '<span class="assoc-tag at-whsr">WHSR</span>';
   if(!out && s.trim()) out = '<span class="assoc-tag at-other">'+esc(s.substring(0,20))+'</span>';
-
   return out || '<span class="badge b-gray">—</span>';
+}
 
+function _entryOrgsStr(e){
+  var orgs=[];
+  (e.classes||[]).forEach(function(c){
+    if(c.org && orgs.indexOf(c.org)<0) orgs.push(c.org);
+  });
+  if(!orgs.length && e.assocRaw) return e.assocRaw;
+  return orgs.join(' ');
 }
 
 
@@ -972,6 +992,9 @@ var _DIFF_FIELDS = [
 
 function _normStr(s){ return String(s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
 
+// Wrap a string in single quotes for use inside a double-quoted HTML event attribute
+function _sq(s){ return '\''+String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\''}
+
 // Rough string similarity (0–1); 1 = identical, 0 = no overlap
 function _strSim(a, b) {
   a = _normStr(a); b = _normStr(b);
@@ -1186,6 +1209,7 @@ window.commitMergeImport = function(){
     localStorage.setItem('gp_entries_'+G.showId, JSON.stringify(G.entries));
     localStorage.setItem('gp_payments_'+G.showId, JSON.stringify(G.payments));
     localStorage.setItem('gp_backnums_'+G.showId, JSON.stringify(G.backNums));
+    localStorage.setItem('gp_riderstalls_'+G.showId, JSON.stringify(G.riderStalls||{}));
   } catch(ex){}
 
   var spn=document.getElementById('pill-name'), spm=document.getElementById('pill-meta');
@@ -1540,6 +1564,7 @@ function commitEntriesImport(){
       localStorage.setItem('gp_entries_'+G.showId, JSON.stringify(G.entries));
       localStorage.setItem('gp_payments_'+G.showId, JSON.stringify(G.payments));
       localStorage.setItem('gp_backnums_'+G.showId, JSON.stringify(G.backNums));
+      localStorage.setItem('gp_riderstalls_'+G.showId, JSON.stringify(G.riderStalls||{}));
     } catch(ex){}
 
     if(!G.cfg.classes.length){
@@ -2740,6 +2765,45 @@ window.commitResultsImport=function(){
 
 
 
+// Rename all occurrences of oldName → newName across entries, payments, stalls, and billing refs.
+// Called from the "Possible name duplicates" banner in Checkout.
+window.renameRiderName = function(oldName, newName){
+  if(!oldName||!newName||_normStr(oldName)===_normStr(newName)) return;
+  var nn = _normStr(oldName);
+  G.entries.forEach(function(e){
+    // Migrate payment + payment-history keys when this entry's rider is renamed
+    if(_normStr(e.name)===nn){
+      var oldKey = e.name+'|'+e.horse;
+      e.name = newName;
+      var newKey = newName+'|'+e.horse;
+      if(oldKey!==newKey){
+        if(G.payments[oldKey]!==undefined){ G.payments[newKey]=(G.payments[newKey]||0)+G.payments[oldKey]; delete G.payments[oldKey]; }
+        if(G.paymentHistory&&G.paymentHistory[oldKey]){
+          G.paymentHistory[newKey]=(G.paymentHistory[newKey]||[]).concat(G.paymentHistory[oldKey]);
+          delete G.paymentHistory[oldKey];
+        }
+      }
+    }
+    // Update billedTo references
+    if(_normStr(e.billedTo||'')===nn) e.billedTo = newName;
+    // Update riders array
+    (e.riders||[]).forEach(function(r){ if(_normStr(r.name)===nn) r.name=newName; });
+    // Update per-class rider assignments
+    (e.classes||[]).forEach(function(c){ if(_normStr(c.rider||'')===nn) c.rider=newName; });
+  });
+  // Rename stall record key
+  if(G.riderStalls){
+    var stallKey = Object.keys(G.riderStalls).find(function(k){ return _normStr(k)===nn; });
+    if(stallKey && stallKey!==newName){
+      G.riderStalls[newName] = G.riderStalls[stallKey];
+      delete G.riderStalls[stallKey];
+    }
+  }
+  saveEntriesToStorage();
+  pgTabs();
+  toast('Renamed "'+oldName+'" → "'+newName+'"');
+};
+
 function saveEntriesToStorage(){
 
   if(!G.showId) return;
@@ -2757,6 +2821,10 @@ function saveEntriesToStorage(){
     localStorage.setItem('gp_scratches_'+G.showId, JSON.stringify(G.scratches||{}));
 
     localStorage.setItem('gp_fullscratches_'+G.showId, JSON.stringify(G.fullScratches||[]));
+
+    localStorage.setItem('gp_riderstalls_'+G.showId, JSON.stringify(G.riderStalls||{}));
+
+    localStorage.setItem('gp_horseprimary_'+G.showId, JSON.stringify(G.horsePrimary||{}));
 
     saveBillingData();
 
@@ -2840,7 +2908,10 @@ function buildTabLines(entry){
 
       if(cls.org && cls.org !== 'CoWN') desc += ' ['+cls.org+']';
 
-      lines.push({desc:desc, amt:base+cowFee+jp, type:'class', isCow:isCow, classNum:cls.num});
+      var _clsRider=(entry.riders&&entry.riders.length>1)
+        ?(cls.rider||(entry.riders.find(function(r){return r.isPrimary;})||entry.riders[0]).name)
+        :entry.name;
+      lines.push({desc:desc, amt:base+cowFee+jp, type:'class', isCow:isCow, classNum:cls.num, rider:_clsRider});
 
     });
 
@@ -2879,23 +2950,7 @@ function buildTabLines(entry){
     });
   }
 
-  // Stalling
-
-  if((entry.haulinQty||0) > 0) lines.push({desc:feeLabel('haulin')+' × '+entry.haulinQty, amt:(f.haulin||0)*entry.haulinQty, type:'stall'});
-
-  if(entry.stall1qty > 0) lines.push({desc:feeLabel('stall1')+' × '+entry.stall1qty, amt:f.stall1*entry.stall1qty, type:'stall'});
-
-  if(entry.stall2qty > 0) lines.push({desc:feeLabel('stall2')+' × '+entry.stall2qty, amt:f.stall2*entry.stall2qty, type:'stall'});
-
-  if(entry.stall3qty > 0) lines.push({desc:feeLabel('stall3')+' × '+entry.stall3qty, amt:f.stall3*entry.stall3qty, type:'stall'});
-
-  if(entry.shavings  > 0) lines.push({desc:feeLabel('shavings')+' × '+entry.shavings, amt:f.shavings*entry.shavings, type:'stall'});
-
-  if(entry.rv1qty    > 0) lines.push({desc:feeLabel('rv1')+' × '+entry.rv1qty, amt:f.rv1*entry.rv1qty, type:'rv'});
-
-  if(entry.rv2qty    > 0) lines.push({desc:feeLabel('rv2')+' × '+entry.rv2qty, amt:f.rv2*entry.rv2qty, type:'rv'});
-
-  if(entry.rvCircuit > 0) lines.push({desc:feeLabel('rvCircuit')+' × '+entry.rvCircuit, amt:f.rvCircuit*entry.rvCircuit, type:'rv'});
+  // Stalling lines live in buildRiderStallLines(name), not here — stalls are rider-level, not horse/entry-level
 
   // Late fee captured at import or set on entry
   if((entry.lateFee||0) > 0) lines.push({desc:feeLabel('late'), amt:entry.lateFee, type:'office'});
@@ -2958,6 +3013,91 @@ function buildTabLines(entry){
 
 
 function tabTotal(entry){ return buildTabLines(entry).reduce(function(s,l){ return s+l.amt; },0); }
+
+// Stall lines for a rider — pulled from G.riderStalls, NOT from entry fields
+function buildRiderStallLines(riderName){
+  // Case-insensitive key lookup so 'john smith' and 'John Smith' share one stall record
+  var rn = _normStr(riderName);
+  var stallKey = Object.keys(G.riderStalls||{}).find(function(k){ return _normStr(k)===rn; }) || riderName;
+  var rs = (G.riderStalls && G.riderStalls[stallKey]) || {};
+  var f  = G.cfg.fees || {};
+  var lines = [];
+  if((rs.haulinQty||0) > 0) lines.push({desc:feeLabel('haulin')+' \xd7 '+rs.haulinQty, amt:(f.haulin||0)*rs.haulinQty, type:'stall'});
+  var stallPkgs = G.cfg.stallingPackages || [];
+  if(rs.stallingPkg && stallPkgs.length){
+    var pkg=stallPkgs.find(function(p){ return (p.id||p.label)===rs.stallingPkg; });
+    if(pkg) lines.push({desc:pkg.label, amt:+(pkg.price||0), type:'stall'});
+  } else {
+    if((rs.stall1qty||0) > 0) lines.push({desc:feeLabel('stall1')+' \xd7 '+rs.stall1qty, amt:(f.stall1||0)*rs.stall1qty, type:'stall'});
+    if((rs.stall2qty||0) > 0) lines.push({desc:feeLabel('stall2')+' \xd7 '+rs.stall2qty, amt:(f.stall2||0)*rs.stall2qty, type:'stall'});
+    if((rs.stall3qty||0) > 0) lines.push({desc:feeLabel('stall3')+' \xd7 '+rs.stall3qty, amt:(f.stall3||0)*rs.stall3qty, type:'stall'});
+    if((rs.stallCircuit||0) > 0) lines.push({desc:feeLabel('stallCircuit')+' \xd7 '+rs.stallCircuit, amt:(f.stallCircuit||0)*rs.stallCircuit, type:'stall'});
+    if((rs.shavings||0) > 0) lines.push({desc:feeLabel('shavings')+' \xd7 '+rs.shavings, amt:(f.shavings||0)*rs.shavings, type:'stall'});
+  }
+  var rvPkgs = G.cfg.rvPackages || [];
+  if(rs.rvPkg && rvPkgs.length){
+    var rp=rvPkgs.find(function(p){ return (p.id||p.label)===rs.rvPkg; });
+    if(rp) lines.push({desc:rp.label, amt:+(rp.price||0), type:'rv'});
+  } else {
+    if((rs.rv1qty||0) > 0) lines.push({desc:feeLabel('rv1')+' \xd7 '+rs.rv1qty, amt:(f.rv1||0)*rs.rv1qty, type:'rv'});
+    if((rs.rv2qty||0) > 0) lines.push({desc:feeLabel('rv2')+' \xd7 '+rs.rv2qty, amt:(f.rv2||0)*rs.rv2qty, type:'rv'});
+    if((rs.rvCircuit||0) > 0) lines.push({desc:feeLabel('rvCircuit')+' \xd7 '+rs.rvCircuit, amt:(f.rvCircuit||0)*rs.rvCircuit, type:'rv'});
+  }
+  return lines;
+}
+
+// Total owed by a rider = all entry fees + rider-level stall fees
+function riderOwed(name){
+  // All comparisons are case-insensitive so 'john smith' and 'John Smith' are treated as one person
+  var nn = _normStr(name);
+  var gK={};
+  (G.billingGroups||[]).forEach(function(g){g.entryKeys.forEach(function(k){gK[k]=1;});});
+  var paying=G.entries.filter(function(e){
+    if(gK[entryKey(e)]) return false;
+    var en=_normStr(e.name), eb=_normStr(e.billedTo||e.name);
+    return (en===nn && eb===nn) || (en!==nn && eb===nn);
+  });
+  var total=paying.reduce(function(s,e){ return s+tabTotal(e); },0);
+  // Sub-rider: classes on OTHER entries where cls.rider matches name
+  G.entries.forEach(function(e){
+    if(gK[entryKey(e)]) return;
+    if(_normStr(e.name)===nn) return;
+    if(_normStr(e.billedTo||'')===nn) return;
+    buildTabLines(e).forEach(function(l){
+      if(l.type==='class' && _normStr(l.rider||'')===nn) total+=l.amt;
+    });
+  });
+  return total + buildRiderStallLines(name).reduce(function(s,l){ return s+l.amt; },0);
+}
+
+// One-time migration: pull stall data off entries into G.riderStalls
+function _migrateStallsFromEntries(){
+  if(!G.entries.length) return;
+  G.riderStalls = G.riderStalls || {};
+  var migrated = false;
+  G.entries.forEach(function(e){
+    var hasStall=(e.stall1qty||0)+(e.stall2qty||0)+(e.stall3qty||0)+(e.stallCircuit||0)+(e.shavings||0)+(e.rv1qty||0)+(e.rv2qty||0)+(e.rvCircuit||0)+(e.haulinQty||0);
+    if(!hasStall && !e.stallNote && !e.stallingArrival && !e.stallingPkg && !e.rvPkg) return;
+    var rs = G.riderStalls[e.name] || {};
+    rs.stall1qty    = (rs.stall1qty||0)    + (e.stall1qty||0);
+    rs.stall2qty    = (rs.stall2qty||0)    + (e.stall2qty||0);
+    rs.stall3qty    = (rs.stall3qty||0)    + (e.stall3qty||0);
+    rs.stallCircuit = (rs.stallCircuit||0) + (e.stallCircuit||0);
+    rs.shavings     = (rs.shavings||0)     + (e.shavings||0);
+    rs.rv1qty       = (rs.rv1qty||0)       + (e.rv1qty||0);
+    rs.rv2qty       = (rs.rv2qty||0)       + (e.rv2qty||0);
+    rs.rvCircuit    = (rs.rvCircuit||0)    + (e.rvCircuit||0);
+    rs.haulinQty    = (rs.haulinQty||0)    + (e.haulinQty||0);
+    if(!rs.stallNote && e.stallNote)           rs.stallNote = e.stallNote;
+    if(!rs.stallingArrival && e.stallingArrival) rs.stallingArrival = e.stallingArrival;
+    if(!rs.rvArrival && e.rvArrival)           rs.rvArrival = e.rvArrival;
+    if(!rs.stallingPkg && e.stallingPkg)       rs.stallingPkg = e.stallingPkg;
+    if(!rs.rvPkg && e.rvPkg)                   rs.rvPkg = e.rvPkg;
+    G.riderStalls[e.name] = rs;
+    migrated = true;
+  });
+  if(migrated) console.log('[Gatepost] Migrated stall data from entries to riderStalls');
+}
 
 // ─── Receipt printing — opens a clean standalone window ──────────────────────
 
@@ -3053,22 +3193,74 @@ function openReceiptWindow(titleStr, bodyHtml){
 }
 
 function printTabReceipt(name){
-  var entries=G.entries.filter(function(e){ return e.name===name; });
+  var _normName=_normStr(name);
+  var entries=G.entries.filter(function(e){ return _normStr(e.name)===_normName; });
   if(!entries.length) return;
+  var gKr={};
+  (G.billingGroups||[]).forEach(function(g){g.entryKeys.forEach(function(k){gKr[k]=1;});});
+  var billedFromOthersRcp=G.entries.filter(function(e){
+    return !gKr[entryKey(e)] && _normStr(e.name)!==_normName && _normStr(e.billedTo||'')===_normName;
+  });
   var e0=entries[0];
-  var allLines=[]; entries.forEach(function(e){ buildTabLines(e).forEach(function(l){ allLines.push(l); }); });
-  var total=allLines.reduce(function(s,l){ return s+l.amt; },0);
-  var paid=entries.reduce(function(s,e){ return s+amtPaid(e); },0);
-  var hist=G.paymentHistory[e0.rowIndex]||[];
-  var bal=total-paid;
+  var total=0;
+  // Aggregate payment history across all entries for this rider
+  var hist=[];
+  entries.forEach(function(e){ (G.paymentHistory[e.rowIndex]||[]).forEach(function(p){ hist.push(p); }); });
+  var bal;
 
   var showDate=G.cfg.showDate?new Date(G.cfg.showDate+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):'';
   var contact=[e0.email,e0.phone,[e0.address,e0.city,e0.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
 
+  var allRcpCount=entries.length+billedFromOthersRcp.length;
+  var itemsHtml='';
+  entries.forEach(function(e){
+    var lines=buildTabLines(e);
+    var sub=lines.reduce(function(s,l){ return s+l.amt; },0);
+    var hBiller=e.billedTo||name;
+    var billedAway=hBiller!==name;
+    if(!billedAway) total+=sub;
+    if(allRcpCount===1){
+      // single horse, flat list
+      itemsHtml=_rcpLineItems(lines);
+    } else {
+      itemsHtml+='<div class="rcp-section">'
+        +'<div class="rcp-section-name">'+esc(e.horse||'—')+(billedAway?' <span style="font-size:.75rem;color:#aaa">→ '+esc(hBiller)+'</span>':'')+'</div>'
+        +_rcpLineItems(lines)
+        +'<div class="rcp-section-total"><span>'+(billedAway?'Not billed here':'Subtotal')+'</span><span>'+(billedAway?'—':fmt$(sub))+'</span></div>'
+        +'</div>';
+    }
+  });
+  // Entries billed from other riders to this person
+  billedFromOthersRcp.forEach(function(e){
+    var lines=buildTabLines(e);
+    var sub=lines.reduce(function(s,l){ return s+l.amt; },0);
+    total+=sub;
+    itemsHtml+='<div class="rcp-section">'
+      +'<div class="rcp-section-name">'+esc(e.horse||'—')+' <span style="font-size:.75rem;color:#aaa">ridden by '+esc(e.name)+'</span></div>'
+      +_rcpLineItems(lines)
+      +'<div class="rcp-section-total"><span>Subtotal</span><span>'+fmt$(sub)+'</span></div>'
+      +'</div>';
+  });
+  // Stalling — rider-level section on receipt
+  var rcpStallLines=buildRiderStallLines(name);
+  if(rcpStallLines.length){
+    var rcpStallSub=rcpStallLines.reduce(function(s,l){ return s+l.amt; },0);
+    total+=rcpStallSub;
+    itemsHtml+='<div class="rcp-section">'
+      +'<div class="rcp-section-name">Stalling &amp; RV</div>'
+      +_rcpLineItems(rcpStallLines)
+      +'<div class="rcp-section-total"><span>Subtotal</span><span>'+fmt$(rcpStallSub)+'</span></div>'
+      +'</div>';
+  }
+  // paid: own non-billed-away + billed-from-others
+  var paid=entries.filter(function(e){return !e.billedTo||e.billedTo===name;}).reduce(function(s,e){return s+amtPaid(e);},0)
+           +billedFromOthersRcp.reduce(function(s,e){return s+amtPaid(e);},0);
+  bal=total-paid;
+
   var pmtHtml=_rcpPaymentSummary(paid,hist);
   var body=''
     +'<div class="rcp-header">'
-    +'<div class="rcp-left">'+(G.cfg.logoUrl?'':'')
+    +'<div class="rcp-left">'
     +'<div class="rcp-show-name">'+(G.cfg.showName||'Horse Show')+'</div>'
     +'<div class="rcp-show-meta">'+(showDate||'')+(G.cfg.location?' &middot; '+esc(G.cfg.location):'')+'</div>'
     +'</div>'
@@ -3076,9 +3268,9 @@ function printTabReceipt(name){
     +'</div>'
     +'<div class="rcp-label">Receipt</div>'
     +'<div class="rcp-name">'+esc(name)+'</div>'
-    +(e0.horse?'<div class="rcp-subtitle">'+esc(e0.horse)+'</div>':'')
+    +(allRcpCount===1&&e0.horse?'<div class="rcp-subtitle">'+esc(e0.horse)+'</div>':'')
     +(contact?'<div class="rcp-contact">'+esc(contact)+'</div>':'')
-    +'<div class="rcp-items">'+_rcpLineItems(allLines)+'</div>'
+    +'<div class="rcp-items">'+itemsHtml+'</div>'
     +'<hr class="rcp-divider">'
     +'<div class="rcp-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
     +(pmtHtml?'<div class="rcp-pmt-head">Payment</div>'+pmtHtml:'')
@@ -3152,6 +3344,34 @@ function amtPaid(entry){
 function tabBalance(entry){ return tabTotal(entry) - amtPaid(entry); }
 
 function isFullyPaid(entry){ return tabBalance(entry) <= 0; }
+
+// ─── Fuzzy name helpers ───────────────────────────────────────────────────────
+
+function levenshtein(a, b){
+  if(!a.length) return b.length;
+  if(!b.length) return a.length;
+  var d=[], i, j;
+  for(i=0;i<=b.length;i++) d[i]=[i];
+  for(j=0;j<=a.length;j++) d[0][j]=j;
+  for(i=1;i<=b.length;i++) for(j=1;j<=a.length;j++)
+    d[i][j]=b[i-1]===a[j-1]?d[i-1][j-1]:Math.min(d[i-1][j-1]+1,d[i][j-1]+1,d[i-1][j]+1);
+  return d[b.length][a.length];
+}
+
+// Returns true if two rider name strings are likely the same person under a slightly different spelling.
+// Requires last names to match exactly (case-insensitive) and first names within edit distance 1,
+// so Abby/Abbie or Ann/Anna match but John/Jane do not.
+function similarRiderNames(a, b){
+  var na=_normStr(a), nb=_normStr(b);
+  if(na===nb) return false; // identical — already handled upstream
+  var at=na.split(/\s+/).filter(Boolean), bt=nb.split(/\s+/).filter(Boolean);
+  if(at.length<2||bt.length<2) return false; // need at least first + last
+  if(at[at.length-1]!==bt[bt.length-1]) return false; // last names must match
+  var fa=at[0], fb=bt[0];
+  if(fa===fb) return false; // same first name — already handled by case-insensitive grouping
+  var maxLen=Math.max(fa.length, fb.length);
+  return maxLen>=3 && levenshtein(fa,fb)<=1;
+}
 
 // ─── Horse matching helpers ───────────────────────────────────────────────────
 
@@ -3259,21 +3479,22 @@ function saveBillingData(){
 async function syncBillingGroupsToSupabase(){
   if(!G.showId) return;
   try{
-    await sbFetch('billing_groups?show_id=eq.'+G.showId, {method:'DELETE'});
-    for(var i=0;i<G.billingGroups.length;i++){
-      var g=G.billingGroups[i];
-      await sbFetch('billing_groups', {method:'POST', body:JSON.stringify({
-        id:g.id, show_id:G.showId, association_id:G.assocId||null,
-        payer_name:g.payerName, entry_keys:g.entryKeys, notes:g.notes||null
-      })});
-    }
-    // Sync horse aliases
-    await sbFetch('horse_aliases?show_id=eq.'+G.showId, {method:'DELETE'});
+    // Build full payloads BEFORE any DELETE to avoid data loss on network failure
+    var grpPayloads=G.billingGroups.map(function(g){
+      return {id:g.id, show_id:G.showId, association_id:G.assocId||null,
+        payer_name:g.payerName, entry_keys:g.entryKeys, notes:g.notes||null};
+    });
     var aliases=Object.keys(G.horseAliases);
-    for(var ai=0;ai<aliases.length;ai++){
-      await sbFetch('horse_aliases', {method:'POST', body:JSON.stringify({
-        show_id:G.showId, norm_key:aliases[ai], canonical_name:G.horseAliases[aliases[ai]]
-      })});
+    var aliasPayloads=aliases.map(function(k){
+      return {show_id:G.showId, norm_key:k, canonical_name:G.horseAliases[k]};
+    });
+    await sbFetch('billing_groups?show_id=eq.'+G.showId, {method:'DELETE'});
+    for(var i=0;i<grpPayloads.length;i++){
+      await sbFetch('billing_groups', {method:'POST', body:JSON.stringify(grpPayloads[i])});
+    }
+    await sbFetch('horse_aliases?show_id=eq.'+G.showId, {method:'DELETE'});
+    for(var ai=0;ai<aliasPayloads.length;ai++){
+      await sbFetch('horse_aliases', {method:'POST', body:JSON.stringify(aliasPayloads[ai])});
     }
   } catch(e){ console.warn('Billing sync error:', e); }
 }
@@ -3406,6 +3627,13 @@ function divBadge(d){
 
 }
 
+function _clsDivBadges(clsArr, fallbackDiv){
+  var divs=[];
+  (clsArr||[]).forEach(function(c){ if(c.division&&divs.indexOf(c.division)<0) divs.push(c.division); });
+  if(!divs.length&&fallbackDiv) divs.push(fallbackDiv);
+  return divs.map(divBadge).join('');
+}
+
 
 
 function paidBadge(entry){
@@ -3518,6 +3746,8 @@ function showPage(p){
   if(p === 'entries'){
 
     var ab = mk('button','btn btn-accent btn-sm'); ab.innerHTML='+ Add Entry'; ab.onclick=showAddEntryModal; tr.appendChild(ab);
+
+    var arb = mk('button','btn btn-dark btn-sm'); arb.innerHTML='+ Add Rider to Horse'; arb.onclick=showAddRiderToHorsePicker; tr.appendChild(arb);
 
     var rb = mk('button','btn btn-dark btn-sm'); rb.innerHTML='&#8635; Reload from DB'; rb.title='Clear local cache and reload entries from Supabase';
     rb.onclick=function(){
@@ -3647,7 +3877,7 @@ function _renderPendingSubsCard(subs){
       html += '<input id="subfx-'+sid+'-'+ei+'-name" value="'+esc(curName)+'" oninput="_subApplyFix(\''+sid+'\','+ei+',\'name\',this.value)" style="flex:1;min-width:120px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:.25rem .4rem;font-size:.85rem">';
       if(nameSugg.length) {
         nameSugg.forEach(function(sg){
-          html += '<button class="btn btn-dark btn-sm" style="font-size:.72rem;padding:2px 6px" title="Use existing name" onclick="_subApplyFix(\''+sid+'\','+ei+',\'name\','+JSON.stringify(sg.name)+')">&#8593; '+esc(sg.name)+'</button>';
+          html += '<button class="btn btn-dark btn-sm" style="font-size:.72rem;padding:2px 6px" title="Use existing name" onclick="_subApplyFix(\''+sid+'\','+ei+',\'name\',\''+sg.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">&#8593; '+esc(sg.name)+'</button>';
         });
       }
       html += '</div>';
@@ -3661,7 +3891,7 @@ function _renderPendingSubsCard(subs){
       var seenH = {};
       G.entries.forEach(function(ex){ var h = _normStr(ex.horse||''); var sim = _strSim(submittedHorse, ex.horse||''); if(sim>=0.5&&sim<1&&!seenH[h]){seenH[h]=true;horseSugg.push(ex.horse||'');} });
       horseSugg.slice(0,2).forEach(function(hn){
-        html += '<button class="btn btn-dark btn-sm" style="font-size:.72rem;padding:2px 6px" title="Use existing name" onclick="_subApplyFix(\''+sid+'\','+ei+',\'horse\','+JSON.stringify(hn)+')">&#8593; '+esc(hn)+'</button>';
+        html += '<button class="btn btn-dark btn-sm" style="font-size:.72rem;padding:2px 6px" title="Use existing name" onclick="_subApplyFix(\''+sid+'\','+ei+',\'horse\',\''+hn.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">&#8593; '+esc(hn)+'</button>';
       });
       html += '</div>';
 
@@ -3725,22 +3955,12 @@ function _onlineSubToEntry(e, d, isFirst) {
     classes: (e.classes||[]).map(function(c){
       return {num:c.classNum||'', name:c.className||'', division:c.division||'', org:c.org||'', raw:c.className||''};
     }),
-    haulinQty:  isFirst ? (d.haulinQty||0) : 0,
-    stall1qty:  isFirst ? (d.stall1qty||0) : 0,
-    stall2qty:  isFirst ? (d.stall2qty||0) : 0,
-    stall3qty:  isFirst ? (d.stall3qty||0) : 0,
-    shavings:   isFirst ? (d.shavings||0)  : 0,
-    rv1qty:     isFirst ? (d.rv1qty||0)    : 0,
-    rv2qty:     isFirst ? (d.rv2qty||0)    : 0,
-    rvCircuit:  isFirst ? (d.rvCircuit||0) : 0,
-    stallingArrival: isFirst ? (d.stallingArrival||null) : null,
-    rvArrival:       isFirst ? (d.rvArrival||null)       : null,
-    stallNote:  isFirst ? (d.stallingGroup||'') : '',
     clinicChoice:     isFirst ? (d.clinicChoice||'')      : '',
     practiceSessions: isFirst ? (d.practiceSessions||[])  : [],
     source:    'online_form',
     cognitoAmount: isFirst ? (d.estimatedTotal||0) : 0,
-    isPaid: false, orgFees: [], customFees: {}
+    isPaid: false, orgFees: [], customFees: {},
+    billedTo: ''
   };
 }
 
@@ -3776,7 +3996,41 @@ window.acceptOnlineSub = async function(id){
     }
     delete _subNameFixes[id];
 
-    newEntries.forEach(function(e){ G.entries.push(e); });
+    // Set billedTo: all new entries billed to the primary (first) rider by default
+    var _primaryName=newEntries[0]&&newEntries[0].name||'';
+    newEntries.forEach(function(e){ e.billedTo=_primaryName; });
+
+    var _baseIdx=G.entries.length;
+    newEntries.forEach(function(e,i){ e.rowIndex=_baseIdx+i; G.entries.push(e); });
+
+    // Register primary rider in horsePrimary so Riders tab shows them as payer
+    if(_primaryName && newEntries[0] && newEntries[0].horse){
+      G.horsePrimary=G.horsePrimary||{};
+      var _hc=getCanonicalHorse(newEntries[0].horse);
+      if(!G.horsePrimary[_hc]) G.horsePrimary[_hc]=_primaryName;
+    };
+
+    // Merge stall data from submission into G.riderStalls for the primary (first) rider
+    var primaryName = newEntries[0] && newEntries[0].name;
+    if(primaryName && (d.stall1qty||d.stall2qty||d.stall3qty||d.rv1qty||d.rv2qty||d.rvCircuit||d.stallingGroup||d.stallingArrival||d.rvArrival)){
+      if(!G.riderStalls) G.riderStalls = {};
+      var existingRS = G.riderStalls[primaryName] || {};
+      G.riderStalls[primaryName] = {
+        stall1qty:       (existingRS.stall1qty||0)    + (d.stall1qty||0),
+        stall2qty:       (existingRS.stall2qty||0)    + (d.stall2qty||0),
+        stall3qty:       (existingRS.stall3qty||0)    + (d.stall3qty||0),
+        stallCircuit:    (existingRS.stallCircuit||0) + (d.stallCircuit||0),
+        shavings:        (existingRS.shavings||0)     + (d.shavings||0),
+        rv1qty:          (existingRS.rv1qty||0)       + (d.rv1qty||0),
+        rv2qty:          (existingRS.rv2qty||0)       + (d.rv2qty||0),
+        rvCircuit:       (existingRS.rvCircuit||0)    + (d.rvCircuit||0),
+        haulinQty:       (existingRS.haulinQty||0)    + (d.haulinQty||0),
+        stallNote:       existingRS.stallNote || d.stallingGroup || '',
+        stallingArrival: existingRS.stallingArrival || d.stallingArrival || null,
+        rvArrival:       existingRS.rvArrival || d.rvArrival || null,
+      };
+    }
+
     saveEntriesToStorage();
 
     // Create billing group for multi-entry submissions
@@ -3851,7 +4105,10 @@ function pgEntries(){
       +efCard
       +'<div class="card" style="margin-bottom:1rem;text-align:center;padding:1.5rem">'
       +'<div style="color:var(--muted);margin-bottom:1rem;font-size:.9rem">No entries yet — riders can submit via the entry form above, or you can add entries manually.</div>'
+      +'<div style="display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">'
       +'<button class="btn btn-accent" onclick="showAddEntryModal()">+ Add Entry Manually</button>'
+      +'<button class="btn btn-dark" onclick="showAddRiderToHorsePicker()">+ Add Rider to Horse</button>'
+      +'</div>'
       +'</div>'
       +importDisc;
     wireImportDZ();
@@ -3861,7 +4118,7 @@ function pgEntries(){
 
   var totalFees=G.entries.reduce(function(s,e){ return s+tabTotal(e); },0);
   var totalPaid=G.entries.reduce(function(s,e){ return s+amtPaid(e); },0);
-  var uniqueRiders=new Set(G.entries.map(function(e){ return e.name; })).size;
+  var uniqueRiders=new Set(G.entries.map(function(e){ return _normStr(e.name); })).size;
   var divCounts={};
   G.entries.forEach(function(e){ if(e.division) divCounts[e.division]=(divCounts[e.division]||0)+1; });
 
@@ -4058,9 +4315,9 @@ function pgEntries(){
 
           +'<div style="display:flex;flex-wrap:wrap;gap:.3rem;align-items:center">'
 
-          +divBadge(e.division)
+          +_clsDivBadges(e.classes, e.division)
 
-          +assocTags(e.assocRaw)
+          +assocTags(_entryOrgsStr(e))
 
           +'<span style="font-size:.78rem;color:var(--muted);margin-left:auto">'+fmt$(tabTotal(e))+'</span>'
 
@@ -4084,46 +4341,135 @@ function pgEntries(){
 
     } else {
 
-      t='<table><thead><tr>'+eTh('backNum','Back#')+eTh('name','Rider')+eTh('horse','Horse')
-
-        +'<th>Assoc</th>'+eTh('division','Division')+'<th>Classes</th>'+eTh('fees','Fees')+eTh('status','Status')+'</tr></thead><tbody>';
-
+      // Horse is top level. Riders listed under horse. Classes next to each rider.
+      var horseGroupMap={};
+      var horseGroupOrder=[];
       list.forEach(function(e){
+        var ch=getCanonicalHorse(e.horse);
+        if(!horseGroupMap[ch]){ horseGroupMap[ch]=[]; horseGroupOrder.push(ch); }
+        horseGroupMap[ch].push(e);
+      });
 
-        var isFS=isFullScratched(e.rowIndex);
+      t='<table><thead><tr><th style="width:54px">Back#</th><th>Horse / Rider</th><th>Assoc</th><th>Division</th><th>Classes</th><th>Fees</th><th>Status</th></tr></thead><tbody>';
 
-        t+='<tr style="cursor:pointer'+(isFS?';opacity:.55':'')+'" data-rowidx="'+e.rowIndex+'">'
-
-          +'<td class="ctr bold" style="width:54px">'
-
-          +'<input type="number" value="'+(G.backNums[e.rowIndex]||'')+'" placeholder="—" onclick="event.stopPropagation()" onchange="G.backNums['+e.rowIndex+']=this.value;saveEntriesToStorage()" style="width:48px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--accent);padding:3px 4px;text-align:center;font-size:.9rem">'
-
+      horseGroupOrder.forEach(function(canonicalHorse){
+        var hEntries=horseGroupMap[canonicalHorse];
+        var firstE=hEntries[0];
+        var hTotal=hEntries.reduce(function(s,e){return s+tabTotal(e);},0);
+        var hPaid=hEntries.reduce(function(s,e){return s+amtPaid(e);},0);
+        var hIsPaid=hTotal-hPaid<=0;
+        var allFS=hEntries.every(function(e){return isFullScratched(e.rowIndex);});
+        // Horse header row — click opens first entry modal; back# is here, not on rider row
+        t+='<tr style="background:rgba(200,146,42,.06);cursor:pointer'+(allFS?';opacity:.55':'')+'" onclick="showEntryModal('+firstE.rowIndex+')">'
+          +'<td class="ctr"><input type="number" value="'+(G.backNums[firstE.rowIndex]||'')+'" placeholder="—" '
+          +'onclick="event.stopPropagation()" onchange="G.backNums['+firstE.rowIndex+']=this.value;saveEntriesToStorage()" '
+          +'style="width:48px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--accent);padding:3px 4px;text-align:center;font-size:.9rem"></td>'
+          +'<td><div class="bold">'+esc(firstE.horse)+'</div>'
+          +(firstE.horseGender?'<div class="small" style="color:var(--muted)">'+esc(firstE.horseGender)+'</div>':'')
           +'</td>'
-
-          +'<td><div class="bold">'+esc(e.name)+(isFS?' <span class="badge b-red" style="font-size:.65rem">Scratched</span>':'')+(e.addedAtShow?' <span class="badge" style="font-size:.62rem;background:rgba(52,152,219,.18);color:var(--blue)">Added at Show</span>':'')+'</div><div class="small">'+esc(e.memberNum||'No # on file')+'</div></td>'
-
-          +'<td><div>'+esc(e.horse)+'</div><div class="small">'+esc(e.horseGender)+'</div></td>'
-
-          +'<td>'+assocTags(e.assocRaw)+'</td>'
-
-          +'<td>'+divBadge(e.division)+'</td>'
-
-          +'<td class="small">'+e.classes.map(function(c){
-
-            var k=clsKey(c); var s=isScratched(k,e.rowIndex)||isFS;
-
-            return '<span class="badge '+(s?'b-red':'b-gray')+'" style="margin:1px'+(s?';text-decoration:line-through':'')+'">'
-
-              +esc(c.num||c.name.substring(0,8))+'</span>';
-
-          }).join('')+'</td>'
-
-          +'<td class="bold">'+fmt$(tabTotal(e))+'</td>'
-
-          +'<td>'+paidBadge(e)+'</td>'
-
+          +'<td colspan="3"></td>'
+          +'<td class="bold">'+fmt$(hTotal)+'</td>'
+          +'<td>'+(hIsPaid?'<span class="badge b-green">Paid</span>':'<span class="badge b-red">Due</span>')+'</td>'
           +'</tr>';
+        // Build primary rider map first (keyed by normalised name) so co-rider de-dup works
+        var _prMap={},_prOrder=[];
+        hEntries.forEach(function(e){
+          var rk=_normStr(e.name);
+          if(!_prMap[rk]){_prMap[rk]={displayName:e.name,entries:[]};_prOrder.push(rk);}
+          _prMap[rk].entries.push(e);
+        });
+        // Put designated billing primary first
+        var _hDesPri=G.horsePrimary&&G.horsePrimary[getCanonicalHorse(firstE.horse)];
+        if(_hDesPri){ var _hDPN=_normStr(_hDesPri); _prOrder.sort(function(a){return a===_hDPN?-1:0;}); }
 
+        _prOrder.forEach(function(rk){
+          var pri=_prMap[rk],mainE=pri.entries[0],allRE=pri.entries;
+          var rIsFS=allRE.every(function(e){return isFullScratched(e.rowIndex);});
+
+          // Co-rider names from this person's own entries (used to filter out their sub-riders from allPrimCls)
+          var ownSubNames=[];
+          allRE.forEach(function(e){
+            (e.riders||[]).filter(function(r){return !r.isPrimary;}).forEach(function(r){
+              if(ownSubNames.indexOf(r.name)<0) ownSubNames.push(r.name);
+            });
+          });
+
+          // Primary classes: own entries (excluding classes explicitly assigned to co-riders)
+          // PLUS classes in OTHER horse entries where c.rider === this person
+          var allPrimCls=[];
+          allRE.forEach(function(e){
+            (e.classes||[]).forEach(function(c){
+              if(!c.rider||ownSubNames.indexOf(c.rider)<0){
+                if(!allPrimCls.find(function(pc){return String(pc.num)===String(c.num);})) allPrimCls.push(c);
+              }
+            });
+          });
+          hEntries.forEach(function(e){
+            if(allRE.indexOf(e)>=0) return; // already covered above
+            (e.classes||[]).forEach(function(c){
+              if(_normStr(c.rider||'')===rk){
+                if(!allPrimCls.find(function(pc){return String(pc.num)===String(c.num);})) allPrimCls.push(c);
+              }
+            });
+          });
+
+          var rTotal=allRE.reduce(function(s,e){return s+tabTotal(e);},0);
+          var rPaid=allRE.reduce(function(s,e){return s+amtPaid(e);},0);
+          var rOrgs=[];
+          allPrimCls.forEach(function(c){if(c.org&&rOrgs.indexOf(c.org)<0)rOrgs.push(c.org);});
+          if(!rOrgs.length&&mainE.assocRaw) rOrgs.push(mainE.assocRaw);
+
+          t+='<tr style="cursor:pointer;background:rgba(255,255,255,.015)'+(rIsFS?';opacity:.55':'')+'" data-rowidx="'+mainE.rowIndex+'">'
+            +'<td></td>'
+            +'<td style="padding-left:.5rem"><span style="color:var(--muted)">&#8627; </span><span class="bold">'+esc(pri.displayName)+'</span>'
+            +(rIsFS?' <span class="badge b-red" style="font-size:.6rem">Scratched</span>':'')
+            +(mainE.addedAtShow?' <span class="badge" style="font-size:.6rem;background:rgba(52,152,219,.18);color:var(--blue)">Added</span>':'')
+            +(mainE.memberNum?'<div class="small">'+esc(mainE.memberNum)+'</div>':'')
+            +'</td>'
+            +'<td>'+assocTags(rOrgs.join(' '))+'</td>'
+            +'<td>'+_clsDivBadges(allPrimCls,mainE.division)+'</td>'
+            +'<td class="small">'+allPrimCls.map(function(c){
+              var k=clsKey(c);var s=allRE.some(function(e){return isScratched(k,e.rowIndex);})||rIsFS;
+              return '<span class="badge '+(s?'b-red':'b-gray')+'" style="margin:1px'+(s?';text-decoration:line-through':'')+'">'+esc(c.num||c.name.substring(0,8))+'</span>';
+            }).join('')+'</td>'
+            +'<td class="bold">'+fmt$(rTotal)+'</td>'
+            +'<td>'+(rTotal-rPaid<=0?'<span class="badge b-green">Paid</span>':'<span class="badge b-red">Due</span>')+'</td>'
+            +'</tr>';
+
+          // Co-riders from this person's entries — skip anyone who has their own primary row
+          var _coMap={},_coOrder=[];
+          allRE.forEach(function(e){
+            (e.riders||[]).filter(function(r){return !r.isPrimary;}).forEach(function(r){
+              var rn=_normStr(r.name);
+              if(_prMap[rn]) return; // already has a primary row — don't duplicate
+              if(!_coMap[rn]){_coMap[rn]={rider:r,entryRowIdx:e.rowIndex,classes:[]};_coOrder.push(rn);}
+              (e.classes||[]).filter(function(c){return _normStr(c.rider||'')===rn;}).forEach(function(c){
+                if(!_coMap[rn].classes.find(function(cc){return String(cc.num)===String(c.num);})) _coMap[rn].classes.push(c);
+              });
+            });
+          });
+          _coOrder.forEach(function(rn){
+            var co=_coMap[rn],rCls=co.classes,rOrgs2=[];
+            rCls.forEach(function(c){if(c.org&&rOrgs2.indexOf(c.org)<0)rOrgs2.push(c.org);});
+            var _coIsPayer=_hDPN&&rn===_hDPN;
+            t+='<tr style="cursor:pointer;background:rgba(255,255,255,.008)" data-rowidx="'+co.entryRowIdx+'">'
+              +'<td></td>'
+              +'<td style="padding-left:.5rem"><span style="color:var(--muted)">&#8627; </span>'
+              +'<span style="font-size:.88rem">'+esc(co.rider.name)+'</span>'
+              +(_coIsPayer
+                ?'<div class="small"><span class="badge b-gold" style="font-size:.65rem">Payer</span></div>'
+                :'<div class="small" style="color:var(--accent)">Co-rider</div>')
+              +'</td>'
+              +'<td>'+assocTags(rOrgs2.join(' '))+'</td>'
+              +'<td>'+_clsDivBadges(rCls,co.rider.division)+'</td>'
+              +'<td class="small">'+rCls.map(function(c){
+                var s=rIsFS;
+                return '<span class="badge '+(s?'b-red':'b-gray')+'" style="margin:1px'+(s?';text-decoration:line-through':'')+'">'+esc(c.num||c.name.substring(0,8))+'</span>';
+              }).join('')+'</td>'
+              +'<td></td><td></td>'
+              +'</tr>';
+          });
+        });
       });
 
       t+='</tbody></table>';
@@ -4163,25 +4509,28 @@ window.showAutoBackNumDialog=function(){
 };
 
 window.doAutoBackNums=function(){
-
   var start=parseInt(document.getElementById('bn-start').value)||100;
-
   var order=document.getElementById('bn-order').value;
 
   var list=G.entries.slice();
-
   if(order==='alpha') list.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
 
-  list.forEach(function(e,i){ G.backNums[e.rowIndex]=String(start+i); });
+  // Assign the same back number to all entries for the same rider
+  var riderMap={},riderOrder=[];
+  list.forEach(function(e){
+    var nk=_normStr(e.name);
+    if(!riderMap[nk]){ riderMap[nk]=[]; riderOrder.push(nk); }
+    riderMap[nk].push(e.rowIndex);
+  });
+  riderOrder.forEach(function(nk,i){
+    var num=String(start+i);
+    riderMap[nk].forEach(function(rowIdx){ G.backNums[rowIdx]=num; });
+  });
 
   saveEntriesToStorage();
-
   document.getElementById('auto-bn-form').style.display='none';
-
   pgEntries();
-
   toast('Back numbers assigned starting at '+start);
-
 };
 
 
@@ -6187,18 +6536,30 @@ function pgTabs(){
   var totalOwed=0, totalPaid=0, fullyPaidCount=0;
   G.billingGroups.forEach(function(g){
     totalOwed+=groupAmtOwed(g); totalPaid+=groupAmtPaid(g);
+    // Add stall fees for each unique rider in the group (excluded from tabTotal)
+    var _gStallSeen={};
+    g.entryKeys.forEach(function(k){
+      var ge=G.entries.find(function(x){ return entryKey(x)===k; });
+      if(!ge) return;
+      var nk=_normStr(ge.name);
+      if(!_gStallSeen[nk]){ _gStallSeen[nk]=1; totalOwed+=buildRiderStallLines(ge.name).reduce(function(s,l){return s+l.amt;},0); }
+    });
     if(groupIsFullyPaid(g)) fullyPaidCount++;
   });
+  // For ungrouped entries, accumulate per-rider (so stalls counted once per rider)
+  var seenRiders={};
   G.entries.forEach(function(e){
-    if(!groupedKeys[entryKey(e)]){ totalOwed+=tabTotal(e); totalPaid+=amtPaid(e); if(isFullyPaid(e)) fullyPaidCount++; }
+    if(groupedKeys[entryKey(e)]) return;
+    totalOwed+=tabTotal(e); totalPaid+=amtPaid(e); if(isFullyPaid(e)) fullyPaidCount++;
+    var _srk=_normStr(e.name); if(!seenRiders[_srk]){ totalOwed+=buildRiderStallLines(e.name).reduce(function(s,l){ return s+l.amt; },0); seenRiders[_srk]=1; }
   });
 
   // Detect same-horse suggestions for unmerged entries
   var sameHorseGroups=findSameHorseGroups();
-  var sameHorseBadge={};  // riderName → suggested horse canonical
+  var sameHorseBadge={};  // normName → suggested horse canonical
   sameHorseGroups.forEach(function(g){
     g.entries.forEach(function(e){
-      if(!groupedKeys[entryKey(e)]) sameHorseBadge[e.name]=g.canonical;
+      if(!groupedKeys[entryKey(e)]) sameHorseBadge[_normStr(e.name)]=g.canonical;
     });
   });
 
@@ -6233,8 +6594,12 @@ function pgTabs(){
     +'<div class="stat c-red"><div class="n">'+fmt$(totalOwed-totalPaid)+'</div><div class="l">Outstanding</div></div>'
     +'<div class="stat c-gold"><div class="n">'+fullyPaidCount+'</div><div class="l">Paid in Full</div></div>'
     +'</div><div class="card">'
-    +'<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">'
-    +'<div class="search-wrap" style="flex:1;margin-bottom:0"><span class="search-ico">&#128269;</span><input class="search-box" id="tq" placeholder="Search rider or payer..."></div>'
+    +'<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;flex-wrap:wrap">'
+    +'<div class="search-wrap" style="flex:1;min-width:160px;margin-bottom:0"><span class="search-ico">&#128269;</span><input class="search-box" id="tq" placeholder="Search rider or payer..."></div>'
+    +'<div style="display:flex;gap:.3rem">'
+    +'<button id="tview-rider" class="btn btn-accent btn-sm" style="font-size:.75rem" onclick="_setTabView(\'rider\')">By Rider</button>'
+    +'<button id="tview-payer" class="btn btn-dark btn-sm" style="font-size:.75rem" onclick="_setTabView(\'payer\')">By Payer</button>'
+    +'</div>'
     +'<button class="btn btn-dark btn-sm" onclick="promptNewGroup()" style="white-space:nowrap">+ New Group</button>'
     +'</div>'
     +'<div class="pills" id="tpills"></div>'
@@ -6242,6 +6607,8 @@ function pgTabs(){
     +'<div class="tbl-wrap" id="ttbl"></div></div>';
 
   var tf='All';
+  var _tabView = 'rider';
+  window._setTabView = function(v){ _tabView=v; document.getElementById('tview-rider').className='btn btn-sm'+(v==='rider'?' btn-accent':' btn-dark'); document.getElementById('tview-payer').className='btn btn-sm'+(v==='payer'?' btn-accent':' btn-dark'); drawTabTable(); };
   function drawAndWireTPills(){
     document.getElementById('tpills').innerHTML=['All','Outstanding','Paid'].map(function(f){
       return '<button class="pill'+(f===tf?' active':'')+'" data-tf="'+f+'">'+f+'</button>';
@@ -6252,6 +6619,120 @@ function pgTabs(){
 
   function drawTabTable(){
     var q=(document.getElementById('tq')||{value:''}).value.trim().toLowerCase();
+
+    // ── By Payer view ──
+    if(typeof _tabView!=='undefined'&&_tabView==='payer'){
+      var payerMap={};
+      var _pmNormKeys={}; // _normStr(name) → canonical map key (original capitalization)
+      G.billingGroups.forEach(function(grp){
+        _pmNormKeys[_normStr(grp.payerName)]=grp.payerName;
+        payerMap[grp.payerName]={type:'group',grp:grp};
+      });
+      G.entries.forEach(function(e){
+        if(groupedKeys[entryKey(e)]) return;
+        var payer=e.billedTo||e.name;
+        var _nk=_normStr(payer);
+        var mapKey=_pmNormKeys[_nk]||payer;
+        if(!_pmNormKeys[_nk]) _pmNormKeys[_nk]=payer;
+        if(payerMap[mapKey]&&payerMap[mapKey].type==='group') return;
+        if(!payerMap[mapKey]) payerMap[mapKey]={type:'individual',entries:[]};
+        payerMap[mapKey].entries.push(e);
+      });
+      var payerList=Object.keys(payerMap).sort(function(a,b){
+        var aW=a.trim().split(/\s+/),bW=b.trim().split(/\s+/);
+        var al=aW[aW.length-1].toLowerCase(),bl=bW[bW.length-1].toLowerCase();
+        return al<bl?-1:al>bl?1:0;
+      });
+      var tp='<table><thead><tr><th>Payer</th><th>Horse</th><th>Rider</th><th>Classes</th><th>Owed</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead><tbody>';
+      var anyRowP=false;
+      payerList.forEach(function(payer){
+        var pm=payerMap[payer];
+        var owed=0,paid=0,riders=[],horses=[];
+        if(pm.type==='group'){
+          var grp=pm.grp;
+          owed=groupAmtOwed(grp); paid=groupAmtPaid(grp);
+          riders=[...new Set(grp.entryKeys.map(function(k){return k.split('|')[0];}))];
+          horses=[...new Set(grp.entryKeys.map(function(k){return k.split('|').slice(1).join('|');}))];
+        } else {
+          owed=pm.entries.reduce(function(s,e){return s+tabTotal(e);},0);
+          var ownRider=G.entries.some(function(e){return _normStr(e.name)===_normStr(payer)&&!groupedKeys[entryKey(e)];});
+          if(ownRider){
+            owed+=buildRiderStallLines(payer).reduce(function(s,l){return s+l.amt;},0);
+          } else {
+            // Payer is a co-rider (no standalone entry) — add stall fees from riders billed through them
+            var _seenStallRiders={};
+            pm.entries.forEach(function(e){
+              var n=e.name; if(!n||_seenStallRiders[_normStr(n)]) return;
+              _seenStallRiders[_normStr(n)]=true;
+              owed+=buildRiderStallLines(n).reduce(function(s,l){return s+l.amt;},0);
+            });
+          }
+          paid=pm.entries.reduce(function(s,e){return s+amtPaid(e);},0);
+          riders=[...new Set(pm.entries.map(function(e){return e.name;}))];
+          horses=[...new Set(pm.entries.map(function(e){return getCanonicalHorse(e.horse);}))];
+        }
+        var bal=owed-paid,isPaid=bal<=0;
+        var qOk=!q||payer.toLowerCase().indexOf(q)>-1
+          ||riders.some(function(r){return r.toLowerCase().indexOf(q)>-1;})
+          ||horses.some(function(h){return h.toLowerCase().indexOf(q)>-1;});
+        var fOk=tf==='All'||(tf==='Paid'&&isPaid)||(tf==='Outstanding'&&!isPaid);
+        if(!fOk||!qOk) return;
+        anyRowP=true;
+        var isOwnOnly=riders.length===1&&riders[0]===payer;
+        var payerBadge=isOwnOnly?'':'<span style="font-size:.65rem;color:var(--accent);margin-left:.4rem">paying for others</span>';
+        var nEscP=payer.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        var clickP=pm.type==='group'
+          ?'onclick="showGroupTabModal(\''+pm.grp.id.replace(/'/g,"\\'")+'\')"'
+          :'onclick="showPayerSummaryModal(\''+nEscP+'\')"';
+        var clsCount=pm.type==='group'
+          ?pm.grp.entryKeys.length+' entries'
+          :pm.entries.reduce(function(s,e){return s+((e.classes||[]).filter(function(c){return c.status!=='scratched';}).length);},0)+' cls';
+        tp+='<tr style="cursor:pointer" '+clickP+'>'
+          +'<td class="bold">'+esc(payer)+payerBadge+'</td>'
+          +'<td class="small" style="color:var(--muted)">'+horses.map(esc).join(', ')+'</td>'
+          +'<td class="small" style="color:var(--muted)">'+riders.map(esc).join(', ')+'</td>'
+          +'<td class="ctr small">'+clsCount+'</td>'
+          +'<td>'+fmt$(owed)+'</td>'
+          +'<td style="color:var(--green)">'+fmt$(paid)+'</td>'
+          +'<td class="bold" style="color:'+(isPaid?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</td>'
+          +'<td>'+(isPaid?'<span class="badge b-green">Paid</span>':'<span class="badge b-red">Due</span>')+'</td>'
+          +'</tr>';
+        if(pm.type!=='group'){
+          pm.entries.forEach(function(e){
+            var hAmt=tabTotal(e); var hPaid=amtPaid(e);
+            var hCls=(e.classes||[]).filter(function(c){return c.status!=='scratched';});
+            var nEscE=e.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            tp+='<tr style="background:rgba(255,255,255,.015);cursor:pointer" onclick="showTabModal(\''+nEscE+'\')">'
+              +'<td style="padding-left:1.4rem;font-size:.82rem;color:var(--muted)">&#8627;</td>'
+              +'<td style="font-size:.85rem;font-weight:500">'+esc(e.horse||'—')+'</td>'
+              +'<td style="font-size:.83rem;color:var(--muted)">'+esc(e.name)+'</td>'
+              +'<td class="ctr small" style="color:var(--muted)">'+hCls.length+'</td>'
+              +'<td style="font-size:.85rem">'+fmt$(hAmt)+'</td>'
+              +'<td style="font-size:.85rem;color:var(--green)">'+(hPaid>0?fmt$(hPaid):'')+'</td>'
+              +'<td></td><td></td>'
+              +'</tr>';
+          });
+          var sLines=buildRiderStallLines(payer);
+          if(sLines.length){
+            var sTotal=sLines.reduce(function(s,l){return s+l.amt;},0);
+            tp+='<tr style="background:rgba(255,255,255,.015)">'
+              +'<td style="padding-left:1.4rem;font-size:.82rem;color:var(--muted)">&#8627;</td>'
+              +'<td style="font-size:.82rem;color:var(--muted);font-style:italic">Stalling &amp; RV</td>'
+              +'<td class="small" style="color:var(--muted)">'+sLines.map(function(l){return esc(l.desc);}).join(' · ')+'</td>'
+              +'<td></td>'
+              +'<td style="font-size:.85rem">'+fmt$(sTotal)+'</td>'
+              +'<td></td><td></td><td></td>'
+              +'</tr>';
+          }
+        }
+      });
+      if(!anyRowP) tp+='<tr><td colspan="8" class="empty-state">No entries match</td></tr>';
+      tp+='</tbody></table>';
+      document.getElementById('ttbl').innerHTML=tp;
+      return;
+    }
+
+    var simBanner='';
     var t='<table><thead><tr><th>Rider / Payer</th><th>Horse(s)</th><th>Entries</th><th>Owed</th><th>Paid</th><th>Balance</th><th>Status</th><th></th></tr></thead><tbody>';
     var anyRow=false;
 
@@ -6297,51 +6778,220 @@ function pgTabs(){
     });
 
     // ── Individual rider tabs (not in any group) ──
+    // Keys are lowercased so 'John Smith' and 'john smith' are grouped together.
+    // byRiderDisplay tracks the first-occurrence display name for each normalized key.
     var byRider={};
+    var byRiderDisplay={};
     G.entries.forEach(function(e){
       if(groupedKeys[entryKey(e)]) return;
-      if(!byRider[e.name]) byRider[e.name]=[];
-      byRider[e.name].push(e);
+      var nk=_normStr(e.name);
+      if(!byRider[nk]){ byRider[nk]=[]; byRiderDisplay[nk]=e.name; }
+      byRider[nk].push(e);
     });
     G._riderList=Object.keys(byRider).sort(function(a,b){
-      var aW=a.trim().split(/\s+/),bW=b.trim().split(/\s+/);
+      var aN=byRiderDisplay[a]||a, bN=byRiderDisplay[b]||b;
+      var aW=aN.trim().split(/\s+/),bW=bN.trim().split(/\s+/);
       var al=aW[aW.length-1].toLowerCase(),bl=bW[bW.length-1].toLowerCase();
-      return al<bl?-1:al>bl?1:a.toLowerCase()<b.toLowerCase()?-1:1;
+      return al<bl?-1:al>bl?1:a<b?-1:1;
     });
-    G._riderList.forEach(function(name){
-      var entries=byRider[name];
-      var owed=entries.reduce(function(s,e){ return s+tabTotal(e); },0);
-      var paid=entries.reduce(function(s,e){ return s+amtPaid(e); },0);
+
+    // ── Similar-name detection — "did you mean?" ──
+    var simPairs=[];
+    for(var _si=0;_si<G._riderList.length;_si++){
+      for(var _sj=_si+1;_sj<G._riderList.length;_sj++){
+        var _na=byRiderDisplay[G._riderList[_si]], _nb=byRiderDisplay[G._riderList[_sj]];
+        if(similarRiderNames(_na,_nb)) simPairs.push([_na,_nb,G._riderList[_si],G._riderList[_sj]]);
+      }
+    }
+    if(simPairs.length){
+      simBanner='<div style="margin-bottom:.5rem;padding:.45rem .65rem;background:rgba(52,152,219,.07);border:1px solid rgba(52,152,219,.25);border-radius:6px">'
+        +'<div style="font-size:.76rem;color:var(--blue,#3498db);font-weight:600;margin-bottom:.35rem">&#8505; Possible name duplicates — click Use to merge into one row:</div>';
+      simPairs.forEach(function(p){
+        var n0=p[0],n1=p[1];
+        simBanner+='<div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-bottom:.2rem">'
+          +'<span style="font-size:.78rem;color:var(--text);font-weight:500">'+esc(n0)+'</span>'
+          +'<span style="color:var(--muted);font-size:.72rem">vs</span>'
+          +'<span style="font-size:.78rem;color:var(--text);font-weight:500">'+esc(n1)+'</span>'
+          +'<button class="btn btn-sm" style="font-size:.7rem;background:rgba(52,152,219,.18);border:1px solid rgba(52,152,219,.4);color:var(--blue,#3498db)" '
+          +'onclick="renameRiderName('+_sq(n1)+','+_sq(n0)+')">Use &ldquo;'+esc(n0)+'&rdquo;</button>'
+          +'<button class="btn btn-sm" style="font-size:.7rem;background:rgba(52,152,219,.18);border:1px solid rgba(52,152,219,.4);color:var(--blue,#3498db)" '
+          +'onclick="renameRiderName('+_sq(n0)+','+_sq(n1)+')">Use &ldquo;'+esc(n1)+'&rdquo;</button>'
+          +'</div>';
+      });
+      simBanner+='</div>';
+    }
+
+    G._riderList.forEach(function(nk){
+      var name=byRiderDisplay[nk];  // display name (first occurrence)
+      var entries=byRider[nk];
+      // Entries from OTHER riders explicitly billed to this rider (case-insensitive)
+      var billedFromOthers=G.entries.filter(function(e){
+        return !groupedKeys[entryKey(e)] && _normStr(e.name)!==nk && _normStr(e.billedTo||e.name)===nk;
+      });
+      var owed=riderOwed(name);
+      // Only count payments on entries this rider is actually paying (own non-billed-away + billed-from-others)
+      var paid=entries.filter(function(e){return !e.billedTo||_normStr(e.billedTo)===nk;}).reduce(function(s,e){ return s+amtPaid(e); },0)
+              +billedFromOthers.reduce(function(s,e){ return s+amtPaid(e); },0);
       var bal=owed-paid; var isPaid=bal<=0;
-      var qOk=!q||name.toLowerCase().indexOf(q)>-1;
+      var qOk=!q||name.toLowerCase().indexOf(q)>-1
+        ||billedFromOthers.some(function(e){ return (e.name||'').toLowerCase().indexOf(q)>-1||(e.horse||'').toLowerCase().indexOf(q)>-1; });
       var fOk=tf==='All'||(tf==='Paid'&&isPaid)||(tf==='Outstanding'&&!isPaid);
       if(!fOk||!qOk) return;
       anyRow=true;
-      var horses=[...new Set(entries.map(function(e){ return getCanonicalHorse(e.horse); }))].join(', ');
+      var ownHorses=[...new Set(entries.map(function(e){ return getCanonicalHorse(e.horse); }))];
+      var allHorses=ownHorses.concat(billedFromOthers.map(function(e){ return getCanonicalHorse(e.horse); }));
       var refIdx=entries[0].rowIndex;
-      var hasSameHorse=!!sameHorseBadge[name];
+      var hasSameHorse=!!sameHorseBadge[nk];
       var badgeHtml=hasSameHorse?'<span style="font-size:.62rem;margin-left:.35rem;padding:1px 5px;border-radius:3px;background:rgba(200,146,42,.18);color:var(--accent);cursor:help" title="Same horse as another rider — consider merging tabs">&#9660; same horse</span>':'';
       var nEsc=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      // Show responsible party if any entry has one that differs from rider name
-      var _billedNames = [...new Set(entries.map(function(e){ return e.billedTo||e.name; }).filter(function(n){ return n!==name; }))];
-      var _billedBadge = _billedNames.length
-        ? '<div style="font-size:.7rem;color:var(--muted);font-weight:400;margin-top:1px">Billed to: <span style="color:var(--text)">'+esc(_billedNames.join(', '))+'</span></div>'
-        : '';
-      t+='<tr>'
-        +'<td class="bold" style="cursor:pointer" onclick="showTabModalByIdx('+refIdx+')">'+esc(name)+badgeHtml+_billedBadge+'</td>'
-        +'<td class="small">'+esc(horses)+'</td>'
-        +'<td class="ctr">'+entries.length+'</td>'
+      var totalCount=entries.length+billedFromOthers.length;
+      t+='<tr style="cursor:pointer" onclick="showTabModal(\''+nEsc+'\')">'
+        +'<td class="bold">'+esc(name)+badgeHtml+(billedFromOthers.length?'<span style="font-size:.65rem;color:var(--accent);margin-left:.4rem">+'+billedFromOthers.length+' billed</span>':'')+'</td>'
+        +'<td class="small">'+esc([...new Set(allHorses)].join(', '))+'</td>'
+        +'<td class="ctr">'+(totalCount>1?totalCount+' horses':((entries[0].classes||[]).filter(function(c){return c.status!=='scratched';}).length+' cls'))+'</td>'
         +'<td>'+fmt$(owed)+'</td>'
         +'<td style="color:var(--green)">'+fmt$(paid)+'</td>'
         +'<td class="bold" style="color:'+(isPaid?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</td>'
         +'<td>'+(isPaid?'<span class="badge b-green">Paid</span>':'<span class="badge b-red">Due</span>')+'</td>'
-        +'<td>'+(hasSameHorse?'<button class="btn btn-sm" style="font-size:.68rem;background:rgba(200,146,42,.12);border:1px solid rgba(200,146,42,.3);color:var(--accent)" onclick="promptMergeForRider(\''+nEsc+'\')">Merge</button>':'')+'</td>'
+        +'<td>'+(hasSameHorse?'<button class="btn btn-sm" style="font-size:.68rem;background:rgba(200,146,42,.12);border:1px solid rgba(200,146,42,.3);color:var(--accent)" onclick="event.stopPropagation();promptMergeForRider(\''+nEsc+'\')">Merge</button>':'')+'</td>'
         +'</tr>';
+      // Own horse sub-rows — rider is already the parent row; show horse + class badges
+      entries.forEach(function(e){
+        var hBiller=e.billedTo||name;
+        var billedAway=hBiller!==name;
+        var hPaid=billedAway?0:amtPaid(e);
+        var hCls=(e.classes||[]).filter(function(c){return c.status!=='scratched';});
+        var payerPill=billedAway
+          ?'<span style="font-size:.68rem;cursor:pointer;color:var(--accent);margin-left:.35rem" onclick="event.stopPropagation();quickAssignBiller('+e.rowIndex+')">→ '+esc(hBiller)+' &#9662;</span>'
+          :'<span style="font-size:.67rem;cursor:pointer;color:var(--border2);margin-left:.35rem" onclick="event.stopPropagation();quickAssignBiller('+e.rowIndex+')">set payer &#9662;</span>';
+        var clsBadges=hCls.map(function(c){return '<span style="font-size:.66rem;background:var(--card2);border:1px solid var(--border);border-radius:3px;padding:0 3px;margin-right:2px">'+esc(String(c.num||'?'))+'</span>';}).join('');
+        t+='<tr style="background:rgba(255,255,255,.015);border-top:none'+(billedAway?';opacity:.5':'')+';">'
+          +'<td style="padding-left:1.5rem;font-size:.82rem"><span style="color:var(--muted)">&#8627; </span><span style="font-weight:500">'+esc(e.horse||'—')+'</span> '+_clsDivBadges(hCls, e.division)+payerPill+'</td>'
+          +'<td class="small">'+clsBadges+'</td>'
+          +'<td></td>'
+          +'<td style="font-size:.85rem'+(billedAway?';color:var(--muted)':'')+'">'+(billedAway?'<span title="Billed to '+esc(hBiller)+'">—</span>':fmt$(tabTotal(e)))+'</td>'
+          +'<td style="font-size:.85rem;color:var(--green)">'+(hPaid>0?fmt$(hPaid):'')+'</td>'
+          +'<td></td><td></td>'
+          +'<td><button class="btn btn-sm btn-dark" style="font-size:.65rem" '
+          +'onclick="event.stopPropagation();showEntryModal('+e.rowIndex+');setTimeout(function(){switchModalTab(\'fees\')},50)">'
+          +'&#9998; Fees</button></td>'
+          +'</tr>';
+      });
+      // Sub-rows for other riders' entries billed to this rider
+      billedFromOthers.forEach(function(e){
+        var hAmt=tabTotal(e); var hPaid=amtPaid(e);
+        var hCls=(e.classes||[]).filter(function(c){return c.status!=='scratched';});
+        var clsBadges=hCls.map(function(c){return '<span style="font-size:.66rem;background:var(--card2);border:1px solid var(--border);border-radius:3px;padding:0 3px;margin-right:2px">'+esc(String(c.num||'?'))+'</span>';}).join('');
+        t+='<tr style="background:rgba(200,146,42,.04);border-top:none">'
+          +'<td style="padding-left:1.5rem;font-size:.82rem"><span style="color:var(--muted)">&#8627; </span><span style="font-weight:500">'+esc(e.horse||'—')+'</span><span style="font-size:.72rem;color:var(--muted);margin-left:.4rem">'+esc(e.name)+'</span></td>'
+          +'<td class="small">'+clsBadges+'</td>'
+          +'<td></td>'
+          +'<td style="font-size:.85rem">'+fmt$(hAmt)+'</td>'
+          +'<td style="font-size:.85rem;color:var(--green)">'+(hPaid>0?fmt$(hPaid):'')+'</td>'
+          +'<td></td><td></td>'
+          +'<td><button class="btn btn-sm btn-dark" style="font-size:.65rem" '
+          +'onclick="event.stopPropagation();showEntryModal('+e.rowIndex+');setTimeout(function(){switchModalTab(\'fees\')},50)">'
+          +'&#9998; Fees</button></td>'
+          +'</tr>';
+      });
+    });
+
+    // ── Virtual rows for billedTo parties who have no own entries ──
+    var virtualPayers={};   // normKey → {display, entries[]}
+    G.entries.forEach(function(e){
+      if(groupedKeys[entryKey(e)]) return;
+      if(!e.billedTo||_normStr(e.billedTo)===_normStr(e.name)) return;
+      if(byRider[_normStr(e.billedTo)]) return; // already shown above
+      var vpk=_normStr(e.billedTo);
+      if(!virtualPayers[vpk]) virtualPayers[vpk]={display:e.billedTo,entries:[]};
+      virtualPayers[vpk].entries.push(e);
+    });
+    Object.keys(virtualPayers).sort().forEach(function(vpk){
+      var payer=virtualPayers[vpk].display;
+      var vpE=virtualPayers[vpk].entries;
+      var owed=vpE.reduce(function(s,e){return s+tabTotal(e);},0);
+      var paid=vpE.reduce(function(s,e){return s+amtPaid(e);},0);
+      var bal=owed-paid; var isPaid=bal<=0;
+      var qOk=!q||payer.toLowerCase().indexOf(q)>-1;
+      var fOk=tf==='All'||(tf==='Paid'&&isPaid)||(tf==='Outstanding'&&!isPaid);
+      if(!fOk||!qOk) return;
+      anyRow=true;
+      var nEscP=payer.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      t+='<tr style="cursor:pointer;background:rgba(200,146,42,.03)" onclick="showPayerSummaryModal(\''+nEscP+'\')">'
+        +'<td class="bold">'+esc(payer)+'<span style="font-size:.65rem;color:var(--accent);margin-left:.4rem">billing party</span></td>'
+        +'<td class="small" style="color:var(--muted)">'+[...new Set(vpE.map(function(e){return getCanonicalHorse(e.horse);}))].join(', ')+'</td>'
+        +'<td class="ctr">'+vpE.length+'</td>'
+        +'<td>'+fmt$(owed)+'</td>'
+        +'<td style="color:var(--green)">'+fmt$(paid)+'</td>'
+        +'<td class="bold" style="color:'+(isPaid?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</td>'
+        +'<td>'+(isPaid?'<span class="badge b-green">Paid</span>':'<span class="badge b-red">Due</span>')+'</td>'
+        +'<td></td>'
+        +'</tr>';
+      vpE.forEach(function(e){
+        var hCls=(e.classes||[]).filter(function(c){return c.status!=='scratched';});
+        var clsBadges=hCls.map(function(c){return '<span style="font-size:.66rem;background:var(--card2);border:1px solid var(--border);border-radius:3px;padding:0 3px;margin-right:2px">'+esc(String(c.num||'?'))+'</span>';}).join('');
+        t+='<tr style="background:rgba(200,146,42,.02);border-top:none">'
+          +'<td style="padding-left:1.5rem;font-size:.82rem"><span style="color:var(--muted)">&#8627; </span><span style="font-weight:500">'+esc(e.horse||'—')+'</span><span style="font-size:.72rem;color:var(--muted);margin-left:.4rem">'+esc(e.name)+'</span></td>'
+          +'<td class="small">'+clsBadges+'</td>'
+          +'<td></td><td style="font-size:.85rem">'+fmt$(tabTotal(e))+'</td>'
+          +'<td></td><td></td><td></td>'
+          +'<td><button class="btn btn-sm btn-dark" style="font-size:.65rem" '
+          +'onclick="event.stopPropagation();showEntryModal('+e.rowIndex+');setTimeout(function(){switchModalTab(\'fees\')},50)">'
+          +'&#9998; Fees</button></td>'
+          +'</tr>';
+      });
+    });
+
+    // ── Sub-riders: in entry.riders but no own G.entries row ──
+    // They appear here when they have classes assigned (cls.rider === their name)
+    var subRiderMap={},subRiderDisplay={};
+    G.entries.forEach(function(e){
+      if(groupedKeys[entryKey(e)]) return;
+      var eLines=buildTabLines(e);
+      (e.riders||[]).forEach(function(r){
+        if(r.isPrimary) return;
+        if(byRider[_normStr(r.name)]) return; // has own entries, handled in their row
+        var rLines=eLines.filter(function(l){return l.type==='class'&&l.rider===r.name;});
+        if(!rLines.length) return;
+        var nk=_normStr(r.name);
+        if(!subRiderMap[nk]){ subRiderMap[nk]=[]; subRiderDisplay[nk]=r.name; }
+        subRiderMap[nk].push({e:e,lines:rLines});
+      });
+    });
+    Object.keys(subRiderMap).sort().forEach(function(nk){
+      var srGroups=subRiderMap[nk],subName=subRiderDisplay[nk];
+      var srOwed=srGroups.reduce(function(s,g){return s+g.lines.reduce(function(ss,l){return ss+l.amt;},0);},0);
+      var qOk=!q||subName.toLowerCase().indexOf(q)>-1;
+      var fOk=tf==='All'||(tf==='Outstanding'&&srOwed>0)||(tf==='Paid'&&srOwed<=0);
+      if(!fOk||!qOk) return;
+      anyRow=true;
+      var nEscSR=subName.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      t+='<tr style="cursor:pointer;background:rgba(52,152,219,.04)">'
+        +'<td class="bold">'+esc(subName)+'<span style="font-size:.65rem;color:var(--blue,#3498db);margin-left:.4rem">sub-rider</span></td>'
+        +'<td class="small" style="color:var(--muted)">'+(function(){var h=[...new Set(srGroups.map(function(g){return getCanonicalHorse(g.e.horse);}))];return h.join(', ');}())+'</td>'
+        +'<td class="ctr">'+srGroups.reduce(function(s,g){return s+g.lines.length;},0)+' cls</td>'
+        +'<td>'+fmt$(srOwed)+'</td>'
+        +'<td></td>'
+        +'<td class="bold" style="color:var(--red)">'+fmt$(srOwed)+'</td>'
+        +'<td><span class="badge b-red">Due</span></td>'
+        +'<td></td>'
+        +'</tr>';
+      srGroups.forEach(function(g){
+        var clsBadges=g.lines.map(function(l){return '<span style="font-size:.66rem;background:var(--card2);border:1px solid var(--border);border-radius:3px;padding:0 3px;margin-right:2px">'+esc(String(l.classNum||'?'))+'</span>';}).join('');
+        t+='<tr style="background:rgba(52,152,219,.02);border-top:none">'
+          +'<td style="padding-left:1.5rem;font-size:.82rem"><span style="color:var(--muted)">&#8627; </span><span style="font-weight:500">'+esc(g.e.horse||'—')+'</span><span style="font-size:.72rem;color:var(--muted);margin-left:.4rem">'+esc(g.e.name)+'</span></td>'
+          +'<td class="small">'+clsBadges+'</td>'
+          +'<td></td><td style="font-size:.85rem">'+fmt$(g.lines.reduce(function(s,l){return s+l.amt;},0))+'</td>'
+          +'<td></td><td></td><td></td>'
+          +'<td><button class="btn btn-sm btn-dark" style="font-size:.65rem" '
+          +'onclick="event.stopPropagation();showEntryModal('+g.e.rowIndex+');setTimeout(function(){switchModalTab(\'fees\')},50)">&#9998; Fees</button></td>'
+          +'</tr>';
+      });
     });
 
     if(!anyRow) t+='<tr><td colspan="8" class="empty-state">No entries match</td></tr>';
     t+='</tbody></table>';
-    document.getElementById('ttbl').innerHTML=t;
+    document.getElementById('ttbl').innerHTML=simBanner+t;
   }
 
   drawTabTable();
@@ -6362,15 +7012,14 @@ function pgStalls(){
 
   var f=G.cfg.fees;
 
-  var stalled=G.entries.filter(function(e){ return e.stall1qty>0||e.stall2qty>0; });
-
-  var rvEntries=G.entries.filter(function(e){ return e.rv1qty>0||e.rv2qty>0||e.rvCircuit>0; });
-
-  var totalShavings=G.entries.reduce(function(s,e){ return s+e.shavings; },0);
-
-  var stallRev=G.entries.reduce(function(s,e){ return s+e.stall1qty*f.stall1+e.stall2qty*f.stall2+e.shavings*f.shavings; },0);
-
-  var rvRev=G.entries.reduce(function(s,e){ return s+e.rv1qty*f.rv1+e.rv2qty*f.rv2+e.rvCircuit*f.rvCircuit; },0);
+  // Stalling data is rider-level (G.riderStalls), not per-entry
+  var rs=G.riderStalls||{};
+  var rsEntries=Object.keys(rs).map(function(n){ return {name:n, rs:rs[n]}; });
+  var stalled=rsEntries.filter(function(r){ return (r.rs.stall1qty||0)+(r.rs.stall2qty||0)+(r.rs.stall3qty||0)+(r.rs.stallCircuit||0)>0||r.rs.stallNote; });
+  var rvEntries=rsEntries.filter(function(r){ return (r.rs.rv1qty||0)+(r.rs.rv2qty||0)+(r.rs.rvCircuit||0)>0; });
+  var totalShavings=rsEntries.reduce(function(s,r){ return s+(r.rs.shavings||0); },0);
+  var stallRev=rsEntries.reduce(function(s,r){ return s+(r.rs.stall1qty||0)*(f.stall1||0)+(r.rs.stall2qty||0)*(f.stall2||0)+(r.rs.stall3qty||0)*(f.stall3||0)+(r.rs.stallCircuit||0)*(f.stallCircuit||0)+(r.rs.shavings||0)*(f.shavings||0); },0);
+  var rvRev=rsEntries.reduce(function(s,r){ return s+(r.rs.rv1qty||0)*(f.rv1||0)+(r.rs.rv2qty||0)*(f.rv2||0)+(r.rs.rvCircuit||0)*(f.rvCircuit||0); },0);
 
 
 
@@ -6388,49 +7037,43 @@ function pgStalls(){
 
     +'<div class="card"><div class="card-title">Stall List</div>'
 
-    +'<div class="tbl-wrap"><table><thead><tr><th>Rider</th><th>Horse</th><th>1-Night</th><th>2-Night</th><th>Shavings</th><th>Arrival</th><th>Notes</th><th>Fees</th></tr></thead><tbody>'
+    +'<div class="tbl-wrap"><table><thead><tr><th>Rider</th><th>1-Night</th><th>2-Night</th><th>3-Night</th><th>Shavings</th><th>Arrival</th><th>Notes</th><th>Fees</th></tr></thead><tbody>'
 
-    +(stalled.length ? stalled.map(function(e){
-
-      var fee=e.stall1qty*f.stall1+e.stall2qty*f.stall2+e.shavings*f.shavings;
-
-      return '<tr><td class="bold">'+esc(e.name)+'</td><td>'+esc(e.horse)+'</td>'
-
-        +'<td class="ctr">'+(e.stall1qty||'—')+'</td>'
-
-        +'<td class="ctr">'+(e.stall2qty||'—')+'</td>'
-
-        +'<td class="ctr">'+(e.shavings||'—')+'</td>'
-
-        +'<td class="small">—</td>'
-
-        +'<td class="small" style="max-width:180px;white-space:normal">'+esc((e.stallNote||'').substring(0,80)+(e.stallNote&&e.stallNote.length>80?'…':''))+'</td>'
-
+    +(stalled.length ? stalled.map(function(r){
+      var v=r.rs;
+      var fee=(v.stall1qty||0)*(f.stall1||0)+(v.stall2qty||0)*(f.stall2||0)+(v.stall3qty||0)*(f.stall3||0)+(v.shavings||0)*(f.shavings||0);
+      var rEntry=G.entries.find(function(e){ return e.name===r.name; });
+      var ri=rEntry?rEntry.rowIndex:-1;
+      return '<tr>'
+        +'<td class="bold" style="cursor:pointer" onclick="'+(ri>=0?'showEntryModal('+ri+');setTimeout(function(){switchModalTab(\'stall\')},50)':'')+'">'+esc(r.name)+'</td>'
+        +'<td class="ctr">'+(v.stall1qty||'—')+'</td>'
+        +'<td class="ctr">'+(v.stall2qty||'—')+'</td>'
+        +'<td class="ctr">'+(v.stall3qty||'—')+'</td>'
+        +'<td class="ctr">'+(v.shavings||'—')+'</td>'
+        +'<td class="small">'+(v.stallingArrival||'—')+'</td>'
+        +'<td class="small" style="max-width:180px;white-space:normal">'+esc((v.stallNote||'').substring(0,80))+'</td>'
         +'<td>'+fmt$(fee)+'</td></tr>';
-
     }).join('') : '<tr><td colspan="8" class="empty-state">No stalling requests</td></tr>')
 
     +'</tbody></table></div></div>'
 
     +'<div class="card"><div class="card-title">RV List</div>'
 
-    +'<div class="tbl-wrap"><table><thead><tr><th>Rider</th><th>1-Night</th><th>2-Night</th><th>Circuit</th><th>Fees</th></tr></thead><tbody>'
+    +'<div class="tbl-wrap"><table><thead><tr><th>Rider</th><th>1-Night</th><th>2-Night</th><th>Circuit</th><th>Arrival</th><th>Fees</th></tr></thead><tbody>'
 
-    +(rvEntries.length ? rvEntries.map(function(e){
-
-      var fee=e.rv1qty*f.rv1+e.rv2qty*f.rv2+e.rvCircuit*f.rvCircuit;
-
-      return '<tr><td class="bold">'+esc(e.name)+'</td>'
-
-        +'<td class="ctr">'+(e.rv1qty||'—')+'</td>'
-
-        +'<td class="ctr">'+(e.rv2qty||'—')+'</td>'
-
-        +'<td class="ctr">'+(e.rvCircuit||'—')+'</td>'
-
+    +(rvEntries.length ? rvEntries.map(function(r){
+      var v=r.rs;
+      var fee=(v.rv1qty||0)*(f.rv1||0)+(v.rv2qty||0)*(f.rv2||0)+(v.rvCircuit||0)*(f.rvCircuit||0);
+      var rEntry=G.entries.find(function(e){ return e.name===r.name; });
+      var ri=rEntry?rEntry.rowIndex:-1;
+      return '<tr>'
+        +'<td class="bold" style="cursor:pointer" onclick="'+(ri>=0?'showEntryModal('+ri+');setTimeout(function(){switchModalTab(\'stall\')},50)':'')+'">'+esc(r.name)+'</td>'
+        +'<td class="ctr">'+(v.rv1qty||'—')+'</td>'
+        +'<td class="ctr">'+(v.rv2qty||'—')+'</td>'
+        +'<td class="ctr">'+(v.rvCircuit||'—')+'</td>'
+        +'<td class="small">'+(v.rvArrival||'—')+'</td>'
         +'<td>'+fmt$(fee)+'</td></tr>';
-
-    }).join('') : '<tr><td colspan="5" class="empty-state">No RV requests</td></tr>')
+    }).join('') : '<tr><td colspan="6" class="empty-state">No RV requests</td></tr>')
 
     +'</tbody></table></div></div>';
 
@@ -7650,11 +8293,11 @@ function pgResults(){
 
       var actualRows = clsRows.length;
 
-      var entryMismatch = !isAqhaOrg && fwEntries > actualRows; // suppress for AQHA — export structure differs
-
       var orgPtsSys=(ORG_CLASSES[_resSelOrg]||{}).pointsSystem||'entries';
 
       var isAqhaOrg=(orgPtsSys==='aqha');
+
+      var entryMismatch = !isAqhaOrg && fwEntries > actualRows; // suppress for AQHA — export structure differs
 
       var allManual=clsRows.every(function(r){ return r._manual; });
 
@@ -8800,7 +9443,7 @@ window.pushToSeasonHub=async function(){
 
         raw_class: r.rawClass||'',
 
-        horse: r.horse, rider: r.rider, owner: r.owner||'',
+        horse: r.horse, rider: (r._canonical&&r._canonical.rider)||r.rider, owner: r.owner||'',
 
         score: r.score||null, place: r.place||null,
 
@@ -12681,6 +13324,18 @@ function _emHousingEdit(entry, rowIdx){
     if(f.stall3>0)      html += _emQty('em-stall3', lbl('stall3','Stall — 3 Nights'),  f.stall3, entry.stall3qty||0, rowIdx);
     if(f.stallCircuit>0) html += _emQty('em-stallc', lbl('stallCircuit','Stall — Full Circuit (entire show)'), f.stallCircuit, entry.stallCircuit||0, rowIdx);
     html += '</div>';
+  } else {
+    // No fees configured but entry may have qtys from online submission — show as info
+    var onlineStall = (entry.stall1qty||0)+(entry.stall2qty||0)+(entry.stall3qty||0)+(entry.stallCircuit||0);
+    if(onlineStall > 0){
+      hasAnything = true;
+      html += '<div style="font-size:.82rem;color:var(--muted);padding:.2rem 0 .5rem">';
+      if(entry.stall1qty) html += '<span style="color:var(--text)">'+entry.stall1qty+'× 1-night stall</span> ';
+      if(entry.stall2qty) html += '<span style="color:var(--text)">'+entry.stall2qty+'× 2-night stall</span> ';
+      if(entry.stall3qty) html += '<span style="color:var(--text)">'+entry.stall3qty+'× 3-night stall</span> ';
+      if(entry.stallCircuit) html += '<span style="color:var(--text)">'+entry.stallCircuit+'× circuit stall</span> ';
+      html += '<span style="color:var(--amber,#e6a817);font-size:.75rem">&#9888; set stall prices in Finances to bill</span></div>';
+    }
   }
 
   if(f.shavings>0){
@@ -12716,40 +13371,84 @@ function _emHousingEdit(entry, rowIdx){
     if(f.rv2>0)      html += _emQty('em-rv2', lbl('rv2','RV — 2 Nights'),  f.rv2, entry.rv2qty||0, rowIdx);
     if(f.rvCircuit>0) html += _emQty('em-rvc', lbl('rvCircuit','RV — Full Circuit (entire show)'), f.rvCircuit, entry.rvCircuit||0, rowIdx);
     html += '</div>';
+  } else {
+    var onlineRV = (entry.rv1qty||0)+(entry.rv2qty||0)+(entry.rvCircuit||0);
+    if(onlineRV > 0){
+      hasAnything = true;
+      html += '<div style="font-size:.82rem;color:var(--muted);padding:.2rem 0 .5rem">';
+      if(entry.rv1qty) html += '<span style="color:var(--text)">'+entry.rv1qty+'× RV per night</span> ';
+      if(entry.rv2qty) html += '<span style="color:var(--text)">'+entry.rv2qty+'× RV 2-night</span> ';
+      if(entry.rvCircuit) html += '<span style="color:var(--text)">'+entry.rvCircuit+'× RV circuit</span> ';
+      html += '<span style="color:var(--amber,#e6a817);font-size:.75rem">&#9888; set RV prices in Finances to bill</span></div>';
+    }
+  }
+
+  // Stall group / note and arrival dates (from online submissions or manual entry)
+  var hasStalling = hasAnything;
+  if(hasStalling || entry.stallNote || entry.stallingArrival || entry.rvArrival){
+    hasAnything = true;
+    html += '<div style="display:grid;gap:.35rem;margin-top:.35rem">';
+    html += '<label style="font-size:.8rem;color:var(--muted);display:block">Stall Group / Note'
+      +'<input id="em-stallnote" type="text" value="'+esc(entry.stallNote||'')+'" '
+      +'placeholder="e.g. Smith Ranch, trailer row 3…" '
+      +'oninput="emSaveHousing('+rowIdx+')" '
+      +'style="display:block;width:100%;margin-top:.2rem;padding:.3rem .5rem;'
+      +'background:var(--card);border:1px solid var(--border2);border-radius:4px;'
+      +'color:var(--text);font-size:.83rem;box-sizing:border-box"></label>';
+    if(entry.stallingArrival)
+      html += '<div style="font-size:.8rem;color:var(--muted)">Stall Arrival: <span style="color:var(--text)">'+esc(entry.stallingArrival)+'</span></div>';
+    if(entry.rvArrival)
+      html += '<div style="font-size:.8rem;color:var(--muted)">RV Arrival: <span style="color:var(--text)">'+esc(entry.rvArrival)+'</span></div>';
+    html += '</div>';
   }
 
   if(!hasAnything) return '<div style="font-size:.82rem;color:var(--muted);padding:.3rem 0">No stalling or RV rates configured in Finances.</div>';
   return html;
 }
 
-window.emSaveHousing = function(rowIdx){
+// emSaveHousing is now a no-op — stalling moved to the Stalling tab via emSaveStalling
+window.emSaveHousing = function(rowIdx){ emSaveStalling(rowIdx); };
+
+window.emSaveStalling = function(rowIdx){
   var entry = G.entries.find(function(e){ return e.rowIndex===rowIdx; });
   if(!entry) return;
+  if(!G.riderStalls) G.riderStalls = {};
+  var rs = G.riderStalls[entry.name] || {};
 
   var stallPkgs = G.cfg.stallingPackages || [];
   if(stallPkgs.length){
-    var s = document.querySelector('input[name="em-stall-pkg"]:checked');
-    entry.stallingPkg = s ? s.value : '';
+    var sp = document.querySelector('input[name="st-pkg"]:checked');
+    rs.stallingPkg = sp ? sp.value : '';
   } else {
-    if(document.getElementById('em-stall1')) entry.stall1qty   = parseInt(document.getElementById('em-stall1').value)||0;
-    if(document.getElementById('em-stall2')) entry.stall2qty   = parseInt(document.getElementById('em-stall2').value)||0;
-    if(document.getElementById('em-stall3')) entry.stall3qty   = parseInt(document.getElementById('em-stall3').value)||0;
-    if(document.getElementById('em-stallc')) entry.stallCircuit= parseInt(document.getElementById('em-stallc').value)||0;
+    var gv = function(id){ var el=document.getElementById(id); return el?parseInt(el.value)||0:undefined; };
+    if(gv('st-s1')!==undefined) rs.stall1qty    = gv('st-s1');
+    if(gv('st-s2')!==undefined) rs.stall2qty    = gv('st-s2');
+    if(gv('st-s3')!==undefined) rs.stall3qty    = gv('st-s3');
+    if(gv('st-sc')!==undefined) rs.stallCircuit = gv('st-sc');
+    if(gv('st-sh')!==undefined) rs.shavings     = gv('st-sh');
+    if(gv('st-hl')!==undefined) rs.haulinQty    = gv('st-hl');
   }
-  if(document.getElementById('em-shavings')) entry.shavings = parseInt(document.getElementById('em-shavings').value)||0;
-
   var rvPkgs = G.cfg.rvPackages || [];
   if(rvPkgs.length){
-    var r = document.querySelector('input[name="em-rv-pkg"]:checked');
-    entry.rvPkg = r ? r.value : '';
+    var rp = document.querySelector('input[name="rv-pkg"]:checked');
+    rs.rvPkg = rp ? rp.value : '';
   } else {
-    if(document.getElementById('em-rv1')) entry.rv1qty    = parseInt(document.getElementById('em-rv1').value)||0;
-    if(document.getElementById('em-rv2')) entry.rv2qty    = parseInt(document.getElementById('em-rv2').value)||0;
-    if(document.getElementById('em-rvc')) entry.rvCircuit = parseInt(document.getElementById('em-rvc').value)||0;
+    var gv2 = function(id){ var el=document.getElementById(id); return el?parseInt(el.value)||0:undefined; };
+    if(gv2('st-r1')!==undefined) rs.rv1qty    = gv2('st-r1');
+    if(gv2('st-r2')!==undefined) rs.rv2qty    = gv2('st-r2');
+    if(gv2('st-rc')!==undefined) rs.rvCircuit = gv2('st-rc');
   }
+  var noteEl=document.getElementById('st-note');   if(noteEl)  rs.stallNote       = noteEl.value;
+  var arrEl =document.getElementById('st-arr');    if(arrEl)   rs.stallingArrival = arrEl.value;
+  var rvaEl =document.getElementById('st-rvarr');  if(rvaEl)   rs.rvArrival       = rvaEl.value;
 
-  saveEntriesToCache();
-  if(G._rebuildEntryModal) G._rebuildEntryModal();
+  G.riderStalls[entry.name] = rs;
+  saveEntriesToStorage();
+  // Update stalling total in-place — do NOT call _rebuildEntryModal here, it destroys focus
+  var newStallTotal = buildRiderStallLines(entry.name).reduce(function(s,l){return s+l.amt;},0);
+  var _tEl=document.getElementById('st-total-display'); var _aEl=document.getElementById('st-total-amt');
+  if(_tEl) _tEl.style.display = newStallTotal>0 ? '' : 'none';
+  if(_aEl) _aEl.textContent = fmt$(newStallTotal);
 };
 
 function _emExtrasEdit(entry, rowIdx){
@@ -12803,7 +13502,7 @@ window.emSaveExtras = function(rowIdx){
   if(G._rebuildEntryModal) G._rebuildEntryModal();
 };
 
-function showEntryModal(rowIdx){
+function showEntryModal(rowIdx, startTab){
 
   var e = G.entries.find(function(x){ return x.rowIndex===rowIdx; });
 
@@ -12929,153 +13628,182 @@ function showEntryModal(rowIdx){
       return div + (org ? ' · '+org : '');
     }
 
-    var riderHTML = '';
+    // ── Riders & Classes tab — horse-scoped: aggregates all entries for this horse ──
+    var _canonHorse2=getCanonicalHorse(entry.horse);
+    var _allHorseEntries=G.entries.filter(function(e2){return getCanonicalHorse(e2.horse)===_canonHorse2;});
 
-    riders.forEach(function(r, ri){
-      var rKey = rowIdx+'_'+ri;
+    // Build horse-wide unique riders list
+    var _hrMap={},_hrList=[];
+    _allHorseEntries.forEach(function(e2){
+      var e2r=e2.riders||[{name:e2.name,division:e2.division||'',isPrimary:true}];
+      if(!e2r.some(function(r){return r.isPrimary;}))
+        e2r=[{name:e2.name,division:e2.division||'',isPrimary:true}].concat(e2r);
+      e2r.forEach(function(r){
+        var rk=_normStr(r.name);
+        if(!_hrMap[rk]){_hrMap[rk]={name:r.name,division:r.division||'',divOrg:r.divOrg||'',isPrimary:r.isPrimary,ownerRowIdx:e2.rowIndex};_hrList.push(_hrMap[rk]);}
+        else if(r.isPrimary) _hrMap[rk].isPrimary=true;
+      });
+    });
+    // Determine designated billing primary before sort so it can influence order
+    G.horsePrimary=G.horsePrimary||{};
+    var _desPrimary=G.horsePrimary[_canonHorse2];
+    if(!_desPrimary){
+      var _fp=_hrList.find(function(r){return r.isPrimary;});
+      _desPrimary=_fp?_fp.name:(_hrList[0]?_hrList[0].name:'');
+    }
 
-      // Classes assigned to this rider
-      var assigned = (entry.classes||[]).filter(function(c){
-        return c.status !== 'scratched' && (
-          c.rider === r.name || (r.isPrimary && (!c.rider || c.rider === entry.name))
-        );
+    // Designated primary first, then focal entry rider, then others
+    _hrList.sort(function(a,b){
+      var ad=_normStr(a.name)===_normStr(_desPrimary),bd=_normStr(b.name)===_normStr(_desPrimary);
+      if(ad!==bd) return ad?-1:1;
+      var af=_normStr(a.name)===_normStr(entry.name),bf=_normStr(b.name)===_normStr(entry.name);
+      if(af!==bf) return af?-1:1;
+      return 0;
+    });
+
+    G._horseRiders=G._horseRiders||{};
+    G._horseRiders[rowIdx]={riders:_hrList,allHorseEntries:_allHorseEntries};
+    var _multiRider=_hrList.length>1;
+
+    var riderHTML='<div style="display:flex;justify-content:flex-end;margin-bottom:.55rem">'
+      +'<button class="btn btn-accent btn-sm" onclick="showAddClassPicker('+rowIdx+')">+ Add Class</button>'
+      +'</div>';
+
+    _hrList.forEach(function(r,ri){
+      var rKey=rowIdx+'_'+ri;
+
+      // Collect non-scratched classes from ALL horse entries for this rider
+      var assigned=[],assignedNums={};
+      _allHorseEntries.forEach(function(e2){
+        (e2.classes||[]).forEach(function(c){
+          if(c.status==='scratched') return;
+          var rm=_normStr(c.rider||'')===_normStr(r.name);
+          var pm=r.isPrimary&&_normStr(e2.name)===_normStr(r.name)&&(!c.rider||_normStr(c.rider)===_normStr(e2.name));
+          if((rm||pm)&&!assignedNums[String(c.num)]){assignedNums[String(c.num)]=true;assigned.push(c);}
+        });
       });
 
-      // Blocks keyed by "org|div"
-      var assignedOrgDivs = Array.from(new Set(assigned.map(function(c){
-        return (c.org||'CoWN')+'|'+(c.division||'');
-      }).filter(function(k){ return k.split('|')[1]; })));
-
-      // Rider's stored division may be "org|div" (new) or bare "div" (legacy)
+      var assignedOrgDivs=Array.from(new Set(assigned.map(function(c){return (c.org||'CoWN')+'|'+(c.division||'');}).filter(function(k){return k.split('|')[1];})));
       if(r.division){
-        var rdKey = r.division.indexOf('|')>=0 ? r.division : (r.divOrg||'CoWN')+'|'+r.division;
-        if(rdKey.split('|')[1] && assignedOrgDivs.indexOf(rdKey)<0) assignedOrgDivs.push(rdKey);
+        var rdKey=r.division.indexOf('|')>=0?r.division:(r.divOrg||'CoWN')+'|'+r.division;
+        if(rdKey.split('|')[1]&&assignedOrgDivs.indexOf(rdKey)<0) assignedOrgDivs.push(rdKey);
       }
-      (_riderExtraDivs[rKey]||[]).forEach(function(k){ if(assignedOrgDivs.indexOf(k)<0) assignedOrgDivs.push(k); });
+      (_riderExtraDivs[rKey]||[]).forEach(function(k){if(assignedOrgDivs.indexOf(k)<0)assignedOrgDivs.push(k);});
 
-      riderHTML += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.75rem;margin-bottom:.5rem">';
+      var _isDesPrimary=_normStr(r.name)===_normStr(_desPrimary);
+      var _rNameEsc=_sq(r.name);
 
-      // Name + badge/remove
-      riderHTML += '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem">'
-        +'<strong style="flex:1;font-size:.88rem">'+esc(r.name)+'</strong>'
-        +(r.isPrimary
-          ? '<span class="badge b-gold">Primary</span>'
-          : '<button class="btn btn-red btn-sm" onclick="removeRider('+rowIdx+','+ri+')">Remove</button>')
-        +'</div>';
-
-      if(!assignedOrgDivs.length){
-        riderHTML += '<div style="font-size:.8rem;color:var(--muted);margin-bottom:.4rem">No division selected. Add one below.</div>';
+      riderHTML+='<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.75rem;margin-bottom:.5rem">';
+      riderHTML+='<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem">'
+        +'<strong style="flex:1;font-size:.88rem">'+esc(r.name)+'</strong>';
+      if(_isDesPrimary){
+        riderHTML+='<span class="badge b-gold" title="Billing primary — click co-rider\'s name to change">Primary</span>';
+        if(_multiRider) riderHTML+='<span style="font-size:.72rem;color:var(--muted)">Payer</span>';
+      } else {
+        riderHTML+='<button class="btn btn-sm" style="font-size:.75rem" onclick="setHorsePrimary('+rowIdx+','+_rNameEsc+')">Make Primary</button>';
+        riderHTML+='<button class="btn btn-red btn-sm" onclick="removeRider('+r.ownerRowIdx+','+_rNameEsc+')">Remove</button>';
       }
+      riderHTML+='</div>';
+
+      if(!assignedOrgDivs.length)
+        riderHTML+='<div style="font-size:.8rem;color:var(--muted);margin-bottom:.4rem">No classes assigned. Add a division below or use + Add Class.</div>';
 
       assignedOrgDivs.forEach(function(orgDiv){
-        var expKey = rKey+'_'+orgDiv;
-        if(_riderDivExpanded[expKey] === undefined){
-          _riderDivExpanded[expKey] = assigned.some(function(c){
-            return (c.org||'CoWN')+'|'+(c.division||'') === orgDiv;
-          });
-        }
-        var isExp = _riderDivExpanded[expKey];
+        var expKey=rKey+'_'+orgDiv;
+        if(_riderDivExpanded[expKey]===undefined)
+          _riderDivExpanded[expKey]=assigned.some(function(c){return (c.org||'CoWN')+'|'+(c.division||'')===orgDiv;});
+        var isExp=_riderDivExpanded[expKey];
+        var pipeIdx=orgDiv.indexOf('|'),blockOrg=pipeIdx>=0?orgDiv.slice(0,pipeIdx):'CoWN',blockDiv=pipeIdx>=0?orgDiv.slice(pipeIdx+1):orgDiv;
+        var divClasses=G.cfg.classes.filter(function(c){return (c.org||'CoWN')===blockOrg&&(c.division||'')===blockDiv;});
+        var checkedNums=assigned.filter(function(c){return (c.org||'CoWN')===blockOrg&&(c.division||'')===blockDiv;}).map(function(c){return String(c.num);});
+        var allChk=divClasses.length>0&&divClasses.every(function(c){return checkedNums.indexOf(String(c.num))>=0;});
+        var label=_divLabel(orgDiv),odEscJs=orgDiv.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 
-        // Parse org and div from key
-        var pipeIdx = orgDiv.indexOf('|');
-        var blockOrg = pipeIdx>=0 ? orgDiv.slice(0,pipeIdx) : 'CoWN';
-        var blockDiv = pipeIdx>=0 ? orgDiv.slice(pipeIdx+1) : orgDiv;
-
-        var divClasses = G.cfg.classes.filter(function(c){
-          return (c.org||'CoWN')===blockOrg && (c.division||'')===blockDiv;
-        });
-        var checkedNums = assigned.filter(function(c){
-          return (c.org||'CoWN')===blockOrg && (c.division||'')===blockDiv;
-        }).map(function(c){ return String(c.num); });
-        var allChk = divClasses.length>0 && divClasses.every(function(c){ return checkedNums.indexOf(String(c.num))>=0; });
-        var hasAssigned = checkedNums.length > 0;
-        var label = _divLabel(orgDiv);
-        var odEscJs = orgDiv.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-
-        riderHTML += '<div style="border:1px solid var(--border);border-radius:6px;margin-bottom:.35rem;overflow:hidden">';
-
-        // Block header
-        riderHTML += '<div style="display:flex;align-items:center;gap:.4rem;padding:.4rem .6rem;background:var(--card);cursor:pointer" onclick="toggleRiderDivBlock('+rowIdx+','+ri+',\''+odEscJs+'\')">'
-          +'<span style="flex:1;font-size:.83rem;font-weight:600">'+esc(label)+'</span>';
-        if(checkedNums.length>0){
-          riderHTML += '<span class="badge b-gray" style="font-size:.71rem">'+checkedNums.length+'/'+divClasses.length+'</span>';
-        }
-        riderHTML += '<span style="color:var(--muted);font-size:.9rem;width:1rem;text-align:center">'+(isExp?'−':'+')+'</span>';
-        if(!hasAssigned){
-          riderHTML += '<button class="btn btn-sm" style="padding:.1rem .35rem;font-size:.72rem;background:transparent;border:none;color:var(--muted);line-height:1" onclick="event.stopPropagation();removeRiderDivBlock('+rowIdx+','+ri+',\''+odEscJs+'\')">✕</button>';
-        }
-        riderHTML += '</div>';
-
-        // Expanded class list
+        riderHTML+='<div style="border:1px solid var(--border);border-radius:6px;margin-bottom:.35rem;overflow:hidden">';
+        riderHTML+='<div style="display:flex;align-items:center;gap:.4rem;padding:.4rem .6rem;background:var(--card);cursor:pointer" onclick="toggleRiderDivBlock('+rowIdx+','+ri+',\''+odEscJs+'\')">'
+          +'<span style="flex:1;font-size:.83rem;font-weight:600">'+esc(label)+'</span>'
+          +(checkedNums.length?'<span class="badge b-gray" style="font-size:.71rem">'+checkedNums.length+(divClasses.length?'/'+divClasses.length:'')+'</span>':'')
+          +'<span style="color:var(--muted);font-size:.9rem;width:1rem;text-align:center">'+(isExp?'−':'+')+'</span>'
+          +(!checkedNums.length?'<button class="btn btn-sm" style="padding:.1rem .35rem;font-size:.72rem;background:transparent;border:none;color:var(--muted);line-height:1" onclick="event.stopPropagation();removeRiderDivBlock('+rowIdx+','+ri+',\''+odEscJs+'\')">✕</button>':'')
+          +'</div>';
         if(isExp){
-          riderHTML += '<div style="padding:.45rem .6rem;background:var(--bg)">';
-          riderHTML += '<label style="display:flex;align-items:center;gap:.5rem;padding:.18rem 0;border-bottom:1px solid var(--border);margin-bottom:.2rem;cursor:pointer;font-size:.82rem;font-weight:600">'
+          riderHTML+='<div style="padding:.45rem .6rem;background:var(--bg)">'
+            +'<label style="display:flex;align-items:center;gap:.5rem;padding:.18rem 0;border-bottom:1px solid var(--border);margin-bottom:.2rem;cursor:pointer;font-size:.82rem;font-weight:600">'
             +'<input type="checkbox"'+(allChk?' checked':'')+' onchange="toggleRiderAllInDiv('+rowIdx+','+ri+',\''+odEscJs+'\',this.checked)"> All</label>';
           if(!divClasses.length){
-            riderHTML += '<div style="font-size:.8rem;color:var(--muted)">No classes configured for this division</div>';
+            riderHTML+='<div style="font-size:.8rem;color:var(--muted)">No classes configured for this division</div>';
           } else {
             divClasses.forEach(function(c){
-              var isChk = checkedNums.indexOf(String(c.num)) >= 0;
-              riderHTML += '<label style="display:flex;align-items:center;gap:.45rem;padding:.18rem 0;cursor:pointer">'
-                +'<input type="checkbox"'+(isChk?' checked':'')+' onchange="toggleRiderClass('+rowIdx+','+ri+','+JSON.stringify(String(c.num))+',this.checked)">'
-                +'<span class="badge b-gray" style="font-size:.71rem">'+esc(String(c.num))+'</span>'
-                +'<span style="font-size:.81rem;flex:1">'+esc(c.name)+'</span>'
-                +(c.isCow ? '<span style="font-size:.7rem;color:var(--accent)">cattle fee</span>' : '')
+              var isChk=checkedNums.indexOf(String(c.num))>=0;
+              var scrCls=!isChk&&_allHorseEntries.some(function(e2){
+                return (e2.classes||[]).some(function(ec){
+                  return String(ec.num)===String(c.num)&&ec.status==='scratched'&&(
+                    _normStr(ec.rider||'')===_normStr(r.name)||(r.isPrimary&&_normStr(e2.name)===_normStr(r.name)&&(!ec.rider||_normStr(ec.rider)===_normStr(e2.name))));
+                });
+              });
+              riderHTML+='<label style="display:flex;align-items:center;gap:.45rem;padding:.18rem 0;cursor:pointer'+(scrCls?';opacity:.5':'')+';">'
+                +'<input type="checkbox"'+(isChk?' checked':'')+' onchange="toggleRiderClass('+rowIdx+','+ri+',\''+String(c.num).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\',this.checked)">'
+                +'<span class="badge b-gray" style="font-size:.71rem'+(scrCls?';text-decoration:line-through':'')+'">'+esc(String(c.num))+'</span>'
+                +'<span style="font-size:.81rem;flex:1'+(scrCls?';text-decoration:line-through':'')+'">'+esc(c.name)+'</span>'
+                +(scrCls?'<span style="font-size:.7rem;color:var(--red)">scratched</span>':c.isCow?'<span style="font-size:.7rem;color:var(--accent)">cattle fee</span>':'')
                 +'</label>';
             });
           }
-          riderHTML += '</div>';
+          riderHTML+='</div>';
         }
-
-        riderHTML += '</div>';
+        riderHTML+='</div>';
       });
 
-      // Add another division picker
-      var availODs = _allDivOpts.filter(function(k){ return assignedOrgDivs.indexOf(k)<0; });
+      var availODs=_allDivOpts.filter(function(k){return assignedOrgDivs.indexOf(k)<0;});
       if(availODs.length){
-        riderHTML += '<div style="display:flex;align-items:center;gap:.4rem;margin-top:.3rem">'
+        riderHTML+='<div style="display:flex;align-items:center;gap:.4rem;margin-top:.3rem">'
           +'<select id="rdiv-add-'+rKey+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.28rem .45rem;font-size:.79rem;flex:1">'
           +'<option value="">+ add classes in another division…</option>'
-          +availODs.map(function(k){ return '<option value="'+esc(k)+'">'+esc(_divLabel(k))+'</option>'; }).join('')
+          +availODs.map(function(k){return '<option value="'+esc(k)+'">'+esc(_divLabel(k))+'</option>';}).join('')
           +'</select>'
           +'<button class="btn btn-sm" style="border:1px solid var(--accent);color:var(--accent);background:transparent;padding:.28rem .6rem;font-size:.79rem;border-radius:5px;white-space:nowrap" onclick="addRiderDivBlock('+rowIdx+','+ri+',\'rdiv-add-'+rKey+'\')">Add</button>'
           +'</div>';
       }
-
-      riderHTML += '</div>';
+      riderHTML+='</div>';
     });
 
-    // Add rider form — division select value is "org|div" format
-    riderHTML += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-top:.75rem">'
-      +'<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Add a rider to this horse</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;align-items:flex-end">'
-      +'<div class="form-group"><label>First Name</label><input type="text" id="nrf" placeholder="First" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.82rem;width:100%"></div>'
-      +'<div class="form-group"><label>Last Name</label><input type="text" id="nrl" placeholder="Last" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.82rem;width:100%"></div>'
-      +'<div class="form-group"><label>Division</label>'
-      +'<select id="nrd" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .6rem;font-size:.82rem;width:100%">'
-      +'<option value="">— select —</option>'
-      +_allDivOpts.map(function(k){ return '<option value="'+esc(k)+'">'+esc(_divLabel(k))+'</option>'; }).join('')
-      +'</select></div>'
-      +'<button class="btn btn-accent btn-sm" style="margin-bottom:1px" onclick="addRider('+rowIdx+')">Add</button>'
-      +'</div></div>';
+    // Add Rider to This Horse button
+    riderHTML+='<div style="margin-top:.75rem;text-align:center">'
+      +'<button class="btn btn-accent btn-sm" style="width:100%" onclick="showAddRiderModal('+rowIdx+')">+ Add Rider to This Horse</button>'
+      +'</div>';
 
 
 
     // Fees tab content
 
     // ── Responsible Party section ──
+    var _entryCanonHorse=getCanonicalHorse(entry.horse);
+    var _entryDesPri=(G.horsePrimary&&G.horsePrimary[_entryCanonHorse])||entry.name;
     var _billerOpts = [];
-    _billerOpts.push({val: entry.name, label: entry.name + ' (Primary Rider)'});
-    if(entry.horseOwner && entry.horseOwner.trim() && entry.horseOwner.trim().toLowerCase() !== (entry.name||'').toLowerCase()){
+    // Designated primary goes first in the list
+    _billerOpts.push({val:_entryDesPri, label:_entryDesPri+' (Primary / Payer)'});
+    if(_normStr(entry.name)!==_normStr(_entryDesPri))
+      _billerOpts.push({val:entry.name, label:entry.name+' (This Entry)'});
+    if(entry.horseOwner && entry.horseOwner.trim() && _normStr(entry.horseOwner.trim())!==_normStr(_entryDesPri) && _normStr(entry.horseOwner.trim())!==_normStr(entry.name)){
       _billerOpts.push({val: entry.horseOwner.trim(), label: entry.horseOwner.trim() + ' (Horse Owner)'});
     }
-    (entry.riders||[]).forEach(function(r){
-      if(!r.isPrimary && r.name && r.name !== entry.name){
-        if(!_billerOpts.find(function(o){ return o.val===r.name; }))
-          _billerOpts.push({val:r.name, label:r.name+' (Rider)'});
-      }
+    // Other riders on the same horse
+    G.entries.forEach(function(x){
+      if(x.rowIndex===rowIdx) return;
+      if(getCanonicalHorse(x.horse)===_entryCanonHorse && x.name && !_billerOpts.find(function(o){return _normStr(o.val)===_normStr(x.name);}))
+        _billerOpts.push({val:x.name, label:x.name+' (Co-rider)'});
     });
-    var _curBiller = entry.billedTo || entry.name;
+    // All other riders in the show (including sub-riders from any entry's riders array)
+    // Dedup case-insensitively so 'john smith' and 'John Smith' don't create duplicate options
+    G.entries.forEach(function(x){
+      if(x.name && !_billerOpts.find(function(o){return _normStr(o.val)===_normStr(x.name);}))
+        _billerOpts.push({val:x.name, label:x.name});
+      (x.riders||[]).forEach(function(r){
+        if(r.name && !_billerOpts.find(function(o){return _normStr(o.val)===_normStr(r.name);}))
+          _billerOpts.push({val:r.name, label:r.name+' (Rider)'});
+      });
+    });
+    var _curBiller = entry.billedTo || _entryDesPri;
     var _isCustomBiller = !_billerOpts.find(function(o){ return o.val===_curBiller; });
 
     var _rpSelStyle = 'background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.32rem .5rem;font-size:.82rem;flex:1';
@@ -13113,55 +13841,60 @@ function showEntryModal(rowIdx){
 
 
 
-    // Classes — with per-class billed-to selector
+    // Classes — with per-class billed-to selector, grouped by rider when multiple riders
     var classLines = lines.filter(function(l){ return l.type==='class'; });
     var _classBilling = entry.classBilling || {};
-    var _hasSplitBilling = classLines.some(function(l){ return _classBilling[String(l.classNum)] && _classBilling[String(l.classNum)] !== _curBiller; });
+
+    var _appendClassLine = function(l){
+      var cBiller = _classBilling[String(l.classNum)] || _curBiller;
+      var diffBiller = cBiller !== _curBiller;
+      var billerSelId = 'cbl-'+rowIdx+'-'+String(l.classNum);
+      var billerSelHtml = '<select id="'+billerSelId+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:1px 3px;font-size:.72rem;max-width:130px" onchange="setClassBilledTo('+rowIdx+',\''+String(l.classNum).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\',this.value)">'
+        +_billerOpts.map(function(o){return '<option value="'+esc(o.val)+'"'+(o.val===cBiller?' selected':'')+'>'+esc(o.val)+'</option>';}).join('')
+        +'</select>';
+      feesHTML += '<div class="tab-line"><span style="display:flex;align-items:center;gap:.35rem;flex:1;flex-wrap:wrap">'+esc(l.desc)
+        +(diffBiller?'<span style="font-size:.7rem;color:var(--accent);background:rgba(200,146,42,.1);border:1px solid rgba(200,146,42,.3);border-radius:3px;padding:0 4px">→ '+esc(cBiller)+'</span>':'')
+        +'</span>'
+        +'<span style="display:flex;align-items:center;gap:.35rem">'
+        +(_billerOpts.length>1?billerSelHtml:'')
+        +'<span class="waive-amt" style="cursor:pointer;color:var(--text);padding:1px 4px;border-radius:3px;border:1px solid transparent" '
+        +'data-rowidx="'+rowIdx+'" data-desc="'+esc(l.desc)+'" data-amt="'+l.amt+'" '
+        +'title="Click to add a waiver or override for this class" '
+        +'onmouseenter="this.style.borderColor=\'var(--border2)\'" onmouseleave="this.style.borderColor=\'transparent\'">'
+        +fmt$(l.amt)+'</span></span></div>';
+    };
 
     if(classLines.length){
-
       feesHTML += '<div style="display:flex;align-items:center;justify-content:space-between;margin:.6rem 0 .25rem">'
-
         +'<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Classes</div>'
-
         +'<span style="font-size:.7rem;color:var(--muted)">click $ to waive · click name to reassign</span></div>';
-
-      classLines.forEach(function(l){
-        var cBiller = _classBilling[String(l.classNum)] || _curBiller;
-        var diffBiller = cBiller !== _curBiller;
-        // Build a small inline biller selector (hidden until hovered, always visible if different)
-        var billerSelId = 'cbl-'+rowIdx+'-'+String(l.classNum);
-        var billerSelHtml = '<select id="'+billerSelId+'" style="background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:1px 3px;font-size:.72rem;max-width:130px" onchange="setClassBilledTo('+rowIdx+','+JSON.stringify(String(l.classNum))+',this.value)">'
-          +_billerOpts.map(function(o){
-            return '<option value="'+esc(o.val)+'"'+(o.val===cBiller?' selected':'')+'>'+esc(o.val)+'</option>';
-          }).join('')
-          +'</select>';
-
-        feesHTML += '<div class="tab-line"><span style="display:flex;align-items:center;gap:.35rem;flex:1;flex-wrap:wrap">'+esc(l.desc)
-          +(diffBiller ? '<span style="font-size:.7rem;color:var(--accent);background:rgba(200,146,42,.1);border:1px solid rgba(200,146,42,.3);border-radius:3px;padding:0 4px">→ '+esc(cBiller)+'</span>' : '')
-          +'</span>'
-          +'<span style="display:flex;align-items:center;gap:.35rem">'
-          +(_billerOpts.length > 1 ? billerSelHtml : '')
-          +'<span class="waive-amt" style="cursor:pointer;color:var(--text);padding:1px 4px;border-radius:3px;border:1px solid transparent" '
-          +'data-rowidx="'+rowIdx+'" data-desc="'+esc(l.desc)+'" data-amt="'+l.amt+'" '
-          +'title="Click to add a waiver or override for this class" '
-          +'onmouseenter="this.style.borderColor=\'var(--border2)\'" onmouseleave="this.style.borderColor=\'transparent\'">'
-          +fmt$(l.amt)+'</span>'
-          +'</span></div>';
-
-      });
-
+      var feesRiders = entry.riders&&entry.riders.length>1?entry.riders:null;
+      if(feesRiders){
+        feesRiders.forEach(function(r){
+          var rLines=classLines.filter(function(l){return l.rider===r.name;});
+          if(!rLines.length) return;
+          feesHTML+='<div style="font-size:.78rem;font-weight:600;color:var(--text2);margin:.35rem 0 .1rem;padding-left:.1rem">'+esc(r.name)+'</div>';
+          rLines.forEach(_appendClassLine);
+        });
+        // Orphan class lines not matched to any rider
+        var knownRiders=feesRiders.map(function(r){return r.name;});
+        classLines.filter(function(l){return knownRiders.indexOf(l.rider)<0;}).forEach(_appendClassLine);
+      } else {
+        classLines.forEach(_appendClassLine);
+      }
     } else {
-
       feesHTML += '<div style="font-size:.82rem;color:var(--muted);padding:.3rem 0">No classes entered</div>';
-
     }
 
 
 
-    // Stalling & RV — editable
-    feesHTML += '<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:.6rem 0 .25rem">Stalling &amp; RV</div>'
-      + _emHousingEdit(entry, rowIdx);
+    // Stalling & RV — now on the dedicated Stalling tab; show a summary link here
+    var _rsSummaryLines = buildRiderStallLines(entry.name);
+    if(_rsSummaryLines.length){
+      feesHTML += '<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:.6rem 0 .25rem">Stalling &amp; RV</div>';
+      _rsSummaryLines.forEach(function(l){ feesHTML += '<div class="tab-line" style="color:var(--muted)"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; });
+      feesHTML += '<div style="font-size:.75rem;color:var(--muted);margin-top:.2rem"><span style="cursor:pointer;text-decoration:underline" onclick="switchModalTab(\'stall\')">Edit in Stalling tab ›</span></div>';
+    }
 
     // Extras (practices / clinics) — editable checkboxes
     var extrasEditHtml = _emExtrasEdit(entry, rowIdx);
@@ -13214,25 +13947,6 @@ function showEntryModal(rowIdx){
 
       +'<button class="btn btn-dark btn-sm" onclick="showAddOrgFee('+rowIdx+')">+ Add Fee / Discount</button></div>';
 
-    // Per-payer sub-totals (only shown when classes are split across payers)
-    if(_hasSplitBilling && classLines.length > 1){
-      var _payerTotals = {};
-      classLines.forEach(function(l){
-        var p = _classBilling[String(l.classNum)] || _curBiller;
-        _payerTotals[p] = (_payerTotals[p]||0) + l.amt;
-      });
-      var _payerNames = Object.keys(_payerTotals);
-      if(_payerNames.length > 1){
-        feesHTML += '<div style="margin:.4rem 0;padding:.4rem .5rem;background:rgba(200,146,42,.06);border:1px solid rgba(200,146,42,.2);border-radius:6px">'
-          +'<div style="font-size:.72rem;color:var(--accent);font-family:Oswald;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem">Class fees by payer</div>';
-        _payerNames.forEach(function(p){
-          feesHTML += '<div style="display:flex;justify-content:space-between;font-size:.8rem;padding:.15rem 0">'
-            +'<span>'+esc(p)+'</span><span>'+fmt$(_payerTotals[p])+'</span></div>';
-        });
-        feesHTML += '</div>';
-      }
-    }
-
     feesHTML += '<div class="tab-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
 
       +'<div class="pay-status">'
@@ -13257,247 +13971,80 @@ function showEntryModal(rowIdx){
 
     var f = G.cfg.fees;
 
-    var housingItems = [];
 
-    if(entry.stall1qty > 0) housingItems.push({key:'s1', label:'Stall 1-night', qty:entry.stall1qty, unitCost:f.stall1||40});
 
-    if(entry.stall2qty > 0) housingItems.push({key:'s2', label:'Stall 2-nights', qty:entry.stall2qty, unitCost:f.stall2||80});
-
-    if(entry.shavings  > 0) housingItems.push({key:'sh', label:'Shavings', qty:entry.shavings, unitCost:f.shavings||12});
-
-    if(entry.rv1qty    > 0) housingItems.push({key:'r1', label:'RV 1-night', qty:entry.rv1qty, unitCost:f.rv1||40});
-
-    if(entry.rv2qty    > 0) housingItems.push({key:'r2', label:'RV 2-nights', qty:entry.rv2qty, unitCost:f.rv2||80});
-
-    if(entry.rvCircuit > 0) housingItems.push({key:'rc', label:'RV Circuit', qty:entry.rvCircuit, unitCost:f.rvCircuit||110});
-
-    // Also check org fees for manually added stalls
-
-    (entry.orgFees||[]).forEach(function(of, oi){
-
-      if(of.desc && (of.desc.toLowerCase().indexOf('stall')>-1 || of.desc.toLowerCase().indexOf('rv')>-1)){
-
-        housingItems.push({key:'org'+oi, label:of.desc, qty:1, unitCost:of.amt});
-
-      }
-
-    });
-
-
-
-    var stallSplitHTML = '';
-
-    if(!housingItems.length){
-
-      // Show any existing splits where this rider IS the guest (orgFees with splitFromKey)
-
-      var guestSplits = (entry.orgFees||[]).filter(function(of){ return of.splitFromKey; });
-
-      stallSplitHTML = '<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem">Shared Housing Costs</div>';
-
-      if(guestSplits.length){
-
-        guestSplits.forEach(function(of){
-
-          stallSplitHTML += '<div class="tab-line" style="margin-bottom:.3rem">'
-
-            +'<span>'+esc(of.desc)+'</span>'
-
-            +'<span style="display:flex;align-items:center;gap:.5rem">'+fmt$(of.amt)
-
-            +'<button class="btn btn-red btn-sm guest-remove-btn" data-rowidx="'+rowIdx+'" data-splitkey="'+esc(of.splitFromKey)+'">&#10005;</button>'
-
-            +'</span></div>';
-
-        });
-
-      } else {
-
-        stallSplitHTML += '<div style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">No shared housing on this entry yet.</div>';
-
-      }
-
-      // UI to join another rider's stall
-
-      var stallHolders = G.entries.filter(function(en){
-
-        return (en.stall1qty>0||en.stall2qty>0||en.shavings>0||en.rv1qty>0||en.rv2qty>0||en.rvCircuit>0) && en.rowIndex!==rowIdx;
-
-      });
-
-      if(stallHolders.length){
-
-        stallSplitHTML += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-top:.75rem">';
-
-        stallSplitHTML += '<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Split housing with another rider&#39;s stall</div>';
-
-        stallSplitHTML += '<div style="display:grid;grid-template-columns:1fr 1fr 60px auto;gap:.4rem;align-items:flex-end">';
-
-        var holderOpts = '<option value="">— Stall holder —</option>'
-
-          + stallHolders.map(function(en){ return '<option value="'+en.rowIndex+'">'+esc(en.name)+' / '+esc(en.horse)+'</option>'; }).join('');
-
-        stallSplitHTML += '<select id="guest-split-holder" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.3rem .5rem;font-size:.78rem">'+holderOpts+'</select>';
-
-        // Item key dropdown — will be populated by holder selection; start with first holder's items
-
-        var firstHolder = stallHolders[0];
-
-        var f2 = G.cfg.fees;
-
-        var firstItems = [];
-
-        if(firstHolder.stall1qty>0) firstItems.push({key:'s1',label:'Stall 1-night'});
-
-        if(firstHolder.stall2qty>0) firstItems.push({key:'s2',label:'Stall 2-nights'});
-
-        if(firstHolder.shavings>0)  firstItems.push({key:'sh',label:'Shavings'});
-
-        if(firstHolder.rv1qty>0)    firstItems.push({key:'r1',label:'RV 1-night'});
-
-        if(firstHolder.rv2qty>0)    firstItems.push({key:'r2',label:'RV 2-nights'});
-
-        if(firstHolder.rvCircuit>0) firstItems.push({key:'rc',label:'RV Circuit'});
-
-        var itemOpts = firstItems.map(function(it){ return '<option value="'+it.key+'">'+it.label+'</option>'; }).join('');
-
-        stallSplitHTML += '<select id="guest-split-item" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.3rem .5rem;font-size:.78rem">'+itemOpts+'</select>';
-
-        stallSplitHTML += '<input type="number" id="guest-split-pct" value="50" min="1" max="99" '
-
-          +'style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.3rem .4rem;font-size:.78rem;text-align:center">';
-
-        stallSplitHTML += '<button class="btn btn-accent btn-sm" onclick="addSplitAsGuest('+rowIdx+')">Add</button>';
-
-        stallSplitHTML += '</div></div>';
-
-      }
-
-    } else {
-
-      // Initialize splits per housing item if not set
-
-      if(!entry.stallSplits) entry.stallSplits = {};
-
-
-
-      // Rider dropdown options
-
-      var riderOpts = '<option value="">— Select from entries —</option>'
-
-        + G.entries.filter(function(en){ return en.rowIndex!==rowIdx; }).map(function(en){
-
-          return '<option value="'+en.rowIndex+'">'+esc(en.name)+' / '+esc(en.horse)+'</option>';
-
-        }).join('');
-
-
-
-      // Build one split block per housing item
-
-      housingItems.forEach(function(item){
-
-        var itemTotal = item.qty * item.unitCost;
-
-
-
-        // Initialize this item's splits
-
-        if(!entry.stallSplits[item.key]){
-
-          entry.stallSplits[item.key] = [{name:entry.name, pct:100}];
-
-        }
-
-        var splits = entry.stallSplits[item.key];
-
-        var totalPct = splits.reduce(function(s,x){ return s+x.pct; },0);
-
-        var pctOk = totalPct === 100;
-
-
-
-        stallSplitHTML += '<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.85rem;margin-bottom:.75rem">';
-
-        stallSplitHTML += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">'
-
-          +'<div><span style="font-family:Oswald;color:var(--accent);font-size:.9rem">'+esc(item.label)+'</span>'
-
-          +(item.qty>1?' <span class="badge b-gray">x'+item.qty+'</span>':'')+'</div>'
-
-          +'<span style="font-weight:600;color:var(--accent)">'+fmt$(itemTotal)+'</span>'
-
-          +'</div>';
-
-
-
-        // Split rows for this item
-
-        splits.forEach(function(s, si){
-
-          var amt = itemTotal * s.pct / 100;
-
-          stallSplitHTML += '<div style="display:flex;align-items:center;gap:.5rem;padding:.35rem 0;border-bottom:1px solid var(--border)">'
-
-            +'<div style="flex:1"><div class="bold" style="font-size:.83rem">'+esc(s.name)+'</div>'
-
-            +'<div class="small" style="color:var(--green)">'+fmt$(amt)+'</div></div>'
-
-            +'<input type="number" value="'+s.pct+'" min="1" max="100" '
-
-            +'data-itemkey="'+esc(item.key)+'" data-si="'+si+'" data-rowidx="'+rowIdx+'" '
-
-            +'class="split-pct-inp" '
-
-            +'style="width:55px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);padding:3px 5px;font-size:.82rem;text-align:center">'
-
-            +'<span style="font-size:.75rem;color:var(--muted)">%</span>'
-
-            +(splits.length>1
-
-              ? '<button class="btn btn-red btn-sm split-remove-btn" data-itemkey="'+esc(item.key)+'" data-si="'+si+'" data-rowidx="'+rowIdx+'">&#10005;</button>'
-
-              : '')
-
-            +'</div>';
-
-        });
-
-
-
-        stallSplitHTML += '<div style="font-size:.73rem;margin:.3rem 0 .5rem;color:'+(pctOk?'var(--green)':'var(--red)')+'">'
-
-          +(pctOk?'&#10003; Balanced':'Total: '+totalPct+'% — must equal 100%')
-
-          +'</div>';
-
-
-
-        // Add person to this item's split
-
-        stallSplitHTML += '<div style="display:grid;grid-template-columns:1fr 60px auto;gap:.4rem;align-items:flex-end">'
-
-          +'<select class="split-add-sel" data-itemkey="'+esc(item.key)+'" data-rowidx="'+rowIdx+'" '
-
-          +'style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.3rem .5rem;font-size:.78rem">'
-
-          +riderOpts+'</select>'
-
-          +'<input type="number" class="split-add-pct" data-itemkey="'+esc(item.key)+'" value="50" min="1" max="99" '
-
-          +'style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.3rem .4rem;font-size:.78rem;text-align:center">'
-
-          +'<button class="btn btn-accent btn-sm split-add-btn" data-itemkey="'+esc(item.key)+'" data-rowidx="'+rowIdx+'">Add</button>'
-
-          +'</div>';
-
-
-
-        stallSplitHTML += '</div>';
-
-      });
-
+    // ── Stalling tab — reads from G.riderStalls[entry.name], rider-level not horse-level ──
+    var rs = (G.riderStalls && G.riderStalls[entry.name]) || {};
+    var sinp = 'background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.38rem .5rem;font-size:.84rem;font-family:inherit;width:100%;box-sizing:border-box';
+    var sqinp = sinp+';text-align:center;max-width:72px';
+    function sqRow(id, lbl, fee, qty){
+      return '<div style="display:flex;align-items:center;gap:.6rem;padding:.3rem 0">'
+        +'<input id="'+id+'" type="number" min="0" value="'+(qty||0)+'" style="'+sqinp+'" oninput="emSaveStalling('+rowIdx+')">'
+        +'<span style="flex:1;font-size:.85rem">'+lbl+'</span>'
+        +(fee>0?'<span style="font-size:.8rem;color:var(--accent);font-variant-numeric:tabular-nums">'+fmtI(fee)+' ea</span>':'')
+        +'</div>';
     }
+    var stallPkgs=G.cfg.stallingPackages||[];
+    var rvPkgs=G.cfg.rvPackages||[];
+    var hasFlatStall=f.stall1>0||f.stall2>0||f.stall3>0||f.stallCircuit>0;
+    var hasFlatRV=f.rv1>0||f.rv2>0||f.rvCircuit>0;
+    var stallSplitHTML='<div style="font-size:.72rem;color:var(--accent);font-family:Oswald;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.5rem">Stall Requests</div>';
+    if(stallPkgs.length){
+      stallSplitHTML+='<div style="display:grid;gap:.25rem;margin-bottom:.75rem">';
+      stallPkgs.forEach(function(p){
+        var val=p.id||p.label;
+        var checked=rs.stallingPkg===val?'checked':'';
+        stallSplitHTML+='<label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;padding:.2rem 0;cursor:pointer">'
+          +'<input type="radio" name="st-pkg" value="'+esc(val)+'" '+checked+' oninput="emSaveStalling('+rowIdx+')" style="accent-color:var(--accent)"> '
+          +esc(p.label)+(+p.price>0?' <span style="color:var(--accent)">'+fmtI(+p.price)+'</span>':'')+'</label>';
+      });
+      stallSplitHTML+='<label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;padding:.2rem 0;color:var(--muted);cursor:pointer">'
+        +'<input type="radio" name="st-pkg" value="" '+(!rs.stallingPkg?'checked':'')+' oninput="emSaveStalling('+rowIdx+')" style="accent-color:var(--accent)"> None</label></div>';
+    } else if(hasFlatStall){
+      if(f.stall1>0) stallSplitHTML+=sqRow('st-s1',feeLabel('stall1'),f.stall1,rs.stall1qty);
+      if(f.stall2>0) stallSplitHTML+=sqRow('st-s2',feeLabel('stall2'),f.stall2,rs.stall2qty);
+      if(f.stall3>0) stallSplitHTML+=sqRow('st-s3',feeLabel('stall3'),f.stall3,rs.stall3qty);
+      if(f.stallCircuit>0) stallSplitHTML+=sqRow('st-sc',feeLabel('stallCircuit'),f.stallCircuit,rs.stallCircuit);
+      if(f.shavings>0) stallSplitHTML+=sqRow('st-sh',feeLabel('shavings'),f.shavings,rs.shavings);
+    } else {
+      stallSplitHTML+='<div style="font-size:.82rem;color:var(--muted);margin-bottom:.5rem">No stall rates configured — set prices in Show Setup → Finances.</div>';
+      stallSplitHTML+=sqRow('st-s1','Stall — 1 Night',0,rs.stall1qty);
+      stallSplitHTML+=sqRow('st-s2','Stall — 2 Nights',0,rs.stall2qty);
+      stallSplitHTML+=sqRow('st-s3','Stall — 3 Nights',0,rs.stall3qty);
+      stallSplitHTML+=sqRow('st-sh','Shavings',0,rs.shavings);
+    }
+    if(f.haulin>0) stallSplitHTML+=sqRow('st-hl',feeLabel('haulin'),f.haulin,rs.haulinQty);
+
+    stallSplitHTML+='<div style="font-size:.72rem;color:var(--accent);font-family:Oswald;letter-spacing:.08em;text-transform:uppercase;margin:1rem 0 .5rem">RV</div>';
+    if(rvPkgs.length){
+      stallSplitHTML+='<div style="display:grid;gap:.25rem;margin-bottom:.75rem">';
+      rvPkgs.forEach(function(p){
+        var val=p.id||p.label;
+        var checked=rs.rvPkg===val?'checked':'';
+        stallSplitHTML+='<label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;padding:.2rem 0;cursor:pointer">'
+          +'<input type="radio" name="rv-pkg" value="'+esc(val)+'" '+checked+' oninput="emSaveStalling('+rowIdx+')" style="accent-color:var(--accent)"> '
+          +esc(p.label)+(+p.price>0?' <span style="color:var(--accent)">'+fmtI(+p.price)+'</span>':'')+'</label>';
+      });
+      stallSplitHTML+='<label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;padding:.2rem 0;color:var(--muted);cursor:pointer">'
+        +'<input type="radio" name="rv-pkg" value="" '+(!rs.rvPkg?'checked':'')+' oninput="emSaveStalling('+rowIdx+')" style="accent-color:var(--accent)"> None</label></div>';
+    } else if(hasFlatRV){
+      if(f.rv1>0) stallSplitHTML+=sqRow('st-r1',feeLabel('rv1'),f.rv1,rs.rv1qty);
+      if(f.rv2>0) stallSplitHTML+=sqRow('st-r2',feeLabel('rv2'),f.rv2,rs.rv2qty);
+      if(f.rvCircuit>0) stallSplitHTML+=sqRow('st-rc',feeLabel('rvCircuit'),f.rvCircuit,rs.rvCircuit);
+    } else {
+      stallSplitHTML+='<div style="font-size:.82rem;color:var(--muted);margin-bottom:.5rem">No RV rates configured.</div>';
+      stallSplitHTML+=sqRow('st-r1','RV — 1 Night',0,rs.rv1qty);
+      stallSplitHTML+=sqRow('st-r2','RV — 2 Nights',0,rs.rv2qty);
+    }
+
+    stallSplitHTML+='<div style="font-size:.72rem;color:var(--accent);font-family:Oswald;letter-spacing:.08em;text-transform:uppercase;margin:1rem 0 .5rem">Details</div>';
+    stallSplitHTML+='<div style="display:grid;gap:.5rem">'
+      +'<label style="font-size:.83rem">Stall Group / Barn Note<input id="st-note" type="text" value="'+esc(rs.stallNote||'')+'" placeholder="e.g. Smith Ranch, trailer row 3…" style="display:block;margin-top:.2rem;'+sinp+'" oninput="emSaveStalling('+rowIdx+')" ></label>'
+      +'<label style="font-size:.83rem">Stall Arrival Date<input id="st-arr" type="date" value="'+esc(rs.stallingArrival||'')+'" style="display:block;margin-top:.2rem;'+sinp+'" oninput="emSaveStalling('+rowIdx+')" ></label>'
+      +'<label style="font-size:.83rem">RV Arrival Date<input id="st-rvarr" type="date" value="'+esc(rs.rvArrival||'')+'" style="display:block;margin-top:.2rem;'+sinp+'" oninput="emSaveStalling('+rowIdx+')" ></label>'
+      +'</div>';
+    var rsStallTotal=buildRiderStallLines(entry.name).reduce(function(s,l){ return s+l.amt; },0);
+    stallSplitHTML+='<div id="st-total-display" class="tab-total" style="margin-top:1rem'+(rsStallTotal>0?'':';display:none')+'"><span>Stalling Total</span><span id="st-total-amt">'+fmt$(rsStallTotal)+'</span></div>';
 
 
 
@@ -13575,13 +14122,11 @@ function showEntryModal(rowIdx){
 
       +'<button id="tbtn-details" class="tab-btn active gp-modal-tab" data-tab="details">Details</button>'
 
-      +'<button id="tbtn-classes" class="tab-btn gp-modal-tab" data-tab="classes">Classes</button>'
-
-      +'<button id="tbtn-riders" class="tab-btn gp-modal-tab" data-tab="riders">Riders</button>'
+      +'<button id="tbtn-riders" class="tab-btn gp-modal-tab" data-tab="riders">Riders &amp; Classes</button>'
 
       +'<button id="tbtn-fees" class="tab-btn gp-modal-tab" data-tab="fees">Fees &amp; Tab</button>'
 
-      +'<button id="tbtn-stall" class="tab-btn gp-modal-tab" data-tab="stall">Stall Split</button>'
+      +'<button id="tbtn-stall" class="tab-btn gp-modal-tab" data-tab="stall">Stalling</button>'
 
       +'</div>'
 
@@ -13603,7 +14148,22 @@ function showEntryModal(rowIdx){
 
     root.innerHTML = html;
 
-
+    // Imperatively set the responsible party select value — overrides any 'selected' attribute
+    // parsing quirk so the displayed value always matches what's saved in entry.billedTo
+    var _billerSelEl = root.querySelector('#billed-to-sel-'+rowIdx);
+    if(_billerSelEl){
+      _billerSelEl.value = _isCustomBiller ? '__custom__' : _curBiller;
+      if(!_isCustomBiller && _billerSelEl.value !== _curBiller){
+        // _curBiller not found in option list — fall back to custom
+        _billerSelEl.value = '__custom__';
+        var _billerCustEl = root.querySelector('#billed-to-custom-'+rowIdx);
+        if(_billerCustEl){
+          _billerCustEl.style.display = '';
+          var _billerCustInp = _billerCustEl.tagName==='INPUT' ? _billerCustEl : _billerCustEl.querySelector('input');
+          if(_billerCustInp) _billerCustInp.value = _curBiller;
+        }
+      }
+    }
 
     // Wire tab buttons
 
@@ -13809,7 +14369,7 @@ function showEntryModal(rowIdx){
 
     });
 
-    // Restore whichever tab was active before the rebuild
+    // Restore whichever tab was active before the rebuild (or jump to startTab on first open)
     switchModalTab(_entryModalTab);
 
   }
@@ -13817,6 +14377,7 @@ function showEntryModal(rowIdx){
 
 
   rebuild();
+  if(startTab) switchModalTab(startTab);
 
   G._rebuildEntryModal = rebuild;
 
@@ -13826,9 +14387,11 @@ function showEntryModal(rowIdx){
 
 function switchModalTab(tab){
 
+  if(tab==='classes') tab='riders'; // Classes merged into Riders tab
+
   _entryModalTab = tab;
 
-  var tabs = ['details','classes','riders','fees','stall'];
+  var tabs = ['details','riders','fees','stall'];
 
   tabs.forEach(function(t){
 
@@ -14068,205 +14631,149 @@ function buildStallSplitUI(e, rowIdx){
 
 // ── ADD CLASS PICKER ──
 
+var _pickerSelected = {}; // _id → true; persists across filter re-renders
+
 function showAddClassPicker(rowIdx){
 
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
 
   if(!e) return;
 
-
-
-  // Get classes not already entered
+  _pickerSelected = {};
+  G._addClassRowIdx = rowIdx;
 
   var enteredNums = e.classes.filter(function(c){ return c.status!=='scratched'; }).map(function(c){ return c.num; });
-
   var available = G.cfg.classes.filter(function(c){ return enteredNums.indexOf(c.num)===-1; });
-
-
 
   var root=document.getElementById('modal-root');
 
-  var html='<div class="modal-bg" id="add-class-modal" onclick="if(event.target===this){closeModal();showEntryModal('+rowIdx+')}">'
-
-    +'<div class="modal" style="max-width:500px">'
-
-    +'<h2>Add Class</h2>'
-
-    +'<input type="text" id="class-picker-q" placeholder="Search classes..." oninput="filterClassPicker(this.value)" '
-
-    +'style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.45rem .65rem;font-size:.85rem;margin-bottom:.75rem">'
-
-    +'<div id="class-picker-list" style="max-height:320px;overflow-y:auto">'
-
-    +renderClassPickerList(available, rowIdx)
-
+  var html='<div class="modal-bg" id="add-class-modal" onclick="if(event.target===this){closeModal();showEntryModal('+rowIdx+',\'riders\')}">'
+    +'<div class="modal" style="max-width:520px;display:flex;flex-direction:column;max-height:90vh">'
+    +'<h2 style="margin-bottom:.5rem">Add Classes</h2>'
+    +'<input type="text" id="class-picker-q" placeholder="Search classes…" oninput="filterClassPicker(this.value)" '
+    +'style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.45rem .65rem;font-size:.85rem;margin-bottom:.5rem;box-sizing:border-box">'
+    +'<div id="class-picker-list" style="flex:1;overflow-y:auto;min-height:0">'
+    +renderClassPickerList(available)
     +'</div>'
-
-    +'<div class="btn-row" style="margin-top:.75rem">'
-
-    +'<button class="btn btn-dark" onclick="closeModal();showEntryModal('+rowIdx+')">Cancel</button>'
-
+    +'<div style="display:flex;gap:.5rem;margin-top:.75rem;align-items:center">'
+    +'<span id="class-picker-count" style="flex:1;font-size:.8rem;color:var(--muted)">None selected</span>'
+    +'<button class="btn btn-dark" onclick="closeModal();showEntryModal('+rowIdx+',\'riders\')">Cancel</button>'
+    +'<button class="btn btn-accent" id="class-picker-add" onclick="commitClassPicker('+rowIdx+')" disabled>Add Selected</button>'
     +'</div></div></div>';
 
   root.innerHTML=html;
-
-  G._addClassRowIdx = rowIdx;
-
-  wireClassPicker();
+  wireClassPickerChecks();
 
 }
 
 
 
-function renderClassPickerList(classes, rowIdx){
+function _updatePickerCount(){
+  var n = Object.keys(_pickerSelected).filter(function(k){ return _pickerSelected[k]; }).length;
+  var cnt = document.getElementById('class-picker-count');
+  var btn = document.getElementById('class-picker-add');
+  if(cnt) cnt.textContent = n ? n+' class'+(n===1?'':'es')+' selected' : 'None selected';
+  if(btn){ btn.disabled = !n; btn.textContent = n ? 'Add '+n+' Class'+(n===1?'':'es') : 'Add Selected'; }
+}
 
+function _pickerDivAllChange(divKey, checked){
+  document.querySelectorAll('.cpa-cb[data-divkey="'+divKey+'"]').forEach(function(cb){
+    cb.checked = checked;
+    _pickerSelected[cb.dataset.classid] = checked;
+  });
+  _updatePickerCount();
+}
+
+function renderClassPickerList(classes){
   if(!classes.length) return '<div class="empty-state">No more classes available</div>';
 
-
-
-  // Group by org then division
-
   var grouped = {};
-
   classes.forEach(function(c){
-
     var org = c.org||'CoWN';
-
     var div = c.division||'General';
-
     var key = org+'||'+div;
-
     if(!grouped[key]) grouped[key]={org:org, div:div, classes:[]};
-
     grouped[key].classes.push(c);
-
   });
-
-
-
-  // Sort groups: CoWN first, then alphabetical by org+division
 
   var keys = Object.keys(grouped).sort(function(a,b){
-
     var aOrg = grouped[a].org, bOrg = grouped[b].org;
-
     if(aOrg==='CoWN' && bOrg!=='CoWN') return -1;
-
     if(bOrg==='CoWN' && aOrg!=='CoWN') return 1;
-
     return a.localeCompare(b);
-
   });
-
-
 
   return keys.map(function(key){
-
     var group = grouped[key];
+    var divKeyEsc = key.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    var orgLabel = group.org!=='CoWN' ? ' · '+group.org : '';
+    var sortedCls = group.classes.slice().sort(function(a,b){ return (parseInt(a.num)||999)-(parseInt(b.num)||999); });
+    var allChecked = sortedCls.every(function(c){ return !!_pickerSelected[c._id]; });
 
-    var orgBadge = group.org!=='CoWN'
+    var header = '<div style="display:flex;align-items:center;gap:.5rem;background:rgba(200,146,42,.08);padding:.3rem .6rem;border-bottom:1px solid var(--border);position:sticky;top:0">'
+      +'<label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;flex:1;font-family:Oswald;font-size:.8rem;color:var(--accent);letter-spacing:.04em">'
+      +'<input type="checkbox"'+(allChecked?' checked':'')+' onchange="_pickerDivAllChange(\''+divKeyEsc+'\',this.checked)" style="accent-color:var(--accent)">'
+      +esc(group.div)+esc(orgLabel)
+      +'</label>'
+      +'</div>';
 
-      ? '<span class="badge b-blue" style="margin-left:6px;font-size:.65rem">'+esc(group.org)+'</span>'
-
-      : '';
-
-    var header = '<div style="background:rgba(200,146,42,.08);padding:.3rem .5rem;font-family:Oswald;font-size:.8rem;color:var(--accent);letter-spacing:.04em;border-bottom:1px solid var(--border)">'
-
-      +esc(group.div)+orgBadge+'</div>';
-
-
-
-    var rows = group.classes.sort(function(a,b){ return (parseInt(a.num)||999)-(parseInt(b.num)||999); })
-
-      .map(function(c){
-
-        var isCow = c.isCow;
-
-        var fee = (c.baseFee||G.cfg.fees.classBase||0) + (isCow?(c.cowFee||G.cfg.fees.cowSurcharge||0):0) + (c.jackpot||0);
-
-        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.4rem .5rem;border-bottom:1px solid var(--border);cursor:pointer" '
-
-          +'data-rowid="'+rowIdx+'" data-classid="'+esc(c._id)+'" class="show-row class-picker-item">'
-
-          +'<div>'
-
-          +'<span class="badge b-gray" style="margin-right:5px">'+esc(c.num)+'</span>'
-
-          +'<span style="font-size:.84rem">'+esc(c.name)+'</span>'
-
-          +(isCow?'<span class="badge b-cow" style="margin-left:4px">Cow</span>':'')
-
-          +'</div>'
-
-          +'<span style="font-size:.84rem;font-weight:600;color:var(--accent)">'+fmt$(fee)+'</span>'
-
-          +'</div>';
-
-      }).join('');
-
-
+    var rows = sortedCls.map(function(c){
+      var isCow = c.isCow;
+      var fee = (c.baseFee||G.cfg.fees.classBase||0) + (isCow?(c.cowFee||G.cfg.fees.cowSurcharge||0):0) + (c.jackpot||0);
+      var checked = !!_pickerSelected[c._id];
+      var cidEsc = esc(c._id);
+      return '<label style="display:flex;align-items:center;gap:.5rem;padding:.38rem .6rem;border-bottom:1px solid var(--border);cursor:pointer" '
+        +'onmouseover="this.style.background=\'rgba(200,146,42,.06)\'" onmouseout="this.style.background=\'\'">'
+        +'<input type="checkbox" class="cpa-cb" data-classid="'+cidEsc+'" data-divkey="'+divKeyEsc+'"'+(checked?' checked':'')
+        +' onchange="_pickerSelected[this.dataset.classid]=this.checked;_updatePickerCount()" style="accent-color:var(--accent)">'
+        +'<span class="badge b-gray" style="font-size:.75rem">'+esc(c.num)+'</span>'
+        +'<span style="font-size:.84rem;flex:1">'+esc(c.name)+(isCow?' <span class="badge b-cow">Cow</span>':'')+'</span>'
+        +'<span style="font-size:.82rem;font-weight:600;color:var(--accent)">'+fmt$(fee)+'</span>'
+        +'</label>';
+    }).join('');
 
     return header + rows;
-
   }).join('');
-
 }
 
 
-
-
-
-function wireClassPicker(){
-
-  var list = document.getElementById('class-picker-list');
-
-  if(!list) return;
-
-  list.querySelectorAll('.class-picker-item').forEach(function(el){
-
-    el.addEventListener('click', function(){
-
-      addClassToEntry(parseInt(el.dataset.rowid), el.dataset.classid);
-
-    });
-
-  });
-
+function wireClassPickerChecks(){
+  // checkboxes are wired inline via onchange; just update count on open
+  _updatePickerCount();
 }
-
-
 
 function filterClassPicker(q){
-
   var rowIdx = G._addClassRowIdx;
-
-  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
-
+  var e = G.entries.find(function(x){ return x.rowIndex===rowIdx; });
   if(!e) return;
-
   var enteredNums = e.classes.filter(function(c){ return c.status!=='scratched'; }).map(function(c){ return c.num; });
-
   var available = G.cfg.classes.filter(function(c){ return enteredNums.indexOf(c.num)===-1; });
-
   if(q) available = available.filter(function(c){
-
     return (c.name||'').toLowerCase().indexOf(q.toLowerCase())>-1
-
         || (c.num||'').indexOf(q)>-1
-
         || (c.division||'').toLowerCase().indexOf(q.toLowerCase())>-1;
-
   });
+  document.getElementById('class-picker-list').innerHTML = renderClassPickerList(available);
+  _updatePickerCount();
+}
 
-  document.getElementById('class-picker-list').innerHTML = renderClassPickerList(available, rowIdx);
+function commitClassPicker(rowIdx){
+  var added = 0;
+  Object.keys(_pickerSelected).forEach(function(cid){
+    if(!_pickerSelected[cid]) return;
+    addClassToEntry(rowIdx, cid, true);
+    added++;
+  });
+  _pickerSelected = {};
+  saveEntriesToStorage();
+  if(added) toast('Added '+added+' class'+(added===1?'':'es'));
+  closeModal();
+  showEntryModal(rowIdx, 'riders');
+}
 
-  wireClassPicker();
-
-};
 
 
-
-function addClassToEntry(rowIdx, classId){
+function addClassToEntry(rowIdx, classId, silent){
 
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
 
@@ -14312,13 +14819,12 @@ function addClassToEntry(rowIdx, classId){
 
 
 
-  saveEntriesToStorage();
-
-  toast('Added Class '+cls.num+' — '+cls.name);
-
-  closeModal();
-
-  showEntryModal(rowIdx);
+  if(!silent){
+    saveEntriesToStorage();
+    toast('Added Class '+cls.num+' — '+cls.name);
+    closeModal();
+    showEntryModal(rowIdx);
+  }
 
 };
 
@@ -14327,15 +14833,12 @@ function addClassToEntry(rowIdx, classId){
 
 
 function assignClassRider(rowIdx, classIdx, riderName){
-
   var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
-
   if(!e||!e.classes[classIdx]) return;
-
   e.classes[classIdx].rider = riderName;
-
   saveEntriesToStorage();
-
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+  if(_currentPage === 'tabs') pgTabs();
 }
 
 
@@ -14353,6 +14856,8 @@ function saveEntriesToCache(){
     localStorage.setItem('gp_payments_'+G.showId, JSON.stringify(G.payments));
 
     localStorage.setItem('gp_backnums_'+G.showId, JSON.stringify(G.backNums));
+
+    localStorage.setItem('gp_riderstalls_'+G.showId, JSON.stringify(G.riderStalls||{}));
 
   } catch(ex){ console.warn('Cache save failed:', ex); }
 
@@ -14466,15 +14971,11 @@ function addRider(rowIdx){
 
   if(!e) return;
 
-  var first = (document.getElementById('nrf')||{value:''}).value.trim();
-
-  var last  = (document.getElementById('nrl')||{value:''}).value.trim();
+  var name  = (document.getElementById('nrn')||{value:''}).value.trim();
 
   var div   = (document.getElementById('nrd')||{value:''}).value.trim();
 
-  if(!first||!last){ toast('Enter first and last name', true); return; }
-
-  var name = first+' '+last;
+  if(!name||name.indexOf(' ')<0){ toast('Enter full name (First Last)', true); return; }
 
   if(!e.riders) e.riders = [{name:e.name, division:e.division, isPrimary:true}];
 
@@ -14493,18 +14994,306 @@ function addRider(rowIdx){
 
 
 
-function removeRider(rowIdx, riderIdx){
+// Horse picker — shown when "Add Rider to Horse" is clicked from entries page header
+window.showAddRiderToHorsePicker = function(){
+  if(!G.entries.length){ toast('No entries yet — add an entry first', true); return; }
 
-  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  // Build unique horse list: canonical name → primary entry rowIndex
+  var horseSeen = {};
+  var horses = [];
+  G.entries.forEach(function(e){
+    if(!e.horse) return;
+    var cn = getCanonicalHorse(e.horse);
+    if(horseSeen[cn]) return;
+    horseSeen[cn] = true;
+    // Use the current billing primary as the "owner" rowIndex, else first entry for this horse
+    var primaryName = G.horsePrimary && G.horsePrimary[cn];
+    var ownerEntry = primaryName
+      ? G.entries.find(function(x){ return _normStr(x.name)===_normStr(primaryName) && getCanonicalHorse(x.horse)===cn; })
+      : null;
+    if(!ownerEntry) ownerEntry = G.entries.find(function(x){ return getCanonicalHorse(x.horse)===cn; });
+    if(ownerEntry) horses.push({label: e.horse, canonHorse: cn, ownerRowIdx: ownerEntry.rowIndex});
+  });
 
-  if(!e||!e.riders) return;
+  if(!horses.length){ toast('No horses found in entries', true); return; }
 
-  e.riders.splice(riderIdx,1);
+  var horseOpts = horses.map(function(h){
+    return '<option value="'+h.ownerRowIdx+'">'+esc(h.label)+'</option>';
+  }).join('');
+
+  var html = '<div class="modal-bg" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal" style="max-width:340px">'
+    +'<div class="modal-header"><h2 style="margin:0;font-size:1rem">Add Rider to Horse</h2></div>'
+    +'<div class="modal-body" style="padding:1rem;display:flex;flex-direction:column;gap:.75rem">'
+    +'<div class="form-group"><label>Select Horse</label>'
+    +'<select id="arp-horse" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.42rem .6rem;font-size:.84rem;width:100%">'
+    +'<option value="">— choose horse —</option>'
+    +horseOpts
+    +'</select></div>'
+    +'<div style="display:flex;gap:.5rem;justify-content:flex-end">'
+    +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
+    +'<button class="btn btn-accent" onclick="(function(){ var v=document.getElementById(\'arp-horse\').value; if(!v){toast(\'Select a horse\',true);return;} closeModal(); showAddRiderModal(parseInt(v,10)); })()">Continue</button>'
+    +'</div>'
+    +'</div></div></div>';
+
+  document.getElementById('modal-root').innerHTML = html;
+  setTimeout(function(){ var s=document.getElementById('arp-horse'); if(s) s.focus(); }, 80);
+};
+
+window.showAddRiderModal = function(ownerRowIdx){
+  var owner = G.entries.find(function(x){ return x.rowIndex===ownerRowIdx; });
+  if(!owner) return;
+
+  // Build division options from show classes
+  var _divOpts = Array.from(new Set((G.cfg.classes||[]).map(function(c){
+    return (c.org||'CoWN')+'|'+(c.division||'');
+  }).filter(function(k){ return k !== '|' && k.split('|')[1]; })));
+
+  function _dl(k){ var p=k.indexOf('|'); return (p>=0?k.slice(p+1):k)+(p>=0&&k.slice(0,p)?' · '+k.slice(0,p):''); }
+
+  var divSelHtml = '<select id="ar-div" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.42rem .6rem;font-size:.84rem;width:100%">'
+    +'<option value="">— select —</option>'
+    +_divOpts.map(function(k){ return '<option value="'+esc(k)+'">'+esc(_dl(k))+'</option>'; }).join('')
+    +'</select>';
+
+  // Build existing rider dropdown — all unique names from G.entries, excluding owner and entries already on this horse
+  var canonHorse = getCanonicalHorse(owner.horse);
+  var existingOpts = '';
+  var seenNames = {};
+  G.entries.forEach(function(e){
+    var nk = _normStr(e.name);
+    if(seenNames[nk]) return;
+    if(getCanonicalHorse(e.horse) === canonHorse) return; // already on this horse
+    seenNames[nk] = true;
+    existingOpts += '<option value="'+e.rowIndex+'">'+esc(e.name)+'</option>';
+  });
+
+  var existingPickerHtml = '';
+  if(existingOpts){
+    existingPickerHtml = '<div style="background:rgba(200,146,42,.08);border:1px solid rgba(200,146,42,.25);border-radius:6px;padding:.6rem .7rem">'
+      +'<div style="font-size:.74rem;color:var(--accent);margin-bottom:.4rem;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.04em">Fill from existing rider</div>'
+      +'<div style="display:flex;gap:.4rem;align-items:center">'
+      +'<select id="ar-existing" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.38rem .55rem;font-size:.82rem;flex:1">'
+      +'<option value="">— select rider —</option>'
+      +existingOpts
+      +'</select>'
+      +'<button class="btn btn-accent btn-sm" onclick="arFillFromExisting('+ownerRowIdx+')">Auto-fill</button>'
+      +'</div>'
+      +'</div>';
+  }
+
+  var fldStyle = 'background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.42rem .6rem;font-size:.84rem;width:100%';
+  var fldSmall = 'background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.35rem .5rem;font-size:.8rem;width:100%';
+
+  var html = '<div class="modal-bg" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal" style="max-width:480px">'
+    +'<div class="modal-header"><h2 style="margin:0;font-size:1rem">Add Rider &mdash; '+esc(owner.horse)+'</h2></div>'
+    +'<div class="modal-body" style="display:flex;flex-direction:column;gap:.7rem;padding:1rem">'
+
+    +existingPickerHtml
+
+    +'<div style="display:flex;gap:.4rem;flex-wrap:wrap">'
+    +'<button class="btn btn-dark btn-sm" onclick="arCopyFromOwner('+ownerRowIdx+')">&#8645; Copy from Owner ('+esc(owner.name)+')</button>'
+    +'</div>'
+
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">'
+    +'<div class="form-group"><label>First Name</label><input id="ar-first" type="text" placeholder="First" autocomplete="given-name" style="'+fldStyle+'"></div>'
+    +'<div class="form-group"><label>Last Name</label><input id="ar-last" type="text" placeholder="Last" autocomplete="family-name" style="'+fldStyle+'"></div>'
+    +'</div>'
+
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">'
+    +'<div class="form-group"><label>Email</label><input id="ar-email" type="email" placeholder="rider@example.com" style="'+fldStyle+'"></div>'
+    +'<div class="form-group"><label>Phone</label><input id="ar-phone" type="tel" placeholder="(555) 000-0000" style="'+fldStyle+'"></div>'
+    +'</div>'
+
+    +'<div class="form-group"><label>Address</label><input id="ar-address" type="text" placeholder="Street address" style="'+fldStyle+'"></div>'
+
+    +'<div style="display:grid;grid-template-columns:1fr .4fr .4fr;gap:.5rem">'
+    +'<div class="form-group"><label>City</label><input id="ar-city" type="text" placeholder="City" style="'+fldStyle+'"></div>'
+    +'<div class="form-group"><label>State</label><input id="ar-state" type="text" placeholder="TX" maxlength="2" style="'+fldStyle+';text-transform:uppercase"></div>'
+    +'<div class="form-group"><label>Zip</label><input id="ar-zip" type="text" placeholder="75001" maxlength="10" style="'+fldStyle+'"></div>'
+    +'</div>'
+
+    +'<div style="border-top:1px solid var(--border2);padding-top:.6rem">'
+    +'<div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem">Membership Numbers</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem">'
+    +'<div class="form-group"><label style="font-size:.74rem">CoWN #</label><input id="ar-mcown" type="text" style="'+fldSmall+'"></div>'
+    +'<div class="form-group"><label style="font-size:.74rem">SHTX #</label><input id="ar-mshtx" type="text" style="'+fldSmall+'"></div>'
+    +'<div class="form-group"><label style="font-size:.74rem">AQHA #</label><input id="ar-maqha" type="text" style="'+fldSmall+'"></div>'
+    +'<div class="form-group"><label style="font-size:.74rem">APHA #</label><input id="ar-mapha" type="text" style="'+fldSmall+'"></div>'
+    +'<div class="form-group"><label style="font-size:.74rem">ApHC #</label><input id="ar-maphc" type="text" style="'+fldSmall+'"></div>'
+    +'<div class="form-group"><label style="font-size:.74rem">NRHA #</label><input id="ar-mnrha" type="text" style="'+fldSmall+'"></div>'
+    +'</div></div>'
+
+    +'<div class="form-group"><label>Division</label>'+divSelHtml+'</div>'
+
+    +'<div style="display:flex;gap:.5rem;justify-content:flex-end;padding-top:.25rem">'
+    +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
+    +'<button class="btn btn-accent" onclick="saveNewRiderEntry('+ownerRowIdx+')">Add Rider</button>'
+    +'</div>'
+    +'</div></div></div>';
+
+  document.getElementById('modal-root').innerHTML = html;
+  setTimeout(function(){ var f=document.getElementById('ar-first'); if(f) f.focus(); }, 80);
+};
+
+window.arCopyFromOwner = function(ownerRowIdx){
+  var owner = G.entries.find(function(x){ return x.rowIndex===ownerRowIdx; });
+  if(!owner) return;
+  function sv(id, val){ var el=document.getElementById(id); if(el) el.value=val||''; }
+  // Leave name fields blank — secretary must type the new rider's name
+  sv('ar-email',   owner.email);
+  sv('ar-phone',   owner.phone);
+  sv('ar-address', owner.address);
+  sv('ar-city',    owner.city);
+  sv('ar-state',   owner.state);
+  sv('ar-zip',     owner.zip);
+  sv('ar-mcown',   owner.memberNum);
+  sv('ar-mshtx',   owner.memberSHTX);
+  sv('ar-maqha',   owner.memberAQHA);
+  sv('ar-mapha',   owner.memberAPHA);
+  sv('ar-maphc',   owner.memberApHC);
+  sv('ar-mnrha',   owner.memberNRHA);
+  var firstEl = document.getElementById('ar-first');
+  if(firstEl) firstEl.focus();
+};
+
+// Fill form from an existing rider already in G.entries
+window.arFillFromExisting = function(ownerRowIdx){
+  var sel = document.getElementById('ar-existing');
+  if(!sel || !sel.value) { toast('Select a rider first', true); return; }
+  var srcEntry = G.entries.find(function(x){ return x.rowIndex===parseInt(sel.value,10); });
+  if(!srcEntry){ toast('Rider not found', true); return; }
+  function sv(id, val){ var el=document.getElementById(id); if(el) el.value=val||''; }
+  // Split name into first/last
+  var parts = (srcEntry.name||'').trim().split(' ');
+  sv('ar-first',   srcEntry.firstName || (parts.length>1 ? parts.slice(0,-1).join(' ') : parts[0]));
+  sv('ar-last',    srcEntry.lastName  || (parts.length>1 ? parts[parts.length-1] : ''));
+  sv('ar-email',   srcEntry.email);
+  sv('ar-phone',   srcEntry.phone);
+  sv('ar-address', srcEntry.address);
+  sv('ar-city',    srcEntry.city);
+  sv('ar-state',   srcEntry.state);
+  sv('ar-zip',     srcEntry.zip);
+  sv('ar-mcown',   srcEntry.memberNum);
+  sv('ar-mshtx',   srcEntry.memberSHTX);
+  sv('ar-maqha',   srcEntry.memberAQHA);
+  sv('ar-mapha',   srcEntry.memberAPHA);
+  sv('ar-maphc',   srcEntry.memberApHC);
+  sv('ar-mnrha',   srcEntry.memberNRHA);
+  // Match division if possible
+  var divSel = document.getElementById('ar-div');
+  if(divSel && srcEntry.division){
+    for(var i=0;i<divSel.options.length;i++){
+      var opt = divSel.options[i];
+      var divPart = opt.value.split('|')[1]||'';
+      if(_normStr(divPart)===_normStr(srcEntry.division)){ divSel.selectedIndex=i; break; }
+    }
+  }
+  toast('Filled from '+srcEntry.name);
+};
+
+window.saveNewRiderEntry = function(ownerRowIdx){
+  var owner = G.entries.find(function(x){ return x.rowIndex===ownerRowIdx; });
+  if(!owner) return;
+
+  function gv(id){ var el=document.getElementById(id); return el ? el.value.trim() : ''; }
+
+  var first = gv('ar-first');
+  var last  = gv('ar-last');
+  if(!first || !last){ toast('Enter first and last name', true); return; }
+
+  var divKey = gv('ar-div');
+  var divParts = divKey ? divKey.split('|') : [];
+  var divOrg  = divParts[0] || (G.cfg.orgAbbrev||'CoWN');
+  var div     = divParts[1] || '';
+
+  var rowIndex = G.entries.length;
+  var canonHorse = getCanonicalHorse(owner.horse);
+
+  var entry = {
+    rowIndex: rowIndex, dbId: null,
+    name: first+' '+last, firstName: first, lastName: last,
+    horse: owner.horse, horseGender: owner.horseGender||'', horseOwner: owner.horseOwner||'',
+    horseRegNum: owner.horseRegNum||'', horseDob: owner.horseDob||'',
+    email:   gv('ar-email'),
+    phone:   gv('ar-phone'),
+    address: gv('ar-address'),
+    city:    gv('ar-city'),
+    state:   gv('ar-state'),
+    zip:     gv('ar-zip'),
+    isYouth: false, dob: '',
+    memberNum:   gv('ar-mcown'),
+    memberSHTX:  gv('ar-mshtx'),
+    memberAQHA:  gv('ar-maqha'),
+    memberAPHA:  gv('ar-mapha'),
+    memberApHC:  gv('ar-maphc'),
+    memberNRHA:  gv('ar-mnrha'),
+    division: div, assocRaw: divOrg||'CoWN',
+    classes: [],
+    haulinQty: 0, stall1qty: 0, stall2qty: 0, stall3qty: 0,
+    stallCircuit: 0, shavings: 0, rv1qty: 0, rv2qty: 0, rvCircuit: 0,
+    stallNote: '',
+    needsMembership: '', orgFees: [], customFees: {}, cognitoAmount: 0,
+    isPaid: false, source: 'manual',
+    billedTo: owner.name
+  };
+
+  G.entries.push(entry);
+  G.payments[rowIndex] = 0;
+  G.backNums[rowIndex] = '';
+
+  // Register owner as billing primary for this horse if not already set
+  G.horsePrimary = G.horsePrimary || {};
+  if(!G.horsePrimary[canonHorse]) G.horsePrimary[canonHorse] = owner.name;
+
+  // Update billedTo on all entries for this horse to owner
+  G.entries.forEach(function(e2){
+    if(getCanonicalHorse(e2.horse) === canonHorse && !e2.billedTo){
+      e2.billedTo = owner.name;
+    }
+  });
 
   saveEntriesToStorage();
+  closeModal();
 
+  if(G.showId){
+    syncManualEntry(entry).then(function(){
+      toast('Added rider: '+first+' '+last);
+    }).catch(function(err){
+      toast('Added locally. DB sync failed: '+err.message, true);
+    });
+  } else {
+    toast('Added rider: '+first+' '+last);
+  }
+
+  // Reopen modal on Riders tab so secretary can assign classes immediately
+  showEntryModal(ownerRowIdx, 'riders');
+};
+
+window.removeRider = function(ownerRowIdx, riderName){
+  var e=G.entries.find(function(x){ return x.rowIndex===ownerRowIdx; });
+  if(!e||!e.riders) return;
+  var idx=e.riders.findIndex(function(r){ return _normStr(r.name)===_normStr(riderName); });
+  if(idx>=0) e.riders.splice(idx,1);
+  saveEntriesToStorage();
   if(G._rebuildEntryModal) G._rebuildEntryModal();
+};
 
+window.setHorsePrimary = function(rowIdx, riderName){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e) return;
+  var canonHorse=getCanonicalHorse(e.horse);
+  G.horsePrimary=G.horsePrimary||{};
+  G.horsePrimary[canonHorse]=riderName;
+  // Propagate to billedTo on every entry for this horse so Checkout reflects the change
+  G.entries.forEach(function(x){
+    if(getCanonicalHorse(x.horse)===canonHorse) x.billedTo=riderName;
+  });
+  saveEntriesToStorage();
+  if(G._rebuildEntryModal) G._rebuildEntryModal();
+  if(typeof drawEntryTable==='function') drawEntryTable();
+  if(_currentPage==='tabs') pgTabs();
 };
 
 
@@ -14535,53 +15324,53 @@ window.removeRiderDivBlock = function(rowIdx, ri, div){
 };
 
 window.toggleRiderClass = function(rowIdx, ri, classNum, checked){
-  var e = G.entries.find(function(x){ return x.rowIndex===rowIdx; });
-  if(!e) return;
-  var riders2 = e.riders || [{name:e.name, division:e.division, isPrimary:true}];
-  var rider = riders2[ri];
-  if(!rider) return;
+  var hr=G._horseRiders&&G._horseRiders[rowIdx];
+  var rider,targetE;
+  if(hr){
+    rider=hr.riders[ri];
+    if(!rider) return;
+    targetE=G.entries.find(function(x){ return x.rowIndex===(rider.isPrimary?rowIdx:rider.ownerRowIdx); });
+  } else {
+    targetE=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+    if(!targetE) return;
+    var riders2=targetE.riders||[{name:targetE.name,division:targetE.division,isPrimary:true}];
+    rider=riders2[ri];
+  }
+  if(!rider||!targetE) return;
 
-  var cfgCls = G.cfg.classes.find(function(c){ return String(c.num)===String(classNum); });
-  var isCow = cfgCls && cfgCls.isCow;
-  if(!e.classes) e.classes = [];
+  var cfgCls=G.cfg.classes.find(function(c){ return String(c.num)===String(classNum); });
+  var isCow=cfgCls&&cfgCls.isCow;
 
   if(checked){
-    var existing = e.classes.find(function(c){ return String(c.num)===String(classNum) && c.status!=='scratched'; });
-    if(existing){
-      existing.rider = rider.name;
-    } else {
-      var scratched2 = e.classes.find(function(c){ return String(c.num)===String(classNum) && c.status==='scratched'; });
-      if(scratched2){
-        scratched2.status = 'active';
-        scratched2.rider  = rider.name;
-      } else {
-        var fee2 = cfgCls
-          ? ((cfgCls.baseFee||G.cfg.fees.classBase||0)
-             + (isCow ? (cfgCls.cowFee!=null ? cfgCls.cowFee : (G.cfg.fees.cowSurcharge||0)) : 0)
-             + (cfgCls.jackpot||0))
-          : 0;
-        e.classes.push({num:cfgCls?cfgCls.num:classNum, name:cfgCls?cfgCls.name:String(classNum),
-          division:cfgCls?(cfgCls.division||''):'', org:cfgCls?(cfgCls.org||'CoWN'):'CoWN',
-          isCow:!!isCow, fee:fee2, rider:rider.name, status:'active'});
+    if(!targetE.classes) targetE.classes=[];
+    var existing=targetE.classes.find(function(c){ return String(c.num)===String(classNum)&&c.status!=='scratched'; });
+    if(existing){ existing.rider=rider.name; }
+    else {
+      var scratched2=targetE.classes.find(function(c){ return String(c.num)===String(classNum)&&c.status==='scratched'; });
+      if(scratched2){ scratched2.status='active'; scratched2.rider=rider.name; }
+      else {
+        var fee2=cfgCls?((cfgCls.baseFee||G.cfg.fees.classBase||0)+(isCow?(cfgCls.cowFee!=null?cfgCls.cowFee:(G.cfg.fees.cowSurcharge||0)):0)+(cfgCls.jackpot||0)):0;
+        targetE.classes.push({num:cfgCls?cfgCls.num:classNum,name:cfgCls?cfgCls.name:String(classNum),
+          division:cfgCls?(cfgCls.division||''):'',org:cfgCls?(cfgCls.org||'CoWN'):'CoWN',
+          isCow:!!isCow,fee:fee2,rider:rider.name,status:'active'});
       }
     }
   } else {
-    var rmIdx = e.classes.findIndex(function(c){
-      return String(c.num)===String(classNum) && c.status!=='scratched' && (
-        c.rider===rider.name || (rider.isPrimary && (!c.rider || c.rider===e.name))
-      );
-    });
-    if(rmIdx >= 0){
-      var paid2 = typeof amtPaid==='function' && amtPaid(e) > 0;
-      var lateStr = G.cfg.fees && G.cfg.fees.lateDueDate;
-      var pastLate = lateStr && new Date() > new Date(lateStr);
-      if(isCow && (paid2 || pastLate)){
-        e.classes[rmIdx].status = 'scratched';
-        toast('Cattle fee retained — remove manually in billing if needed.');
-      } else {
-        e.classes.splice(rmIdx, 1);
+    var allEntries=(hr&&hr.allHorseEntries)||[targetE];
+    allEntries.forEach(function(e2){
+      var rmIdx=(e2.classes||[]).findIndex(function(c){
+        return String(c.num)===String(classNum)&&c.status!=='scratched'&&(
+          _normStr(c.rider||'')===_normStr(rider.name)||
+          (rider.isPrimary&&_normStr(e2.name)===_normStr(rider.name)&&(!c.rider||_normStr(c.rider)===_normStr(e2.name))));
+      });
+      if(rmIdx>=0){
+        var paid2=typeof amtPaid==='function'&&amtPaid(e2)>0;
+        var lateStr=G.cfg.fees&&G.cfg.fees.lateDueDate;
+        var pastLate=lateStr&&new Date()>new Date(lateStr);
+        if(isCow&&(paid2||pastLate)){ e2.classes[rmIdx].status='scratched'; toast('Cattle fee retained — remove manually in billing if needed.'); }
+        else { e2.classes.splice(rmIdx,1); }
       }
-    }
+    });
   }
 
   saveEntriesToStorage();
@@ -14589,45 +15378,51 @@ window.toggleRiderClass = function(rowIdx, ri, classNum, checked){
 };
 
 window.toggleRiderAllInDiv = function(rowIdx, ri, orgDiv, checked){
-  var e = G.entries.find(function(x){ return x.rowIndex===rowIdx; });
-  if(!e) return;
-  var riders2 = e.riders || [{name:e.name, division:e.division, isPrimary:true}];
-  var rider = riders2[ri];
-  if(!rider) return;
+  var hr=G._horseRiders&&G._horseRiders[rowIdx];
+  var rider,targetE;
+  if(hr){
+    rider=hr.riders[ri];
+    if(!rider) return;
+    targetE=G.entries.find(function(x){ return x.rowIndex===(rider.isPrimary?rowIdx:rider.ownerRowIdx); });
+  } else {
+    targetE=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+    if(!targetE) return;
+    var riders2=targetE.riders||[{name:targetE.name,division:targetE.division,isPrimary:true}];
+    rider=riders2[ri];
+  }
+  if(!rider||!targetE) return;
 
-  var pipeIdx = orgDiv.indexOf('|');
-  var blockOrg = pipeIdx>=0 ? orgDiv.slice(0,pipeIdx) : 'CoWN';
-  var blockDiv = pipeIdx>=0 ? orgDiv.slice(pipeIdx+1) : orgDiv;
-  var divClasses = G.cfg.classes.filter(function(c){ return (c.org||'CoWN')===blockOrg && (c.division||'')===blockDiv; });
-  var paid2 = typeof amtPaid==='function' && amtPaid(e) > 0;
-  var lateStr = G.cfg.fees && G.cfg.fees.lateDueDate;
-  var pastLate = lateStr && new Date() > new Date(lateStr);
-  var cowWarn = false;
+  var pipeIdx=orgDiv.indexOf('|'),blockOrg=pipeIdx>=0?orgDiv.slice(0,pipeIdx):'CoWN',blockDiv=pipeIdx>=0?orgDiv.slice(pipeIdx+1):orgDiv;
+  var divClasses=G.cfg.classes.filter(function(c){ return (c.org||'CoWN')===blockOrg&&(c.division||'')===blockDiv; });
+  var allEntries=(hr&&hr.allHorseEntries)||[targetE];
+  var cowWarn=false;
 
-  if(!e.classes) e.classes = [];
+  if(!targetE.classes) targetE.classes=[];
 
   divClasses.forEach(function(c){
-    var isCow = c.isCow;
+    var isCow=c.isCow;
     if(checked){
-      var ex = e.classes.find(function(x){ return String(x.num)===String(c.num) && x.status!=='scratched'; });
-      if(ex){ ex.rider = rider.name; return; }
-      var sc = e.classes.find(function(x){ return String(x.num)===String(c.num) && x.status==='scratched'; });
+      var ex=targetE.classes.find(function(x){ return String(x.num)===String(c.num)&&x.status!=='scratched'; });
+      if(ex){ ex.rider=rider.name; return; }
+      var sc=targetE.classes.find(function(x){ return String(x.num)===String(c.num)&&x.status==='scratched'; });
       if(sc){ sc.status='active'; sc.rider=rider.name; return; }
-      var fee2 = (c.baseFee||G.cfg.fees.classBase||0)
-        + (isCow ? (c.cowFee!=null ? c.cowFee : (G.cfg.fees.cowSurcharge||0)) : 0)
-        + (c.jackpot||0);
-      e.classes.push({num:c.num, name:c.name, division:c.division||'', org:c.org||'CoWN',
-        isCow:!!isCow, fee:fee2, rider:rider.name, status:'active'});
+      var fee2=(c.baseFee||G.cfg.fees.classBase||0)+(isCow?(c.cowFee!=null?c.cowFee:(G.cfg.fees.cowSurcharge||0)):0)+(c.jackpot||0);
+      targetE.classes.push({num:c.num,name:c.name,division:c.division||'',org:c.org||'CoWN',isCow:!!isCow,fee:fee2,rider:rider.name,status:'active'});
     } else {
-      var rmIdx = e.classes.findIndex(function(x){
-        return String(x.num)===String(c.num) && x.status!=='scratched' && (
-          x.rider===rider.name || (rider.isPrimary && (!x.rider || x.rider===e.name))
-        );
+      allEntries.forEach(function(e2){
+        var rmIdx=(e2.classes||[]).findIndex(function(x){
+          return String(x.num)===String(c.num)&&x.status!=='scratched'&&(
+            _normStr(x.rider||'')===_normStr(rider.name)||
+            (rider.isPrimary&&_normStr(e2.name)===_normStr(rider.name)&&(!x.rider||_normStr(x.rider)===_normStr(e2.name))));
+        });
+        if(rmIdx>=0){
+          var paid2=typeof amtPaid==='function'&&amtPaid(e2)>0;
+          var lateStr=G.cfg.fees&&G.cfg.fees.lateDueDate;
+          var pastLate=lateStr&&new Date()>new Date(lateStr);
+          if(isCow&&(paid2||pastLate)){ e2.classes[rmIdx].status='scratched'; cowWarn=true; }
+          else { e2.classes.splice(rmIdx,1); }
+        }
       });
-      if(rmIdx >= 0){
-        if(isCow && (paid2 || pastLate)){ e.classes[rmIdx].status='scratched'; cowWarn=true; }
-        else { e.classes.splice(rmIdx, 1); }
-      }
     }
   });
 
@@ -14660,12 +15455,19 @@ function saveEntryInfo(rowIdx){
   e.division   = (document.getElementById('ei-division').value||'').trim();
   e.addedAtShow= document.getElementById('ei-addedatshow').checked;
 
-  // If primary rider name changed, update riders array and class assignments
+  // If primary rider name changed, update riders array, class assignments, and stall data
   if(newName && newName!==oldName){
     if(e.riders){
       e.riders.forEach(function(r){ if(r.name===oldName) r.name=newName; });
     }
     e.classes.forEach(function(c){ if(c.rider===oldName) c.rider=newName; });
+    // Migrate stall data to new name key so stall fees aren't lost
+    if(G.riderStalls && G.riderStalls[oldName]){
+      G.riderStalls[newName]=G.riderStalls[oldName];
+      delete G.riderStalls[oldName];
+    }
+    // Migrate payment history to new rowIndex if entry was found by old name
+    // (payments are keyed by rowIndex so they follow the entry, nothing to migrate)
   }
 
   saveEntriesToStorage();
@@ -14842,6 +15644,7 @@ window.setBilledTo = function(rowIdx, val){
   e.billedTo = val || e.name;
   saveEntriesToStorage();
   if(G._rebuildEntryModal) G._rebuildEntryModal();
+  if(_currentPage === 'tabs') pgTabs();
 };
 
 window.setBilledToCustom = function(rowIdx, val){
@@ -14850,6 +15653,64 @@ window.setBilledToCustom = function(rowIdx, val){
   e.billedTo = val.trim() || e.name;
   saveEntriesToStorage();
   if(G._rebuildEntryModal) G._rebuildEntryModal();
+  if(_currentPage === 'tabs') pgTabs();
+};
+
+window.quickAssignBiller = function(rowIdx){
+  var e=G.entries.find(function(x){ return x.rowIndex===rowIdx; });
+  if(!e) return;
+  var name=e.name;
+  var opts=[{val:name, label:name+' (Primary Rider)'}];
+  if(e.horseOwner&&e.horseOwner.trim()&&e.horseOwner.trim().toLowerCase()!==name.toLowerCase())
+    opts.push({val:e.horseOwner.trim(), label:e.horseOwner.trim()+' (Horse Owner)'});
+  // Co-riders on same horse
+  G.entries.forEach(function(x){
+    if(x.rowIndex===rowIdx) return;
+    if(getCanonicalHorse(x.horse)===getCanonicalHorse(e.horse)&&x.name&&!opts.find(function(o){return o.val===x.name;}))
+      opts.push({val:x.name, label:x.name+' (Co-rider)'});
+  });
+  // All other riders in the show (including sub-riders from any entry's riders array)
+  G.entries.forEach(function(x){
+    if(x.name&&!opts.find(function(o){return o.val===x.name;}))
+      opts.push({val:x.name, label:x.name});
+    (x.riders||[]).forEach(function(r){
+      if(r.name&&!opts.find(function(o){return o.val===r.name;}))
+        opts.push({val:r.name, label:r.name+' (Rider)'});
+    });
+  });
+  var cur=e.billedTo||name;
+  var isCustom=!opts.find(function(o){return o.val===cur;});
+  var selStyle='width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:.4rem .5rem;border-radius:4px;font-size:.9rem;box-sizing:border-box';
+  var html='<div class="modal-bg" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal" style="max-width:340px">'
+    +'<h2 style="font-size:1rem;margin-bottom:.25rem">Responsible Party</h2>'
+    +'<div style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">'+esc(e.horse||'—')+' &middot; '+esc(name)+'</div>'
+    +'<select id="qb-sel" style="'+selStyle+'" onchange="var w=document.getElementById(\'qb-wrap\');if(w)w.style.display=this.value===\'__custom__\'?\'block\':\'none\'">'
+    +opts.map(function(o){return '<option value="'+esc(o.val)+'"'+(o.val===cur&&!isCustom?' selected':'')+'>'+esc(o.label)+'</option>';}).join('')
+    +'<option value="__custom__"'+(isCustom?' selected':'')+'>Custom…</option>'
+    +'</select>'
+    +'<div id="qb-wrap" style="margin-top:.5rem'+(isCustom?'':';display:none')+'">'
+    +'<input id="qb-custom" type="text" value="'+(isCustom?esc(cur):'')+'" placeholder="Enter name" style="'+selStyle+'"></div>'
+    +'<div class="btn-row" style="margin-top:1rem;margin-bottom:0">'
+    +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
+    +'<button class="btn btn-accent" onclick="window._commitQuickBiller('+rowIdx+')">Save</button>'
+    +'</div></div></div>';
+  document.getElementById('modal-root').innerHTML=html;
+};
+
+window._commitQuickBiller=function(rowIdx){
+  var e=G.entries.find(function(x){return x.rowIndex===rowIdx;});
+  if(!e) return;
+  var sel=document.getElementById('qb-sel');
+  var val=sel?sel.value:'';
+  if(val==='__custom__'){
+    var ci=document.getElementById('qb-custom');
+    val=ci?ci.value.trim():'';
+  }
+  e.billedTo=val||e.name;
+  saveEntriesToStorage();
+  closeModal();
+  pgTabs();
 };
 
 window.setClassBilledTo = function(rowIdx, classNum, val){
@@ -14864,6 +15725,7 @@ window.setClassBilledTo = function(rowIdx, classNum, val){
   }
   saveEntriesToStorage();
   if(G._rebuildEntryModal) G._rebuildEntryModal();
+  if(_currentPage === 'tabs') pgTabs();
 };
 
 function removeOrgFee(rowIdx, feeIdx){
@@ -15269,7 +16131,6 @@ function promptMerge(canonicalHorse, riderNames){
     });
   });
   if(entryKeys.length<2){ toast('Need at least 2 entries to merge', true); return; }
-  var keysJson=JSON.stringify(entryKeys);
   var root=document.getElementById('modal-root');
   root.innerHTML='<div class="modal-bg" id="tm" onclick="if(event.target===this)closeModal()">'
     +'<div class="modal"><h2>Merge Tabs</h2>'
@@ -15280,7 +16141,7 @@ function promptMerge(canonicalHorse, riderNames){
     +entryKeys.map(function(k){ return '<span style="display:inline-block;margin:.15rem .25rem;padding:1px 6px;background:var(--card2);border-radius:4px">'+esc(k)+'</span>'; }).join('')
     +'</div>'
     +'<div class="btn-row"><button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
-    +'<button class="btn btn-accent" onclick="confirmMerge('+keysJson.replace(/"/g,"'")+')" >Merge</button>'
+    +'<button class="btn btn-accent" onclick="confirmMerge(['+entryKeys.map(function(k){return _sq(k);}).join(',')+'])">Merge</button>'
     +'</div></div></div>';
 }
 
@@ -15440,7 +16301,7 @@ function promptNewGroup(){
     +'<div style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:.35rem .5rem">'
     +riders.map(function(name){
       var horses=[...new Set(byRider[name].map(function(k){ return k.split('|').slice(1).join('|'); }))].join(', ');
-      var owed=G.entries.filter(function(e){ return e.name===name; }).reduce(function(s,e){ return s+tabTotal(e); },0);
+      var owed=G.entries.filter(function(e){ return _normStr(e.name)===_normStr(name); }).reduce(function(s,e){ return s+tabTotal(e); },0);
       var curGrp=riderGroupMap[name];
       var grpNote=curGrp?'<span style="font-size:.7rem;padding:1px 5px;border-radius:3px;background:rgba(200,146,42,.15);color:var(--accent);margin-left:.3rem">in: '+esc(curGrp.payerName)+'</span>':'';
       return '<label style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0;font-size:.84rem;cursor:pointer;border-bottom:1px solid var(--border)">'
@@ -15467,12 +16328,12 @@ function confirmNewGroup(){
     if(fromGroupId){
       var grp=G.billingGroups.find(function(g){ return g.id===fromGroupId; });
       if(grp){
-        var toRemove=grp.entryKeys.filter(function(k){ return k.split('|')[0]===name; });
+        var toRemove=grp.entryKeys.filter(function(k){ return _normStr(k.split('|')[0])===_normStr(name); });
         splitFromBillingGroup(fromGroupId, toRemove);
       }
     }
     G.entries.forEach(function(e){
-      if(e.name===name) entryKeys.push(entryKey(e));
+      if(_normStr(e.name)===_normStr(name)) entryKeys.push(entryKey(e));
     });
   });
   if(entryKeys.length<2){ toast('Select at least 2 riders', true); return; }
@@ -15578,24 +16439,192 @@ window.confirmMoveRider=function(riderName, fromGroupId){
   closeModal(); pgTabs();
 };
 
+function showPayerSummaryModal(payerName){
+  var groupedK={};
+  G.billingGroups.forEach(function(grp){grp.entryKeys.forEach(function(k){groupedK[k]=1;});});
+  var billEntries=G.entries.filter(function(e){
+    if(groupedK[entryKey(e)]) return false;
+    return (e.billedTo||e.name)===payerName;
+  });
+  if(!billEntries.length){ showTabModal(payerName); return; }
+  var payRefIdx=billEntries[0].rowIndex;
+
+  // Group by horse+rider so same horse with different riders is distinct
+  var groups=[];
+  billEntries.forEach(function(e){
+    var key=e.name+'|||'+(e.horse||'');
+    var g=groups.find(function(g){return g.key===key;});
+    if(!g){g={key:key,rider:e.name,horse:e.horse||'—',entries:[]};groups.push(g);}
+    g.entries.push(e);
+  });
+
+  var total=0,paid=0,linesHtml='';
+  groups.forEach(function(g){
+    var lines=[];
+    g.entries.forEach(function(e){buildTabLines(e).forEach(function(l){lines.push(l);});});
+    var sub=lines.reduce(function(s,l){return s+l.amt;},0);
+    total+=sub;
+    paid+=g.entries.reduce(function(s,e){return s+amtPaid(e);},0);
+    // Build fee body grouped by rider
+    var feeBodyHtml='';
+    g.entries.forEach(function(e){
+      var eRiders=e.riders&&e.riders.length>1?e.riders:null;
+      if(eRiders){
+        var nonClsLines=lines.filter(function(l){return l.type!=='class';});
+        nonClsLines.forEach(function(l){feeBodyHtml+='<div class="tab-line" style="font-size:.83rem"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';});
+        eRiders.forEach(function(r){
+          var rLines=lines.filter(function(l){return l.type==='class'&&l.rider===r.name;});
+          if(!rLines.length) return;
+          feeBodyHtml+='<div style="font-size:.77rem;font-weight:600;color:var(--text2);margin:.3rem 0 .1rem">'+esc(r.name)+'</div>';
+          rLines.forEach(function(l){feeBodyHtml+='<div class="tab-line" style="font-size:.83rem;padding-left:.5rem"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';});
+        });
+      } else {
+        lines.forEach(function(l){feeBodyHtml+='<div class="tab-line" style="font-size:.83rem"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';});
+      }
+    });
+    var riderNote=g.rider!==payerName
+      ?'<span style="font-size:.72rem;color:var(--muted);margin-left:.4rem">ridden by '+esc(g.rider)+'</span>'
+      :'';
+    linesHtml+='<div style="margin:0 -.75rem;padding:.4rem .75rem;background:rgba(255,255,255,.04);border-left:2px solid var(--accent);margin-bottom:.4rem">'
+      +'<div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:.1rem">'+esc(g.horse)+riderNote+'</div>'
+      +feeBodyHtml
+      +(groups.length>1?'<div class="tab-line" style="font-size:.8rem;color:var(--muted);border-top:1px solid var(--border);margin-top:.15rem;padding-top:.15rem"><span>Subtotal</span><span>'+fmt$(sub)+'</span></div>':'')
+      +'</div>';
+  });
+  var sLines=buildRiderStallLines(payerName);
+  if(sLines.length){
+    var sTotal=sLines.reduce(function(s,l){return s+l.amt;},0);
+    total+=sTotal;
+    linesHtml+='<div style="margin:0 -.75rem;padding:.4rem .75rem;background:rgba(255,255,255,.04);border-left:2px solid var(--border2);margin-bottom:.4rem">'
+      +'<div style="font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:.2rem">Stalling &amp; RV</div>'
+      +sLines.map(function(l){return '<div class="tab-line" style="font-size:.83rem"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';}).join('')
+      +'</div>';
+  }
+  var bal=total-paid;
+  var nEscQ=payerName.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  var subhead=groups.every(function(g){return g.rider===payerName;})?'':
+    '<div style="font-size:.78rem;color:var(--accent);margin-bottom:.75rem">Responsible party for '+groups.length+' horse'+(groups.length===1?'':'s')+'</div>';
+  var html='<div class="modal-bg" id="psm" onclick="if(event.target===this)closeModal()">'
+    +'<div class="modal"><h2>'+esc(payerName)+'</h2>'+subhead
+    +linesHtml
+    +'<div class="tab-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
+    +'<div class="pay-status" style="margin-bottom:.5rem">'
+    +'<div style="flex:1"><div class="small">Paid</div><div class="bold" style="color:var(--green)">'+fmt$(paid)+'</div></div>'
+    +'<div style="flex:1"><div class="small">Balance</div><div class="bold" style="color:'+(bal<=0?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</div></div>'
+    +(bal<=0?'<div><span class="badge b-green">&#10003; Paid in Full</span></div>':'')
+    +'</div>'
+    +buildPaymentSection(payRefIdx, bal, '_reopenPayerSummary')
+    +'<div class="btn-row" style="margin-top:1rem;margin-bottom:0">'
+    +'<button class="btn btn-dark" onclick="closeModal()">Close</button>'
+    +'<button class="btn btn-dark btn-sm" onclick="printTabReceipt(\''+nEscQ+'\')">&#128424; Print Receipt</button>'
+    +'</div></div></div>';
+  document.getElementById('modal-root').innerHTML=html;
+}
+window._reopenPayerSummary=function(payKey){
+  var e=G.entries.find(function(e){ return e.rowIndex===parseInt(payKey); });
+  if(e){ var payer=e.billedTo||e.name; showPayerSummaryModal(payer); }
+};
+
 function showTabModal(name){
-  var entries=G.entries.filter(function(e){ return e.name===name; });
+  var entries=G.entries.filter(function(e){ return _normStr(e.name)===_normStr(name); });
   if(!entries.length) return;
+  var gK={};
+  (G.billingGroups||[]).forEach(function(g){g.entryKeys.forEach(function(k){gK[k]=1;});});
+  // Other riders' entries explicitly billed to this person
+  var billedFromOthers=G.entries.filter(function(e){
+    return !gK[entryKey(e)] && _normStr(e.name)!==_normStr(name) && _normStr(e.billedTo||'')===_normStr(name);
+  });
+  var allCount=entries.length+billedFromOthers.length;
   var refIdx=entries[0].rowIndex;
   var e0=entries[0];
-  // For individual tabs, payment history is keyed by each entry's rowIndex
-  // We use the first entry's rowIndex as the payment key (marks all entries paid at once)
   var payKey=refIdx;
-  var allLines=[];
-  entries.forEach(function(e){ buildTabLines(e).forEach(function(l){ allLines.push(l); }); });
-  var total=allLines.reduce(function(s,l){ return s+l.amt; },0);
-  var paid=entries.reduce(function(s,e){ return s+amtPaid(e); },0);
-  var bal=total-paid;
+  var total=0;
   var nEscQ=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  var linesHtml='';
+
+  // Own horse entries (billed-away shown greyed, not counted in total)
+  entries.forEach(function(e){
+    var lines=buildTabLines(e);
+    var sub=lines.reduce(function(s,l){ return s+l.amt; },0);
+    var hBiller=e.billedTo||name;
+    var billedAway=hBiller!==name;
+    if(!billedAway) total+=sub;
+    var billerNote=billedAway?'<span style="font-size:.72rem;color:var(--accent);margin-left:.35rem">&#8594; billed to '+esc(hBiller)+'</span>':'';
+    var eRiders=e.riders&&e.riders.length>1?e.riders:null;
+    var feeBodyHtml='';
+    if(eRiders){
+      // Group fee lines by rider; non-class lines shown first
+      var nonClsLines=lines.filter(function(l){return l.type!=='class';});
+      nonClsLines.forEach(function(l){
+        feeBodyHtml+='<div class="tab-line" style="font-size:.83rem"><span>'+esc(l.desc)+'</span><span>'+(billedAway?'<span style="color:var(--muted)">—</span>':fmt$(l.amt))+'</span></div>';
+      });
+      eRiders.forEach(function(r){
+        var rLines=lines.filter(function(l){return l.type==='class'&&l.rider===r.name;});
+        if(!rLines.length) return;
+        feeBodyHtml+='<div style="font-size:.77rem;font-weight:600;color:var(--text2);margin:.3rem 0 .1rem">'+esc(r.name)+'</div>';
+        rLines.forEach(function(l){
+          feeBodyHtml+='<div class="tab-line" style="font-size:.83rem;padding-left:.5rem"><span>'+esc(l.desc)+'</span><span>'+(billedAway?'<span style="color:var(--muted)">—</span>':fmt$(l.amt))+'</span></div>';
+        });
+      });
+    } else {
+      feeBodyHtml=lines.map(function(l){
+        return '<div class="tab-line" style="font-size:.83rem"><span>'+esc(l.desc)+'</span><span>'+(billedAway?'<span style="color:var(--muted)">—</span>':fmt$(l.amt))+'</span></div>';
+      }).join('');
+    }
+    linesHtml+='<div style="margin:0 -.75rem;padding:.4rem .75rem;background:rgba(255,255,255,.04);border-left:2px solid '+(billedAway?'var(--border2)':'var(--accent)')+';margin-bottom:.3rem'+(billedAway?';opacity:.5':'')+';">'
+      +'<div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:.1rem">'+esc(e.horse||'—')+billerNote+'</div>'
+      +feeBodyHtml
+      +(allCount>1?'<div class="tab-line" style="font-size:.8rem;color:var(--muted);border-top:1px solid var(--border);margin-top:.15rem;padding-top:.15rem"><span>'+(billedAway?'Not billed here':'Subtotal')+'</span><span>'+(billedAway?'—':fmt$(sub))+'</span></div>':'')
+      +'</div>';
+  });
+  // Entries from OTHER riders billed to this person
+  billedFromOthers.forEach(function(e){
+    var lines=buildTabLines(e);
+    var sub=lines.reduce(function(s,l){ return s+l.amt; },0);
+    total+=sub;
+    var bfoBodyHtml='';
+    var bfoRiders=e.riders&&e.riders.length>1?e.riders:null;
+    if(bfoRiders){
+      lines.filter(function(l){return l.type!=='class';}).forEach(function(l){
+        bfoBodyHtml+='<div class="tab-line" style="font-size:.83rem"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';
+      });
+      bfoRiders.forEach(function(r){
+        var rLines=lines.filter(function(l){return l.type==='class'&&l.rider===r.name;});
+        if(!rLines.length) return;
+        bfoBodyHtml+='<div style="font-size:.77rem;font-weight:600;color:var(--text2);margin:.3rem 0 .1rem">'+esc(r.name)+'</div>';
+        rLines.forEach(function(l){bfoBodyHtml+='<div class="tab-line" style="font-size:.83rem;padding-left:.5rem"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';});
+      });
+    } else {
+      bfoBodyHtml=lines.map(function(l){return '<div class="tab-line" style="font-size:.83rem"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';}).join('');
+    }
+    linesHtml+='<div style="margin:0 -.75rem;padding:.4rem .75rem;background:rgba(200,146,42,.04);border-left:2px solid var(--accent);margin-bottom:.3rem">'
+      +'<div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:.1rem">'+esc(e.horse||'—')+' <span style="font-size:.72rem;color:var(--muted)">ridden by '+esc(e.name)+'</span></div>'
+      +bfoBodyHtml
+      +(allCount>1?'<div class="tab-line" style="font-size:.8rem;color:var(--muted);border-top:1px solid var(--border);margin-top:.15rem;padding-top:.15rem"><span>Subtotal</span><span>'+fmt$(sub)+'</span></div>':'')
+      +'</div>';
+  });
+  // Stalling & RV — rider-level
+  var stallLines=buildRiderStallLines(name);
+  if(stallLines.length){
+    var stallSub=stallLines.reduce(function(s,l){ return s+l.amt; },0);
+    total+=stallSub;
+    linesHtml+='<div style="margin:0 -.75rem;padding:.4rem .75rem;background:rgba(255,255,255,.04);border-left:2px solid var(--border2);margin-bottom:.3rem">'
+      +'<div style="font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:.2rem">Stalling &amp; RV</div>'
+      +stallLines.map(function(l){
+        return '<div class="tab-line" style="font-size:.83rem"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';
+      }).join('')
+      +(allCount>1?'<div class="tab-line" style="font-size:.8rem;color:var(--muted);border-top:1px solid var(--border);margin-top:.15rem;padding-top:.15rem"><span>Subtotal</span><span>'+fmt$(stallSub)+'</span></div>':'')
+      +'</div>';
+  }
+
+  // paid: own non-billed-away entries + billed-from-others entries
+  var paid=entries.filter(function(e){return !e.billedTo||_normStr(e.billedTo||'')===_normStr(name);}).reduce(function(s,e){ return s+amtPaid(e); },0)
+           +billedFromOthers.reduce(function(s,e){ return s+amtPaid(e); },0);
+  var bal=total-paid;
   var html='<div class="modal-bg" id="tm" onclick="if(event.target===this)closeModal()">'
     +'<div class="modal"><h2>'+esc(name)+'</h2>'
     +buildContactLine(e0)
-    +allLines.map(function(l){ return '<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>'; }).join('')
+    +linesHtml
     +'<div class="tab-total"><span>Total</span><span>'+fmt$(total)+'</span></div>'
     +'<div class="pay-status" style="margin-bottom:.5rem">'
     +'<div style="flex:1"><div class="small">Paid</div><div class="bold" style="color:var(--green)">'+fmt$(paid)+'</div></div>'
@@ -16116,6 +17145,7 @@ window.showAeTab = function(id){
 
 function showAddEntryModal(){
   _aeTab = 'rider';
+  window._aeDupConfirmed = false;
   var has = _aeHousingOfferings().length > 0;
   var hasExtras = (G.cfg.practiceSessions||[]).length > 0 || (G.cfg.clinicOptions||[]).length > 0;
   var tabs = '<div style="display:flex;gap:0;border-bottom:1px solid var(--border2);background:var(--card2)">'
@@ -16154,6 +17184,71 @@ function saveManualEntry(){
   var errEl = document.getElementById('ae-err');
   if(!d.first||!d.last){ errEl.textContent='Rider first and last name required'; showAeTab('rider'); return; }
   if(!d.horse){ errEl.textContent='Horse name required'; showAeTab('horse'); return; }
+
+  // Detect if a rider with the same or very similar name already exists
+  var newFullName = d.first+' '+d.last;
+  var normNew = _normStr(newFullName);
+  var existingRiderMatch = null;
+  var existingRiderMatchType = '';
+  G.entries.forEach(function(e){
+    if(existingRiderMatch) return;
+    var en = _normStr(e.name||'');
+    if(en === normNew){ existingRiderMatch = e; existingRiderMatchType = 'exact'; }
+    else if(similarRiderNames(e.name||'', newFullName)){ existingRiderMatch = e; existingRiderMatchType = 'similar'; }
+  });
+  if(existingRiderMatch && !window._aeDupConfirmed){
+    errEl.innerHTML = '';
+    var footer = document.querySelector('#add-entry-modal .modal > div:last-child');
+    if(footer){
+      var msg = existingRiderMatchType==='exact'
+        ? '<strong>'+esc(existingRiderMatch.name)+'</strong> is already in this show.'
+        : 'A rider named <strong>'+esc(existingRiderMatch.name)+'</strong> already exists — possible duplicate of <strong>'+esc(newFullName)+'</strong>.';
+      footer.innerHTML = '<div style="width:100%">'
+        +'<div style="font-size:.82rem;color:var(--accent);margin-bottom:.5rem">&#9888; '+msg+'</div>'
+        +'<div style="display:flex;gap:.5rem;flex-wrap:wrap">'
+        +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
+        +'<button class="btn btn-dark" onclick="window._aeDupConfirmed=true;saveManualEntry()">No, different person — add anyway</button>'
+        +'</div></div>';
+    }
+    window._aePendingEntry = d;
+    return;
+  }
+  window._aeDupConfirmed = false;
+
+  // Detect if horse is already entered under a different rider
+  var normHorse = _normStr(d.horse);
+  var sameHorseEntries = G.entries.filter(function(e){
+    return _normStr(e.horse||'') === normHorse && _normStr(e.name||'') !== _normStr(d.first+' '+d.last);
+  });
+  if(sameHorseEntries.length){
+    // Show disambiguation panel inside the modal footer area
+    var riderNames = sameHorseEntries.map(function(e){ return e.name; }).filter(function(n,i,a){ return a.indexOf(n)===i; });
+    var existEntry = sameHorseEntries[0];
+    errEl.innerHTML = '';
+    // Replace footer with choice UI
+    var footer = document.querySelector('#add-entry-modal .modal > div:last-child');
+    if(footer){
+      var newRiderName = d.first+' '+d.last;
+      var eEsc = existEntry.rowIndex;
+      footer.innerHTML = '<div style="width:100%">'
+        +'<div style="font-size:.82rem;color:var(--accent);margin-bottom:.5rem">&#9888; <strong>'+esc(d.horse)+'</strong> is already entered by <strong>'+esc(riderNames.join(', '))+'</strong>.</div>'
+        +'<div style="display:flex;gap:.5rem;flex-wrap:wrap">'
+        +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
+        +'<button class="btn btn-accent" onclick="_aeAddToExistingHorse('+eEsc+')">Add '+esc(newRiderName)+' to this horse\'s entry</button>'
+        +'<button class="btn btn-dark" onclick="_aeSaveAsNewEntry()">Create separate entry</button>'
+        +'</div></div>';
+    }
+    // stash collected data for the two button handlers
+    window._aePendingEntry = d;
+    return;
+  }
+
+  _aeSaveAsNewEntry(d);
+}
+
+function _aeSaveAsNewEntry(d){
+  if(!d) d = window._aePendingEntry;
+  window._aePendingEntry = null;
   var division = d.classes.length ? d.classes[0].division : '';
   var rowIndex = G.entries.length;
   var entry = {
@@ -16168,7 +17263,7 @@ function saveManualEntry(){
     memberSHTX:d.membs.memberSHTX||'', memberAQHA:d.membs.memberAQHA||'',
     memberAPHA:d.membs.memberAPHA||'', memberApHC:d.membs.memberApHC||'',
     memberNRHA:d.membs.memberNRHA||'',
-    division:division, assocRaw:d.classes.length?d.classes[0].org||'CoWN':'CoWN',
+    division:division, assocRaw:(function(){var orgs=[];(d.classes||[]).forEach(function(c){if(c.org&&orgs.indexOf(c.org)<0)orgs.push(c.org);});return orgs.join(' ')||'CoWN';})(),
     classes:d.classes,
     stallingPackageId:d.stallingPackageId||'', rvPackageId:d.rvPackageId||'',
     haulinQty:d.haulinQty||0,
@@ -16198,6 +17293,43 @@ function saveManualEntry(){
 }
 
 
+
+function _aeAddToExistingHorse(existingRowIdx){
+  var d = window._aePendingEntry;
+  window._aePendingEntry = null;
+  if(!d) return;
+  var e = G.entries.find(function(x){ return x.rowIndex===existingRowIdx; });
+  if(!e) return;
+
+  var newRiderName = d.first+' '+d.last;
+
+  // Init riders array if not yet done
+  if(!e.riders) e.riders = [{name:e.name, division:e.division||'', isPrimary:true}];
+
+  // Add the new rider if not already present
+  if(!e.riders.find(function(r){ return _normStr(r.name)===_normStr(newRiderName); })){
+    var firstDiv = d.classes.length ? d.classes[0].division : '';
+    e.riders.push({name:newRiderName, division:firstDiv, isPrimary:false,
+      firstName:d.first, lastName:d.last, email:d.email, phone:d.phone});
+  }
+
+  // Add any classes the new rider selected (tagged with their name as rider)
+  d.classes.forEach(function(nc){
+    var alreadyIn = e.classes.find(function(ec){ return ec.num===nc.num && ec.status!=='scratched'; });
+    if(!alreadyIn){
+      e.classes.push({
+        num:nc.num, name:nc.name, division:nc.division, org:nc.org||'CoWN',
+        isCow:nc.isCow, fee:nc.fee||0, rider:newRiderName, status:'entered', addedDayOf:true
+      });
+    }
+  });
+
+  saveEntriesToStorage();
+  toast(newRiderName+' added to '+e.horse+' — open entry to manage billing');
+  closeModal();
+  // Open the entry modal on the Riders tab so secretary can manage immediately
+  showEntryModal(existingRowIdx, 'riders');
+}
 
 async function syncManualEntry(entry){
 
@@ -16484,20 +17616,22 @@ async function syncEntriesToSupabase(){
 
       // Upsert entry
 
+      var _enStalls=(G.riderStalls&&G.riderStalls[en.name])||{};
+
       var entryPayload = {
 
         show_id: G.showId, member_id: memberId, horse_id: horseId,
 
         source: en.source||'cognito_import', status: 'active',
 
-        stall_1night: en.stall1qty||0, stall_2night: en.stall2qty||0,
-        stall_3night: en.stall3qty||0,
+        stall_1night: _enStalls.stall1qty||0, stall_2night: _enStalls.stall2qty||0,
+        stall_3night: _enStalls.stall3qty||0,
 
-        shavings: en.shavings||0, rv_1night: en.rv1qty||0,
+        shavings: _enStalls.shavings||0, rv_1night: _enStalls.rv1qty||0,
 
-        rv_2night: en.rv2qty||0, rv_circuit: en.rvCircuit||0,
+        rv_2night: _enStalls.rv2qty||0, rv_circuit: _enStalls.rvCircuit||0,
 
-        stall_note: en.stallNote||null,
+        stall_note: _enStalls.stallNote||null,
 
         needs_membership: en.needsMembership||null,
 
@@ -17069,10 +18203,15 @@ async function boot(){
         var cachedHA=localStorage.getItem('gp_horsealiases_'+showId);
         var cachedHD=localStorage.getItem('gp_horsedistinct_'+showId);
         var cachedPH=localStorage.getItem('gp_payhistory_'+showId);
+        var cachedRS=localStorage.getItem('gp_riderstalls_'+showId);
         if(cachedBG) G.billingGroups=JSON.parse(cachedBG);
         if(cachedHA) G.horseAliases=JSON.parse(cachedHA);
         if(cachedHD) G.horseDistinct=JSON.parse(cachedHD);
         if(cachedPH) G.paymentHistory=JSON.parse(cachedPH);
+        if(cachedRS) G.riderStalls=JSON.parse(cachedRS);
+        else _migrateStallsFromEntries(); // one-time migration from old model
+        var cachedHP=localStorage.getItem('gp_horseprimary_'+showId);
+        if(cachedHP) G.horsePrimary=JSON.parse(cachedHP);
 
         toast('Loaded '+G.entries.length+' entries from cache');
 

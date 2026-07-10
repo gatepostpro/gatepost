@@ -204,25 +204,37 @@ function backNum(ri){
 }
 
 // ─── Entry helpers ────────────────────────────────────────────
+function riderForKey(e, key){
+  var c=(e.classes||[]).filter(function(c){ return clsKey(c)===key; })[0];
+  return (c && c.rider) ? c.rider : (e.name||'');
+}
+
+function wrapRider(e, key){
+  var rn=riderForKey(e, key);
+  return rn!==e.name ? Object.assign({},e,{name:rn}) : e;
+}
+
 function getActive(key){
   var sc = G.scratches[key] || [];
   var order = G.classOrder[key];
   if(order && order.length){
     return order
       .filter(function(ri){ return sc.indexOf(ri) < 0; })
-      .map(function(ri){ return G.entries.find(function(e){ return e.rowIndex === ri; }); })
+      .map(function(ri){ var e=G.entries.find(function(e){ return e.rowIndex === ri; }); return e?wrapRider(e,key):null; })
       .filter(Boolean);
   }
   return G.entries.filter(function(e){
     if(G.fullScratches.indexOf(e.rowIndex) >= 0) return false;
     if(sc.indexOf(e.rowIndex) >= 0) return false;
     return (e.classes||[]).some(function(c){ return clsKey(c) === key; });
-  });
+  }).map(function(e){ return wrapRider(e,key); });
 }
 
 function getScratched(key){
   var sc = G.scratches[key] || [];
-  return G.entries.filter(function(e){ return sc.indexOf(e.rowIndex) >= 0; });
+  return G.entries
+    .filter(function(e){ return sc.indexOf(e.rowIndex) >= 0; })
+    .map(function(e){ return wrapRider(e,key); });
 }
 
 function getAddCandidates(){

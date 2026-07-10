@@ -572,6 +572,84 @@ Verify all org points formulas against `Example files/Horse ASSOCIATIONS Divisio
 
 ---
 
+## Known Bug Patterns — Avoid These
+
+These have all burned us in production. Check for them whenever writing new code in the relevant areas.
+
+### 1. `JSON.stringify` inside double-quoted HTML event attributes
+
+**Wrong:**
+```javascript
++'<button onclick="doThing('+rowIdx+','+JSON.stringify(someString)+')">...'
+```
+`JSON.stringify("foo")` produces `"foo"` (with enclosing double-quotes). Inside a `onclick="..."` attribute the browser sees the closing `"` and terminates the attribute — the function never fires.
+
+**Right:** use single-quote escaping
+```javascript
+function _sq(s){ return "'"+s.replace(/\\/g,'\\\\').replace(/'/g,"\\'"')+"'"; }
++'<button onclick="doThing('+rowIdx+','+_sq(someString)+')">...'
+```
+Numbers don't need quoting at all. Run `/dead-code-check` to catch these.
+
+### 2. `rowIndex` assigned inside a build loop before entries are pushed
+
+**Wrong:**
+```javascript
+var newEntries = things.map(function(t){ return { rowIndex: G.entries.length, ... }; });
+newEntries.forEach(function(e){ G.entries.push(e); }); // all got same rowIndex!
+```
+
+**Right:** assign at push time
+```javascript
+var base = G.entries.length;
+newEntries.forEach(function(e, i){ e.rowIndex = base + i; G.entries.push(e); });
+```
+
+### 3. Supabase DELETE before payload is built
+
+**Wrong:**
+```javascript
+await sbFetch('table?show_id=eq.'+id, {method:'DELETE'});
+for(var i=0; i<rows.length; i++) await sbFetch('table', {method:'POST', body: ...});
+```
+Network failure between DELETE and first POST permanently destroys data.
+
+**Right:** build the full payload array first, then delete, then insert. This matches the CLAUDE.md Supabase convention — it's here as a reminder of the WHY.
+
+### 4. `var` declaration after first use (hoisting)
+
+`var` is hoisted to the top of the function but its VALUE is `undefined` until the assignment line executes. Declaring it after use means the first use always sees `undefined`.
+
+**Wrong:**
+```javascript
+var result = !isAqhaOrg && fwEntries > actual; // isAqhaOrg is undefined here
+var isAqhaOrg = (pts === 'aqha');              // declared 4 lines later
+```
+Always declare variables before their first use.
+
+### 5. Case-sensitive name comparisons
+
+Rider names can arrive with inconsistent casing from different import sources. Never use `===` to compare rider names for grouping, deduplication, or lookups.
+
+**Wrong:** `if(e.name === name)` · `seenRiders[e.name] = 1` · `new Set(entries.map(e => e.name))`
+
+**Right:** always use `_normStr()`: `if(_normStr(e.name) === _normStr(name))`
+
+### 6. Per-rider stall data is in `G.riderStalls`, not on entries
+
+Stall quantities (`stall1qty`, `stall2qty`, etc.) are stored in `G.riderStalls[riderName]`, keyed by rider name. They are NOT on `G.entries[i]`. Consequences:
+- When rider name changes, migrate: `G.riderStalls[newName] = G.riderStalls[oldName]; delete G.riderStalls[oldName]`
+- Stall fees are NOT in `tabTotal(e)` — use `buildRiderStallLines(name)` separately
+- Count stall fees once per unique rider name, not once per entry
+
+### 7. Same rider in multiple entries on the same horse
+
+A rider can appear in `G.entries` more than once on the same horse (e.g. separate entries for Open vs Non-Pro class groups from Cognito import). Any rendering loop that iterates `G.entries` without deduplication shows the same rider twice.
+
+**Right:** always group by `_normStr(e.name)` within a horse group before rendering. A rider can also appear as both a primary entry owner AND as a `e.riders[]` co-rider on another entry — skip the co-rider row if `_prMap[_normStr(r.name)]` exists.
+
+---
+
 ## End-of-Session Checklist (scoring changes)
 
 After any session that touches `SCORE_TEMPLATES`, `calcTotal`, or `getTemplateForDisc`:

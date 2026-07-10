@@ -460,12 +460,21 @@ function getTmpl(){ var n=getTmplName(); return n?SCORE_TEMPLATES[n]:null; }
 
 function getGoEntries(key){
   var cls=classMap[key]; if(!cls) return [];
-  var allActive=G.entries.filter(function(e){
-    if(G.fullScratches.indexOf(e.rowIndex)>=0) return false;
-    var sc=G.scratches[key]||[];
-    if(sc.indexOf(e.rowIndex)>=0) return false;
-    return e.classes&&e.classes.some(function(c){ return clsKey(c)===key; });
+  var allActive=[];
+  var sc=G.scratches[key]||[];
+  G.entries.forEach(function(e){
+    if(G.fullScratches.indexOf(e.rowIndex)>=0) return;
+    if(sc.indexOf(e.rowIndex)>=0) return;
+    (e.classes||[]).forEach(function(c){
+      if(clsKey(c)!==key) return;
+      // Use c.rider if set (co-rider model: entry belongs to primary but a different rider competes)
+      var rn=c.rider||e.name;
+      allActive.push(rn!==e.name ? Object.assign({},e,{name:rn}) : e);
+    });
   });
+  // Dedup by rowIndex (shouldn't duplicate but guard against edge cases)
+  var seen={};
+  allActive=allActive.filter(function(x){ if(seen[x.rowIndex]) return false; seen[x.rowIndex]=true; return true; });
   var order=G.classOrder[key];
   if(order&&order.length){
     var byRI={};
