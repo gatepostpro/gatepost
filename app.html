@@ -6570,39 +6570,7 @@ function pgTabs(){
     var _srk=_normStr(e.name); if(!seenRiders[_srk]){ totalOwed+=buildRiderStallLines(e.name).reduce(function(s,l){ return s+l.amt; },0); seenRiders[_srk]=1; }
   });
 
-  // Detect same-horse suggestions for unmerged entries
-  var sameHorseGroups=findSameHorseGroups();
-  var sameHorseBadge={};  // normName → suggested horse canonical
-  sameHorseGroups.forEach(function(g){
-    g.entries.forEach(function(e){
-      if(!groupedKeys[entryKey(e)]) sameHorseBadge[_normStr(e.name)]=g.canonical;
-    });
-  });
-
   var suggestionHtml='';
-  if(sameHorseGroups.length){
-    var unmergedGroups=sameHorseGroups.filter(function(g){
-      return g.entries.some(function(e){ return !groupedKeys[entryKey(e)]; });
-    });
-    if(unmergedGroups.length){
-      suggestionHtml='<div style="margin-bottom:.65rem;padding:.5rem .7rem;background:rgba(200,146,42,.07);border:1px solid rgba(200,146,42,.3);border-radius:6px;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">'
-        +'<span style="font-size:.78rem;color:var(--accent);font-weight:600">&#9650; Same horse detected across riders:</span>';
-      unmergedGroups.forEach(function(g){
-        var riders=[];
-        g.entries.forEach(function(e){ if(!groupedKeys[entryKey(e)]&&riders.indexOf(e.name)<0) riders.push(e.name); });
-        if(riders.length>1){
-          var rEsc=riders.map(function(r){ return r.replace(/\\/g,'\\\\').replace(/'/g,"\\'"); });
-          var canEsc=esc(g.canonical).replace(/'/g,"\\'");
-          suggestionHtml+='<span style="font-size:.78rem;color:var(--text)">'+esc(g.canonical)+': <em style="color:var(--muted)">'+esc(riders.join(', '))+'</em></span>'
-            +'<button class="btn btn-sm" style="font-size:.72rem;background:rgba(200,146,42,.15);border:1px solid rgba(200,146,42,.4);color:var(--accent)" '
-            +'onclick="promptMerge(\''+canEsc+"',['"+rEsc.join("','")+"'])\">"
-            +'Merge tabs</button>'
-            +(riders.length>2?'<button class="btn btn-sm btn-dark" style="font-size:.72rem" onclick="promptSplitHorse(\''+canEsc+'\')">Split horse</button>':'');
-        }
-      });
-      suggestionHtml+='</div>';
-    }
-  }
 
   pg.innerHTML='<div class="stat-grid">'
     +'<div class="stat c-green"><div class="n">'+fmt$(totalOwed)+'</div><div class="l">Total Owed</div></div>'
@@ -6857,8 +6825,7 @@ function pgTabs(){
       var ownHorses=[...new Set(entries.map(function(e){ return getCanonicalHorse(e.horse); }))];
       var allHorses=ownHorses.concat(billedFromOthers.map(function(e){ return getCanonicalHorse(e.horse); }));
       var refIdx=entries[0].rowIndex;
-      var hasSameHorse=!!sameHorseBadge[nk];
-      var badgeHtml=hasSameHorse?'<span style="font-size:.62rem;margin-left:.35rem;padding:1px 5px;border-radius:3px;background:rgba(200,146,42,.18);color:var(--accent);cursor:help" title="Same horse as another rider — consider merging tabs">&#9660; same horse</span>':'';
+      var badgeHtml='';
       var nEsc=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
       var totalCount=entries.length+billedFromOthers.length;
       t+='<tr style="cursor:pointer" onclick="showTabModal(\''+nEsc+'\')">'
