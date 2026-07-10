@@ -963,6 +963,7 @@ var _pendingAuditData   = null;// {headers, dataRows, ...} for re-render
 var _pendingMergeResult = null;// {unchanged, changed, added, missing} — set before merge preview
 var _riderDivExpanded  = {};   // key: rowIdx+'_'+ri+'_'+div → boolean; persists across modal re-renders
 var _riderExtraDivs    = {};   // key: rowIdx+'_'+ri → [div, ...]; divisions added via "+ add division"
+var _collapsedHorses   = {};   // key: horse group index (numeric) → boolean; entries table collapse state
 
 // Fields compared during re-import merge diff
 var _DIFF_FIELDS = [
@@ -4352,18 +4353,25 @@ function pgEntries(){
 
       t='<table><thead><tr><th style="width:54px">Back#</th><th>Horse / Rider</th><th>Assoc</th><th>Division</th><th>Classes</th><th>Fees</th><th>Status</th></tr></thead><tbody>';
 
+      var _hGroupIdx=0;
       horseGroupOrder.forEach(function(canonicalHorse){
+        var hi=_hGroupIdx++;
         var hEntries=horseGroupMap[canonicalHorse];
         var firstE=hEntries[0];
         var hTotal=hEntries.reduce(function(s,e){return s+tabTotal(e);},0);
         var hPaid=hEntries.reduce(function(s,e){return s+amtPaid(e);},0);
         var hIsPaid=hTotal-hPaid<=0;
         var allFS=hEntries.every(function(e){return isFullScratched(e.rowIndex);});
-        // Horse header row — click opens first entry modal; back# is here, not on rider row
+        var hCollapsed=!!_collapsedHorses[hi];
+        // Horse header row — click opens first entry modal; back# + collapse toggle here
         t+='<tr style="background:rgba(200,146,42,.06);cursor:pointer'+(allFS?';opacity:.55':'')+'" onclick="showEntryModal('+firstE.rowIndex+')">'
-          +'<td class="ctr"><input type="number" value="'+(G.backNums[firstE.rowIndex]||'')+'" placeholder="—" '
+          +'<td class="ctr" style="position:relative;padding-top:18px">'
+          +'<button data-hc-btn="'+hi+'" onclick="event.stopPropagation();toggleHorseCollapse('+hi+')" '
+          +'style="position:absolute;top:3px;left:4px;background:none;border:none;color:var(--accent);cursor:pointer;font-size:.6rem;padding:0;line-height:1">'
+          +(hCollapsed?'&#9654;':'&#9660;')+'</button>'
+          +'<input type="number" value="'+(G.backNums[firstE.rowIndex]||'')+'" placeholder="—" '
           +'onclick="event.stopPropagation()" onchange="G.backNums['+firstE.rowIndex+']=this.value;saveEntriesToStorage()" '
-          +'style="width:48px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--accent);padding:3px 4px;text-align:center;font-size:.9rem"></td>'
+          +'style="width:42px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--accent);padding:3px 4px;text-align:center;font-size:.9rem"></td>'
           +'<td><div class="bold">'+esc(firstE.horse)+'</div>'
           +(firstE.horseGender?'<div class="small" style="color:var(--muted)">'+esc(firstE.horseGender)+'</div>':'')
           +'</td>'
@@ -4419,7 +4427,7 @@ function pgEntries(){
           allPrimCls.forEach(function(c){if(c.org&&rOrgs.indexOf(c.org)<0)rOrgs.push(c.org);});
           if(!rOrgs.length&&mainE.assocRaw) rOrgs.push(mainE.assocRaw);
 
-          t+='<tr style="cursor:pointer;background:rgba(255,255,255,.015)'+(rIsFS?';opacity:.55':'')+'" data-rowidx="'+mainE.rowIndex+'">'
+          t+='<tr style="cursor:pointer;background:rgba(255,255,255,.015)'+(rIsFS?';opacity:.55':'')+(hCollapsed?';display:none':'')+'" data-rowidx="'+mainE.rowIndex+'" data-hc="'+hi+'">'
             +'<td></td>'
             +'<td style="padding-left:.5rem"><span style="color:var(--muted)">&#8627; </span><span class="bold">'+esc(pri.displayName)+'</span>'
             +(rIsFS?' <span class="badge b-red" style="font-size:.6rem">Scratched</span>':'')
@@ -4452,7 +4460,7 @@ function pgEntries(){
             var co=_coMap[rn],rCls=co.classes,rOrgs2=[];
             rCls.forEach(function(c){if(c.org&&rOrgs2.indexOf(c.org)<0)rOrgs2.push(c.org);});
             var _coIsPayer=_hDPN&&rn===_hDPN;
-            t+='<tr style="cursor:pointer;background:rgba(255,255,255,.008)" data-rowidx="'+co.entryRowIdx+'">'
+            t+='<tr style="cursor:pointer;background:rgba(255,255,255,.008)'+(hCollapsed?';display:none':'')+'" data-rowidx="'+co.entryRowIdx+'" data-hc="'+hi+'">'
               +'<td></td>'
               +'<td style="padding-left:.5rem"><span style="color:var(--muted)">&#8627; </span>'
               +'<span style="font-size:.88rem">'+esc(co.rider.name)+'</span>'
@@ -4479,6 +4487,14 @@ function pgEntries(){
     document.getElementById('et').innerHTML=t;
 
   }
+
+  window.toggleHorseCollapse = function(hi){
+    _collapsedHorses[hi] = !_collapsedHorses[hi];
+    var collapsed = _collapsedHorses[hi];
+    document.querySelectorAll('tr[data-hc="'+hi+'"]').forEach(function(r){ r.style.display = collapsed ? 'none' : ''; });
+    var btn = document.querySelector('[data-hc-btn="'+hi+'"]');
+    if(btn) btn.innerHTML = collapsed ? '&#9654;' : '&#9660;';
+  };
 
   document.getElementById('eq').addEventListener('input', function(){ drawEntryTable(); });
 
@@ -15051,7 +15067,7 @@ window.showAddRiderModal = function(ownerRowIdx){
 
   function _dl(k){ var p=k.indexOf('|'); return (p>=0?k.slice(p+1):k)+(p>=0&&k.slice(0,p)?' · '+k.slice(0,p):''); }
 
-  var divSelHtml = '<select id="ar-div" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.42rem .6rem;font-size:.84rem;width:100%">'
+  var divSelHtml = '<select id="ar-div" onchange="arUpdateClassList('+ownerRowIdx+')" style="background:var(--bg);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:.42rem .6rem;font-size:.84rem;width:100%">'
     +'<option value="">— select —</option>'
     +_divOpts.map(function(k){ return '<option value="'+esc(k)+'">'+esc(_dl(k))+'</option>'; }).join('')
     +'</select>';
@@ -15130,6 +15146,7 @@ window.showAddRiderModal = function(ownerRowIdx){
     +'</div></div>'
 
     +'<div class="form-group"><label>Division</label>'+divSelHtml+'</div>'
+    +'<div id="ar-class-list"></div>'
 
     +'<div style="display:flex;gap:.5rem;justify-content:flex-end;padding-top:.25rem">'
     +'<button class="btn btn-dark" onclick="closeModal()">Cancel</button>'
@@ -15139,6 +15156,38 @@ window.showAddRiderModal = function(ownerRowIdx){
 
   document.getElementById('modal-root').innerHTML = html;
   setTimeout(function(){ var f=document.getElementById('ar-first'); if(f) f.focus(); }, 80);
+};
+
+window.arUpdateClassList = function(ownerRowIdx){
+  var divKey = (document.getElementById('ar-div')||{}).value || '';
+  var cl = document.getElementById('ar-class-list');
+  if(!cl) return;
+  if(!divKey){ cl.innerHTML = ''; return; }
+  var p = divKey.indexOf('|');
+  var org = p>=0 ? divKey.slice(0,p) : 'CoWN';
+  var div = p>=0 ? divKey.slice(p+1) : divKey;
+  var matching = (G.cfg.classes||[]).filter(function(c){
+    return (c.org||'CoWN')===org && (c.division||'')===div;
+  });
+  if(!matching.length){
+    cl.innerHTML = '<div style="color:var(--muted);font-size:.8rem;padding:.3rem 0">No classes configured for this division</div>';
+    return;
+  }
+  var f = G.cfg.feeSchedule || G.cfg.fees || {};
+  cl.innerHTML = '<div style="border-top:1px solid var(--border2);padding-top:.6rem;margin-top:.1rem">'
+    +'<div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem">Classes to enter</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.3rem">'
+    +matching.map(function(c){
+      var isCow=!!c.isCow;
+      var fee=(c.baseFee||f.classBase||0)+(isCow?(c.cowFee!=null?c.cowFee:(f.cowSurcharge||0)):0)+(c.jackpot||0);
+      return '<label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.81rem;'
+        +'padding:.28rem .4rem;border-radius:4px;border:1px solid var(--border2);background:var(--card2)">'
+        +'<input type="checkbox" data-clsnum="'+esc(String(c.num||''))+'" data-clsname="'+esc(c.name||'')+'"'
+        +' data-clsdiv="'+esc(c.division||'')+'" data-clsorg="'+esc(c.org||'CoWN')+'" data-iscow="'+(isCow?'1':'0')+'" data-fee="'+fee+'">'
+        +'<span>'+esc((c.num?c.num+' ':'')+c.name)+(fee?'<span style="color:var(--muted);margin-left:.25rem">'+fmt$(fee)+'</span>':'')+'</span>'
+        +'</label>';
+    }).join('')
+    +'</div></div>';
 };
 
 window.arCopyFromOwner = function(ownerRowIdx){
@@ -15251,11 +15300,29 @@ window.saveNewRiderEntry = function(ownerRowIdx){
     division: div, divOrg: divOrg, isPrimary: false
   });
 
+  // Add any classes checked in the class picker
+  var checkedCls = document.querySelectorAll('#ar-class-list input[type=checkbox]:checked');
+  if(checkedCls.length){
+    if(!owner.classes) owner.classes = [];
+    checkedCls.forEach(function(cb){
+      var num  = cb.getAttribute('data-clsnum');
+      var name = cb.getAttribute('data-clsname');
+      var cdiv = cb.getAttribute('data-clsdiv');
+      var corg = cb.getAttribute('data-clsorg');
+      var isCow= cb.getAttribute('data-iscow')==='1';
+      var fee  = parseFloat(cb.getAttribute('data-fee'))||0;
+      var already = owner.classes.find(function(x){
+        return String(x.num)===String(num) && _normStr(x.rider||'')===_normStr(fullName);
+      });
+      if(!already) owner.classes.push({num:num,name:name,division:cdiv,org:corg,isCow:isCow,fee:fee,rider:fullName,status:'active'});
+    });
+  }
+
   saveEntriesToStorage();
   closeModal();
-  toast('Added rider: '+fullName);
+  toast('Added rider: '+fullName+(checkedCls.length?' with '+checkedCls.length+' class'+(checkedCls.length>1?'es':''):''));
 
-  // Reopen on Riders tab so secretary can assign classes immediately
+  // Reopen on Riders tab so secretary can assign more classes if needed
   showEntryModal(ownerRowIdx, 'riders');
 };
 
