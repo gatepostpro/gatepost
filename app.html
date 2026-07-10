@@ -15056,14 +15056,18 @@ window.showAddRiderModal = function(ownerRowIdx){
     +_divOpts.map(function(k){ return '<option value="'+esc(k)+'">'+esc(_dl(k))+'</option>'; }).join('')
     +'</select>';
 
-  // Build existing rider dropdown — all unique names from G.entries, excluding owner and entries already on this horse
+  // Build existing rider dropdown — all unique names from G.entries, excluding anyone already on this horse
   var canonHorse = getCanonicalHorse(owner.horse);
+  // Names already riding this horse (from owner.riders[] and the owner themselves)
+  var alreadyOnHorse = {};
+  alreadyOnHorse[_normStr(owner.name)] = true;
+  (owner.riders||[]).forEach(function(r){ alreadyOnHorse[_normStr(r.name)] = true; });
   var existingOpts = '';
   var seenNames = {};
   G.entries.forEach(function(e){
     var nk = _normStr(e.name);
     if(seenNames[nk]) return;
-    if(getCanonicalHorse(e.horse) === canonHorse) return; // already on this horse
+    if(alreadyOnHorse[nk]) return;
     seenNames[nk] = true;
     existingOpts += '<option value="'+e.rowIndex+'">'+esc(e.name)+'</option>';
   });
@@ -15203,71 +15207,55 @@ window.saveNewRiderEntry = function(ownerRowIdx){
   var last  = gv('ar-last');
   if(!first || !last){ toast('Enter first and last name', true); return; }
 
-  var divKey = gv('ar-div');
+  var fullName = first+' '+last;
+
+  // Duplicate check — don't add the same rider twice to this horse
+  if(owner.riders && owner.riders.some(function(r){ return _normStr(r.name)===_normStr(fullName); })){
+    toast(fullName+' is already a rider on this horse', true);
+    return;
+  }
+
+  var divKey  = gv('ar-div');
   var divParts = divKey ? divKey.split('|') : [];
   var divOrg  = divParts[0] || (G.cfg.orgAbbrev||'CoWN');
   var div     = divParts[1] || '';
 
-  var rowIndex = G.entries.length;
-  var canonHorse = getCanonicalHorse(owner.horse);
+  // Ensure the primary (owner) is initialized in riders[] first
+  if(!owner.riders){
+    owner.riders = [{
+      name: owner.name, firstName: owner.firstName||'', lastName: owner.lastName||'',
+      email: owner.email||'', phone: owner.phone||'',
+      address: owner.address||'', city: owner.city||'', state: owner.state||'', zip: owner.zip||'',
+      memberNum: owner.memberNum||'', memberSHTX: owner.memberSHTX||'',
+      memberAQHA: owner.memberAQHA||'', memberAPHA: owner.memberAPHA||'',
+      memberApHC: owner.memberApHC||'', memberNRHA: owner.memberNRHA||'',
+      division: owner.division||'', divOrg: owner.assocRaw||divOrg, isPrimary: true
+    }];
+  }
 
-  var entry = {
-    rowIndex: rowIndex, dbId: null,
-    name: first+' '+last, firstName: first, lastName: last,
-    horse: owner.horse, horseGender: owner.horseGender||'', horseOwner: owner.horseOwner||'',
-    horseRegNum: owner.horseRegNum||'', horseDob: owner.horseDob||'',
-    email:   gv('ar-email'),
-    phone:   gv('ar-phone'),
-    address: gv('ar-address'),
-    city:    gv('ar-city'),
-    state:   gv('ar-state'),
-    zip:     gv('ar-zip'),
-    isYouth: false, dob: '',
-    memberNum:   gv('ar-mcown'),
-    memberSHTX:  gv('ar-mshtx'),
-    memberAQHA:  gv('ar-maqha'),
-    memberAPHA:  gv('ar-mapha'),
-    memberApHC:  gv('ar-maphc'),
-    memberNRHA:  gv('ar-mnrha'),
-    division: div, assocRaw: divOrg||'CoWN',
-    classes: [],
-    haulinQty: 0, stall1qty: 0, stall2qty: 0, stall3qty: 0,
-    stallCircuit: 0, shavings: 0, rv1qty: 0, rv2qty: 0, rvCircuit: 0,
-    stallNote: '',
-    needsMembership: '', orgFees: [], customFees: {}, cognitoAmount: 0,
-    isPaid: false, source: 'manual',
-    billedTo: owner.name
-  };
-
-  G.entries.push(entry);
-  G.payments[rowIndex] = 0;
-  G.backNums[rowIndex] = '';
-
-  // Register owner as billing primary for this horse if not already set
-  G.horsePrimary = G.horsePrimary || {};
-  if(!G.horsePrimary[canonHorse]) G.horsePrimary[canonHorse] = owner.name;
-
-  // Update billedTo on all entries for this horse to owner
-  G.entries.forEach(function(e2){
-    if(getCanonicalHorse(e2.horse) === canonHorse && !e2.billedTo){
-      e2.billedTo = owner.name;
-    }
+  // Add the new rider — full contact info stored directly on the rider object
+  owner.riders.push({
+    name: fullName, firstName: first, lastName: last,
+    email:      gv('ar-email'),
+    phone:      gv('ar-phone'),
+    address:    gv('ar-address'),
+    city:       gv('ar-city'),
+    state:      gv('ar-state'),
+    zip:        gv('ar-zip'),
+    memberNum:  gv('ar-mcown'),
+    memberSHTX: gv('ar-mshtx'),
+    memberAQHA: gv('ar-maqha'),
+    memberAPHA: gv('ar-mapha'),
+    memberApHC: gv('ar-maphc'),
+    memberNRHA: gv('ar-mnrha'),
+    division: div, divOrg: divOrg, isPrimary: false
   });
 
   saveEntriesToStorage();
   closeModal();
+  toast('Added rider: '+fullName);
 
-  if(G.showId){
-    syncManualEntry(entry).then(function(){
-      toast('Added rider: '+first+' '+last);
-    }).catch(function(err){
-      toast('Added locally. DB sync failed: '+err.message, true);
-    });
-  } else {
-    toast('Added rider: '+first+' '+last);
-  }
-
-  // Reopen modal on Riders tab so secretary can assign classes immediately
+  // Reopen on Riders tab so secretary can assign classes immediately
   showEntryModal(ownerRowIdx, 'riders');
 };
 
