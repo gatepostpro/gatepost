@@ -2843,9 +2843,9 @@ function buildTabLines(entry){
 
 
 
-  // Office fee
+  // Office fee — skip for additional riders (co-riders added via "Add Rider to Horse")
 
-  if(f.office > 0) lines.push({desc:feeLabel('office'), amt:f.office, type:'office'});
+  if(f.office > 0 && !entry.isAdditionalRider) lines.push({desc:feeLabel('office'), amt:f.office, type:'office'});
 
 
 
@@ -2887,6 +2887,15 @@ function buildTabLines(entry){
       var key=clsKey(cls);
 
       if(isScratched(key, entry.rowIndex)) return;
+
+      // Skip classes attributed to a co-rider who has their own standalone entry on this horse
+      if(cls.rider && _normStr(cls.rider) !== _normStr(entry.name)){
+        var _coHasOwn = G.entries.some(function(e2){
+          return _normStr(e2.name) === _normStr(cls.rider) &&
+                 getCanonicalHorse(e2.horse) === getCanonicalHorse(entry.horse);
+        });
+        if(_coHasOwn) return;
+      }
 
       var cfgCls = G.cfg.classes.find(function(c){ return c.num === cls.num; });
 
@@ -2936,6 +2945,13 @@ function buildTabLines(entry){
     var orgCnt = {};
     entry.classes.forEach(function(cls){
       if(isScratched(clsKey(cls), entry.rowIndex)) return;
+      if(cls.rider && _normStr(cls.rider) !== _normStr(entry.name)){
+        var _pkgCoHasOwn = G.entries.some(function(e2){
+          return _normStr(e2.name) === _normStr(cls.rider) &&
+                 getCanonicalHorse(e2.horse) === getCanonicalHorse(entry.horse);
+        });
+        if(_pkgCoHasOwn) return;
+      }
       var o = cls.org || 'CoWN';
       orgCnt[o] = (orgCnt[o]||0) + 1;
     });
@@ -15045,6 +15061,8 @@ window.showAddRiderModal = function(ownerRowIdx){
   var alreadyOnHorse = {};
   alreadyOnHorse[_normStr(owner.name)] = true;
   (owner.riders||[]).forEach(function(r){ alreadyOnHorse[_normStr(r.name)] = true; });
+  // Build lookup array for fill-from-existing — includes standalone entries and co-riders from e.riders[]
+  window._arExistingRiders = [];
   var existingOpts = '';
   var seenNames = {};
   G.entries.forEach(function(e){
@@ -15052,7 +15070,35 @@ window.showAddRiderModal = function(ownerRowIdx){
     if(seenNames[nk]) return;
     if(alreadyOnHorse[nk]) return;
     seenNames[nk] = true;
-    existingOpts += '<option value="'+e.rowIndex+'">'+esc(e.name)+'</option>';
+    window._arExistingRiders.push({
+      name:e.name, firstName:e.firstName||'', lastName:e.lastName||'',
+      email:e.email||'', phone:e.phone||'', address:e.address||'',
+      city:e.city||'', state:e.state||'', zip:e.zip||'',
+      memberNum:e.memberNum||'', memberSHTX:e.memberSHTX||'',
+      memberAQHA:e.memberAQHA||'', memberAPHA:e.memberAPHA||'',
+      memberApHC:e.memberApHC||'', memberNRHA:e.memberNRHA||'',
+      division:e.division||''
+    });
+    existingOpts += '<option value="'+(window._arExistingRiders.length-1)+'">'+esc(e.name)+'</option>';
+  });
+  // Also include co-riders stored in e.riders[] (they have no standalone entry)
+  G.entries.forEach(function(e){
+    (e.riders||[]).filter(function(r){ return !r.isPrimary; }).forEach(function(r){
+      var nk = _normStr(r.name);
+      if(seenNames[nk]) return;
+      if(alreadyOnHorse[nk]) return;
+      seenNames[nk] = true;
+      window._arExistingRiders.push({
+        name:r.name, firstName:r.firstName||'', lastName:r.lastName||'',
+        email:r.email||'', phone:r.phone||'', address:r.address||'',
+        city:r.city||'', state:r.state||'', zip:r.zip||'',
+        memberNum:r.memberNum||'', memberSHTX:r.memberSHTX||'',
+        memberAQHA:r.memberAQHA||'', memberAPHA:r.memberAPHA||'',
+        memberApHC:r.memberApHC||'', memberNRHA:r.memberNRHA||'',
+        division:r.division||''
+      });
+      existingOpts += '<option value="'+(window._arExistingRiders.length-1)+'">'+esc(r.name)+'</option>';
+    });
   });
 
   var existingPickerHtml = '';
@@ -15178,39 +15224,38 @@ window.arCopyFromOwner = function(ownerRowIdx){
   if(firstEl) firstEl.focus();
 };
 
-// Fill form from an existing rider already in G.entries
+// Fill form from an existing rider (standalone entry or co-rider from e.riders[])
 window.arFillFromExisting = function(ownerRowIdx){
   var sel = document.getElementById('ar-existing');
-  if(!sel || !sel.value) { toast('Select a rider first', true); return; }
-  var srcEntry = G.entries.find(function(x){ return x.rowIndex===parseInt(sel.value,10); });
-  if(!srcEntry){ toast('Rider not found', true); return; }
+  if(!sel || sel.value === '') { toast('Select a rider first', true); return; }
+  var src = window._arExistingRiders && window._arExistingRiders[parseInt(sel.value, 10)];
+  if(!src){ toast('Rider not found', true); return; }
   function sv(id, val){ var el=document.getElementById(id); if(el) el.value=val||''; }
-  // Split name into first/last
-  var parts = (srcEntry.name||'').trim().split(' ');
-  sv('ar-first',   srcEntry.firstName || (parts.length>1 ? parts.slice(0,-1).join(' ') : parts[0]));
-  sv('ar-last',    srcEntry.lastName  || (parts.length>1 ? parts[parts.length-1] : ''));
-  sv('ar-email',   srcEntry.email);
-  sv('ar-phone',   srcEntry.phone);
-  sv('ar-address', srcEntry.address);
-  sv('ar-city',    srcEntry.city);
-  sv('ar-state',   srcEntry.state);
-  sv('ar-zip',     srcEntry.zip);
-  sv('ar-mcown',   srcEntry.memberNum);
-  sv('ar-mshtx',   srcEntry.memberSHTX);
-  sv('ar-maqha',   srcEntry.memberAQHA);
-  sv('ar-mapha',   srcEntry.memberAPHA);
-  sv('ar-maphc',   srcEntry.memberApHC);
-  sv('ar-mnrha',   srcEntry.memberNRHA);
+  var parts = (src.name||'').trim().split(' ');
+  sv('ar-first',   src.firstName || (parts.length>1 ? parts.slice(0,-1).join(' ') : parts[0]));
+  sv('ar-last',    src.lastName  || (parts.length>1 ? parts[parts.length-1] : ''));
+  sv('ar-email',   src.email);
+  sv('ar-phone',   src.phone);
+  sv('ar-address', src.address);
+  sv('ar-city',    src.city);
+  sv('ar-state',   src.state);
+  sv('ar-zip',     src.zip);
+  sv('ar-mcown',   src.memberNum);
+  sv('ar-mshtx',   src.memberSHTX);
+  sv('ar-maqha',   src.memberAQHA);
+  sv('ar-mapha',   src.memberAPHA);
+  sv('ar-maphc',   src.memberApHC);
+  sv('ar-mnrha',   src.memberNRHA);
   // Match division if possible
   var divSel = document.getElementById('ar-div');
-  if(divSel && srcEntry.division){
+  if(divSel && src.division){
     for(var i=0;i<divSel.options.length;i++){
       var opt = divSel.options[i];
       var divPart = opt.value.split('|')[1]||'';
-      if(_normStr(divPart)===_normStr(srcEntry.division)){ divSel.selectedIndex=i; break; }
+      if(_normStr(divPart)===_normStr(src.division)){ divSel.selectedIndex=i; arUpdateClassList(ownerRowIdx); break; }
     }
   }
-  toast('Filled from '+srcEntry.name);
+  toast('Filled from '+src.name);
 };
 
 window.saveNewRiderEntry = function(ownerRowIdx){
@@ -15226,8 +15271,12 @@ window.saveNewRiderEntry = function(ownerRowIdx){
   var fullName = first+' '+last;
 
   // Duplicate check — don't add the same rider twice to this horse
-  if(owner.riders && owner.riders.some(function(r){ return _normStr(r.name)===_normStr(fullName); })){
-    toast(fullName+' is already a rider on this horse', true);
+  var canonHorse = getCanonicalHorse(owner.horse);
+  var alreadyOnHorse = G.entries.some(function(e){
+    return _normStr(e.name) === _normStr(fullName) && getCanonicalHorse(e.horse) === canonHorse;
+  });
+  if(alreadyOnHorse){
+    toast(fullName+' is already entered on this horse', true);
     return;
   }
 
@@ -15236,60 +15285,63 @@ window.saveNewRiderEntry = function(ownerRowIdx){
   var divOrg  = divParts[0] || (G.cfg.orgAbbrev||'CoWN');
   var div     = divParts[1] || '';
 
-  // Ensure the primary (owner) is initialized in riders[] first
-  if(!owner.riders){
-    owner.riders = [{
-      name: owner.name, firstName: owner.firstName||'', lastName: owner.lastName||'',
-      email: owner.email||'', phone: owner.phone||'',
-      address: owner.address||'', city: owner.city||'', state: owner.state||'', zip: owner.zip||'',
-      memberNum: owner.memberNum||'', memberSHTX: owner.memberSHTX||'',
-      memberAQHA: owner.memberAQHA||'', memberAPHA: owner.memberAPHA||'',
-      memberApHC: owner.memberApHC||'', memberNRHA: owner.memberNRHA||'',
-      division: owner.division||'', divOrg: owner.assocRaw||divOrg, isPrimary: true
-    }];
-  }
-
-  // Add the new rider — full contact info stored directly on the rider object
-  owner.riders.push({
-    name: fullName, firstName: first, lastName: last,
-    email:      gv('ar-email'),
-    phone:      gv('ar-phone'),
-    address:    gv('ar-address'),
-    city:       gv('ar-city'),
-    state:      gv('ar-state'),
-    zip:        gv('ar-zip'),
-    memberNum:  gv('ar-mcown'),
-    memberSHTX: gv('ar-mshtx'),
-    memberAQHA: gv('ar-maqha'),
-    memberAPHA: gv('ar-mapha'),
-    memberApHC: gv('ar-maphc'),
-    memberNRHA: gv('ar-mnrha'),
-    division: div, divOrg: divOrg, isPrimary: false
+  // Collect checked classes — these go on the NEW rider's entry, not the owner's
+  var checkedCls = document.querySelectorAll('#ar-class-list input[type=checkbox]:checked');
+  var newClasses = [];
+  checkedCls.forEach(function(cb){
+    newClasses.push({
+      num:  cb.getAttribute('data-clsnum'),
+      name: cb.getAttribute('data-clsname'),
+      division: cb.getAttribute('data-clsdiv'),
+      org:  cb.getAttribute('data-clsorg'),
+      isCow: cb.getAttribute('data-iscow')==='1',
+      fee:  parseFloat(cb.getAttribute('data-fee'))||0,
+      status:'active'
+    });
   });
 
-  // Add any classes checked in the class picker
-  var checkedCls = document.querySelectorAll('#ar-class-list input[type=checkbox]:checked');
-  if(checkedCls.length){
-    if(!owner.classes) owner.classes = [];
-    checkedCls.forEach(function(cb){
-      var num  = cb.getAttribute('data-clsnum');
-      var name = cb.getAttribute('data-clsname');
-      var cdiv = cb.getAttribute('data-clsdiv');
-      var corg = cb.getAttribute('data-clsorg');
-      var isCow= cb.getAttribute('data-iscow')==='1';
-      var fee  = parseFloat(cb.getAttribute('data-fee'))||0;
-      var already = owner.classes.find(function(x){
-        return String(x.num)===String(num) && _normStr(x.rider||'')===_normStr(fullName);
-      });
-      if(!already) owner.classes.push({num:num,name:name,division:cdiv,org:corg,isCow:isCow,fee:fee,rider:fullName,status:'active'});
-    });
-  }
+  // Create a standalone entry for the new rider (no office fee, billed separately)
+  var newRowIndex = G.entries.length;
+  var newEntry = {
+    rowIndex: newRowIndex, dbId: null,
+    name: fullName, firstName: first, lastName: last,
+    horse: owner.horse, horseGender: owner.horseGender||'', horseOwner: owner.horseOwner||'',
+    horseRegNum: owner.horseRegNum||'', horseDob: owner.horseDob||'',
+    email:   gv('ar-email'),
+    phone:   gv('ar-phone'),
+    address: gv('ar-address'),
+    city:    gv('ar-city'),
+    state:   gv('ar-state'),
+    zip:     gv('ar-zip'),
+    isYouth: false, dob: '',
+    memberNum:   gv('ar-mcown'),
+    memberSHTX:  gv('ar-mshtx'),
+    memberAQHA:  gv('ar-maqha'),
+    memberAPHA:  gv('ar-mapha'),
+    memberApHC:  gv('ar-maphc'),
+    memberNRHA:  gv('ar-mnrha'),
+    division: div, assocRaw: divOrg||'CoWN',
+    classes: newClasses,
+    haulinQty:0, stall1qty:0, stall2qty:0, stall3qty:0,
+    stallCircuit:0, shavings:0, rv1qty:0, rv2qty:0, rvCircuit:0,
+    stallingGroup:'',
+    needsMembership:'', orgFees:[], customFees:{}, cognitoAmount:0,
+    isPaid:false, source:'manual',
+    billedTo:'',
+    isAdditionalRider:true
+  };
+
+  G.entries.push(newEntry);
+  G.payments[newRowIndex] = 0;
+  G.backNums[newRowIndex] = '';
 
   saveEntriesToStorage();
-  closeModal();
-  toast('Added rider: '+fullName+(checkedCls.length?' with '+checkedCls.length+' class'+(checkedCls.length>1?'es':''):''));
+  if(G.showId) setTimeout(function(){ syncEntriesToSupabase(); }, 100);
 
-  // Reopen on Riders tab so secretary can assign more classes if needed
+  closeModal();
+  toast('Added rider: '+fullName+(newClasses.length?' with '+newClasses.length+' class'+(newClasses.length>1?'es':''):''));
+
+  pgEntries();
   showEntryModal(ownerRowIdx, 'riders');
 };
 
@@ -15315,7 +15367,7 @@ window.setHorsePrimary = function(rowIdx, riderName){
   saveEntriesToStorage();
   if(G._rebuildEntryModal) G._rebuildEntryModal();
   if(typeof drawEntryTable==='function') drawEntryTable();
-  if(_currentPage==='tabs') pgTabs();
+  if(_currentPage==='tabs'){ var _pgEl=document.getElementById('page'); var _sy=_pgEl?_pgEl.scrollTop:0; pgTabs(); if(_pgEl) setTimeout(function(){_pgEl.scrollTop=_sy;},0); }
 };
 
 
@@ -15666,7 +15718,7 @@ window.setBilledTo = function(rowIdx, val){
   e.billedTo = val || e.name;
   saveEntriesToStorage();
   if(G._rebuildEntryModal) G._rebuildEntryModal();
-  if(_currentPage === 'tabs') pgTabs();
+  if(_currentPage === 'tabs'){ var _pgEl=document.getElementById('page'); var _sy=_pgEl?_pgEl.scrollTop:0; pgTabs(); if(_pgEl) setTimeout(function(){_pgEl.scrollTop=_sy;},0); }
 };
 
 window.setBilledToCustom = function(rowIdx, val){
@@ -15675,7 +15727,7 @@ window.setBilledToCustom = function(rowIdx, val){
   e.billedTo = val.trim() || e.name;
   saveEntriesToStorage();
   if(G._rebuildEntryModal) G._rebuildEntryModal();
-  if(_currentPage === 'tabs') pgTabs();
+  if(_currentPage === 'tabs'){ var _pgEl=document.getElementById('page'); var _sy=_pgEl?_pgEl.scrollTop:0; pgTabs(); if(_pgEl) setTimeout(function(){_pgEl.scrollTop=_sy;},0); }
 };
 
 window.quickAssignBiller = function(rowIdx){
@@ -16923,7 +16975,7 @@ function _buildAeHousingTab(){
   var hasFlatRV    = (f.rv1||0)+(f.rv2||0)+(f.rvCircuit||0) > 0;
 
   if(!stallPkgs.length && !rvPkgs.length && !hasFlatStall && !hasFlatRV && !hasHaulin && !hasShavings)
-    return '<div class="tip">No housing fees configured. Set prices in Show Setup → Finances.</div>';
+    return '<div class="tip">No stalling or RV fees configured. Set prices in Show Setup → Finances.</div>';
 
   if(hasHaulin){
     html += '<div class="form-group" style="margin-bottom:.65rem">'
@@ -17006,8 +17058,18 @@ function _buildAeExtrasTab(){
   var html = '';
   var pracs = G.cfg.practiceSessions || [];
   var clins = G.cfg.clinicOptions    || [];
-  if(!pracs.length && !clins.length) return '<div class="tip">No extras configured.</div>';
   var inp = 'style="background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:.42rem .65rem;font-size:.9rem;width:100%;box-sizing:border-box"';
+  // Membership numbers — always shown, all associations
+  html += '<div style="margin-bottom:1rem">'
+    +'<div style="font-family:Oswald;color:var(--accent);font-size:.88rem;margin-bottom:.4rem">Membership Numbers</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem">'
+    +'<div class="form-group"><label style="font-size:.74rem">CoWN #</label><input id="ae-mbx-memberNum" type="text" placeholder="CoWN #" '+inp+'></div>'
+    +'<div class="form-group"><label style="font-size:.74rem">SHTX #</label><input id="ae-mbx-memberSHTX" type="text" placeholder="SHTX #" '+inp+'></div>'
+    +'<div class="form-group"><label style="font-size:.74rem">AQHA #</label><input id="ae-mbx-memberAQHA" type="text" placeholder="AQHA #" '+inp+'></div>'
+    +'<div class="form-group"><label style="font-size:.74rem">APHA #</label><input id="ae-mbx-memberAPHA" type="text" placeholder="APHA #" '+inp+'></div>'
+    +'<div class="form-group"><label style="font-size:.74rem">ApHC #</label><input id="ae-mbx-memberApHC" type="text" placeholder="ApHC #" '+inp+'></div>'
+    +'<div class="form-group"><label style="font-size:.74rem">NRHA #</label><input id="ae-mbx-memberNRHA" type="text" placeholder="NRHA #" '+inp+'></div>'
+    +'</div></div>';
   if(pracs.length){
     html += '<div style="margin-bottom:1rem"><div style="font-family:Oswald;color:var(--accent);font-size:.88rem;margin-bottom:.4rem">Practice Sessions</div>';
     pracs.forEach(function(p,i){
@@ -17073,6 +17135,10 @@ function _aeCollectEntry(){
   var membFields = _aeMembFields();
   var membs = {};
   membFields.forEach(function(mf){ membs[mf.key] = f('ae-mb-'+mf.key); });
+  // Also merge membership numbers from the Extras tab (ae-mbx- prefix), filling any gaps
+  ['memberNum','memberSHTX','memberAQHA','memberAPHA','memberApHC','memberNRHA'].forEach(function(key){
+    if(!membs[key]) membs[key] = f('ae-mbx-'+key);
+  });
   var youthEl = document.getElementById('ae-youth');
   return {
     first:first, last:last,
@@ -17169,12 +17235,12 @@ function showAddEntryModal(){
   _aeTab = 'rider';
   window._aeDupConfirmed = false;
   var has = _aeHousingOfferings().length > 0;
-  var hasExtras = (G.cfg.practiceSessions||[]).length > 0 || (G.cfg.clinicOptions||[]).length > 0;
+  var hasExtras = true; // always shown — contains membership numbers + optional practice/clinics
   var tabs = '<div style="display:flex;gap:0;border-bottom:1px solid var(--border2);background:var(--card2)">'
     +_aeTabBtn('rider','Rider')
     +_aeTabBtn('horse','Horse')
     +_aeTabBtn('classes','Classes')
-    +(has ? _aeTabBtn('housing','Housing') : '')
+    +(has ? _aeTabBtn('housing','Stalling/RV') : '')
     +(hasExtras ? _aeTabBtn('extras','Extras') : '')
     +_aeTabBtn('review','Review')
     +'</div>';
