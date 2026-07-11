@@ -2915,7 +2915,11 @@ function buildTabLines(entry){
       var _clsRider=(entry.riders&&entry.riders.length>1)
         ?(cls.rider||(entry.riders.find(function(r){return r.isPrimary;})||entry.riders[0]).name)
         :entry.name;
-      lines.push({desc:desc, amt:base+cowFee+jp, type:'class', isCow:isCow, classNum:cls.num, rider:_clsRider});
+      var _cbBiller=(entry.classBilling||{})[String(cls.num)];
+      var _cbDefault=entry.billedTo||entry.name;
+      var _clsOrigAmt=base+cowFee+jp;
+      var _clsAmt=(_cbBiller&&_normStr(_cbBiller)!==_normStr(_cbDefault))?0:_clsOrigAmt;
+      lines.push({desc:desc, amt:_clsAmt, origAmt:_clsOrigAmt, type:'class', isCow:isCow, classNum:cls.num, rider:_clsRider});
 
     });
 
@@ -3063,6 +3067,41 @@ function riderOwed(name){
     return (en===nn && eb===nn) || (en!==nn && eb===nn);
   });
   var total=paying.reduce(function(s,e){ return s+tabTotal(e); },0);
+
+  // ── classBilling adjustments ──────────────────────────────────────────────
+  // Helper: compute the fee for a single class object
+  function _cbClsFee(cls){
+    var _f=G.cfg.fees;
+    var cfgCls=G.cfg.classes.find(function(c){return c.num===cls.num;});
+    var _base=(cfgCls&&cfgCls.baseFee!=null)?cfgCls.baseFee:(_f.classBase||0);
+    var _isC=/cutting/i.test(cls.name||'');
+    var _isCow=_isC||(cfgCls?cfgCls.isCow:COW_WORDS.some(function(k){return k.test(cls.name||'');}));
+    var _cow=_isCow?((cfgCls&&cfgCls.cowFee!=null)?cfgCls.cowFee:(_isC?(_f.cuttingSurcharge||0):(_f.cowSurcharge||0))):0;
+    var _jp=(cfgCls&&cfgCls.jackpot)?cfgCls.jackpot:0;
+    return _base+_cow+_jp;
+  }
+  // Add classes from OTHER entries explicitly assigned TO this person via classBilling.
+  // buildTabLines already zeroes out re-assigned class fees so tabTotal is correct;
+  // we only need to ADD fees that were moved FROM other entries TO this person.
+  G.entries.forEach(function(e){
+    if(gK[entryKey(e)]) return;
+    if(isFullScratched(e.rowIndex)) return;
+    var cb=e.classBilling||{};
+    if(!Object.keys(cb).length) return;
+    Object.keys(cb).forEach(function(cn){
+      if(_normStr(cb[cn])!==nn) return; // not assigned to this person
+      var cls=(e.classes||[]).find(function(c){return String(c.num)===String(cn)&&c.status!=='scratched';});
+      if(!cls||isScratched(clsKey(cls),e.rowIndex)) return;
+      // Avoid double-counting with the sub-rider (cls.rider) loop below:
+      // if this rider has no own entry on the horse, the cls.rider loop handles it — skip here.
+      var _coHorse=getCanonicalHorse(e.horse);
+      var _hasOwnOnHorse=G.entries.some(function(e2){return _normStr(e2.name)===nn&&getCanonicalHorse(e2.horse)===_coHorse;});
+      if(!_hasOwnOnHorse&&_normStr(cls.rider||'')===nn) return;
+      total+=_cbClsFee(cls);
+    });
+  });
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Sub-rider: classes on OTHER entries attributed to this rider via cls.rider
   // buildTabLines now skips attributed classes, so compute fees directly here.
   // Only applies when this rider has no standalone entry on that same horse
@@ -4393,7 +4432,7 @@ function pgEntries(){
           +(hCollapsed?'&#9654;':'&#9660;')+'</button>'
           +'<input type="number" value="'+(G.backNums[firstE.rowIndex]||'')+'" placeholder="—" '
           +'onclick="event.stopPropagation()" onchange="G.backNums['+firstE.rowIndex+']=this.value;saveEntriesToStorage()" '
-          +'style="width:42px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--accent);padding:3px 4px;text-align:center;font-size:.9rem"></td>'
+          +'style="width:60px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--accent);padding:3px 4px;text-align:center;font-size:.9rem"></td>'
           +'<td><div class="bold">'+esc(firstE.horse)+'</div>'
           +(firstE.horseGender?'<div class="small" style="color:var(--muted)">'+esc(firstE.horseGender)+'</div>':'')
           +'</td>'
@@ -13844,7 +13883,7 @@ function showEntryModal(rowIdx, startTab){
     G.entries.forEach(function(x){
       if(x.rowIndex===rowIdx) return;
       if(getCanonicalHorse(x.horse)===_entryCanonHorse && x.name && !_billerOpts.find(function(o){return _normStr(o.val)===_normStr(x.name);}))
-        _billerOpts.push({val:x.name, label:x.name+' (Co-rider)'});
+        _billerOpts.push({val:x.name, label:x.name+(x.isAdditionalRider?' (Co-rider)':' (Primary Rider)')});
     });
     // All other riders in the show (including sub-riders from any entry's riders array)
     // Dedup case-insensitively so 'john smith' and 'John Smith' don't create duplicate options
@@ -13910,11 +13949,11 @@ function showEntryModal(rowIdx, startTab){
         +'</span>'
         +'<span style="display:flex;align-items:center;gap:.35rem">'
         +(_billerOpts.length>1?billerSelHtml:'')
-        +'<span class="waive-amt" style="cursor:pointer;color:var(--text);padding:1px 4px;border-radius:3px;border:1px solid transparent" '
-        +'data-rowidx="'+rowIdx+'" data-desc="'+esc(l.desc)+'" data-amt="'+l.amt+'" '
+        +'<span class="waive-amt" style="cursor:pointer;'+(diffBiller?'color:var(--muted)':'color:var(--text)')+';padding:1px 4px;border-radius:3px;border:1px solid transparent" '
+        +'data-rowidx="'+rowIdx+'" data-desc="'+esc(l.desc)+'" data-amt="'+(l.origAmt||l.amt)+'" '
         +'title="Click to add a waiver or override for this class" '
         +'onmouseenter="this.style.borderColor=\'var(--border2)\'" onmouseleave="this.style.borderColor=\'transparent\'">'
-        +fmt$(l.amt)+'</span></span></div>';
+        +(diffBiller&&l.origAmt?'<s>'+fmt$(l.origAmt)+'</s>':fmt$(l.amt))+'</span></span></div>';
     };
 
     if(classLines.length){
@@ -14016,21 +14055,20 @@ function showEntryModal(rowIdx, startTab){
 
       +'</div></div>';
 
-    // ── Co-riders on the same horse (standalone entries with isAdditionalRider) ──
+    // ── Other riders on the same horse (shown from either rider's modal) ──
     G.entries.forEach(function(cr){
       if(cr.rowIndex===rowIdx) return;
       if(getCanonicalHorse(cr.horse)!==_entryCanonHorse) return;
-      if(!cr.isAdditionalRider) return;
       if(isFullScratched(cr.rowIndex)) return;
       var crLines=buildTabLines(cr);
       var crTotal=crLines.reduce(function(s,l){return s+(l.amt||0);},0);
       var crPaid=G.payments[cr.rowIndex]||0;
       var crBal=crTotal-crPaid;
-      var crCurBiller=cr.billedTo||_entryDesPri;
+      var crCurBiller=cr.billedTo||(G.horsePrimary&&G.horsePrimary[_entryCanonHorse])||cr.name;
       var crIsCustom=!_billerOpts.find(function(o){return _normStr(o.val)===_normStr(crCurBiller);});
       var crClassLines=crLines.filter(function(l){return l.type==='class';});
       feesHTML+='<div style="border-top:2px solid var(--border);margin-top:.75rem;padding-top:.65rem">'
-        +'<div style="font-size:.72rem;color:var(--accent);font-family:Oswald;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">Co-rider: '+esc(cr.name)+'</div>'
+        +'<div style="font-size:.72rem;color:var(--accent);font-family:Oswald;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">'+(cr.isAdditionalRider?'Co-rider: ':'Primary Rider: ')+esc(cr.name)+'</div>'
         +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.6rem .75rem;margin-bottom:.5rem">'
         +'<div style="font-size:.72rem;color:var(--muted);font-family:Oswald;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">Responsible Party</div>'
         +'<div style="display:flex;align-items:center;gap:.4rem">'
@@ -16717,7 +16755,12 @@ window._reopenPayerSummary=function(payKey){
 
 function showTabModal(name){
   var entries=G.entries.filter(function(e){ return _normStr(e.name)===_normStr(name); });
-  if(!entries.length) return;
+  if(!entries.length){
+    // Old-model: rider listed in e.riders[] with no standalone G.entries row — route to horse owner's modal
+    var ownerE=G.entries.find(function(e){ return (e.riders||[]).some(function(r){ return _normStr(r.name)===_normStr(name); }); });
+    if(ownerE) showEntryModal(ownerE.rowIndex,'fees');
+    return;
+  }
   var gK={};
   (G.billingGroups||[]).forEach(function(g){g.entryKeys.forEach(function(k){gK[k]=1;});});
   // Other riders' entries explicitly billed to this person
