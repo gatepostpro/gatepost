@@ -4139,7 +4139,9 @@ function pgEntries(){
 
   var totalFees=G.entries.reduce(function(s,e){ return s+tabTotal(e); },0);
   var totalPaid=G.entries.reduce(function(s,e){ return s+amtPaid(e); },0);
-  var uniqueRiders=new Set(G.entries.map(function(e){ return _normStr(e.name); })).size;
+  var _urSet=new Set(G.entries.map(function(e){ return _normStr(e.name); }));
+  G.entries.forEach(function(e){ (e.riders||[]).filter(function(r){return !r.isPrimary;}).forEach(function(r){_urSet.add(_normStr(r.name));}); });
+  var uniqueRiders=_urSet.size;
   var divCounts={};
   G.entries.forEach(function(e){ if(e.division) divCounts[e.division]=(divCounts[e.division]||0)+1; });
 
@@ -6792,6 +6794,14 @@ function pgTabs(){
       if(!byRider[nk]){ byRider[nk]=[]; byRiderDisplay[nk]=e.name; }
       byRider[nk].push(e);
     });
+    // Also include riders in e.riders[] (old model) who have no standalone G.entries row
+    G.entries.forEach(function(e){
+      if(groupedKeys[entryKey(e)]) return;
+      (e.riders||[]).filter(function(r){return !r.isPrimary;}).forEach(function(r){
+        var rk=_normStr(r.name);
+        if(!byRider[rk]){ byRider[rk]=[]; byRiderDisplay[rk]=r.name; }
+      });
+    });
     G._riderList=Object.keys(byRider).sort(function(a,b){
       var aN=byRiderDisplay[a]||a, bN=byRiderDisplay[b]||b;
       var aW=aN.trim().split(/\s+/),bW=bN.trim().split(/\s+/);
@@ -6855,14 +6865,14 @@ function pgTabs(){
           allHorses.push(ch); _ownHorseSet.add(ch);
         }
       });
-      var refIdx=entries[0].rowIndex;
+      var refIdx=entries.length?entries[0].rowIndex:-1;
       var badgeHtml='';
       var nEsc=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
       var totalCount=entries.length+billedFromOthers.length;
       t+='<tr style="cursor:pointer" onclick="showTabModal(\''+nEsc+'\')">'
         +'<td class="bold">'+esc(name)+badgeHtml+(billedFromOthers.length?'<span style="font-size:.65rem;color:var(--accent);margin-left:.4rem">+'+billedFromOthers.length+' billed</span>':'')+'</td>'
         +'<td class="small">'+esc([...new Set(allHorses)].join(', '))+'</td>'
-        +'<td class="ctr">'+(totalCount>1?totalCount+' horses':((entries[0].classes||[]).filter(function(c){return c.status!=='scratched'&&(!c.rider||_normStr(c.rider)===_normStr(entries[0].name));}).length+' cls'))+'</td>'
+        +'<td class="ctr">'+(totalCount>1?totalCount+' horses':(entries.length?((entries[0].classes||[]).filter(function(c){return c.status!=='scratched'&&(!c.rider||_normStr(c.rider)===_normStr(entries[0].name));}).length+' cls'):'co-rider'))+'</td>'
         +'<td>'+fmt$(owed)+'</td>'
         +'<td style="color:var(--green)">'+fmt$(paid)+'</td>'
         +'<td class="bold" style="color:'+(isPaid?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</td>'
@@ -14006,6 +14016,52 @@ function showEntryModal(rowIdx, startTab){
 
       +'</div></div>';
 
+    // ── Co-riders on the same horse (standalone entries with isAdditionalRider) ──
+    G.entries.forEach(function(cr){
+      if(cr.rowIndex===rowIdx) return;
+      if(getCanonicalHorse(cr.horse)!==_entryCanonHorse) return;
+      if(!cr.isAdditionalRider) return;
+      if(isFullScratched(cr.rowIndex)) return;
+      var crLines=buildTabLines(cr);
+      var crTotal=crLines.reduce(function(s,l){return s+(l.amt||0);},0);
+      var crPaid=G.payments[cr.rowIndex]||0;
+      var crBal=crTotal-crPaid;
+      var crCurBiller=cr.billedTo||_entryDesPri;
+      var crIsCustom=!_billerOpts.find(function(o){return _normStr(o.val)===_normStr(crCurBiller);});
+      var crClassLines=crLines.filter(function(l){return l.type==='class';});
+      feesHTML+='<div style="border-top:2px solid var(--border);margin-top:.75rem;padding-top:.65rem">'
+        +'<div style="font-size:.72rem;color:var(--accent);font-family:Oswald;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">Co-rider: '+esc(cr.name)+'</div>'
+        +'<div style="background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:.6rem .75rem;margin-bottom:.5rem">'
+        +'<div style="font-size:.72rem;color:var(--muted);font-family:Oswald;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">Responsible Party</div>'
+        +'<div style="display:flex;align-items:center;gap:.4rem">'
+        +'<select id="billed-to-sel-'+cr.rowIndex+'" style="'+_rpSelStyle+'" onchange="setBilledTo('+cr.rowIndex+',this.value)">'
+        +_billerOpts.map(function(o){return '<option value="'+esc(o.val)+'"'+(!crIsCustom&&_normStr(o.val)===_normStr(crCurBiller)?' selected':'')+'>'+esc(o.label)+'</option>';}).join('')
+        +'<option value="__custom__"'+(crIsCustom?' selected':'')+'>Custom name…</option>'
+        +'</select></div>'
+        +(crIsCustom
+          ?'<input type="text" id="billed-to-custom-'+cr.rowIndex+'" value="'+esc(crCurBiller)+'" placeholder="Enter name" '
+            +'style="'+_rpSelStyle+';margin-top:.35rem;width:100%;box-sizing:border-box" '
+            +'onblur="setBilledToCustom('+cr.rowIndex+',this.value)" onkeydown="if(event.key===\'Enter\')setBilledToCustom('+cr.rowIndex+',this.value)">'
+          :'<div id="billed-to-custom-'+cr.rowIndex+'" style="display:none"><input type="text" placeholder="Enter name" '
+            +'style="'+_rpSelStyle+';margin-top:.35rem;width:100%;box-sizing:border-box" '
+            +'onblur="setBilledToCustom('+cr.rowIndex+',this.value)" onkeydown="if(event.key===\'Enter\')setBilledToCustom('+cr.rowIndex+',this.value)"></div>')
+        +'</div>';
+      if(crClassLines.length){
+        feesHTML+='<div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:.4rem 0 .2rem">Classes</div>';
+        crClassLines.forEach(function(l){feesHTML+='<div class="tab-line"><span>'+esc(l.desc)+'</span><span>'+fmt$(l.amt)+'</span></div>';});
+      } else {
+        feesHTML+='<div style="font-size:.82rem;color:var(--muted);padding:.2rem 0">No classes entered</div>';
+      }
+      feesHTML+='<div class="tab-total" style="margin-top:.4rem"><span>Co-rider Total</span><span>'+fmt$(crTotal)+'</span></div>'
+        +'<div class="pay-status">'
+        +'<div style="flex:1"><div class="small">Paid</div><div class="bold" style="color:var(--green)">'+fmt$(crPaid)+'</div></div>'
+        +'<div style="flex:1"><div class="small">Balance</div><div class="bold" style="color:'+(crBal<=0?'var(--green)':'var(--red)')+'">'+fmt$(crBal)+'</div></div>'
+        +'<div>'+(crBal>0
+          ?'<button class="btn btn-green btn-sm" onclick="markPaid('+cr.rowIndex+','+crTotal+')">Mark Paid</button>'
+          :'<span class="badge b-green">&#10003; Paid</span>')
+        +'</div></div>'
+        +'</div>';
+    });
 
 
     // Stall split tab content
@@ -15101,10 +15157,10 @@ window.showAddRiderModal = function(ownerRowIdx){
 
   // Build existing rider dropdown — all unique names from G.entries, excluding anyone already on this horse
   var canonHorse = getCanonicalHorse(owner.horse);
-  // Names already riding this horse (from owner.riders[] and the owner themselves)
+  // Names already riding this horse (standalone entries + old-model riders[])
   var alreadyOnHorse = {};
-  alreadyOnHorse[_normStr(owner.name)] = true;
-  (owner.riders||[]).forEach(function(r){ alreadyOnHorse[_normStr(r.name)] = true; });
+  G.entries.forEach(function(x){ if(getCanonicalHorse(x.horse)===canonHorse) alreadyOnHorse[_normStr(x.name)]=true; });
+  G.entries.forEach(function(x){ (x.riders||[]).forEach(function(r){ alreadyOnHorse[_normStr(r.name)]=true; }); });
   // Build lookup array for fill-from-existing — includes standalone entries and co-riders from e.riders[]
   window._arExistingRiders = [];
   var existingOpts = '';
@@ -15391,7 +15447,23 @@ window.saveNewRiderEntry = function(ownerRowIdx){
 
 window.removeRider = function(ownerRowIdx, riderName){
   var e=G.entries.find(function(x){ return x.rowIndex===ownerRowIdx; });
-  if(!e||!e.riders) return;
+  if(!e) return;
+  // New model: standalone entry with isAdditionalRider — remove from G.entries
+  if(!e.riders){
+    var canon=getCanonicalHorse(e.horse);
+    var si=G.entries.findIndex(function(x){ return _normStr(x.name)===_normStr(riderName)&&getCanonicalHorse(x.horse)===canon&&x.isAdditionalRider; });
+    if(si>=0){
+      // Find the primary entry for this horse to re-open after removal
+      var _primEntry=G.entries.find(function(x){ return getCanonicalHorse(x.horse)===canon&&!x.isAdditionalRider; });
+      G.entries.splice(si,1);
+      saveEntriesToStorage();
+      closeModal();
+      pgEntries();
+      if(_primEntry) showEntryModal(_primEntry.rowIndex,'riders');
+    }
+    return;
+  }
+  // Old model: sub-rider in e.riders[]
   var idx=e.riders.findIndex(function(r){ return _normStr(r.name)===_normStr(riderName); });
   if(idx>=0) e.riders.splice(idx,1);
   saveEntriesToStorage();
@@ -17405,7 +17477,8 @@ function _aeSaveAsNewEntry(d){
     stallNote:d.stallingGroup||'',
     needsMembership:'', orgFees:[], customFees:{}, cognitoAmount:0, isPaid:false, source:'manual',
     practiceSessions:d.practiceSessions||[], clinics:d.clinics||[],
-    ownerDiffFromRider:d.ownerDiffFromRider||false, ownerMembs:d.ownerMembs||{}
+    ownerDiffFromRider:d.ownerDiffFromRider||false, ownerMembs:d.ownerMembs||{},
+    isAdditionalRider:d.isAdditionalRider||false, billedTo:''
   };
   G.entries.push(entry);
   G.payments[rowIndex] = 0;
@@ -17433,34 +17506,17 @@ function _aeAddToExistingHorse(existingRowIdx){
   var e = G.entries.find(function(x){ return x.rowIndex===existingRowIdx; });
   if(!e) return;
 
-  var newRiderName = d.first+' '+d.last;
+  // Use exact horse name and details from existing entry for consistency
+  d.horse       = e.horse;
+  d.horseGender = d.horseGender || e.horseGender || '';
+  d.horseOwner  = d.horseOwner  || e.horseOwner  || '';
+  d.horseRegNum = d.horseRegNum || e.horseRegNum  || '';
+  d.horseDob    = d.horseDob    || e.horseDob     || '';
+  // Mark as additional rider — no office fee, shows as co-rider in checkout
+  d.isAdditionalRider = true;
 
-  // Init riders array if not yet done
-  if(!e.riders) e.riders = [{name:e.name, division:e.division||'', isPrimary:true}];
-
-  // Add the new rider if not already present
-  if(!e.riders.find(function(r){ return _normStr(r.name)===_normStr(newRiderName); })){
-    var firstDiv = d.classes.length ? d.classes[0].division : '';
-    e.riders.push({name:newRiderName, division:firstDiv, isPrimary:false,
-      firstName:d.first, lastName:d.last, email:d.email, phone:d.phone});
-  }
-
-  // Add any classes the new rider selected (tagged with their name as rider)
-  d.classes.forEach(function(nc){
-    var alreadyIn = e.classes.find(function(ec){ return ec.num===nc.num && ec.status!=='scratched'; });
-    if(!alreadyIn){
-      e.classes.push({
-        num:nc.num, name:nc.name, division:nc.division, org:nc.org||'CoWN',
-        isCow:nc.isCow, fee:nc.fee||0, rider:newRiderName, status:'entered', addedDayOf:true
-      });
-    }
-  });
-
-  saveEntriesToStorage();
-  toast(newRiderName+' added to '+e.horse+' — open entry to manage billing');
-  closeModal();
-  // Open the entry modal on the Riders tab so secretary can manage immediately
-  showEntryModal(existingRowIdx, 'riders');
+  // Create a real standalone entry (same path as "Create separate entry")
+  _aeSaveAsNewEntry(d);
 }
 
 async function syncManualEntry(entry){
