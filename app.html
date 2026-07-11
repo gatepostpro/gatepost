@@ -2888,14 +2888,8 @@ function buildTabLines(entry){
 
       if(isScratched(key, entry.rowIndex)) return;
 
-      // Skip classes attributed to a co-rider who has their own standalone entry on this horse
-      if(cls.rider && _normStr(cls.rider) !== _normStr(entry.name)){
-        var _coHasOwn = G.entries.some(function(e2){
-          return _normStr(e2.name) === _normStr(cls.rider) &&
-                 getCanonicalHorse(e2.horse) === getCanonicalHorse(entry.horse);
-        });
-        if(_coHasOwn) return;
-      }
+      // Each rider pays for their own classes — skip any class attributed to a different rider
+      if(cls.rider && _normStr(cls.rider) !== _normStr(entry.name)) return;
 
       var cfgCls = G.cfg.classes.find(function(c){ return c.num === cls.num; });
 
@@ -2945,13 +2939,7 @@ function buildTabLines(entry){
     var orgCnt = {};
     entry.classes.forEach(function(cls){
       if(isScratched(clsKey(cls), entry.rowIndex)) return;
-      if(cls.rider && _normStr(cls.rider) !== _normStr(entry.name)){
-        var _pkgCoHasOwn = G.entries.some(function(e2){
-          return _normStr(e2.name) === _normStr(cls.rider) &&
-                 getCanonicalHorse(e2.horse) === getCanonicalHorse(entry.horse);
-        });
-        if(_pkgCoHasOwn) return;
-      }
+      if(cls.rider && _normStr(cls.rider) !== _normStr(entry.name)) return;
       var o = cls.org || 'CoWN';
       orgCnt[o] = (orgCnt[o]||0) + 1;
     });
@@ -3075,13 +3063,29 @@ function riderOwed(name){
     return (en===nn && eb===nn) || (en!==nn && eb===nn);
   });
   var total=paying.reduce(function(s,e){ return s+tabTotal(e); },0);
-  // Sub-rider: classes on OTHER entries where cls.rider matches name
+  // Sub-rider: classes on OTHER entries attributed to this rider via cls.rider
+  // buildTabLines now skips attributed classes, so compute fees directly here.
+  // Only applies when this rider has no standalone entry on that same horse
+  // (if they do, their tabTotal already covers their classes).
   G.entries.forEach(function(e){
     if(gK[entryKey(e)]) return;
-    if(_normStr(e.name)===nn) return;
-    if(_normStr(e.billedTo||'')===nn) return;
-    buildTabLines(e).forEach(function(l){
-      if(l.type==='class' && _normStr(l.rider||'')===nn) total+=l.amt;
+    if(_normStr(e.name)===nn) return; // own entries already counted above
+    if(_normStr(e.billedTo||e.name)===nn) return; // billed-to entries already counted above
+    if(isFullScratched(e.rowIndex)) return;
+    var _coHorse=getCanonicalHorse(e.horse);
+    // Skip if this rider already has their own entry on this horse
+    if(G.entries.some(function(e2){ return _normStr(e2.name)===nn&&getCanonicalHorse(e2.horse)===_coHorse; })) return;
+    var _f=G.cfg.fees;
+    (e.classes||[]).forEach(function(cls){
+      if(_normStr(cls.rider||'')!==nn) return;
+      if(isScratched(clsKey(cls), e.rowIndex)) return;
+      var _cfg=G.cfg.classes.find(function(c){ return c.num===cls.num; });
+      var _base=(_cfg&&_cfg.baseFee!=null)?_cfg.baseFee:(_f.classBase||0);
+      var _isC=/cutting/i.test(cls.name||'');
+      var _isCow=_isC||(_cfg?_cfg.isCow:COW_WORDS.some(function(k){return k.test(cls.name||'');}));
+      var _cow=_isCow?((_cfg&&_cfg.cowFee!=null)?_cfg.cowFee:(_isC?(_f.cuttingSurcharge||0):(_f.cowSurcharge||0))):0;
+      var _jp=(_cfg&&_cfg.jackpot)?_cfg.jackpot:0;
+      total+=_base+_cow+_jp;
     });
   });
   return total + buildRiderStallLines(name).reduce(function(s,l){ return s+l.amt; },0);
@@ -6840,6 +6844,17 @@ function pgTabs(){
       anyRow=true;
       var ownHorses=[...new Set(entries.map(function(e){ return getCanonicalHorse(e.horse); }))];
       var allHorses=ownHorses.concat(billedFromOthers.map(function(e){ return getCanonicalHorse(e.horse); }));
+      // Also include horses where this rider has attributed classes (cls.rider model, no own entry)
+      var _ownHorseSet=new Set(ownHorses);
+      G.entries.forEach(function(e){
+        if(_normStr(e.name)===nk) return;
+        if(_normStr(e.billedTo||e.name)===nk) return;
+        var ch=getCanonicalHorse(e.horse);
+        if(_ownHorseSet.has(ch)) return;
+        if((e.classes||[]).some(function(c){return _normStr(c.rider||'')===nk;})){
+          allHorses.push(ch); _ownHorseSet.add(ch);
+        }
+      });
       var refIdx=entries[0].rowIndex;
       var badgeHtml='';
       var nEsc=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
@@ -6847,7 +6862,7 @@ function pgTabs(){
       t+='<tr style="cursor:pointer" onclick="showTabModal(\''+nEsc+'\')">'
         +'<td class="bold">'+esc(name)+badgeHtml+(billedFromOthers.length?'<span style="font-size:.65rem;color:var(--accent);margin-left:.4rem">+'+billedFromOthers.length+' billed</span>':'')+'</td>'
         +'<td class="small">'+esc([...new Set(allHorses)].join(', '))+'</td>'
-        +'<td class="ctr">'+(totalCount>1?totalCount+' horses':((entries[0].classes||[]).filter(function(c){return c.status!=='scratched';}).length+' cls'))+'</td>'
+        +'<td class="ctr">'+(totalCount>1?totalCount+' horses':((entries[0].classes||[]).filter(function(c){return c.status!=='scratched'&&(!c.rider||_normStr(c.rider)===_normStr(entries[0].name));}).length+' cls'))+'</td>'
         +'<td>'+fmt$(owed)+'</td>'
         +'<td style="color:var(--green)">'+fmt$(paid)+'</td>'
         +'<td class="bold" style="color:'+(isPaid?'var(--green)':'var(--red)')+'">'+fmt$(bal)+'</td>'
@@ -6859,7 +6874,7 @@ function pgTabs(){
         var hBiller=e.billedTo||name;
         var billedAway=hBiller!==name;
         var hPaid=billedAway?0:amtPaid(e);
-        var hCls=(e.classes||[]).filter(function(c){return c.status!=='scratched';});
+        var hCls=(e.classes||[]).filter(function(c){return c.status!=='scratched'&&(!c.rider||_normStr(c.rider)===_normStr(e.name));});
         var payerPill=billedAway
           ?'<span style="font-size:.68rem;cursor:pointer;color:var(--accent);margin-left:.35rem" onclick="event.stopPropagation();quickAssignBiller('+e.rowIndex+')">→ '+esc(hBiller)+' &#9662;</span>'
           :'<span style="font-size:.67rem;cursor:pointer;color:var(--border2);margin-left:.35rem" onclick="event.stopPropagation();quickAssignBiller('+e.rowIndex+')">set payer &#9662;</span>';
@@ -6874,6 +6889,35 @@ function pgTabs(){
           +'<td><button class="btn btn-sm btn-dark" style="font-size:.65rem" '
           +'onclick="event.stopPropagation();showEntryModal('+e.rowIndex+');setTimeout(function(){switchModalTab(\'fees\')},50)">'
           +'&#9998; Fees</button></td>'
+          +'</tr>';
+      });
+      // Virtual sub-rows for attributed horses (cls.rider model, no own entry on that horse)
+      var _vrSeen=new Set(ownHorses);
+      G.entries.forEach(function(e){
+        if(_normStr(e.name)===nk) return;
+        if(_normStr(e.billedTo||e.name)===nk) return;
+        var ch=getCanonicalHorse(e.horse);
+        if(_vrSeen.has(ch)) return;
+        var vrCls=(e.classes||[]).filter(function(c){return _normStr(c.rider||'')===nk&&c.status!=='scratched'&&!isScratched(clsKey(c),e.rowIndex);});
+        if(!vrCls.length) return;
+        _vrSeen.add(ch);
+        var _f=G.cfg.fees;
+        var vrAmt=vrCls.reduce(function(s,cls){
+          var _cfg=G.cfg.classes.find(function(c){return c.num===cls.num;});
+          var _base=(_cfg&&_cfg.baseFee!=null)?_cfg.baseFee:(_f.classBase||0);
+          var _isC=/cutting/i.test(cls.name||'');
+          var _isCow=_isC||(_cfg?_cfg.isCow:COW_WORDS.some(function(k){return k.test(cls.name||'');}));
+          var _cow=_isCow?((_cfg&&_cfg.cowFee!=null)?_cfg.cowFee:(_isC?(_f.cuttingSurcharge||0):(_f.cowSurcharge||0))):0;
+          return s+_base+_cow+((_cfg&&_cfg.jackpot)?_cfg.jackpot:0);
+        },0);
+        var vrBadges=vrCls.map(function(c){return '<span style="font-size:.66rem;background:var(--card2);border:1px solid var(--border);border-radius:3px;padding:0 3px;margin-right:2px">'+esc(String(c.num||'?'))+'</span>';}).join('');
+        t+='<tr style="background:rgba(255,255,255,.015);border-top:none">'
+          +'<td style="padding-left:1.5rem;font-size:.82rem"><span style="color:var(--muted)">&#8627; </span><span style="font-weight:500">'+esc(e.horse||'—')+'</span><span style="font-size:.7rem;color:var(--muted);margin-left:.3rem">co-rider</span></td>'
+          +'<td class="small">'+vrBadges+'</td>'
+          +'<td></td>'
+          +'<td style="font-size:.85rem">'+fmt$(vrAmt)+'</td>'
+          +'<td></td><td></td><td></td>'
+          +'<td><button class="btn btn-sm btn-dark" style="font-size:.65rem" onclick="event.stopPropagation();showEntryModal('+e.rowIndex+')">&#9998; Fees</button></td>'
           +'</tr>';
       });
       // Sub-rows for other riders' entries billed to this rider
